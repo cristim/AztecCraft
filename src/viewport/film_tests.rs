@@ -220,3 +220,108 @@ fn overscan_scales_both_extents() {
     assert_close(tx, 1.2 * TX_DEFAULT, 1e-6, "tx");
     assert_close(ty, 1.2 * TX_DEFAULT / 1.5, 1e-6, "ty");
 }
+
+// T1b-2: offset, ffo, scales, roll
+
+/// NDC of the view-space point (x, y, z) through the projection alone.
+fn ndc(camera: &Camera, aspect: f32, view: [f32; 3]) -> [f64; 2] {
+    let clip =
+        camera.projection_matrix(aspect).unwrap() * Vec4::new(view[0], view[1], view[2], 1.0);
+    [f64::from(clip.x / clip.w), f64::from(clip.y / clip.w)]
+}
+
+#[test]
+fn film_offset_shifts_the_window_so_the_axis_moves_opposite() {
+    let camera = film_camera(|f| f.film_offset_in = [0.1, -0.05]);
+    let cx = 0.1 * 25.4 / 35.0;
+    let cy = -0.05 * 25.4 / 35.0;
+    // The axis point lands at -c / t; the point at tangent c lands at the window centre.
+    let [tx, ty] = [TX_DEFAULT, TX_DEFAULT / 1.5];
+    let axis = ndc(&camera, 1.5, [0.0, 0.0, -10.0]);
+    assert_close(axis[0], -cx / tx, 1e-6, "axis x");
+    assert_close(axis[1], -cy / ty, 1e-6, "axis y");
+    let centre = ndc(
+        &camera,
+        1.5,
+        [(cx * 10.0) as f32, (cy * 10.0) as f32, -10.0],
+    );
+    assert_close(centre[0], 0.0, 1e-6, "centre x");
+    assert_close(centre[1], 0.0, 1e-6, "centre y");
+}
+
+#[test]
+fn film_fit_offset_acts_on_the_free_axis_of_an_explicit_fit_only() {
+    let ffo = 0.2 * 25.4 / 35.0;
+    let horizontal = film_camera(|f| {
+        f.film_fit = FilmFit::Horizontal;
+        f.film_fit_offset_in = 0.2;
+    });
+    let at = ndc(&horizontal, 1.5, [0.0, 0.0, -10.0]);
+    assert_close(at[0], 0.0, 1e-6, "horizontal fit keeps x");
+    assert_close(
+        at[1],
+        -ffo / (TX_DEFAULT / 1.5),
+        1e-5,
+        "horizontal fit shifts y",
+    );
+    let vertical = film_camera(|f| {
+        f.film_fit = FilmFit::Vertical;
+        f.film_fit_offset_in = 0.2;
+    });
+    let at = ndc(&vertical, 1.5, [0.0, 0.0, -10.0]);
+    assert_close(
+        at[0],
+        -ffo / (TY_DEFAULT * 1.5),
+        1e-5,
+        "vertical fit shifts x",
+    );
+    assert_close(at[1], 0.0, 1e-6, "vertical fit keeps y");
+    for fit in [FilmFit::Fill, FilmFit::Overscan] {
+        let camera = film_camera(|f| {
+            f.film_fit = fit;
+            f.film_fit_offset_in = 0.2;
+        });
+        assert_eq!(ndc(&camera, 1.5, [0.0, 0.0, -10.0]), [0.0, 0.0], "{fit:?}");
+    }
+}
+
+#[test]
+fn roll_ninety_degrees_rotates_in_pixel_space() {
+    let camera = film_camera(|f| {
+        f.film_fit = FilmFit::Horizontal;
+        f.film_roll_degrees = 90.0;
+    });
+    // A = 1: (u, v) -> (-v, u). The point at u = 0.5, v = 0 goes to (0, 0.5).
+    let at = ndc(&camera, 1.0, [(TX_DEFAULT * 5.0) as f32, 0.0, -10.0]);
+    assert_close(at[0], 0.0, 1e-6, "A=1 x");
+    assert_close(at[1], 0.5, 1e-6, "A=1 y");
+    // A = 2: pixel space is (u * 2, v). (0, 0.5) -> p = (0, 0.5) -> (-0.5, 0) -> ndc (-0.25, 0).
+    let ty = TX_DEFAULT / 2.0;
+    let at = ndc(&camera, 2.0, [0.0, (ty * 5.0) as f32, -10.0]);
+    assert_close(at[0], -0.25, 1e-6, "A=2 x");
+    assert_close(at[1], 0.0, 1e-6, "A=2 y");
+}
+
+#[test]
+fn pre_and_post_scale_multiply_around_a_thirty_degree_roll() {
+    let camera = film_camera(|f| {
+        f.pre_scale = 2.0;
+        f.post_scale = 0.5;
+        f.film_roll_degrees = 30.0;
+    });
+    // u = 0.5, v = 0.25 at A = 1.5: p = (0.75, 0.25), rotated by 30 degrees, x divided by A.
+    let (s, c) = 30_f64.to_radians().sin_cos();
+    let expected = [(0.75 * c - 0.25 * s) / 1.5, 0.75 * s + 0.25 * c];
+    let tx = TX_DEFAULT;
+    let ty = TX_DEFAULT / 1.5;
+    let at = ndc(
+        &camera,
+        1.5,
+        [(0.5 * tx * 10.0) as f32, (0.25 * ty * 10.0) as f32, -10.0],
+    );
+    assert_close(at[0], expected[0], 1e-6, "x");
+    assert_close(at[1], expected[1], 1e-6, "y");
+    let scaled = film_camera(|f| f.pre_scale = 2.0);
+    let at = ndc(&scaled, 1.5, [(0.5 * tx * 10.0) as f32, 0.0, -10.0]);
+    assert_close(at[0], 1.0, 1e-6, "pre scale doubles");
+}
