@@ -13,6 +13,10 @@ use std::{
 };
 use uuid::Uuid;
 
+mod components;
+use components::ComponentMove;
+pub use components::MoveDirection;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ManipulationId(u64);
 
@@ -96,6 +100,11 @@ pub enum ManipulationKindState {
         handle: ScaleHandle,
         space: ScaleSpace,
     },
+    /// A component Move. `Axis` fills both fields; a free `Direction` leaves both `None`.
+    MoveComponents {
+        axis: Option<WorldAxis>,
+        space: Option<MoveSpace>,
+    },
 }
 
 /// Read-only view of the active manipulation; `parameter` is in the kind's internal unit
@@ -130,6 +139,7 @@ impl ManipulationState<'_> {
     pub fn move_axis(&self) -> Option<WorldAxis> {
         match self.kind {
             ManipulationKindState::Move { axis } => Some(axis),
+            ManipulationKindState::MoveComponents { axis, .. } => axis,
             ManipulationKindState::Rotate { .. } | ManipulationKindState::Scale { .. } => None,
         }
     }
@@ -143,6 +153,8 @@ impl ManipulationState<'_> {
 enum Undo {
     /// The previous baselines of the channels a preview wrote.
     Channels(Vec<ChannelBaseline>),
+    /// Preview the last parameter that worked again (a baseline write is absolute).
+    Parameter(f64),
 }
 
 /// The kind of manipulation and its kind-specific state; the guards in `History` are shared.
@@ -167,6 +179,7 @@ enum ManipulationKind {
         movers: Vec<(ScaleFrame, ChannelBaseline)>,
         covered_lead: Option<ChannelBaseline>,
     },
+    MoveComponents(ComponentMove),
 }
 
 impl ManipulationKind {
@@ -175,12 +188,13 @@ impl ManipulationKind {
             Self::Move { .. } => "Move",
             Self::Rotate { .. } => "Rotate",
             Self::Scale { .. } => "Scale",
+            Self::MoveComponents(_) => "Move",
         }
     }
 
     fn initial_parameter(&self) -> f64 {
         match self {
-            Self::Move { .. } | Self::Rotate { .. } => 0.0,
+            Self::Move { .. } | Self::Rotate { .. } | Self::MoveComponents(_) => 0.0,
             Self::Scale { .. } => 1.0,
         }
     }
@@ -196,6 +210,7 @@ impl ManipulationKind {
                 handle: *handle,
                 space: *space,
             },
+            Self::MoveComponents(component) => component.state(),
         }
     }
 
@@ -217,6 +232,7 @@ impl ManipulationKind {
                 .as_ref()
                 .or_else(|| movers.last().map(|mover| &mover.1)),
             Self::Rotate { baseline, .. } => Some(baseline),
+            Self::MoveComponents(_) => None,
         }
     }
 
@@ -227,8 +243,13 @@ impl ManipulationKind {
         scene: &mut NativeScene,
         parameter: f64,
         declared: Option<f64>,
+        last_good: f64,
     ) -> Result<(Undo, bool), NativeError> {
         let values = match self {
+            Self::MoveComponents(component) => {
+                let changed = component.preview(scene, parameter, last_good)?;
+                return Ok((Undo::Parameter(last_good), changed));
+            }
             Self::Move {
                 axis,
                 space,
@@ -269,6 +290,12 @@ impl ManipulationKind {
     fn undo(&self, scene: &mut NativeScene, undo: Undo) -> Result<(), NativeError> {
         match undo {
             Undo::Channels(previous) => scene.restore_channels_many(previous.iter()),
+            Undo::Parameter(last_good) => match self {
+                Self::MoveComponents(component) => {
+                    component.preview(scene, last_good, last_good).map(|_| ())
+                }
+                _ => Err(NativeError::UnsupportedEdit),
+            },
         }
     }
 
@@ -281,12 +308,34 @@ impl ManipulationKind {
                 scene.restore_channels_many(movers.iter().map(|(_, baseline)| baseline))
             }
             Self::Rotate { baseline, .. } => scene.restore_channels(baseline),
+            Self::MoveComponents(component) => component.restore(scene),
         }
     }
 
+    /// The command a commit applies, or `None` when the preview left the scene as it began.
+    fn pending(&self, scene: &NativeScene, parameter: f64) -> Result<Option<Command>, NativeError> {
+        if let Self::MoveComponents(component) = self {
+            return component.command(scene, parameter);
+        }
+        let mut changes = self.channel_changes(scene)?;
+        Ok(match changes.len() {
+            0 => None,
+            1 => {
+                let (id, channels) = changes.remove(0);
+                Some(Command::EditNode {
+                    id,
+                    name: None,
+                    channels,
+                })
+            }
+            _ => Some(Command::EditNodes(changes)),
+        })
+    }
+
     /// The channel edits a commit applies: one `(node, channels)` per node that changed.
-    fn changes(&self, scene: &NativeScene) -> Result<ChannelEdits, NativeError> {
+    fn channel_changes(&self, scene: &NativeScene) -> Result<ChannelEdits, NativeError> {
         match self {
+            Self::MoveComponents(_) => Ok(Vec::new()),
             Self::Move { movers, .. } => {
                 scene.channel_changes_many(movers.iter().map(|(_, baseline)| baseline))
             }
@@ -899,6 +948,7 @@ impl History {
             Self::touch(&mut self.scene, &mut self.revision),
             distance_cm,
             declared,
+            active.parameter,
         )?;
         if let Err(error) = ViewScene::from_native(&self.scene, active.view_budget) {
             active
@@ -930,27 +980,15 @@ impl History {
             .active_manipulation
             .take()
             .ok_or(ManipulationError::StaleManipulation)?;
-        let mut changes = active.kind.changes(&self.scene)?;
+        let pending = active.kind.pending(&self.scene, active.parameter)?;
         active.kind.restore(self.scene_mut())?;
-        if finish == ManipulationFinish::Cancel || changes.is_empty() {
-            return Ok(if changes.is_empty() {
-                EditOutcome::Unchanged
-            } else {
-                EditOutcome::Changed
-            });
+        match (pending, finish) {
+            (None, _) => Ok(EditOutcome::Unchanged),
+            (Some(_), ManipulationFinish::Cancel) => Ok(EditOutcome::Changed),
+            (Some(command), ManipulationFinish::Commit) => self
+                .execute_labeled(command, active.kind.label().to_string())
+                .map_err(Into::into),
         }
-        let command = if changes.len() == 1 {
-            let (id, channels) = changes.remove(0);
-            Command::EditNode {
-                id,
-                name: None,
-                channels,
-            }
-        } else {
-            Command::EditNodes(changes)
-        };
-        self.execute_labeled(command, active.kind.label().to_string())
-            .map_err(Into::into)
     }
 
     pub fn cancel_active_move(&mut self) -> Result<EditOutcome, ManipulationError> {
@@ -958,9 +996,9 @@ impl History {
         let Some(active) = self.active_manipulation.take() else {
             return Ok(EditOutcome::Unchanged);
         };
-        let changes = active.kind.changes(&self.scene)?;
+        let pending = active.kind.pending(&self.scene, active.parameter)?;
         active.kind.restore(self.scene_mut())?;
-        Ok(if changes.is_empty() {
+        Ok(if pending.is_none() {
             EditOutcome::Unchanged
         } else {
             EditOutcome::Changed
@@ -968,6 +1006,8 @@ impl History {
     }
 }
 
+#[cfg(test)]
+mod component_tests;
 #[cfg(test)]
 mod multi_tests;
 #[cfg(test)]

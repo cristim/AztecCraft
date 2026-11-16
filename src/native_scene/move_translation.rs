@@ -90,6 +90,11 @@ pub enum WorldMoveUnsupported {
     /// A selected ancestor also carries another instance of this uncovered selected object, whose
     /// translation would be applied twice there.
     AlternatePathAncestor,
+    /// A component Move follows the World or Object axes; the other Move Axis Orientation values
+    /// are not supported for components.
+    ComponentAxisOrientation,
+    /// A free component Move direction must be a finite, non-zero world vector.
+    ComponentDirection,
 }
 
 impl fmt::Display for WorldMoveUnsupported {
@@ -103,6 +108,12 @@ impl fmt::Display for WorldMoveUnsupported {
             }
             Self::AlternatePathAncestor => {
                 "a selected ancestor also carries another instance of this object, so it would move twice"
+            }
+            Self::ComponentAxisOrientation => {
+                "components move along the World or Object axes only"
+            }
+            Self::ComponentDirection => {
+                "a component Move direction must be a finite, non-zero world vector"
             }
         })
     }

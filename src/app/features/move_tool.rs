@@ -322,12 +322,7 @@ impl Editor {
     fn grid_snap_frame(&self, axis: WorldAxis) -> Result<(DVec3, DVec3), OperationError> {
         let lead = self.selected_move_lead()?;
         let origin = self.move_handle_origin(&lead)?;
-        let index = match axis {
-            WorldAxis::X => 0,
-            WorldAxis::Y => 1,
-            WorldAxis::Z => 2,
-        };
-        Ok((origin, self.move_handle_directions(&lead)?[index]))
+        Ok((origin, self.move_handle_directions(&lead)?[axis.index()]))
     }
 
     pub(in crate::app) fn begin_editor_move(
@@ -655,6 +650,11 @@ impl Editor {
                             angular_unit_name(&units.angular).to_owned(),
                         )
                     }
+                    ManipulationKindState::MoveComponents { .. } => {
+                        return Err(OperationError::InvalidInput(
+                            "Inspecting a component Move is not supported yet".into(),
+                        ));
+                    }
                     ManipulationKindState::Scale { handle, space } => (
                         "scale",
                         match space {
@@ -695,7 +695,8 @@ impl Editor {
                     value,
                     unit,
                     channels: match active.kind {
-                        ManipulationKindState::Move { .. } => "translate",
+                        ManipulationKindState::Move { .. }
+                        | ManipulationKindState::MoveComponents { .. } => "translate",
                         ManipulationKindState::Rotate { .. } => "rotate",
                         ManipulationKindState::Scale { .. } => "scale",
                     },
