@@ -1,5 +1,9 @@
 //! Recorded violations: dialogs.
 
+/// Recorded on Windows only, see `gaps::WINDOWS`.
+pub(super) const WINDOWS_GAPS: &[&str] =
+    &["prompt-unsaved-scene|R3|Button|root/<Window>#0/Save As..."];
+
 pub(super) const GAPS: &[&str] = &[
     "prompt-unsaved-scene|R3-modal-background",
     "prompt-unsaved-scene|R3|Button|root/<Window>#0/Save",

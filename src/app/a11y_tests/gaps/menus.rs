@@ -1,5 +1,9 @@
 //! Recorded violations: menus.
 
+/// Recorded on Windows only, see `gaps::WINDOWS`.
+pub(super) const WINDOWS_GAPS: &[&str] =
+    &["menu-file|R3|Button|root/<Window>#0/File/Save Scene As   Ctrl/Cmd Shift S"];
+
 pub(super) const GAPS: &[&str] = &[
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Disc",
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Gear",

@@ -335,6 +335,6 @@ fn gate_matches_the_recorded_gaps() {
         SCENARIOS,
         "update SCENARIOS with the line added to or dropped from `all`"
     );
-    let failures = ratchet_failures(&scenarios, &gaps::AREAS);
+    let failures = ratchet_failures(&scenarios, &gaps::recorded());
     assert!(failures.is_empty(), "\n{}\n", failures.join("\n"));
 }
