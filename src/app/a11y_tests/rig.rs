@@ -1,7 +1,7 @@
 //! A real `Editor` driven frame by frame with AccessKit enabled, for the scenarios.
 
 use crate::app::Editor;
-use crate::app::tests::frame_with;
+use crate::app::tests::{click_at, frame_with};
 use crate::editor_operations::{ActiveTool, Operation};
 use azteccraft::scene::Primitive;
 use eframe::egui::{self, accesskit::TreeUpdate};
@@ -56,6 +56,30 @@ impl Rig {
 
     pub(super) fn tool(&mut self, tool: ActiveTool) {
         self.editor.native_operation(Operation::SetActiveTool(tool));
+        self.settle();
+    }
+
+    /// Centre of the topmost node named exactly `label`.
+    pub(super) fn find(&self, label: &str) -> egui::Pos2 {
+        self.update()
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.label() == Some(label))
+            .filter_map(|(_, node)| node.bounds())
+            .min_by(|a, b| a.y0.total_cmp(&b.y0))
+            .map(|b| egui::pos2(((b.x0 + b.x1) / 2.0) as f32, ((b.y0 + b.y1) / 2.0) as f32))
+            .unwrap_or_else(|| panic!("no AccessKit node named {label:?}"))
+    }
+
+    pub(super) fn click(&mut self, label: &str) {
+        let at = self.find(label);
+        self.output = click_at(&mut self.editor, &self.ctx, SIZE, at);
+    }
+
+    /// Submenus open on hover.
+    pub(super) fn hover(&mut self, label: &str) {
+        let at = self.find(label);
+        self.frame(vec![egui::Event::PointerMoved(at)]);
         self.settle();
     }
 }
