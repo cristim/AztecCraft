@@ -3,6 +3,22 @@ use super::{NativeError, NativeScene};
 use crate::camera_optics::{CameraOptics, FilmFit, FilmRollOrder, OpticalProjection};
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct CameraBinding {
+    pub original: CameraOptics,
+    pub words: [Option<std::ops::Range<usize>>; 18],
+    pub blocked: bool,
+}
+impl Default for CameraBinding {
+    fn default() -> Self {
+        Self {
+            original: CameraOptics::node_default(),
+            words: Default::default(),
+            blocked: false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SceneCamera {
@@ -87,10 +103,37 @@ impl NativeScene {
         camera: SceneCamera,
         optics: CameraOptics,
     ) -> Result<(), NativeError> {
-        if self.source.is_some() {
-            return Err(NativeError::UnsupportedEdit);
-        }
         validate_optics(optics)?;
+        if let Some(source) = &self.source {
+            if source.format != super::source::SourceFormat::Binary {
+                return Err(NativeError::UnsupportedEdit);
+            }
+            let binding = self.camera_bindings[camera.index()]
+                .as_ref()
+                .ok_or(NativeError::UnsupportedEdit)?;
+            if binding.blocked || !self.removed.is_empty() {
+                return Err(NativeError::UnsupportedEdit);
+            }
+            let current = self.cameras[camera.index()].ok_or(NativeError::UnsupportedEdit)?;
+            for (i, (a, b)) in current
+                .values()
+                .into_iter()
+                .zip(optics.values())
+                .enumerate()
+            {
+                if a.to_bits() != b.to_bits() && binding.words[i].is_none() {
+                    return Err(NativeError::UnsupportedEdit);
+                }
+            }
+            if (current.film_fit != optics.film_fit && binding.words[16].is_none())
+                || (current.film_roll_order != optics.film_roll_order
+                    && binding.words[17].is_none())
+            {
+                return Err(NativeError::UnsupportedEdit);
+            }
+            self.cameras[camera.index()] = Some(optics);
+            return Ok(());
+        }
         // Implicit built-in defaults carry no authored statement. Reverting removes the override.
         self.cameras[camera.index()] = (optics != CameraOptics::node_default()).then_some(optics);
         Ok(())
@@ -206,7 +249,7 @@ mod tests {
                 decoded.scene().camera_optics(camera)
             );
         }
-        assert!(super::super::binary::encode_authored(&scene).is_err());
+        assert!(super::super::binary::encode_authored(&scene).is_ok());
         assert!(decoded.scene().nodes().is_empty());
     }
     #[test]

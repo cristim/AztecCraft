@@ -39,7 +39,10 @@ fn same_node_structure(a: &NativeTransformNode, b: &NativeTransformNode) -> bool
 }
 
 fn same_structure(a: &NativeScene, b: &NativeScene) -> bool {
-    a.cameras == b.cameras
+    a.cameras
+        .iter()
+        .zip(&b.cameras)
+        .all(|(a, b)| a.is_some() == b.is_some())
         && a.units == b.units
         && a.dag == b.dag
         && a.shapes == b.shapes
@@ -142,6 +145,15 @@ fn encode_with(
     elided: &[(NativeId, TransformField)],
 ) -> Result<Vec<u8>, BinaryError> {
     let removing = !scene.removed.is_empty();
+    if !plan.is_empty()
+        && scene
+            .cameras
+            .iter()
+            .zip(&scene.camera_bindings)
+            .any(|(o, b)| matches!((o,b),(Some(o),Some(b)) if *o!=b.original))
+    {
+        return Err(unsupported());
+    }
     if !scene.curves.is_empty() || (removing && !plan.is_empty()) {
         return Err(unsupported());
     }
@@ -159,7 +171,8 @@ fn encode_with(
         if removing {
             original.apply_removal(&scene.removed);
         }
-        if !same_structure(scene, &original)
+        if scene.camera_bindings != original.camera_bindings
+            || !same_structure(scene, &original)
             || original.source.as_ref() != Some(source)
             || original.removed != scene.removed
         {
@@ -234,6 +247,7 @@ fn encode_with(
             }
         }
     }
+    super::camera::patch(scene, &mut output)?;
     for value in &scene.materials {
         if !value.replaced {
             continue;
@@ -342,7 +356,7 @@ fn verify(
     skip: &[(NativeId, TransformField)],
     appearance: Appearance,
 ) -> Result<(), BinaryError> {
-    if !same_structure(structure, parsed) {
+    if scene.cameras != parsed.cameras || !same_structure(structure, parsed) {
         return Err(unsupported());
     }
     if appearance == Appearance::Exact {

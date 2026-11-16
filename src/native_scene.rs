@@ -600,6 +600,7 @@ impl AuthoredDocumentId {
 #[derive(Clone)]
 pub struct NativeScene {
     cameras: [Option<crate::camera_optics::CameraOptics>; 4],
+    camera_bindings: [Option<camera::CameraBinding>; 4],
     nodes: Vec<NativeTransformNode>,
     shapes: Vec<NativeMeshShape>,
     curves: Vec<NativeCurveShape>,
@@ -765,7 +766,8 @@ impl InternalTransform {
 // Document identity is save authority, not editable scene content or dirty state.
 impl PartialEq for NativeScene {
     fn eq(&self, other: &Self) -> bool {
-        self.cameras == other.cameras
+        self.camera_bindings == other.camera_bindings
+            && self.cameras == other.cameras
             && self.nodes == other.nodes
             && self.shapes == other.shapes
             && self.curves == other.curves
@@ -785,6 +787,7 @@ impl Default for NativeScene {
     fn default() -> Self {
         Self {
             cameras: [None; 4],
+            camera_bindings: Default::default(),
             nodes: Vec::new(),
             shapes: Vec::new(),
             curves: Vec::new(),

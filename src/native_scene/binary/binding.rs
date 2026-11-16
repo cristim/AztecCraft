@@ -449,6 +449,7 @@ pub(super) fn construct(
     let units = units(container, &mut budget)?;
     let mut scene = NativeScene {
         cameras: [None; 4],
+        camera_bindings: Default::default(),
         nodes: budget.vector(counts.transforms)?,
         shapes: budget.vector(counts.shapes)?,
         curves: Vec::new(),

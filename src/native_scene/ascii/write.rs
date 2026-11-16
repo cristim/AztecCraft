@@ -287,7 +287,8 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
     // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
     let NativeScene {
         // Covered by `check_content_kind` and `check_scene` above.
-        cameras: _, // Emitted as native select/setAttr on built-in camera shapes below.
+        camera_bindings: _, // Retained bindings require a source, refused above.
+        cameras: _,         // Emitted as native select/setAttr on built-in camera shapes below.
         nodes: _,
         shapes: _,
         curves: _,

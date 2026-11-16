@@ -2,6 +2,7 @@ mod admission;
 pub(crate) use admission::MAX_WORK as MAX_ADMISSION_WORK;
 mod appearance;
 mod binding;
+mod camera;
 mod encode;
 mod removal;
 mod write;
@@ -127,10 +128,20 @@ fn decode_with_retained_bytes(
     )?;
     let container = container::inspect(source)?;
     let facts = semantic::decode_records(&container)?;
-    binding::construct(
+    let camera_scratch = container
+        .chunks()
+        .len()
+        .checked_mul(std::mem::size_of::<Option<super::SceneCamera>>())
+        .ok_or_else(resource)?;
+    let mut scene = binding::construct(
         &container,
         &facts,
-        retained_bytes,
+        retained_bytes
+            .checked_add(camera_scratch)
+            .ok_or_else(resource)?,
         retained_appearance_bytes,
-    )
+    )?;
+    camera::decode(&mut scene, &container, &facts)?;
+    scene.validate().map_err(|e| canonical(e, None))?;
+    Ok(scene)
 }

@@ -94,6 +94,7 @@ fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
             children.push(mesh::dmsh(shape.name(), node.name(), uuid, shape.mesh())?);
         }
     }
+    children.extend(super::camera::authored(scene)?);
     let bytes = chunk::group(*b"Maya", profile::ROOT_AUX, &children, chunk::Align::One)?;
     check::verify(scene, &bytes)?;
     Ok(bytes)
@@ -113,7 +114,8 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
     // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
     let NativeScene {
         // Covered by `check_content_kind` and the structure checks above.
-        cameras,
+        cameras: _,
+        camera_bindings: _,
         nodes: _,
         shapes: _,
         curves: _,
@@ -145,11 +147,6 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         session_joints: _,
         session_keys: _,
     } = scene;
-    if cameras.iter().any(Option::is_some) {
-        return Err(AuthoredBinaryRefusal::Ineligible(
-            AuthoredIneligible::InvalidScene(crate::native_scene::NativeError::UnsupportedEdit),
-        ));
-    }
     if *session_materials != SessionMaterials::default() {
         return Err(AuthoredBinaryRefusal::SessionMaterials);
     }

@@ -62,7 +62,7 @@ pub(in crate::native_scene::binary) fn leaf(
 
 /// A `FOR8` group. Each child must already be padded to this group's own child
 /// alignment, which is the one the container assigns to `form`.
-pub(super) fn group(
+pub(in crate::native_scene::binary) fn group(
     form: [u8; 4],
     aux: u32,
     children: &[Vec<u8>],

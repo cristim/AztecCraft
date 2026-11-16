@@ -1,6 +1,8 @@
 # Camera optics and film back (#458)
 
-Status: research and implementation plan only; no new camera capability implemented.
+Status: optical core, built-in scene state, authored ASCII persistence and binary
+scalar read/write foundations implemented. Native/MCP adapters, projection wiring
+and focal-length animation remain in progress; #458 is not complete.
 Owner: `codex-458-film-back`. Independent reviewer: `codex-458-film-back-reviewer`.
 Baseline: `308e2939`; #452 / PR #468 is a separate, unmerged camera-navigation change.
 
@@ -147,3 +149,41 @@ maintainer sign-off. No parity claim follows from this plan.
 [create]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Rendering/files/GUID-C668AE39-9D09-4EFA-932E-E3D4AFF8C099.htm
 [api]: https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/class_m_fn_camera.html
 [keys]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/setKeyframe.html
+
+## Implemented codec boundary (2026-11-15)
+
+The scene now owns optional optical overrides for the four exact built-in camera
+shapes. Absent built-in state uses the node Horizontal fit; Create Camera Options
+Fill is a distinct constructor. An authored edit back to the implicit default
+removes its override. ASCII output selects the native built-in shape and writes
+ordinary `setAttr` values. Film roll uses an explicit `rad` unit suffix to avoid
+loss from converting a stored f64 angle through decimal degrees. Empty scenes
+and mesh scenes re-open through the existing exact re-emission gate. Imported
+ASCII camera state stays read-only; custom camera shapes remain unsupported.
+
+Binary output uses native `FOR8 SLCT` groups selecting rooted built-in camera
+names and `DBLE` scalar attributes, not metadata or embedded scripts. Inner
+children align to eight bytes, outer groups to four. The aux word `0xa8000000`
+is observed on the pinned Maya 2025 fixture's SLCT groups and children. The
+fixture also stores camera scalar focal length and boolean values as eight-byte
+big-endian DBLE words. The additional optical keys and integral enum values
+are a PROVISIONAL authored profile: this fixture does not carry camera film-fit
+or roll-order overrides. The independent raw-word tests verify exact field
+layout and scalar values; they do not prove Maya accepts this authored profile.
+
+A separate camera binding table retains original values and exact proven scalar
+ranges. Source-bound binary edits require those ranges and reject missing
+attributes, unfamiliar camera records, connected camera attributes, and camera
+edits combined with deletion or transform insertion. Reparse checks originals
+and metadata before patching, then verifies effective optical values afterwards.
+Unchanged source bytes stay untouched, repeated encoding is deterministic and
+reverting restores original words. Other camera node classes/layouts, compound
+optical records, camera animation and source-bound insertion remain unsupported.
+
+Additional permitted source audit (2026-11-15):
+[MayaSceneKit scalar decoding at pinned commit 95a11db][msk-values], MIT by
+Takayoshi Matsumoto, reads DBLE scalar payloads as f64 and emits scalar SetAttr
+operations. This supports the scalar interpretation, not the exact camera enum
+encoding or acceptance by Maya. No source implementation was copied.
+
+[msk-values]: https://github.com/yamahigashi/MayaSceneKit/blob/95a11db062689285604b3a647385dc9388402865/crates/maya-scene-kit-observe/src/scene/decode/attr/values.rs
