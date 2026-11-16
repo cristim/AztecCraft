@@ -365,3 +365,120 @@ fn a_fifo_and_a_symlink_loop_are_refused_typed() {
         Err(PlateError::Io(_))
     ));
 }
+
+fn hundred_byte_frames() -> DecodeFn {
+    Arc::new(|_, frame| {
+        Ok(PlateFrame {
+            width: 1,
+            height: 25,
+            rgba: vec![frame as u8; 100],
+        })
+    })
+}
+
+#[test]
+fn a_repeated_oversized_window_never_takes_the_cache_over_its_budget() {
+    let wakes = Arc::new(AtomicUsize::new(0));
+    let mut stream =
+        PlateStream::with_budget(hundred_byte_frames(), counting_wake(&wakes), 24, 400);
+    stream.set_source(source("a"));
+    let window: Vec<i64> = (0..20).collect();
+    until(|| {
+        stream.tick(&window);
+        (0..4).all(|frame| matches!(stream.state(frame), FrameState::Ready(_)))
+    });
+    for _ in 0..300 {
+        stream.tick(&window);
+        assert!(
+            stream.cache().total_bytes() <= 400,
+            "{}",
+            stream.cache().total_bytes()
+        );
+        assert!(stream.cache().len() <= 4, "{}", stream.cache().len());
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(
+        (stream.cache().len(), stream.cache().total_bytes()),
+        (4, 400)
+    );
+}
+
+#[test]
+fn the_frame_on_screen_stays_cached_while_the_window_moves() {
+    let wakes = Arc::new(AtomicUsize::new(0));
+    let mut stream =
+        PlateStream::with_budget(hundred_byte_frames(), counting_wake(&wakes), 24, 200);
+    stream.set_source(source("a"));
+    ready(&mut stream, &[0], 0);
+    for next in 1..=6 {
+        ready(&mut stream, &[0, next], next);
+        // `contains` does not refresh recency, so only the pin keeps frame 0.
+        let on_screen = FrameKey {
+            generation: stream.generation(),
+            frame: 0,
+        };
+        assert!(
+            stream.cache().contains(on_screen),
+            "frame 0 evicted at {next}"
+        );
+        assert!(stream.cache().total_bytes() <= 200);
+    }
+}
+
+/// 100-byte frames that count their calls.
+fn counting_hundred_byte_frames(calls: &Calls) -> DecodeFn {
+    let calls = Arc::clone(calls);
+    Arc::new(move |_, frame| {
+        calls.lock().unwrap().push(frame);
+        Ok(PlateFrame {
+            width: 1,
+            height: 25,
+            rgba: vec![frame as u8; 100],
+        })
+    })
+}
+
+#[test]
+fn an_oversized_window_is_clipped_to_the_capacity_and_then_goes_quiet() {
+    let calls = Calls::default();
+    let wakes = Arc::new(AtomicUsize::new(0));
+    let decode = counting_hundred_byte_frames(&calls);
+    let mut stream = PlateStream::with_budget(decode, counting_wake(&wakes), 24, 400);
+    stream.set_source(source("a"));
+    let window: Vec<i64> = (0..20).collect();
+    until(|| {
+        stream.tick(&window);
+        (0..4).all(|frame| matches!(stream.state(frame), FrameState::Ready(_)))
+    });
+    for _ in 0..200 {
+        stream.tick(&window);
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert!(!stream.tick(&window), "nothing is outstanding once settled");
+    // Capacity 4, plus at most the frames already in flight when the first result fixed it.
+    let decoded = calls.lock().unwrap().len();
+    assert!((4..=6).contains(&decoded), "decoded {decoded} of 20");
+}
+
+#[test]
+fn a_frame_of_another_size_fails_as_a_dimension_mismatch() {
+    let decode: DecodeFn = Arc::new(|_, frame| {
+        let height = if frame == 1 { 50 } else { 25 };
+        Ok(PlateFrame {
+            width: 1,
+            height,
+            rgba: vec![0; height as usize * 4],
+        })
+    });
+    let (mut stream, _) = stream(decode);
+    stream.set_source(source("a"));
+    ready(&mut stream, &[0, 1, 2], 2);
+    assert!(matches!(
+        stream.state(1),
+        FrameState::Failed(PlateError::DimensionMismatch)
+    ));
+    assert_eq!(stream.cache().total_bytes(), 200);
+    // A new source may have another size.
+    stream.set_source(source("b"));
+    assert_eq!(ready(&mut stream, &[1], 1).height, 50);
+}
