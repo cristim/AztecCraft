@@ -1122,10 +1122,15 @@ impl Editor {
                     .scene()
                     .resolve_vertex_set(&target)
                     .map_err(OperationError::Scene)?;
+                let delta_cm = self
+                    .history
+                    .scene()
+                    .declared_vector_to_cm(delta)
+                    .map_err(OperationError::Scene)?;
                 Command::MoveVertices {
                     shape: target.shape,
                     vertices: target.vertex_indices,
-                    delta,
+                    delta_cm,
                 }
             }
             Operation::CreateJoint {

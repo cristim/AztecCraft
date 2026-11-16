@@ -435,3 +435,26 @@ fn preview_equals_translate_points_bit_for_bit() {
         assert_eq!(bits(&points_of(&previewed)), bits(&points_of(&translated)));
     }
 }
+
+#[test]
+fn declared_vectors_convert_by_the_linear_unit_and_refuse_an_unsupported_one() {
+    let (mut scene, _) = test_fixtures::cube();
+    for (unit, factor) in [
+        (LinearUnit::Centimeter, 1.0),
+        (LinearUnit::Millimeter, 0.1),
+        (LinearUnit::Meter, 100.0),
+        (LinearUnit::Inch, 2.54),
+        (LinearUnit::Foot, 30.48),
+    ] {
+        scene.units.linear = unit;
+        assert_eq!(
+            scene.declared_vector_to_cm([2.0, -0.5, 0.0]).unwrap(),
+            [2.0 * factor, -0.5 * factor, 0.0]
+        );
+    }
+    scene.units.linear = LinearUnit::Unsupported("parsec".into());
+    assert_eq!(
+        scene.declared_vector_to_cm([1.0; 3]),
+        Err(NativeError::UnsupportedLinearUnit)
+    );
+}

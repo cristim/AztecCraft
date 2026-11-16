@@ -99,11 +99,12 @@ pub enum Command {
         face_index: usize,
         distance: f64,
     },
-    /// Moves vertices of one shape by `delta` (scene units, mesh axes) as one undo step.
+    /// Moves vertices of one shape by `delta_cm` (centimetres, mesh axes) as one undo step. A
+    /// caller holding declared scene units converts with `NativeScene::declared_vector_to_cm`.
     MoveVertices {
         shape: NativeId,
         vertices: Vec<usize>,
-        delta: [f64; 3],
+        delta_cm: [f64; 3],
     },
     CreateJoint(JointRequest),
     /// Keys every node at `frame`, as one undo step, then evaluates at `current_frame`.
@@ -677,10 +678,9 @@ impl History {
             Command::MoveVertices {
                 shape,
                 vertices,
-                delta,
+                delta_cm,
             } => {
-                let factor = candidate.units().linear_factor()?;
-                candidate.move_vertices(shape, &vertices, delta.map(|v| v * factor))?;
+                candidate.move_vertices(shape, &vertices, delta_cm)?;
                 ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(moved_view_refusal)?;
                 EditOutcome::Changed
             }
