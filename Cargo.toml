@@ -11,7 +11,7 @@ default = ["desktop"]
 desktop = ["dep:eframe", "dep:rfd"]
 mcp = ["desktop", "dep:rmcp", "dep:tokio", "dep:tokio-util", "dep:futures-util"]
 mcp-test-client = ["mcp", "rmcp/client"]
-scripting = ["desktop"]
+scripting = ["desktop", "dep:wasmtime"]
 
 [[bin]]
 name = "azteccraft"
@@ -38,10 +38,12 @@ rmcp = { version = "=3.9.0", default-features = false, features = ["server", "tr
 tokio = { version = "=1.54.1", features = ["rt", "macros", "sync", "time", "io-std", "io-util"], optional = true }
 tokio-util = { version = "=0.7.20", features = ["codec", "rt"], optional = true }
 futures-util = { version = "=0.3.34", features = ["sink"], optional = true }
+wasmtime = { version = "=48.0.8", default-features = false, features = ["runtime", "cranelift", "std"], optional = true }
 
 [dev-dependencies]
 pollster = "=1.0.1"
 tempfile = "=3.27.0"
+wat = "=1.263.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 macos-quit-menu = { path = "crates/macos-quit-menu" }
