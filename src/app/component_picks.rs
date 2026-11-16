@@ -4,7 +4,7 @@
 //! readers see. Reached only through `Editor` accessors.
 
 use super::Editor;
-use crate::editor_operations::ComponentKind;
+use crate::editor_operations::{ComponentKind, SelectionMode};
 use azteccraft::native_scene::{ComponentCounts, EdgeTarget, FaceTarget, NativeId, VertexTarget};
 use azteccraft::scene::NodeId;
 use azteccraft::selection::{ComponentOwner, ComponentSet};
@@ -33,13 +33,16 @@ pub(super) struct ComponentPrunes {
 }
 
 impl Prune {
-    fn apply(self, set: &mut ComponentSet) {
+    /// Whether the set changed.
+    fn apply(self, set: &mut ComponentSet) -> bool {
         match self {
-            Self::Keep => {}
-            Self::Clear => set.clear(),
-            Self::Below(count) => {
-                set.retain(|index| index < count);
+            Self::Keep => false,
+            Self::Clear => {
+                let changed = !set.is_empty();
+                set.clear();
+                changed
             }
+            Self::Below(count) => set.retain(|index| index < count),
         }
     }
 }
@@ -100,26 +103,52 @@ impl Editor {
         })
     }
 
+    /// The one staleness token for the selection a remote caller inspected: the object
+    /// selection's generation plus a count of every component-set and selection-mode change.
+    /// Both parts only grow, so the sum never repeats a value and cannot collide across modes
+    /// or return to an old value (a wrap takes 2^64 changes). It guards the selection, not the
+    /// geometry: an undo or redo that moves points does not change it.
+    pub(super) fn selection_generation(&self) -> u64 {
+        self.selection.generation().wrapping_add(self.pick_epoch)
+    }
+
+    fn bump_pick_epoch(&mut self, changed: bool) -> bool {
+        if changed {
+            self.pick_epoch = self.pick_epoch.wrapping_add(1);
+        }
+        changed
+    }
+
+    /// Sets the selection mode; whether it changed.
+    pub(super) fn set_selection_mode_field(&mut self, mode: SelectionMode) -> bool {
+        let changed = self.selection_mode != mode;
+        self.selection_mode = mode;
+        self.bump_pick_epoch(changed)
+    }
+
     /// Makes `target` the only selected face, or empties the set.
     pub(super) fn set_remembered_face(&mut self, target: Option<FaceTarget>) -> bool {
-        replace_one(
+        let changed = replace_one(
             &mut self.picks.faces,
             target.map(|t| (t.transform, t.shape, t.path, t.face_index)),
-        )
+        );
+        self.bump_pick_epoch(changed)
     }
 
     pub(super) fn set_remembered_vertex(&mut self, target: Option<VertexTarget>) -> bool {
-        replace_one(
+        let changed = replace_one(
             &mut self.picks.vertices,
             target.map(|t| (t.transform, t.shape, t.path, t.vertex_index)),
-        )
+        );
+        self.bump_pick_epoch(changed)
     }
 
     pub(super) fn set_remembered_edge(&mut self, target: Option<EdgeTarget>) -> bool {
-        replace_one(
+        let changed = replace_one(
             &mut self.picks.edges,
             target.map(|t| (t.transform, t.shape, t.path, t.edge_index)),
-        )
+        );
+        self.bump_pick_epoch(changed)
     }
 
     pub(super) fn component_set(&self, kind: ComponentKind) -> &ComponentSet {
@@ -130,16 +159,27 @@ impl Editor {
         }
     }
 
-    pub(super) fn component_set_mut(&mut self, kind: ComponentKind) -> &mut ComponentSet {
-        match kind {
+    /// Edits one set through `change`, which reports whether it changed the set.
+    pub(super) fn modify_component_set(
+        &mut self,
+        kind: ComponentKind,
+        change: impl FnOnce(&mut ComponentSet) -> bool,
+    ) -> bool {
+        let set = match kind {
             ComponentKind::Face => &mut self.picks.faces,
             ComponentKind::Vertex => &mut self.picks.vertices,
             ComponentKind::Edge => &mut self.picks.edges,
-        }
+        };
+        let changed = change(set);
+        self.bump_pick_epoch(changed)
     }
 
     pub(super) fn clear_remembered_components(&mut self) {
+        let held = !(self.picks.faces.is_empty()
+            && self.picks.vertices.is_empty()
+            && self.picks.edges.is_empty());
         self.picks = ComponentPicks::default();
+        self.bump_pick_epoch(held);
     }
 
     /// Decides, with one owner resolution per set, which members survive the current scene and
@@ -172,8 +212,11 @@ impl Editor {
     }
 
     pub(super) fn apply_component_prunes(&mut self, prunes: ComponentPrunes) {
-        prunes.faces.apply(&mut self.picks.faces);
-        prunes.vertices.apply(&mut self.picks.vertices);
-        prunes.edges.apply(&mut self.picks.edges);
+        let changed = [
+            prunes.faces.apply(&mut self.picks.faces),
+            prunes.vertices.apply(&mut self.picks.vertices),
+            prunes.edges.apply(&mut self.picks.edges),
+        ];
+        self.bump_pick_epoch(changed.contains(&true));
     }
 }

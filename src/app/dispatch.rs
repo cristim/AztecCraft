@@ -1209,8 +1209,7 @@ impl Editor {
                 if mode.is_component() && self.selection.len() > 1 {
                     return Err(OperationError::MultipleSelection);
                 }
-                let changed = self.selection_mode != mode;
-                self.selection_mode = mode;
+                let changed = self.set_selection_mode_field(mode);
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -1256,13 +1255,12 @@ impl Editor {
                 owner,
                 indices,
             } => {
-                let set = self.component_set_mut(kind);
-                let changed = match mode {
+                let changed = self.modify_component_set(kind, |set| match mode {
                     MarqueeMode::Replace => set.replace_with(&owner, indices),
                     MarqueeMode::Add => set.extend_absent(&owner, indices),
                     MarqueeMode::Remove => set.remove_all(&owner, indices),
                     MarqueeMode::Toggle => set.toggle_all(&owner, indices),
-                };
+                });
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -1280,7 +1278,7 @@ impl Editor {
                     || self.remembered_vertex().is_some()
                     || self.remembered_edge().is_some();
                 self.clear_remembered_components();
-                self.selection_mode = SelectionMode::Object;
+                self.set_selection_mode_field(SelectionMode::Object);
                 self.selection.clear();
                 self.sync_fields();
                 return Ok(if changed {

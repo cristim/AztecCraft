@@ -72,6 +72,9 @@ pub struct Editor {
     selection: ObjectSelection,
     selection_mode: SelectionMode,
     picks: component_picks::ComponentPicks,
+    /// Counts every change to the remembered component sets and the selection mode. It lives
+    /// outside `ComponentPicks` so replacing that struct cannot reset it; see `selection_generation`.
+    pick_epoch: u64,
     camera: Camera,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
@@ -140,6 +143,7 @@ impl Default for Editor {
             selection: ObjectSelection::default(),
             selection_mode: SelectionMode::default(),
             picks: component_picks::ComponentPicks::default(),
+            pick_epoch: 0,
             camera: Camera::default(),
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
