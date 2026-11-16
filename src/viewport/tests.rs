@@ -775,7 +775,7 @@ fn set_pose_sets_the_pose_and_keeps_lens_and_clip() {
         (camera.lens(), camera.near(), camera.far()),
         (lens.lens(), lens.near(), lens.far())
     );
-    assert_eq!(camera.lens(), Lens::Film);
+    assert_eq!(camera.lens(), Lens::Film(FilmBack::DEFAULT));
 }
 
 #[test]
@@ -1015,7 +1015,7 @@ fn default_camera_is_pinned_bit_for_bit() {
     assert_eq!(scalars.map(f32::to_bits), expected.map(f32::to_bits));
     // Create Camera Options: Focal Length "The default value is 35." Film Aperture "The default
     // values are 1.4173 and 0.9449." Film fit "The default setting is Fill." (PROVISIONAL for persp)
-    assert_eq!(camera.lens(), Lens::Film);
+    assert_eq!(camera.lens(), Lens::Film(FilmBack::DEFAULT));
 }
 
 #[test]
@@ -1112,7 +1112,7 @@ fn same_capture_distinguishes_lenses() {
 fn film_lens_fill_matches_horizontal_at_or_above_film_aspect_and_vertical_below() {
     for aspect in FILM_ASPECTS {
         let expected = expected_film_tan_half_y(aspect);
-        let actual = Lens::Film.tan_half_y(aspect);
+        let actual = Lens::Film(FilmBack::DEFAULT).tan_half_y(aspect);
         assert!(
             (actual - expected).abs() <= expected * 1e-6,
             "aspect {aspect}: {actual} vs {expected}"
@@ -1125,12 +1125,12 @@ fn film_lens_fill_matches_horizontal_at_or_above_film_aspect_and_vertical_below(
     }
     // Horizontal match above the film aspect: the horizontal half angle stays constant.
     let wide = [2.0_f32, 3.0];
-    let half_x = wide.map(|a| (Lens::Film.tan_half_y(a) * a).atan());
+    let half_x = wide.map(|a| (Lens::Film(FilmBack::DEFAULT).tan_half_y(a) * a).atan());
     assert!((half_x[0] - half_x[1]).abs() < 1e-6);
     // Vertical match below it: the vertical fov stays constant.
     assert_eq!(
-        Lens::Film.tan_half_y(0.5).to_bits(),
-        Lens::Film.tan_half_y(1.0).to_bits()
+        Lens::Film(FilmBack::DEFAULT).tan_half_y(0.5).to_bits(),
+        Lens::Film(FilmBack::DEFAULT).tan_half_y(1.0).to_bits()
     );
 }
 

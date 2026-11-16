@@ -103,7 +103,7 @@ enum FileAction {
     Open {
         document: Box<NativeDocument>,
         path: PathBuf,
-        camera: Camera,
+        camera: Box<Camera>,
         framed_aspect: f32,
     },
     Close,
@@ -374,7 +374,7 @@ impl Editor {
         self.request_file_action(FileAction::Open {
             document: Box::new(document),
             path: path.into(),
-            camera,
+            camera: Box::new(camera),
             framed_aspect: self.aspect,
         })
     }
@@ -404,7 +404,7 @@ impl Editor {
                 ..
             } => {
                 let NativeDocument { scene, origin } = *document;
-                self.replace_scene(scene, origin, Some(path), camera);
+                self.replace_scene(scene, origin, Some(path), *camera);
                 Ok(OperationReply::DocumentApplied {
                     scene_token: self.scene_token.to_string(),
                 })
@@ -558,7 +558,7 @@ impl Editor {
                 Ok(camera) => camera,
                 Err(error) => return saved_reply.map_or_else(|| Err(error), Ok),
             };
-            *camera = reframed;
+            **camera = reframed;
             *framed_aspect = self.aspect;
         }
         if let Some(reply) = saved_reply
