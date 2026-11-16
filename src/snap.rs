@@ -26,6 +26,8 @@ pub enum SnapError {
     AxisOffGrid,
     /// An input or the snapped result is not a finite number.
     NonFinite,
+    /// A step increment that is not a finite number above zero.
+    InvalidStep,
 }
 
 impl fmt::Display for SnapError {
@@ -36,6 +38,7 @@ impl fmt::Display for SnapError {
                  use World Axis Orientation or turn Snap to grids off",
             ),
             Self::NonFinite => f.write_str("Snap to grids needs finite values"),
+            Self::InvalidStep => f.write_str("Rotate step must be a finite number above zero"),
         }
     }
 }
@@ -84,9 +87,46 @@ pub fn snap_distance_to_grid(
     }
 }
 
+/// `degrees` rounded to the nearest multiple of `step` (relative step snap: the drag's turn, not
+/// the object's resulting angle). The only validation of a step: a setter calls it with 0.
+pub fn snap_angle_to_step(degrees: f64, step: f64) -> Result<f64, SnapError> {
+    if !step.is_finite() || step <= 0.0 {
+        return Err(SnapError::InvalidStep);
+    }
+    if !degrees.is_finite() {
+        return Err(SnapError::NonFinite);
+    }
+    let snapped = (degrees / step).round() * step;
+    if snapped.is_finite() {
+        Ok(snapped)
+    } else {
+        Err(SnapError::NonFinite)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_angle_snaps_to_the_nearest_step_multiple() {
+        assert_eq!(snap_angle_to_step(37.0, 15.0), Ok(30.0));
+        assert_eq!(snap_angle_to_step(38.0, 15.0), Ok(45.0));
+        assert_eq!(snap_angle_to_step(-38.0, 15.0), Ok(-45.0));
+        assert_eq!(snap_angle_to_step(7.0, 15.0), Ok(0.0));
+    }
+
+    #[test]
+    fn a_bad_step_or_angle_is_refused() {
+        for step in [0.0, -5.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(snap_angle_to_step(10.0, step), Err(SnapError::InvalidStep));
+        }
+        assert_eq!(snap_angle_to_step(f64::NAN, 5.0), Err(SnapError::NonFinite));
+        assert_eq!(
+            snap_angle_to_step(f64::MAX, 1e-300),
+            Err(SnapError::NonFinite)
+        );
+    }
 
     #[test]
     fn world_axis_lands_the_pivot_on_the_nearest_line() {

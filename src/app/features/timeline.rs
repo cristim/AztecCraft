@@ -182,6 +182,7 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::SetMoveSpace { .. }
         | Operation::SetToolHandle(_)
         | Operation::SetManipulatorSize(_)
+        | Operation::SetRotateStep { .. }
         | Operation::Select { .. }
         | Operation::ModifySelection { .. }
         | Operation::SelectByRule(_)

@@ -28,6 +28,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(multi) => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
@@ -229,6 +231,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(multi) => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
@@ -430,6 +434,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -619,6 +625,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -808,6 +816,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -997,6 +1007,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1186,6 +1198,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1375,6 +1389,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1564,6 +1580,8 @@
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(1) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(15) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1
@@ -1753,6 +1771,8 @@
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(1) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(15) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1942,6 +1962,8 @@
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(1) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(15) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move => Err(Move: manipulation belongs to another input source) | no state change
@@ -2131,6 +2153,8 @@
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(1) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(15) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1
@@ -2320,6 +2344,8 @@
   set_tool_handle(scale,x) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_manipulator_size(2) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_manipulator_size(1) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_rotate_step(15) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_rotate_step(off) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_move => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_move(face_mode) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2509,6 +2535,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2699,6 +2727,8 @@
   set_tool_handle(scale,x) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_rotate_step(15) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_rotate_step(off) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_move => Ok(manipulation_started) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; active_move: none -> native; has_draft: true -> false; can_undo: false -> true
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2889,6 +2919,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3078,6 +3110,8 @@
   set_tool_handle(scale,x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_rotate_step(15) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_rotate_step(off) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -3267,6 +3301,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3456,6 +3492,8 @@
   set_tool_handle(scale,x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_rotate_step(15) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_rotate_step(off) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -3645,6 +3683,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3834,6 +3874,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -4023,6 +4065,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4212,6 +4256,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -4401,6 +4447,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4590,6 +4638,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4781,6 +4831,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4970,6 +5022,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5159,6 +5213,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5348,6 +5404,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5537,6 +5595,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5726,6 +5786,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5915,6 +5977,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6104,6 +6168,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6294,6 +6360,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6484,6 +6552,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6674,6 +6744,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6864,6 +6936,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -7150,6 +7224,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -7340,6 +7416,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | no state change
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -7530,6 +7608,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7720,6 +7800,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change

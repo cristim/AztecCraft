@@ -3550,3 +3550,98 @@ fn a_scale_parent_drag_scales_the_child_along_the_rotated_parents_axis_and_undoe
     assert!(editor.history.undo());
     assert_eq!(node_scale(&editor, "c"), [1.0; 3]);
 }
+
+fn begin_rotate_z(editor: &mut Editor) -> ManipulationId {
+    let target = editor.selected_move_target().unwrap();
+    editor
+        .apply_operation(Operation::BeginRotate {
+            target,
+            axis: RotateAxis::Z,
+            space: ManipulationSpace::Object,
+        })
+        .unwrap();
+    editor.history.active_manipulation().unwrap().id
+}
+
+fn rotate_z_to(editor: &mut Editor, degrees: f64) -> Result<OperationReply, OperationError> {
+    let id = begin_rotate_z(editor);
+    let result = editor.apply_operation(Operation::UpdateManipulation {
+        id,
+        value: ManipulationValue::Degrees(degrees),
+    });
+    editor
+        .apply_operation(Operation::FinishMove {
+            id,
+            finish: ManipulationFinish::Commit,
+        })
+        .unwrap();
+    result
+}
+
+#[test]
+fn rotate_step_lands_the_turn_on_a_step_multiple() {
+    let (mut editor, _, _) = setup(Key::E, 1.0);
+    editor
+        .apply_operation(Operation::SetRotateStep {
+            degrees: Some(15.0),
+        })
+        .unwrap();
+    rotate_z_to(&mut editor, 37.0).unwrap();
+    near(channels(&editor)[5], 30.0, 1e-9);
+}
+
+#[test]
+fn rotate_step_off_keeps_the_exact_angle() {
+    let (mut editor, _, _) = setup(Key::E, 1.0);
+    rotate_z_to(&mut editor, 37.0).unwrap();
+    near(channels(&editor)[5], 37.0, 1e-9);
+    editor
+        .apply_operation(Operation::SetRotateStep {
+            degrees: Some(15.0),
+        })
+        .unwrap();
+    assert!(matches!(
+        editor.apply_operation(Operation::SetRotateStep { degrees: None }),
+        Ok(OperationReply::Changed)
+    ));
+    rotate_z_to(&mut editor, 7.0).unwrap();
+    near(channels(&editor)[5], 44.0, 1e-9);
+}
+
+#[test]
+fn an_invalid_rotate_step_is_refused_and_keeps_the_old_step() {
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::SetRotateStep {
+            degrees: Some(15.0),
+        })
+        .unwrap();
+    for step in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+        assert!(matches!(
+            editor.apply_operation(Operation::SetRotateStep {
+                degrees: Some(step)
+            }),
+            Err(OperationError::InvalidInput(_))
+        ));
+    }
+    assert_eq!(editor.manipulation.rotate_step, Some(15.0));
+    assert!(matches!(
+        editor.apply_operation(Operation::SetRotateStep {
+            degrees: Some(15.0)
+        }),
+        Ok(OperationReply::Unchanged)
+    ));
+}
+
+#[test]
+fn rotate_step_is_refused_during_a_manipulation() {
+    let (mut editor, _, _) = setup(Key::E, 1.0);
+    begin_rotate_z(&mut editor);
+    assert!(matches!(
+        editor.apply_operation(Operation::SetRotateStep {
+            degrees: Some(15.0)
+        }),
+        Err(OperationError::BusyManipulation)
+    ));
+    assert_eq!(editor.manipulation.rotate_step, None);
+}

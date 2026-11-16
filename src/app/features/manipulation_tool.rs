@@ -17,6 +17,7 @@ use azteccraft::{
     },
     move_handles::{HandleError, ManipulatorSize, ViewportCapture},
     native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget},
+    snap::snap_angle_to_step,
     view_scene::VIEW_BUDGET,
 };
 use eframe::egui;
@@ -39,6 +40,8 @@ pub(in crate::app) struct ManipulationOptions {
     scale_handle: ScaleHandle,
     // Global and session-only: it never enters the scene, the history or the dirty state.
     manipulator_size: ManipulatorSize,
+    // Relative Step Snap of the Rotate tool in degrees; None is off.
+    rotate_step: Option<f64>,
     numeric: String,
     // The status text last written for the handle under the pointer, and whether it is a refusal.
     hover: Option<(String, bool)>,
@@ -65,6 +68,7 @@ impl Default for ManipulationOptions {
             rotate_axis: RotateAxis::X,
             scale_handle: ScaleHandle::Uniform,
             manipulator_size: ManipulatorSize::default(),
+            rotate_step: None,
             numeric: String::new(),
             hover: None,
             quiet: false,
@@ -161,6 +165,23 @@ impl Editor {
 }
 
 impl Editor {
+    pub(in crate::app) fn set_rotate_step(
+        &mut self,
+        degrees: Option<f64>,
+    ) -> Result<OperationReply, OperationError> {
+        if let Some(step) = degrees {
+            snap_angle_to_step(0.0, step)
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+        }
+        Ok(
+            if std::mem::replace(&mut self.manipulation.rotate_step, degrees) == degrees {
+                OperationReply::Unchanged
+            } else {
+                OperationReply::Changed
+            },
+        )
+    }
+
     pub(in crate::app) fn set_manipulator_size(&mut self, size: ManipulatorSize) -> OperationReply {
         if std::mem::replace(&mut self.manipulation.manipulator_size, size) == size {
             OperationReply::Unchanged
@@ -522,9 +543,20 @@ impl Editor {
         } else {
             number
         };
-        let declared = match value {
-            ManipulationValue::Angle(angle) => Some(angle),
-            _ => None,
+        let (number, declared) = match (self.manipulation.rotate_step, parameter) {
+            (Some(step), "angle") => (
+                snap_angle_to_step(number, step)
+                    .map_err(|error| OperationError::InvalidInput(error.to_string()))?,
+                // The inspection reads the snapped angle, not the one asked for.
+                None,
+            ),
+            _ => (
+                number,
+                match value {
+                    ManipulationValue::Angle(angle) => Some(angle),
+                    _ => None,
+                },
+            ),
         };
         let updated =
             self.history

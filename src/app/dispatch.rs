@@ -181,6 +181,7 @@ impl Editor {
             | Operation::SetMoveSpace { .. }
             | Operation::SetToolHandle(_)
             | Operation::SetManipulatorSize(_)
+            | Operation::SetRotateStep { .. }
             | Operation::SetUndoQueue(_)
             | Operation::SetUndoEnabled { .. }
             | Operation::OpenUndoChunk { .. }
@@ -614,6 +615,7 @@ impl Editor {
                     | Operation::SetMoveSpace { .. }
                     | Operation::SetToolHandle(_)
                     | Operation::SetManipulatorSize(_)
+                    | Operation::SetRotateStep { .. }
                     | Operation::BeginMove { .. }
                     | Operation::BeginRotate { .. }
                     | Operation::BeginScale { .. }
@@ -823,6 +825,7 @@ impl Editor {
             Operation::SetMoveSpace { space } => return Ok(self.set_move_space(space)),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
             Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
+            Operation::SetRotateStep { degrees } => return self.set_rotate_step(degrees),
             Operation::BeginMove {
                 target,
                 axis,

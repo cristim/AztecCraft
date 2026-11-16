@@ -745,6 +745,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::SetToolHandle(ToolHandle::RotateAxis(RotateAxis::Y)),
         Operation::SetManipulatorSize(ManipulatorSize::new(2.0).unwrap()),
+        Operation::SetRotateStep {
+            degrees: Some(15.0),
+        },
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
@@ -1097,6 +1100,18 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "set_tool_handle(scale,x)",
                 Operation::SetToolHandle(ToolHandle::ScaleHandle(ScaleHandle::X)),
+            ),
+        ],
+        Operation::SetRotateStep { .. } => vec![
+            sample(
+                "set_rotate_step(15)",
+                Operation::SetRotateStep {
+                    degrees: Some(15.0),
+                },
+            ),
+            sample(
+                "set_rotate_step(off)",
+                Operation::SetRotateStep { degrees: None },
             ),
         ],
         Operation::SetManipulatorSize(_) => vec![

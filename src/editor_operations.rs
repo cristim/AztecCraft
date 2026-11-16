@@ -412,6 +412,14 @@ pub enum Operation {
     SetToolHandle(ToolHandle),
     /// Sets the global manipulator size, a session-only tool setting.
     SetManipulatorSize(ManipulatorSize),
+    /// Sets the Rotate tool's relative Step Snap in degrees (`None` is off, the default): an
+    /// update's turn lands on a multiple of it. A step that is not finite and above zero is
+    /// refused. Session-only; refused during a manipulation. No native control or MCP tool
+    /// constructs it yet (separate #35 checklist items).
+    #[cfg_attr(not(test), allow(dead_code))]
+    SetRotateStep {
+        degrees: Option<f64>,
+    },
     /// Begins a Move of the selected objects with `target` as the lead. With several objects
     /// selected a remote caller must pass the `selection_generation` it inspected; a native caller
     /// moves the current selection.
