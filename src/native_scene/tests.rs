@@ -2132,3 +2132,17 @@ fn a_zero_delta_leaves_every_bit_alone_including_negative_zero() {
         Err(NativeError::InvalidTopology)
     );
 }
+
+/// Statistics count records; the path caps count instance paths (#441).
+#[test]
+fn statistics_count_a_shared_node_once_but_its_paths_each() {
+    let mut scene = flat_cubes(2);
+    let ids = transform_ids(&scene);
+    instance(&mut scene, ids[0], ids[1], true);
+    let usage = scene.usage();
+    assert_eq!((usage.statistics.nodes, usage.statistics.shapes), (2, 2));
+    assert_eq!(usage.statistics.faces, 12);
+    let row = |name: &str| usage.caps.iter().find(|c| c.name == name).unwrap().used;
+    assert_eq!(row("instance_paths"), Some(3));
+    assert_eq!(row("instance_depth"), Some(2));
+}

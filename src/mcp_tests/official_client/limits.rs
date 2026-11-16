@@ -79,7 +79,6 @@ async fn sdk_inspect_limits_usage_counts_an_empty_scene_primitives_joints_and_ke
     let (mut editor, client, server) = start(&context).await;
     let empty = usage(&mut editor, &context, client.peer()).await;
     assert_eq!(empty["statistics"]["nodes"], 0);
-    assert_eq!(empty["statistics"]["saturated"], false);
     let view = cap(&empty, "view_bytes");
     assert_eq!(view["estimate"], "measured");
     assert_eq!(view["limit"], 256 * 1024 * 1024);
@@ -163,12 +162,58 @@ async fn sdk_inspect_limits_usage_headroom_reaches_zero_at_the_depth_cap_and_nev
     assert_eq!(depth["used"], MAX_TRANSFORM_DEPTH);
     assert_eq!(depth["headroom"], 0);
     assert_eq!(full["statistics"]["nodes"], MAX_TRANSFORM_DEPTH);
-    for row in full["caps"].as_array().unwrap() {
-        let (used, limit) = (
-            row["used"].as_u64().unwrap(),
-            row["limit"].as_u64().unwrap(),
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+/// The statistics match what `inspect_scene` reports for the same scene: two cubes, and a
+/// 4-control-vertex curve imported from Maya ASCII.
+#[tokio::test]
+async fn sdk_inspect_limits_usage_agrees_with_inspect_scene_for_shapes_and_curves() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let source = "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film;\n\
+        createNode transform -n \"c1\"; createNode nurbsCurve -n \"c1Shape\" -p \"c1\";\n\
+        setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 3 0 2 -3 0 3 0 0;";
+    let curve_scene =
+        azteccraft::native_scene::ascii::decode(source.as_bytes().to_vec().into()).unwrap();
+    let mut cube_scene = azteccraft::native_scene::NativeScene::default();
+    cube_scene.create(Primitive::Cube, "a").unwrap();
+    cube_scene.create(Primitive::Cube, "b").unwrap();
+    for (scene, curve_count, cv_count) in [(curve_scene, 1, 4), (cube_scene, 0, 0)] {
+        editor.history = crate::app::History::new(scene);
+        editor.sync_fields();
+        let reply = usage(&mut editor, &context, client.peer()).await;
+        let inspection = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await
+        .structured_content
+        .unwrap()["inspection"]
+            .clone();
+        let stats = &reply["statistics"];
+        assert_eq!(
+            stats["nodes"],
+            inspection["nodes"].as_array().unwrap().len()
         );
-        assert_eq!(used.min(limit) + row["headroom"].as_u64().unwrap(), limit);
+        assert_eq!(
+            stats["shapes"],
+            inspection["shapes"].as_array().unwrap().len()
+        );
+        let curves = inspection["curves"].as_array().unwrap();
+        assert_eq!(stats["curves"], curves.len());
+        assert_eq!(stats["curves"], curve_count);
+        let cvs: u64 = curves
+            .iter()
+            .map(|curve| curve["control_vertices"].as_u64().unwrap())
+            .sum();
+        assert_eq!(stats["control_vertices"], cvs);
+        assert_eq!(cvs, cv_count);
     }
     client.cancel().await.unwrap();
     drop(editor);

@@ -2,10 +2,11 @@
 //!
 //! Every count is read from the authoritative [`NativeScene`]; the instance-path figures reuse
 //! [`NativeScene::transform_paths`] and the view bytes reuse the view builder's own preflight, so
-//! nothing here is a second implementation of those rules. Arithmetic is checked: a sum that would
-//! overflow `u64` sets `saturated` and pins the value at `u64::MAX`, and headroom never goes below
-//! zero. Only caps that bound the live scene appear in `caps`; input-size and parser caps do not.
-//! The byte figure is the view builder's preflight estimate, not a process memory measurement
+//! nothing here is a second implementation of those rules. Headroom saturates at zero. Only caps
+//! that bound the live scene appear in `caps`; input-size and parser caps do not. Statistics count
+//! records, not instance paths. `view_bytes.used` is a LOWER BOUND of what `ViewScene::from_native`
+//! charges: it is the builder's preflight figure and excludes curve tessellation, so a scene with
+//! many curves can show headroom and still be refused. It is not a process memory measurement
 //! (slice 3). Definitions beyond that are PROVISIONAL.
 
 use serde::Serialize;
@@ -26,8 +27,6 @@ pub struct SceneStatistics {
     pub faces: u64,
     pub triangles: u64,
     pub control_vertices: u64,
-    /// True when any count above hit `u64::MAX` instead of overflowing.
-    pub saturated: bool,
 }
 
 /// How a cap's `used` figure was obtained.
@@ -35,7 +34,8 @@ pub struct SceneStatistics {
 #[serde(rename_all = "snake_case")]
 pub enum UsageEstimate {
     Measured,
-    /// The figure overflowed; `used` is `u64::MAX` and headroom is zero.
+    /// The view builder refuses the scene (its byte figure overflowed); `used` is `u64::MAX` and
+    /// headroom is zero.
     Saturated,
     /// The scene cannot be measured (for example the view refuses a face); `used` is null.
     Unavailable,
@@ -52,107 +52,70 @@ pub struct CapUsage {
     pub estimate: UsageEstimate,
 }
 
+impl CapUsage {
+    fn new(name: &'static str, limit: u64, used: Option<u64>, estimate: UsageEstimate) -> Self {
+        Self {
+            name,
+            limit,
+            used,
+            headroom: used.map(|used| limit.saturating_sub(used)),
+            estimate,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SceneUsage {
     pub statistics: SceneStatistics,
     pub caps: Vec<CapUsage>,
 }
 
-/// Checked running total that pins at `u64::MAX` and remembers it did.
-#[derive(Default)]
-struct Total {
-    value: u64,
-    saturated: bool,
-}
-
-impl Total {
-    fn add(&mut self, amount: usize) {
-        let amount = u64::try_from(amount).unwrap_or(u64::MAX);
-        match self.value.checked_add(amount) {
-            Some(sum) => self.value = sum,
-            None => {
-                self.value = u64::MAX;
-                self.saturated = true;
-            }
-        }
-    }
-}
-
 impl NativeScene {
+    /// Counts per record, not per instance path: a node or shape instanced under several parents
+    /// counts once here, while `instance_paths` counts every path.
     pub fn statistics(&self) -> SceneStatistics {
-        let mut saturated = false;
-        let mut sum = |build: &dyn Fn(&mut Total)| {
-            let mut total = Total::default();
-            build(&mut total);
-            saturated |= total.saturated;
-            total.value
-        };
-        let nodes = sum(&|t| t.add(self.nodes().len()));
-        let shapes = sum(&|t| t.add(self.shapes().len()));
-        let curves = sum(&|t| t.add(self.curves().len()));
-        let joints = sum(&|t| {
-            let joints = self
-                .nodes()
-                .iter()
-                .filter(|node| self.joint(node.transform_id()).is_some());
-            t.add(joints.count());
-        });
-        let keys = sum(&|t| t.add(self.session_key_count()));
-        let vertices = sum(&|t| {
-            self.shapes()
-                .iter()
-                .for_each(|shape| t.add(shape.mesh().point_count()));
-        });
-        let edges = sum(&|t| {
-            self.shapes()
-                .iter()
-                .for_each(|shape| t.add(shape.mesh().edges().len()));
-        });
-        let faces = sum(&|t| {
-            self.shapes()
-                .iter()
-                .for_each(|shape| t.add(shape.mesh().faces().len()));
-        });
-        let triangles = sum(&|t| {
-            for face in self.shapes().iter().flat_map(|s| s.mesh().faces()) {
-                let ring = face.outer().len()
-                    + face.holes().iter().map(Vec::len).sum::<usize>()
-                    + 2 * face.holes().len();
-                t.add(ring.saturating_sub(2));
-            }
-        });
-        let control_vertices = sum(&|t| {
-            self.curves()
-                .iter()
-                .for_each(|curve| t.add(curve.control_vertices().len()));
-        });
+        let shapes = || self.shapes().iter().map(|shape| shape.mesh());
+        let count = |n: usize| n as u64;
         SceneStatistics {
-            nodes,
-            shapes,
-            curves,
-            joints,
-            keys,
-            vertices,
-            edges,
-            faces,
-            triangles,
-            control_vertices,
-            saturated,
+            nodes: count(self.nodes().len()),
+            shapes: count(self.shapes().len()),
+            curves: count(self.curves().len()),
+            joints: count(
+                self.nodes()
+                    .iter()
+                    .filter(|node| self.joint(node.transform_id()).is_some())
+                    .count(),
+            ),
+            keys: count(self.session_key_count()),
+            vertices: shapes().map(|mesh| count(mesh.point_count())).sum(),
+            edges: shapes().map(|mesh| count(mesh.edges().len())).sum(),
+            faces: shapes().map(|mesh| count(mesh.faces().len())).sum(),
+            triangles: shapes()
+                .flat_map(|mesh| mesh.faces())
+                .map(|face| {
+                    let rings = face.outer().len()
+                        + face.holes().iter().map(Vec::len).sum::<usize>()
+                        + 2 * face.holes().len();
+                    count(rings.saturating_sub(2))
+                })
+                .sum(),
+            control_vertices: self
+                .curves()
+                .iter()
+                .map(|curve| count(curve.control_vertices().len()))
+                .sum(),
         }
     }
 
     /// Statistics plus the headroom of every registry cap that bounds this scene.
     pub fn usage(&self) -> SceneUsage {
         let paths = self.transform_paths().ok().map(|paths| {
-            let mut identities = Total::default();
-            paths
-                .iter()
-                .for_each(|target| identities.add(target.path.len()));
+            let identities: usize = paths.iter().map(|target| target.path.len()).sum();
             let depth = paths.iter().map(|target| target.path.len()).max();
             (
                 paths.len() as u64,
                 depth.unwrap_or(0) as u64,
-                identities.value,
+                identities as u64,
             )
         });
         let view = ViewScene::required_bytes(self);
@@ -172,13 +135,7 @@ impl NativeScene {
                     },
                     _ => return None,
                 };
-                Some(CapUsage {
-                    name: limit.name,
-                    limit: limit.value,
-                    used,
-                    headroom: used.map(|used| limit.value.saturating_sub(used)),
-                    estimate,
-                })
+                Some(CapUsage::new(limit.name, limit.value, used, estimate))
             })
             .collect();
         SceneUsage {
@@ -250,7 +207,6 @@ mod tests {
             (s.vertices, s.edges, s.faces, s.triangles),
             (24, 36, 18, 36)
         );
-        assert!(!s.saturated);
         assert_eq!(cap(&usage, "instance_paths").used, Some(3));
         assert_eq!(cap(&usage, "instance_depth").used, Some(1));
         assert_eq!(cap(&usage, "instance_path_identities").used, Some(3));
@@ -287,28 +243,57 @@ mod tests {
         assert_eq!(cap(&usage, "instance_depth").used, Some(2));
     }
 
-    #[test]
-    fn a_scene_at_the_path_cap_has_zero_headroom_and_never_negative() {
+    fn legacy_cubes(count: usize) -> NativeScene {
         let mut legacy = crate::scene::Scene::default();
-        for index in 0..MAX_TRANSFORM_PATHS {
+        for index in 0..count {
             legacy
                 .create(Primitive::Cube, &format!("cube_{index:04}"))
                 .unwrap();
         }
-        let usage = NativeScene::from_legacy(legacy).unwrap().usage();
+        NativeScene::from_legacy(legacy).unwrap()
+    }
+
+    #[test]
+    fn exactly_at_the_path_cap_has_zero_headroom_and_one_over_is_unavailable() {
+        let usage = legacy_cubes(MAX_TRANSFORM_PATHS).usage();
         let paths = cap(&usage, "instance_paths");
         assert_eq!(paths.used, Some(MAX_TRANSFORM_PATHS as u64));
         assert_eq!(paths.headroom, Some(0));
         assert_eq!(paths.estimate, UsageEstimate::Measured);
+
+        // transform_paths refuses past the cap, so the path caps cannot be measured; the view
+        // figure still is.
+        let over = legacy_cubes(MAX_TRANSFORM_PATHS + 1).usage();
+        for name in [
+            "instance_paths",
+            "instance_depth",
+            "instance_path_identities",
+        ] {
+            let row = cap(&over, name);
+            assert_eq!((row.used, row.headroom), (None, None), "{name}");
+            assert_eq!(row.estimate, UsageEstimate::Unavailable, "{name}");
+        }
+        assert_eq!(cap(&over, "view_bytes").estimate, UsageEstimate::Measured);
     }
 
     #[test]
-    fn totals_saturate_instead_of_overflowing() {
-        let mut total = Total::default();
-        total.add(usize::MAX);
-        total.add(usize::MAX);
-        total.add(1);
-        assert_eq!(total.value, u64::MAX);
-        assert!(total.saturated);
+    fn headroom_saturates_at_zero_when_used_exceeds_the_limit() {
+        let row = CapUsage::new("view_bytes", 10, Some(11), UsageEstimate::Measured);
+        assert_eq!(row.headroom, Some(0));
+        let row = CapUsage::new("view_bytes", 10, Some(u64::MAX), UsageEstimate::Saturated);
+        assert_eq!(row.headroom, Some(0));
+        let row = CapUsage::new("view_bytes", 10, None, UsageEstimate::Unavailable);
+        assert_eq!(row.headroom, None);
+    }
+
+    #[test]
+    fn curves_and_control_vertices_are_counted() {
+        let source = "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film;\n\
+            createNode transform -n \"c1\"; createNode nurbsCurve -n \"c1Shape\" -p \"c1\";\n\
+            setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 3 0 2 -3 0 3 0 0;";
+        let scene = crate::native_scene::ascii::decode(source.as_bytes().to_vec().into()).unwrap();
+        let stats = scene.statistics();
+        assert_eq!((stats.curves, stats.control_vertices), (1, 4));
+        assert_eq!((stats.shapes, stats.faces), (0, 0));
     }
 }
