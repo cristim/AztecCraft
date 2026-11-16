@@ -6,3 +6,7 @@
 pub mod frame;
 #[allow(dead_code)]
 pub mod protocol;
+// T2b moves this into the `script-host` helper with `#[path]`; the editor only builds it for tests.
+#[cfg(test)]
+#[path = "guest/engine.rs"]
+mod engine;
