@@ -2109,7 +2109,7 @@
   },
   {
     "name": "extrude_face",
-    "description": "Extrude one current canonical quad along its local normal by distance in declared scene units. Requires node, shape and full root-to-shape path; shared-shape edits affect every instance. Zero distance changes topology; imported structural edits remain unsupported",
+    "description": "Extrude one current canonical quad along its local normal by distance in declared scene units. Requires node, shape and full root-to-shape path; shared-shape edits affect every instance. Zero distance changes topology; imported structural edits remain unsupported. A result whose world geometry leaves the f32 range the viewport draws is refused with world_out_of_range. All or nothing: the scene and undo stack are untouched on any refusal",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2344,7 +2344,7 @@
   },
   {
     "name": "set_keyframe",
-    "description": "Key transform channels with their current value, or camera=four built-in names plus attribute=focal_length (optional value in mm) for a camera focal key, as one undo step. No time means the current time, no node_ids means the object selection (Object or Hierarchy mode), and no channels means all nine transform channels. Keys are whole-frame values, interpolated linearly and held outside them (PROVISIONAL: tangents are not implemented). Rotation values are in the scene's declared angular unit. Sourced scenes refuse new keys. Camera focal curves save in the bounded authored .ma/.mb profile; transform keys still prevent Save. Bounded by key_limit. Stops playback",
+    "description": "Key transform channels with their current value, or camera=four built-in names plus attribute=focal_length (optional value in mm) for a camera focal key, as one undo step. No time means the current time, no node_ids means the object selection (Object or Hierarchy mode), and no channels means all nine transform channels. Keys are whole-frame values interpolated linearly. Focal curves hold outside their keyed span; transform curves follow pre/post infinity (constant by default; PROVISIONAL: tangents are not implemented). Rotation values are in the scene's declared angular unit. Sourced scenes refuse new keys. Camera focal curves save in the bounded authored .ma/.mb profile; transform keys still prevent Save. Bounded by key_limit. Stops playback",
     "inputSchema": {
       "$defs": {
         "CameraAttribute": {
@@ -2759,6 +2759,102 @@
         "scene_token"
       ],
       "title": "EulerFilterArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "set_infinity",
+    "description": "Set what keyed curves do before their first key (pre) and after their last (post), as one undo step: constant holds the end value, linear continues the end segment's slope, cycle repeats the keyed span, cycle_relative repeats it with the span's rise added each cycle, oscillate repeats it alternately forwards and backwards. At least one of pre and post is required, and one left out stays as it is. No node_ids means the object selection, and no channels means all nine; a named channel without a key is skipped, and none keyed is refused with no_keys. A refusal changes nothing. Read the settings as pre_infinity and post_infinity on each inspect_keys key. The setting lives with the curve's keys: deleting its last key resets it to constant, and it is session-only like the keys. Remaining keys are evaluated at the current time (PROVISIONAL: the modes' formulas are not stated by Maya's docs, and linear uses the end segment's slope because tangents are not implemented). Stops playback",
+    "inputSchema": {
+      "$defs": {
+        "InfinityMode": {
+          "enum": [
+            "constant",
+            "linear",
+            "cycle",
+            "cycle_relative",
+            "oscillate"
+          ],
+          "type": "string"
+        },
+        "KeyChannel": {
+          "enum": [
+            "translate_x",
+            "translate_y",
+            "translate_z",
+            "rotate_x",
+            "rotate_y",
+            "rotate_z",
+            "scale_x",
+            "scale_y",
+            "scale_z"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "channels": {
+          "description": "Omit it for all nine channels. A channel without a key is skipped.",
+          "items": {
+            "$ref": "#/$defs/KeyChannel"
+          },
+          "maxItems": 9,
+          "minItems": 1,
+          "type": [
+            "array",
+            "null"
+          ],
+          "uniqueItems": true
+        },
+        "node_ids": {
+          "description": "The objects to act on. Omit it for the object selection.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "minItems": 1,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "post": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InfinityMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Behaviour after the last key. Omit it to leave it as it is."
+        },
+        "pre": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InfinityMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Behaviour before the first key. Omit it to leave it as it is."
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "SetInfinityArgs",
       "type": "object"
     },
     "annotations": {
@@ -4321,7 +4417,7 @@
   },
   {
     "name": "export_obj",
-    "description": "Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces only: no normals, UVs, groups or materials. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
+    "description": "Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces and session UVs (one vt per corner, f v/vt rows, mirrored instances re-wound together); no normals, groups or materials. A session UV set that does not match the displayed faces is refused with export_invalid. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -4356,7 +4452,7 @@
   },
   {
     "name": "import_obj",
-    "description": "Import a Wavefront OBJ file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per o/g group (faces before any group take the file name) as one undo step, selects them, and keeps the scene token. Meshes only: v and f records (triangles, quads, n-gons, negative indices); normals, UVs, materials, smoothing and .mtl are counted in ignored_records and dropped. Refuses free-form geometry, unknown records, overlapping groups, CR-only line endings and faces the viewport cannot display (concave or holed faces with 5 or more corners: triangulate and export again). Refused in a scene opened from .mb or .ma. PROVISIONAL: Maya's help is silent on units, naming, winding and limits. Replies with object, vertex and face counts and the new node_ids",
+    "description": "Import a Wavefront OBJ file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per o/g group (faces before any group take the file name) as one undo step, selects them, and keeps the scene token. Meshes only: v and f records (triangles, quads, n-gons, negative indices); normals, materials, smoothing and .mtl are counted in ignored_records and dropped; vt records are parsed and validated but their UVs are not applied to the imported shapes yet and are not counted in ignored_records. Refuses free-form geometry, unknown records, overlapping groups, CR-only line endings and faces the viewport cannot display (concave or holed faces with 5 or more corners: triangulate and export again). Refused in a scene opened from .mb or .ma. PROVISIONAL: Maya's help is silent on units, naming, winding and limits. Replies with object, vertex and face counts and the new node_ids",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

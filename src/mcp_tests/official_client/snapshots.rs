@@ -30,7 +30,13 @@ async fn inspection_snapshot(
 /// Compares an `inspect_scene` reply with its committed snapshot, keyed on the reply's own
 /// `document_origin` and never on the file name, so a new Untitled fixture cannot be missed.
 fn assert_inspection_snapshot(name: &str, reply: &Value, roots: &[&std::path::Path]) {
-    let normalized = crate::app::snapshots::normalize_json(reply, roots);
+    let mut normalized = crate::app::snapshots::normalize_json(reply, roots);
+    // f32 trigonometry varies by one ULP across native math libraries. Keep the
+    // snapshot stable to 0.0001 degrees; camera protocol tests check the raw value.
+    let fov = &mut normalized["inspection"]["camera"]["fov_y_degrees"];
+    if let Some(value) = fov.as_f64() {
+        *fov = json!((value * 10_000.).round() / 10_000.);
+    }
     let mut text = serde_json::to_string_pretty(&normalized).unwrap();
     text.push('\n');
     let untitled = normalized["inspection"]["document_origin"] == json!("untitled");

@@ -304,3 +304,14 @@ read both exact keys through actual MCP. Open and scrub stayed clean on the
 final build. Independent final screenshot review confirmed readable Film Back
 fields/key buttons and the corrected transform-only Save warning. This is
 Linux native-window evidence; other platforms and Maya acceptance are unproved.
+
+## Main integration
+
+Merged the current transform-infinity, undo-inspection and scripting work without
+rewriting prior commits. A real SDK regression combines transform cycle infinity
+and held focal animation, deletes/undoes focal keys while preserving infinity,
+and verifies mixed transform-key scenes still refuse Save. FOV snapshots round
+only the derived display angle to 0.0001 degrees because native f32 trigonometry
+differs across platform math libraries; raw protocol value checks remain.
+Cross-platform binary reconstruction uses the raw writer, so its five now-live
+module lint expectations were removed; Unix-only Save authority is unchanged.

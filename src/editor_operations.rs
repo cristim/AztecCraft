@@ -529,6 +529,15 @@ pub enum Operation {
         nodes: Option<Vec<NodeId>>,
         channels: azteccraft::native_scene::ChannelMask,
     },
+    /// Sets the pre and/or post infinity of the keyed curves of `channels`, as one undo step. No
+    /// `nodes` means the object selection; at least one of `pre` and `post` is set.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetInfinity {
+        nodes: Option<Vec<NodeId>>,
+        channels: azteccraft::native_scene::ChannelMask,
+        pre: Option<azteccraft::native_scene::Infinity>,
+        post: Option<azteccraft::native_scene::Infinity>,
+    },
     ProjectUvPlanar {
         shape: NativeId,
         axis: azteccraft::native_scene::UvProjectAxis,
@@ -1103,6 +1112,9 @@ pub struct KeyInspection {
     pub channel: &'static str,
     pub frame: i32,
     pub value: f64,
+    /// The curve's behaviour before its first key and after its last.
+    pub pre_infinity: &'static str,
+    pub post_infinity: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -1548,8 +1560,18 @@ pub struct UndoStateInspection {
     pub queue_size: Option<usize>,
     pub undo_length: usize,
     pub redo_length: usize,
+    /// Counterpart of `undoInfo -printQueue`, which only prints to the Script Editor: the newest
+    /// `UNDO_PRINT_LIMIT` undo labels, next Undo first (the order is PROVISIONAL, not Maya's).
+    pub undo_queue: Vec<String>,
+    /// Counterpart of `-printRedoQueue`: the newest `UNDO_PRINT_LIMIT` redo labels, next Redo first
+    /// (PROVISIONAL order).
+    pub redo_queue: Vec<String>,
     pub open_chunk: Option<String>,
 }
+
+/// Most labels `inspect_scene` lists per queue (PROVISIONAL: bounds an Infinite queue's reply).
+#[cfg(any(test, feature = "mcp"))]
+pub const UNDO_PRINT_LIMIT: usize = 50;
 
 #[cfg(any(test, feature = "mcp"))]
 /// Why an autosave wrote nothing. Display carries no path, scene name or payload.
@@ -1903,7 +1925,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""selection_count":0,"selection_generation":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
     r#""remembered_edge":null,"component_selection":{"face":null,"vertex":null,"edge":null},"#,
     r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
-    r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
+    r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"undo_queue":[],"redo_queue":[],"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"active_camera":"top","attributes_visible":true,"optics":["#,
     min_camera_optics!(),

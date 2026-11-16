@@ -5,7 +5,7 @@ use crate::{
         registry::ToolSpec,
     },
 };
-use azteccraft::native_scene::{ALL_CHANNELS, ChannelMask};
+use azteccraft::native_scene::{ALL_CHANNELS, ChannelMask, Infinity};
 use azteccraft::scene::NodeId;
 use rmcp::{
     model::{ErrorData, JsonObject},
@@ -257,6 +257,57 @@ fn parse_euler_filter(arguments: JsonObject) -> Result<RemoteRequest, ErrorData>
     ))
 }
 
+#[derive(Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum InfinityMode {
+    Constant,
+    Linear,
+    Cycle,
+    CycleRelative,
+    Oscillate,
+}
+
+impl From<InfinityMode> for Infinity {
+    fn from(mode: InfinityMode) -> Self {
+        match mode {
+            InfinityMode::Constant => Self::Constant,
+            InfinityMode::Linear => Self::Linear,
+            InfinityMode::Cycle => Self::Cycle,
+            InfinityMode::CycleRelative => Self::CycleRelative,
+            InfinityMode::Oscillate => Self::Oscillate,
+        }
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SetInfinityArgs {
+    scene_token: String,
+    /// The objects to act on. Omit it for the object selection.
+    #[schemars(length(min = 1, max = 4096))]
+    node_ids: Option<Vec<String>>,
+    /// Omit it for all nine channels. A channel without a key is skipped.
+    #[schemars(length(min = 1, max = 9), extend("uniqueItems" = true))]
+    channels: Option<Vec<KeyChannel>>,
+    /// Behaviour before the first key. Omit it to leave it as it is.
+    pre: Option<InfinityMode>,
+    /// Behaviour after the last key. Omit it to leave it as it is.
+    post: Option<InfinityMode>,
+}
+
+fn parse_set_infinity(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: SetInfinityArgs = decode(arguments)?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetInfinity {
+            nodes: node_ids(args.node_ids)?,
+            channels: channel_mask(args.channels)?,
+            pre: args.pre.map(Infinity::from),
+            post: args.post.map(Infinity::from),
+        },
+    ))
+}
+
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct InspectKeysArgs {
@@ -314,7 +365,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_keyframe",
-        description: "Key transform channels with their current value, or camera=four built-in names plus attribute=focal_length (optional value in mm) for a camera focal key, as one undo step. No time means the current time, no node_ids means the object selection (Object or Hierarchy mode), and no channels means all nine transform channels. Keys are whole-frame values, interpolated linearly and held outside them (PROVISIONAL: tangents are not implemented). Rotation values are in the scene's declared angular unit. Sourced scenes refuse new keys. Camera focal curves save in the bounded authored .ma/.mb profile; transform keys still prevent Save. Bounded by key_limit. Stops playback",
+        description: "Key transform channels with their current value, or camera=four built-in names plus attribute=focal_length (optional value in mm) for a camera focal key, as one undo step. No time means the current time, no node_ids means the object selection (Object or Hierarchy mode), and no channels means all nine transform channels. Keys are whole-frame values interpolated linearly. Focal curves hold outside their keyed span; transform curves follow pre/post infinity (constant by default; PROVISIONAL: tangents are not implemented). Rotation values are in the scene's declared angular unit. Sourced scenes refuse new keys. Camera focal curves save in the bounded authored .ma/.mb profile; transform keys still prevent Save. Bounded by key_limit. Stops playback",
         schema: key_schema,
         parse: parse_set_keyframe,
         idempotent: false,
@@ -333,6 +384,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Remove whole-turn jumps from rotation keys as one undo step, without changing the orientation at any key: each key is moved by whole turns per axis to lie nearest the previous key (half a turn is 180 degrees, or pi radians in a radian scene). When all three rotation channels are named and the object's three curves share their key frames, a key may instead take the equivalent triple (a + 180, 180 - b, c + 180), b being the middle axis of its rotate order, if that is nearer, which removes the flip a camera pan past 90 degrees produces. No node_ids means the object selection, and no channels means rotate_x, rotate_y and rotate_z. A non-rotation channel is refused with not_rotation_channel, named channels holding no key with no_rotation_keys, and a key beyond a million turns with euler_value_too_large; a refusal changes nothing. Filtering again changes nothing. With fewer than three channels or curves that do not share frames, each curve is only unrolled. The nearest-key rule, the triple form and the tie rule are PROVISIONAL: Maya's algorithm is unstated. Remaining keys are evaluated at the current time. Stops playback",
         schema: schema::<EulerFilterArgs>,
         parse: parse_euler_filter,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "set_infinity",
+        description: "Set what keyed curves do before their first key (pre) and after their last (post), as one undo step: constant holds the end value, linear continues the end segment's slope, cycle repeats the keyed span, cycle_relative repeats it with the span's rise added each cycle, oscillate repeats it alternately forwards and backwards. At least one of pre and post is required, and one left out stays as it is. No node_ids means the object selection, and no channels means all nine; a named channel without a key is skipped, and none keyed is refused with no_keys. A refusal changes nothing. Read the settings as pre_infinity and post_infinity on each inspect_keys key. The setting lives with the curve's keys: deleting its last key resets it to constant, and it is session-only like the keys. Remaining keys are evaluated at the current time (PROVISIONAL: the modes' formulas are not stated by Maya's docs, and linear uses the end segment's slope because tangents are not implemented). Stops playback",
+        schema: schema::<SetInfinityArgs>,
+        parse: parse_set_infinity,
         idempotent: true,
         read_only: false,
     },

@@ -12,7 +12,7 @@
         6.081475257873535
       ],
       "far_clip": 10000.0,
-      "fov_y_degrees": 37.79089026254695,
+      "fov_y_degrees": 37.7909,
       "near_clip": 0.10000000149011612,
       "optics": [
         {
@@ -484,7 +484,11 @@
       "open_chunk": null,
       "queue_size": 50,
       "redo_length": 0,
-      "undo_length": 1
+      "redo_queue": [],
+      "undo_length": 1,
+      "undo_queue": [
+        "Create"
+      ]
     },
     "units": {
       "angular": "deg",

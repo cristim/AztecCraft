@@ -24,8 +24,9 @@ File > Import... and MCP `import_obj` add the meshes of an OBJ file to the scene
 parity with Maya is claimed and nothing was compared with Maya's OBJ reader (#5).
 
 - **Meshes only.** `v` and `f` records, `o` and `g` groups (one new object per group, Multiple
-  Objects semantics). Normals, UVs, materials, smoothing groups and `.mtl` files are counted in
-  `ignored_records` and dropped. The Group and Single Object options and other import types do not
+  Objects semantics). Normals, materials, smoothing groups and `.mtl` files are counted in
+  `ignored_records` and dropped. `vt` records are parsed and validated (up to 262,144) but the UVs are
+  not yet applied to the imported shapes, and nothing reports them. The Group and Single Object options and other import types do not
   exist; the option box beside Import... is disabled.
 - **Opened Maya files refuse it.** A scene opened from `.mb` or `.ma` cannot take structural edits,
   so Import returns the same refusal Create gives. It works in Untitled, authored and legacy
@@ -96,7 +97,8 @@ PROVISIONAL, because the docs do not state it or the feature behind it is absent
   re-evaluate at the current time only when the restored snapshot was taken at another time, which
   they do not restore; at an unchanged time they give back the recorded state, held edits included.
 - Setting the time to the current frame replies unchanged and keeps a held edit.
-- Euler filter (#461, `euler_filter`) moves each rotation key by whole turns to lie nearest the previous key and, when all three rotation curves are named and share their key frames, may take the equivalent triple (a + 180, 180 - b, c + 180, b the middle axis of the rotate order) if that is nearer, so no key's orientation changes. Other cases only unroll each curve. The nearest-key rule, the distance measure and the tie rule are PROVISIONAL (the 2027 `filterCurve` page states no algorithm). A key beyond a million turns is refused. It has no Graph Editor or Channel Box control. Pre/post-infinity is not implemented: keys are not saved (above), so there is nothing to round-trip yet, and the Graph Editor and native-screenshot criteria of #461 stay open.
+- Euler filter (#461, `euler_filter`) moves each rotation key by whole turns to lie nearest the previous key and, when all three rotation curves are named and share their key frames, may take the equivalent triple (a + 180, 180 - b, c + 180, b the middle axis of the rotate order) if that is nearer, so no key's orientation changes. Other cases only unroll each curve. The nearest-key rule, the distance measure and the tie rule are PROVISIONAL (the 2027 `filterCurve` page states no algorithm). A key beyond a million turns is refused. It has no Graph Editor or Channel Box control.
+- Pre/post infinity (#461, `set_infinity`; read as `pre_infinity`/`post_infinity` on `inspect_keys` rows) is per keyed curve and session-only like the keys, so there is no `.ma`/`.mb` round trip of `preInfinity`/`postInfinity` yet: keys are not saved, so there is no animCurve node to carry them, and writers still refuse a scene holding keys. Reading a file's own animCurves is #62. The mode formulas are PROVISIONAL (the `setInfinity` page names the five modes only): constant holds the end value; linear continues the end segment's slope (no tangents exist); cycle repeats the keyed span; cycle_relative adds the first-to-last rise per cycle; oscillate alternates forwards and backwards; a one-key curve holds under every mode. Deleting a curve's last key resets its setting to constant. Evaluation can overflow to a non-finite value (cycle_relative far from the keys; linear with an enormous slope, such as keys at -f64::MAX and f64::MAX one frame apart); a time change or `set_infinity` that evaluates such a frame is refused as `invalid_input` and changes nothing. `set_infinity` checks only the current frame, so a curve that overflows only away from it is accepted and a later time change to those frames then fails (an accepted limitation). The Graph Editor/Channel Box UI and the native-screenshot criteria of #461 stay open.
 - Step Key does not wrap at the first or last key, and Step Frame ignores the Loop Play Range
   preferences. A held step repeats, and S does not.
 - Play from outside the playback range starts at the range start.
@@ -1054,7 +1056,7 @@ descendants, each instance once, in scene order rather than selection order (PRO
 the docs give no export order). Maya's options page says the parents of selected nodes are
 also exported; a parent's own mesh is not written here unless it is selected, so that is
 unmet. Normals, materials, smoothing groups, curves and Maya's OBJ Export Options are not
-written or offered, and a shape with session UVs is refused rather than exported without them (the option boxes are disabled), and export never overwrites an
+written or offered (the option boxes are disabled). A shape with session UVs writes one `vt` per corner and `f v/vt` rows, mirrored instances reversed together; a mixed file of plain and mapped objects is valid OBJ but some readers dislike it (PROVISIONAL), and scenes opened from .ma/.mb hold no session UVs, so they write no `vt`. Export never overwrites an
 existing file. The view of the whole scene is built first, so one mesh the viewport
 cannot display (for example a concave n-gon) fails every export, including Export
 Selection of another object. The Windows save dialog may first ask whether to
@@ -1455,8 +1457,7 @@ UVs exist only on shapes authored in the session, as one `map1` holding one UV p
 so no two faces share a UV, each an exact f32. An authored Maya ASCII `.ma` Save carries them (`mu` ids in
 the `.fc` rows plus `.uvst[0].uvsn`, `.uvsp` and `.cuvs`, layout PROVISIONAL, `.project-docs/uv-ascii-format.md`)
 and reopens with them f32-exactly. The `.mb` writer and the legacy view still refuse a scene
-holding them, rather than dropping them (`save_unwritable`, reason `session_uvs`), and OBJ export refuses a shape that has them
-(`export_invalid`, remedy Delete UVs) instead of writing it without `vt` records. A shape with UVs refuses Extrude until Delete UVs or Undo,
+holding them, rather than dropping them (`save_unwritable`, reason `session_uvs`), and OBJ export writes them as `vt` records and `f v/vt` rows. A shape with UVs refuses Extrude until Delete UVs or Undo,
 because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
 bounds of the face corners (Bounding box fit, PROVISIONAL; points no face uses do not affect the fit) only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
 Set, the projection manipulator and construction history are missing. The projections are oriented
@@ -1543,7 +1544,7 @@ Cost: a multi-object begin enumerates every transform path of the scene once (`t
   deferred with the same gap in the other tools.
 - `create_joint` refuses a position that is not representable as f32 (`unsupported_joint`), because
   one such joint would fail every view build. A transform edit (`edit_node`, `set_transform`),
-  a parent, a set pivots and a reset pivots that would make the
+  a parent, a set pivots, a reset pivots and an `extrude_face` that would make the
   view fail with a non-finite world position (a vertex or joint centre past f32) are refused with
   `world_out_of_range` (#396); `History::execute` checks the candidate with the same view build,
   and only when the scene before the edit still built. A Move, Rotate or Scale builds the
@@ -1652,3 +1653,14 @@ have not been opened by Maya. Focal-length keys use native linear animCurveTU re
 ASCII/binary profile, with exact re-emission adoption. Custom camera shapes,
 arbitrary sourced camera curves and Maya runtime acceptance remain unsupported.
 The binary film24 tick mapping and combined authored profile remain PROVISIONAL.
+
+## The inspect_scene size preflight ignores the undo labels
+
+`inspection_page_lower_bound` counts the scene only, not `undo_state.undo_queue` and `redo_queue` (up to 100
+labels, roughly 1 KB with short labels, and up to about 26 KB with long chunk names). A page can pass the
+preflight and still be refused `too_large` after serialising. Pre-existing pattern (the other history fields
+are uncounted too); fixing it needs the History in the bound.
+
+## Sandboxed scripting is not implemented (#57)
+
+Decision and design: `.project-docs/scripting-adr.md`. Nothing executes user scripts yet; scene-embedded scripts, expressions and bundled MEL stay inert data. When slice 1 lands its known limits are: each Run starts a fresh interpreter, so Maya's persistent Script Editor namespace is missing (PROVISIONAL, Maya does not document it on the pages read); only self-contained scripts run (no `site-packages`, C extensions, threads, files or network) and only a handful of `maya.cmds` commands exist; Python 3 only, Python 2 semantics for compatibility versions 2011 to 2021 are not emulated; installer growth up to about 80 MB (helper, python.wasm, notices); wasmtime or Cranelift advisories can weaken the WASM layer (pinned LTS, monthly update task) and an escaped helper could still read user files (reads are not scoped); a human can approve a malicious MCP-requested script, and an agent with desktop control can synthesise the click and the opt-in (Q-UIAuto open); the approval Run button ignores assistive-technology press actions, so screen-reader users must use the keyboard (conflict with #465); the Script Editor shares the missing live-region announcement gap (#465, G5); there are no MEL tab, Command Line Python mode or file calls.

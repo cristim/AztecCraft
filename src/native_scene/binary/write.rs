@@ -9,32 +9,12 @@
     expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod check;
-#[cfg_attr(
-    not(any(test, unix)),
-    expect(dead_code, reason = "only the Unix save path calls the writer")
-)]
 pub(in crate::native_scene::binary) mod chunk;
 #[cfg(test)]
 mod fixtures;
-#[cfg_attr(
-    not(any(test, unix)),
-    expect(dead_code, reason = "only the Unix save path calls the writer")
-)]
 mod head;
-#[cfg_attr(
-    not(any(test, unix)),
-    expect(dead_code, reason = "only the Unix save path calls the writer")
-)]
 mod mesh;
-#[cfg_attr(
-    not(any(test, unix)),
-    expect(dead_code, reason = "only the Unix save path calls the writer")
-)]
 mod profile;
-#[cfg_attr(
-    not(any(test, unix)),
-    expect(dead_code, reason = "only the Unix save path calls the writer")
-)]
 mod transform;
 
 use crate::native_scene::{NativeScene, SessionMaterials, authored, authored::AuthoredIneligible};

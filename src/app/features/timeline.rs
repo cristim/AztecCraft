@@ -732,6 +732,22 @@ impl Editor {
         }
     }
 
+    pub(in crate::app) fn set_infinity_command(
+        &self,
+        nodes: Option<Vec<NodeId>>,
+        channels: ChannelMask,
+        pre: Option<azteccraft::native_scene::Infinity>,
+        post: Option<azteccraft::native_scene::Infinity>,
+    ) -> Command {
+        Command::SetInfinity {
+            nodes: self.key_nodes(nodes),
+            channels,
+            pre,
+            post,
+            current_frame: self.timeline.current,
+        }
+    }
+
     /// One page of keys. A read passes no token guard, so the cursor binds the document and the
     /// revision; a playback tick that moves a keyed channel makes it stale.
     #[cfg(any(test, feature = "mcp"))]
@@ -774,11 +790,16 @@ impl Editor {
             .key_rows(node)
             .skip(key_offset)
             .take(MAX_KEYS_PER_PAGE)
-            .map(|row| KeyInspection {
-                node_id: row.node.to_decimal(),
-                channel: KEY_CHANNELS[row.channel],
-                frame: row.frame,
-                value: row.value,
+            .map(|row| {
+                let (pre, post) = scene.infinity_of(row.node, row.channel);
+                KeyInspection {
+                    node_id: row.node.to_decimal(),
+                    channel: KEY_CHANNELS[row.channel],
+                    frame: row.frame,
+                    value: row.value,
+                    pre_infinity: pre.name(),
+                    post_infinity: post.name(),
+                }
             })
             .collect();
         let end = key_offset + keys.len();

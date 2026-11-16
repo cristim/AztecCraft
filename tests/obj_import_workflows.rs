@@ -2,7 +2,9 @@ use azteccraft::{
     native_scene::NativeScene,
     obj::{
         ExportSummary, export_native_new,
-        import::{MAX_CORNERS, MAX_FACES, MAX_VERTICES, ObjImportError, ParsedObj, parse, read},
+        import::{
+            MAX_CORNERS, MAX_FACES, MAX_UVS, MAX_VERTICES, ObjImportError, ParsedObj, parse, read,
+        },
     },
     scene::Primitive,
     view_scene::{ViewInstance, ViewScene},
@@ -39,6 +41,17 @@ fn assert_sound(parsed: &ParsedObj) {
         }
     }
     assert!(faces <= MAX_FACES && corners <= MAX_CORNERS);
+    assert!(parsed.uvs.len() <= MAX_UVS);
+    for object in &parsed.objects {
+        if let Some(uv_faces) = &object.uv_faces {
+            assert_eq!(uv_faces.len(), object.faces.len());
+            for (uv, face) in uv_faces.iter().zip(&object.faces) {
+                assert_eq!(uv.len(), face.len());
+                assert!(uv.iter().all(|i| (*i as usize) < parsed.uvs.len()));
+            }
+        }
+    }
+    assert!(parsed.uvs.iter().flatten().all(|c| c.is_finite()));
     assert!(parsed.vertices.iter().flatten().all(|c| c.is_finite()));
 }
 
@@ -81,6 +94,9 @@ impl Xorshift {
 const HAND: &str = "\u{feff}# hand\nmtllib a.mtl\nv 0 0 0\nv 1 0 0 1\nv 0 1 0\nv 1 1 0\nvt 0 0\nvn 0 0 1\n\
                     o one\nf 1/1/1 2/1/1 3/1/1\ng two\nusemtl m\nf -1 -2 -3 -4\nf 1 2 \\\r\n3 4\n";
 
+const UV_SEED: &str = "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nvt 0 0\nvt 1 0 0\nvt 1 1\nvt 0 1\n\
+                       o a\nf 1/1 2/2 3/3 4/4\no b\nf -4/-4 -3/-3 -2/-2\nf 1/1/1 3/3/1 4/4/1\n";
+
 fn mutate(seed: &[u8], rng: &mut Xorshift) -> Vec<u8> {
     let mut bytes = seed.to_vec();
     if bytes.is_empty() {
@@ -108,6 +124,8 @@ fn mutate(seed: &[u8], rng: &mut Xorshift) -> Vec<u8> {
                 b"99999999999999999999",
                 b"nan",
                 b"1/2/3",
+                b"vt 1 2 3",
+                b"1/-1",
                 b"//",
             ];
             let at = rng.below(bytes.len());
@@ -124,7 +142,11 @@ fn mutate(seed: &[u8], rng: &mut Xorshift) -> Vec<u8> {
 #[test]
 fn mutated_inputs_never_panic_and_every_success_is_sound() {
     let (text, _) = exported(&[(Primitive::Cube, "pCube1"), (Primitive::Plane, "pPlane1")]);
-    let seeds = [text.into_bytes(), HAND.as_bytes().to_vec()];
+    let seeds = [
+        text.into_bytes(),
+        HAND.as_bytes().to_vec(),
+        UV_SEED.as_bytes().to_vec(),
+    ];
     let mut rng = Xorshift(0x9E37_79B9_7F4A_7C15);
     let (mut accepted, mut refused) = (0, 0);
     let mut kinds = std::collections::HashSet::new();

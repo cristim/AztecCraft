@@ -564,6 +564,31 @@ mod native_open_tests {
         assert_eq!(std::fs::read(path).unwrap(), source);
     }
 
+    #[test]
+    fn native_open_accepts_the_byte_cap_and_refuses_one_more_for_every_extension() {
+        let directory = tempfile::tempdir().unwrap();
+        for extension in ["mb", "ma", "aztec"] {
+            let path = directory.path().join(format!("cap.{extension}"));
+            let file = std::fs::File::create(&path).unwrap();
+            file.set_len(MAX_DOCUMENT_BYTES as u64).unwrap();
+            // At the cap the size check passes; the zero bytes then fail as a malformed scene.
+            let at_cap = load_native(&path).err().unwrap();
+            // The format parsers have their own byte caps; at N none of them may fire either.
+            let resource = match &at_cap {
+                NativeLoadError::TooLarge => true,
+                NativeLoadError::Binary(error) => error.kind() == binary::ErrorKind::ResourceLimit,
+                NativeLoadError::Ascii(error) => error.kind() == ascii::ErrorKind::ResourceLimit,
+                _ => false,
+            };
+            assert!(!resource, "{extension} at the cap: {at_cap}");
+            file.set_len(MAX_DOCUMENT_BYTES as u64 + 1).unwrap();
+            assert!(
+                matches!(load_native(&path), Err(NativeLoadError::TooLarge)),
+                "{extension} over the cap"
+            );
+        }
+    }
+
     fn authored_ma_bytes() -> Vec<u8> {
         let mut scene = NativeScene::default();
         scene.create(crate::scene::Primitive::Cube, "box").unwrap();

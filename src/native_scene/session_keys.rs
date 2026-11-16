@@ -1,15 +1,20 @@
-//! Session-only keys on the nine transform channels of authored nodes.
+//! Transform session keys and authored built-in camera focal curves.
 //!
-//! The table is not saved, so writers refuse a scene that holds any. Keys sit on whole frames.
-//! Evaluation interpolates linearly between two keys and holds outside them (PROVISIONAL: Maya's
-//! default tangents are Auto, and tangent types are not implemented). A key frame returns the
+//! Transform keys prevent Save; native codecs persist the bounded focal profile.
+//! Keys sit on whole frames. Focal curves hold outside their keyed span.
+//! Evaluation interpolates linearly between two keys and, outside them, follows the curve's pre-
+//! and post-infinity (constant by default; see `infinity`) (PROVISIONAL: Maya's default tangents
+//! are Auto, and tangent types are not implemented). A key frame returns the
 //! exact stored value. Sourced scenes refuse keys like every other structural edit, and their own
 //! animation curves are not evaluated.
 
 mod camera;
 mod euler;
+mod infinity;
 pub(in crate::native_scene) mod persistence;
 pub use euler::check_euler_channels;
+use infinity::evaluate_with;
+pub use infinity::{Infinity, InfinityPair};
 
 use super::{NativeError, NativeScene, NativeTransformNode, Scalar, TransformField};
 use crate::scene::NodeId;
@@ -87,6 +92,8 @@ pub(super) struct SessionKeys {
     /// A node appears only while at least one of its channels holds a key.
     curves: BTreeMap<NodeId, [Curve; 9]>,
     camera_curves: [Curve; 4],
+    /// Only curves that hold a key and differ from `(Constant, Constant)` appear.
+    infinity: BTreeMap<(NodeId, usize), InfinityPair>,
 }
 
 /// Bitwise, like `NativeTransform` equality, so a key that changes only a zero's sign is an edit.
@@ -116,12 +123,38 @@ impl PartialEq for SessionKeys {
                             .zip(b)
                             .all(|((af, av), (bf, bv))| af == bf && av.to_bits() == bv.to_bits())
                 })
+            && self.infinity == other.infinity
     }
 }
 
 impl SessionKeys {
     pub(super) fn is_empty(&self) -> bool {
         self.curves.is_empty() && self.camera_curves.iter().all(BTreeMap::is_empty)
+    }
+
+    fn infinity_of(&self, node: NodeId, channel: usize) -> InfinityPair {
+        self.infinity
+            .get(&(node, channel))
+            .copied()
+            .unwrap_or_default()
+    }
+
+    fn set_infinity(&mut self, node: NodeId, channel: usize, pair: InfinityPair) {
+        if pair == InfinityPair::default() {
+            self.infinity.remove(&(node, channel));
+        } else {
+            self.infinity.insert((node, channel), pair);
+        }
+    }
+
+    /// Forgets the settings of curves that no longer hold a key.
+    fn drop_unkeyed_infinity(&mut self) {
+        let curves = &self.curves;
+        self.infinity.retain(|(node, channel), _| {
+            curves
+                .get(node)
+                .is_some_and(|curves| !curves[*channel].is_empty())
+        });
     }
 
     fn len(&self) -> usize {
@@ -139,7 +172,21 @@ impl SessionKeys {
         sourced: bool,
     ) -> Result<(), NativeError> {
         if self.is_empty() {
-            return Ok(());
+            return if self.infinity.is_empty() {
+                Ok(())
+            } else {
+                Err(NativeError::InvalidSessionKeys)
+            };
+        }
+        let keyed = |node: &NodeId, channel: usize| {
+            self.curves
+                .get(node)
+                .is_some_and(|curves| channel < curves.len() && !curves[channel].is_empty())
+        };
+        if self.infinity.iter().any(|((node, channel), pair)| {
+            !keyed(node, *channel) || *pair == InfinityPair::default()
+        }) {
+            return Err(NativeError::InvalidSessionKeys);
         }
         if sourced || self.len() > MAX_SESSION_KEYS {
             return Err(NativeError::InvalidSessionKeys);
@@ -167,6 +214,7 @@ impl SessionKeys {
     pub(super) fn prune(&mut self, nodes: &[NativeTransformNode]) {
         let known: HashSet<NodeId> = nodes.iter().map(|node| node.id).collect();
         self.curves.retain(|node, _| known.contains(node));
+        self.drop_unkeyed_infinity();
     }
 }
 
@@ -326,6 +374,7 @@ impl NativeScene {
                 keys.curves.remove(id);
             }
         }
+        keys.drop_unkeyed_infinity();
         // Nothing removed: re-evaluating would overwrite a held edit for no reason.
         if keys == self.session_keys {
             return Ok(());
@@ -376,7 +425,8 @@ impl NativeScene {
             let mut replacement = node.channels.clone();
             let mut changed = false;
             for (slot, curve) in curves.iter().enumerate() {
-                let Some(value) = evaluate(curve, frame).filter(|_| mask[slot]) else {
+                let pair = keys.infinity_of(*id, slot);
+                let Some(value) = evaluate_with(curve, frame, pair).filter(|_| mask[slot]) else {
                     continue;
                 };
                 if !value.is_finite() {

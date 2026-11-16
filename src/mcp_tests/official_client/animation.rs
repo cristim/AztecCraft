@@ -111,7 +111,7 @@ async fn animation_sdk_keys_scrubs_reads_undoes_and_deletes() {
     assert_eq!(read["unavailable_reason"], Value::Null);
     assert_eq!(
         read["keys"][1],
-        json!({"node_id": node, "channel": "translate_x", "frame": 11, "value": 10.0})
+        json!({"node_id": node, "channel": "translate_x", "frame": 11, "value": 10.0, "pre_infinity": "constant", "post_infinity": "constant"})
     );
 
     tool(
@@ -437,6 +437,8 @@ fn a_full_page_of_the_longest_keys_fits_the_reply_limits() {
                     channel: "translate_x",
                     frame: -azteccraft::native_scene::MAX_FRAME,
                     value: -1.234_567_890_123_456_7e-308,
+                    pre_infinity: "cycle_relative",
+                    post_infinity: "cycle_relative",
                 })
                 .collect(),
             next_cursor: Some(
@@ -692,6 +694,212 @@ async fn animation_sdk_euler_filter_is_one_undo_step_and_refuses_bad_input() {
     tool(&mut editor, &context, &client, "redo", json!({})).await;
     let redone = keys(&mut editor, &context, &client, json!({})).await;
     assert_eq!(rotate_y(&redone), vec![10.0, -10.0]);
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn animation_sdk_set_infinity_extends_the_curve_reads_back_and_undoes() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap();
+    let node = id.to_decimal();
+    let key = json!({"node_ids": [node.clone()], "channels": ["translate_x"]});
+    tool(&mut editor, &context, &client, "set_keyframe", key.clone()).await;
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time": 5}),
+    )
+    .await;
+    let edit = json!({"node_id": node, "translation": [8, null, null]});
+    tool(&mut editor, &context, &client, "edit_node", edit).await;
+    tool(&mut editor, &context, &client, "set_keyframe", key).await;
+    let settings = |keys: &Value| -> Vec<(String, String)> {
+        keys["keys"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|key| key["channel"] == "translate_x")
+            .map(|key| {
+                (
+                    key["pre_infinity"].as_str().unwrap().to_string(),
+                    key["post_infinity"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect()
+    };
+    let constant = ("constant".to_string(), "constant".to_string());
+    let read = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&read), vec![constant.clone(); 2]);
+
+    let set = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"channels": ["translate_x"], "pre": "linear", "post": "cycle_relative"}),
+    )
+    .await;
+    assert_eq!(outcome(set), "changed");
+    let cycle = ("linear".to_string(), "cycle_relative".to_string());
+    let read = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&read), vec![cycle.clone(); 2]);
+    // Frame 9 is a whole span past the last key: 8 plus the 8 the span rises.
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time": 9}),
+    )
+    .await;
+    assert_eq!(tx(&editor, id), 16.0);
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time": -3}),
+    )
+    .await;
+    assert_eq!(tx(&editor, id), -8.0);
+    let again = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"channels": ["translate_x"], "pre": "linear"}),
+    )
+    .await;
+    assert_eq!(outcome(again), "unchanged");
+
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    let undone = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&undone), vec![constant.clone(); 2]);
+    tool(&mut editor, &context, &client, "redo", json!({})).await;
+    let redone = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&redone), vec![cycle; 2]);
+
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "delete_keys",
+        json!({"channels": ["translate_x"]}),
+    )
+    .await;
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time": 1}),
+    )
+    .await;
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_keyframe",
+        json!({"channels": ["translate_x"]}),
+    )
+    .await;
+    let fresh = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&fresh), vec![constant]);
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn animation_sdk_set_infinity_refusals_change_nothing() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap().to_decimal();
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_keyframe",
+        json!({"channels": ["translate_x"]}),
+    )
+    .await;
+    let before = keys(&mut editor, &context, &client, json!({})).await;
+    let neither = tool(&mut editor, &context, &client, "set_infinity", json!({})).await;
+    assert_eq!(error_code(&neither), "invalid_input");
+    let unkeyed = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"channels": ["rotate_x"], "post": "cycle"}),
+    )
+    .await;
+    assert_eq!(error_code(&unkeyed), "no_keys");
+    let empty = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"node_ids": [], "post": "cycle"}),
+    )
+    .await;
+    assert_eq!(error_code(&empty), "invalid_input");
+    let unknown = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"node_ids": ["999"], "post": "cycle"}),
+    )
+    .await;
+    assert_eq!(unknown.is_error, Some(true));
+    let scene_token = editor.scene_token.to_string();
+    for mut args in [
+        json!({"post": "bounce"}),
+        json!({"pre": "Cycle"}),
+        json!({"channels": [], "post": "cycle"}),
+        json!({"channels": ["translate_x", "translate_x"], "post": "cycle"}),
+        json!({"node_ids": [id.clone()], "post": "cycle", "extra": 1}),
+    ] {
+        args["scene_token"] = json!(scene_token);
+        let shown = args.to_string();
+        let refused =
+            call_response(&mut editor, &context, client.peer(), "set_infinity", args).await;
+        assert!(refused.is_err(), "{shown}");
+    }
+    assert_eq!(
+        keys(&mut editor, &context, &client, json!({})).await,
+        before
+    );
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn animation_sdk_euler_filter_refuses_a_key_beyond_the_turn_limit() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap().to_decimal();
+    for (time, degrees) in [(1, 0.0), (2, 3.6e8 + 1000.0)] {
+        let args = json!({"node_id": id, "translation": [0, 0, 0], "rotation_degrees": [0.0, degrees, 0.0], "scale": [1, 1, 1]});
+        let set = tool(&mut editor, &context, &client, "set_transform", args).await;
+        assert_ne!(set.is_error, Some(true), "{set:?}");
+        let key = json!({"time": time, "channels": ["rotate_y"]});
+        tool(&mut editor, &context, &client, "set_keyframe", key).await;
+    }
+    let before = keys(&mut editor, &context, &client, json!({})).await;
+    let refused = tool(&mut editor, &context, &client, "euler_filter", json!({})).await;
+    assert_eq!(error_code(&refused), "euler_value_too_large");
+    assert_eq!(
+        keys(&mut editor, &context, &client, json!({})).await,
+        before
+    );
     client.cancel().await.unwrap();
     server.await.unwrap();
 }
@@ -1042,6 +1250,115 @@ async fn camera_focal_sdk_paging_scopes_and_stale_cursor_preserve_state() {
                 .is_err()
         );
     }
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn focal_curves_and_transform_infinity_coexist_without_losing_either_table() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap();
+    for (frame, x, focal) in [(1, 0., 35.), (11, 10., 75.)] {
+        tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_current_time",
+            json!({"time":frame}),
+        )
+        .await;
+        tool(
+            &mut editor,
+            &context,
+            &client,
+            "edit_node",
+            json!({"node_id":id.to_decimal(),"translation":[x,null,null]}),
+        )
+        .await;
+        tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_keyframe",
+            json!({"channels":["translate_x"]}),
+        )
+        .await;
+        tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_keyframe",
+            json!({"camera":"persp","attribute":"focal_length","value":focal}),
+        )
+        .await;
+    }
+    assert_eq!(
+        outcome(
+            tool(
+                &mut editor,
+                &context,
+                &client,
+                "set_infinity",
+                json!({"channels":["translate_x"],"post":"cycle"})
+            )
+            .await
+        ),
+        "changed"
+    );
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time":26}),
+    )
+    .await;
+    assert_eq!(tx(&editor, id), 5.);
+    assert_eq!(
+        editor
+            .history
+            .scene()
+            .camera_optics(azteccraft::native_scene::SceneCamera::Persp)
+            .focal_length_mm,
+        75.
+    );
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "delete_keys",
+        json!({"camera":"persp","attribute":"focal_length"}),
+    )
+    .await;
+    assert_eq!(
+        keys(&mut editor, &context, &client, json!({})).await["keys"][0]["post_infinity"],
+        "cycle"
+    );
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    assert_eq!(
+        keys(
+            &mut editor,
+            &context,
+            &client,
+            json!({"camera":"persp","attribute":"focal_length"})
+        )
+        .await["keys_total"],
+        2
+    );
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("mixed.ma");
+    let refused = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path":path}),
+    )
+    .await;
+    assert_eq!(refused.is_error, Some(true));
+    assert!(!path.exists());
     client.cancel().await.unwrap();
     server.await.unwrap();
 }

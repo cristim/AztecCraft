@@ -1,4 +1,4 @@
-use crate::native_scene::{NativeError, NativeScene};
+use crate::native_scene::{NativeError, NativeScene, UvSet};
 use crate::scene::{Scene, SceneError};
 use crate::view_scene::ViewInstance;
 use craft_atomic::{AtomicFs, NewFilePermissions, RealFs, WriteOptions};
@@ -84,6 +84,33 @@ fn write_name(writer: &mut impl Write, name: &str) -> io::Result<()> {
     Ok(())
 }
 
+/// The shape's UVs in the order the `f` rows list their corners: face order, each face reversed
+/// when the instance is mirrored, so a corner keeps its own UV. A set whose faces do not match
+/// the displayed faces is refused rather than written misaligned.
+fn corner_uvs(
+    set: &UvSet,
+    instance: &ViewInstance,
+    mirrored: bool,
+) -> Result<Vec<[f32; 2]>, ObjError> {
+    let mut uvs = Vec::new();
+    uvs.try_reserve_exact(set.corner_count())
+        .map_err(|_| ObjError::TooLarge)?;
+    for face in instance.faces() {
+        let corners = set
+            .faces()
+            .get(face.source_index())
+            .filter(|corners| corners.len() == face.corners().len())
+            .ok_or(ObjError::Native(NativeError::InvalidSessionUvs))?;
+        let mut push = |&[u, v]: &[f64; 2]| uvs.push([u as f32, v as f32]);
+        if mirrored {
+            corners.iter().rev().for_each(&mut push);
+        } else {
+            corners.iter().for_each(&mut push);
+        }
+    }
+    Ok(uvs)
+}
+
 /// Counts written by [`export_native_new`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ExportSummary {
@@ -96,8 +123,8 @@ pub struct ExportSummary {
 /// instance named after its transform. Positions are recomputed in f64 from the authoring scene
 /// (centimeters, Maya's internal unit) rather than taken from the f32 display vertices. A
 /// mirrored instance reverses its faces so they keep facing outward. Normals, groups and
-/// materials are not written; a shape with session UVs is refused with [`ObjError::SessionUvs`]
-/// rather than exported without them. The destination must not exist; nothing is written on refusal.
+/// materials are not written; a shape with session UVs writes one `vt` per corner and `f v/vt`
+/// rows (a mirrored instance reverses both together). The destination must not exist; nothing is written on refusal.
 /// `may_install` is asked before the staged file is created and again before it is given the
 /// destination's name; a refusal returns [`ObjError::Cancelled`] and leaves nothing behind.
 pub fn export_native_new(
@@ -119,9 +146,6 @@ pub fn export_native_new(
         faces: 0,
     };
     for instance in instances {
-        if scene.uv_set(instance.shape()).is_some() {
-            return Err(ObjError::SessionUvs);
-        }
         let name = scene
             .node(instance.transform())
             .map_err(ObjError::Native)?
@@ -146,6 +170,10 @@ pub fn export_native_new(
             points.push(point);
         }
         let mirrored = world.determinant() < 0.0;
+        let uvs = match scene.uv_set(instance.shape()) {
+            Some(set) => Some(corner_uvs(set, instance, mirrored)?),
+            None => None,
+        };
         summary.objects += 1;
         summary.vertices = summary
             .vertices
@@ -155,7 +183,7 @@ pub fn export_native_new(
             .faces
             .checked_add(instance.faces().len())
             .ok_or(ObjError::TooLarge)?;
-        objects.push((name, points, *instance, mirrored));
+        objects.push((name, points, *instance, mirrored, uvs));
     }
     if summary.faces == 0 {
         return Err(ObjError::NothingToExport);
@@ -173,19 +201,36 @@ pub fn export_native_new(
                 "# AztecCraft world-space polygon geometry (centimeters)"
             )?;
             let mut offset = 1usize;
-            for (name, points, instance, mirrored) in &objects {
+            let mut uv_offset = 1usize;
+            for (name, points, instance, mirrored, uvs) in &objects {
                 write!(writer, "o ")?;
                 write_name(&mut writer, name)?;
                 writeln!(writer)?;
                 for point in points {
                     writeln!(writer, "v {} {} {}", point.x, point.y, point.z)?;
                 }
+                if let Some(uvs) = uvs {
+                    for [u, v] in uvs {
+                        writeln!(writer, "vt {u} {v}")?;
+                    }
+                }
+                let mut next_uv = uv_offset;
                 for face in instance.faces() {
                     write!(writer, "f")?;
                     let corners = face.corners();
-                    let mut write_corner = |corner: usize| match corner.checked_add(offset) {
-                        Some(index) => write!(writer, " {index}"),
-                        None => Err(io::Error::from(io::ErrorKind::InvalidData)),
+                    let mut write_corner = |corner: usize| {
+                        let index = corner
+                            .checked_add(offset)
+                            .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidData))?;
+                        if uvs.is_some() {
+                            write!(writer, " {index}/{next_uv}")?;
+                            next_uv = next_uv
+                                .checked_add(1)
+                                .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidData))?;
+                            Ok(())
+                        } else {
+                            write!(writer, " {index}")
+                        }
                     };
                     if *mirrored {
                         corners.iter().rev().try_for_each(|&c| write_corner(c))?;
@@ -193,6 +238,11 @@ pub fn export_native_new(
                         corners.iter().try_for_each(|&c| write_corner(c))?;
                     }
                     writeln!(writer)?;
+                }
+                if let Some(uvs) = uvs {
+                    uv_offset = uv_offset
+                        .checked_add(uvs.len())
+                        .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidData))?;
                 }
                 offset = offset
                     .checked_add(points.len())
@@ -273,8 +323,6 @@ pub enum ObjError {
     Cancelled,
     NonFinite,
     TooLarge,
-    /// A shape has session UVs, which this export does not write.
-    SessionUvs,
 }
 
 impl fmt::Display for ObjError {
@@ -287,9 +335,6 @@ impl fmt::Display for ObjError {
             Self::Cancelled => f.write_str("export cancelled before the file was installed"),
             Self::NonFinite => f.write_str("a world-space position is not finite"),
             Self::TooLarge => f.write_str("the export exceeds addressable memory"),
-            Self::SessionUvs => f.write_str(
-                "a shape has session UVs, which OBJ export does not write; use Delete UVs first",
-            ),
         }
     }
 }
@@ -300,11 +345,7 @@ impl std::error::Error for ObjError {
             Self::Io { source, .. } => Some(source),
             Self::Scene(source) => Some(source),
             Self::Native(source) => Some(source),
-            Self::NothingToExport
-            | Self::Cancelled
-            | Self::NonFinite
-            | Self::TooLarge
-            | Self::SessionUvs => None,
+            Self::NothingToExport | Self::Cancelled | Self::NonFinite | Self::TooLarge => None,
         }
     }
 }

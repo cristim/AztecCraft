@@ -245,3 +245,39 @@ async fn extrusion_refuses_mismatched_current_targets_planes_and_imported_struct
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn extrusion_that_leaves_f32_world_range_is_refused_with_world_out_of_range() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    use azteccraft::history::History;
+    use azteccraft::native_scene::{Channel, ReparentKeep};
+    let token = editor.scene_token.to_string();
+    editor.create(Primitive::Cube);
+    let parent = editor.selected().unwrap();
+    editor.create(Primitive::Cube);
+    let child = editor.selected().unwrap();
+    let mut scene = editor.history.scene().clone();
+    for axis in [Channel::ScaleX, Channel::ScaleY, Channel::ScaleZ] {
+        scene.set_channel(parent, axis, 1.0e30).unwrap();
+    }
+    scene
+        .reparent(child, Some(parent), ReparentKeep::Local)
+        .unwrap();
+    editor.history = History::new(scene);
+    let before = editor.history.scene().clone();
+    let shape = before.shapes()[1].id();
+    let path = [
+        before.node(parent).unwrap().transform_id(),
+        before.node(child).unwrap().transform_id(),
+    ];
+    let args = json!({"scene_token":token,"node_id":child.to_decimal(),"shape_id":shape.to_decimal(),"instance_path":[path[0].to_decimal(),path[1].to_decimal(),shape.to_decimal()],"face_index":1,"distance":1.0e10});
+    let refused = call(&mut editor, &context, client.peer(), "extrude_face", args).await;
+    let reply = refused.structured_content.unwrap();
+    assert_eq!(reply["error"]["code"], "world_out_of_range", "{reply}");
+    assert_eq!(editor.history.scene(), &before);
+    assert!(!editor.history.can_undo());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

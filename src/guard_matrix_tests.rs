@@ -18,8 +18,8 @@ use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, MaterialChoice, MoveSpace,
-    NativeScene, PivotReset, ReparentKeep, RotateAxis, ScaleHandle, SessionMaterialId,
+    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, MaterialChoice,
+    MoveSpace, NativeScene, PivotReset, ReparentKeep, RotateAxis, ScaleHandle, SessionMaterialId,
     TransformTarget, UngroupOptions, UvProjectAxis, VertexSetTarget, VertexTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
@@ -220,6 +220,8 @@ enum Pre {
     JointChain,
     /// Assigns a created material to the first shape, which a new Maya Binary cannot hold.
     AssignedMaterial,
+    /// Projects planar UVs on the first shape, which OBJ export writes as `vt` records.
+    PlanarUvs,
     /// Puts a file at the Save As destination before the operation runs.
     OccupiedDestination,
     /// Enables recovery files in `<directory>/recovery`, off in every other cell.
@@ -807,6 +809,12 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::EulerFilter {
             nodes: None,
             channels: [false, false, false, true, true, true, false, false, false],
+        },
+        Operation::SetInfinity {
+            nodes: None,
+            channels: ALL_CHANNELS,
+            pre: Some(Infinity::Cycle),
+            post: None,
         },
         Operation::Inspect { page: None },
         Operation::InspectKeys {
@@ -1402,6 +1410,15 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 channels: [false, false, false, true, true, true, false, false, false],
             },
         )],
+        Operation::SetInfinity { .. } => vec![sample(
+            "set_infinity(selection)",
+            Operation::SetInfinity {
+                nodes: None,
+                channels: ALL_CHANNELS,
+                pre: Some(Infinity::Cycle),
+                post: None,
+            },
+        )],
         Operation::InspectKeys { .. } => vec![sample(
             "inspect_keys",
             Operation::InspectKeys {
@@ -1903,6 +1920,17 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     selection_only: true,
                 },
             ),
+            Sample {
+                pre: Pre::PlanarUvs,
+                only: Some(&[State::Idle]),
+                ..sample(
+                    "export_obj(with_uvs)",
+                    Operation::ExportObj {
+                        path: t.export.clone(),
+                        selection_only: false,
+                    },
+                )
+            },
             sample(
                 "export_obj(not_obj)",
                 Operation::ExportObj {
@@ -2680,6 +2708,18 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
                         color: [1.0, 0.0, 0.0],
                     },
                 });
+            }
+        }
+        Pre::PlanarUvs => {
+            if let Some(shape) = rig.editor.history.scene().shapes().first().map(|s| s.id()) {
+                rig.editor
+                    .history
+                    .execute(Command::ProjectUvPlanar {
+                        shape,
+                        axis: UvProjectAxis::Y,
+                    })
+                    .unwrap();
+                assert!(rig.editor.history.scene().uv_set(shape).is_some());
             }
         }
         Pre::OccupiedDestination => {
