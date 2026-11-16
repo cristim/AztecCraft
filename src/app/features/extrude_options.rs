@@ -45,7 +45,7 @@ pub(in crate::app) fn thickness_field_id() -> egui::Id {
     egui::Id::unique("extrude_option_thickness")
 }
 
-fn window_id() -> egui::Id {
+pub(in crate::app) fn window_id() -> egui::Id {
     egui::Id::unique("extrude_options_window")
 }
 

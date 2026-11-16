@@ -185,6 +185,47 @@ fn checkbox_without_state_fails() {
 }
 
 #[test]
+fn registered_window_chrome_is_exempt_and_unregistered_chrome_fails() {
+    let area = titled_window_id("Probe window");
+    let window = |ui: &mut egui::Ui| {
+        egui::Window::new("Probe window")
+            .resizable(true)
+            .show(ui.ctx(), |ui| ui.button("Close probe"));
+    };
+    let update = tree_of(window);
+    let chrome = chrome_ids(&[area]);
+    let present: Vec<_> = update
+        .nodes
+        .iter()
+        .filter(|(id, node)| chrome.contains(id) && node.role() == Role::Unknown)
+        .collect();
+    // Fails when egui renames its title id: the exemption would silently stop matching. egui 0.37
+    // forces `resizable(false)` on `Window`, so there is no resize corner to exempt.
+    let title = area.with("__title_click").accesskit_id();
+    assert!(
+        present.iter().any(|(id, _)| *id == title),
+        "egui title id changed"
+    );
+    assert!(violations("fixture", &update, &[area]).is_empty());
+    let loud = violations("fixture", &update, &[]);
+    assert!(!loud.is_empty() && loud.iter().all(|v| v.rule.code() != "R3"));
+    assert!(
+        loud.iter()
+            .any(|v| v.message().contains("register the window"))
+    );
+}
+
+#[test]
+fn chrome_id_outside_a_window_is_not_exempt() {
+    let area = titled_window_id("Probe window");
+    let update = tree_of(|ui| {
+        let rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), vec2(20.0, 20.0));
+        ui.interact(rect, area.with("__title_click"), Sense::click());
+    });
+    assert!(!violations("fixture", &update, &[area]).is_empty());
+}
+
+#[test]
 fn key_names_scenario_rule_role_and_anchor() {
     let update = tree_of(|ui| custom_region(ui, false));
     let key = violations("menus", &update, &[])[0].key();

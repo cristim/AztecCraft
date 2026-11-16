@@ -29,7 +29,7 @@ fn option_field_id(index: usize) -> egui::Id {
     egui::Id::unique(("primitive_option", index))
 }
 
-fn window_id() -> egui::Id {
+pub(in crate::app) fn window_id() -> egui::Id {
     egui::Id::unique("primitive_options_window")
 }
 
