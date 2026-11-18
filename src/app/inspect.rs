@@ -580,7 +580,7 @@ impl Editor {
                 )
                 .collect(),
             selection_count: self.selection.len(),
-            selection_generation: self.selection.generation(),
+            selection_generation: self.selection_generation(),
             selection_mode: self.selection_mode,
             remembered_face: self
                 .remembered_face()
@@ -627,6 +627,12 @@ impl Editor {
                 },
                 undo_length: self.history.undo_len(),
                 redo_length: self.history.redo_len(),
+                undo_queue: self
+                    .history
+                    .undo_labels(crate::editor_operations::UNDO_PRINT_LIMIT),
+                redo_queue: self
+                    .history
+                    .redo_labels(crate::editor_operations::UNDO_PRINT_LIMIT),
                 open_chunk: self.history.open_chunk_name().map(str::to_string),
             },
             dirty: self.is_dirty(),
@@ -846,7 +852,7 @@ mod selection_tests {
         let mut editor = two_selected();
         let first = editor.inspect(false).unwrap().selection_generation;
         assert_eq!(editor.inspect(false).unwrap().selection_generation, first);
-        assert_eq!(first, editor.selection.generation());
+        assert_eq!(first, editor.selection_generation());
         editor.deselect_all();
         let cleared = editor.inspect(false).unwrap().selection_generation;
         assert_ne!(cleared, first);

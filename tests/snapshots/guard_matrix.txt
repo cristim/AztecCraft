@@ -14,7 +14,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -28,6 +28,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(multi) => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
@@ -58,10 +60,14 @@
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | no state change
   euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | no state change
+  set_infinity(selection) => Err(Scene: no key on the named channels to set an infinity on) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
   delete_uvs => Ok(unchanged) | no state change
+  reduce_mesh(percent) => Ok(changed) | scene changed; can_redo: true -> false
+  reduce_mesh(region) => Err(Scene: the target is out of reach: borders and manifold limits stop at 8 triangles and 8 vertices) | no state change
+  reduce_mesh(all faces) => Ok(changed) | scene changed; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -119,6 +125,7 @@
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
   export_obj(all) => Ok(exported) | no state change
   export_obj(selection) => Ok(exported) | no state change
+  export_obj(with_uvs) => Ok(exported) | no state change
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   import_obj(valid) => Ok(imported) | scene changed; nodes: 1 -> 2; selected: pCube1 -> imported; name_field: "pCube1" -> "imported"; can_redo: true -> false
   import_obj(not_obj) => Err(InvalidInput: Import path must end in .obj) | no state change
@@ -214,7 +221,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -228,6 +235,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(multi) => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
@@ -258,10 +267,14 @@
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | status: "Scene edited" -> "No change"
   euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | no state change
+  set_infinity(selection) => Err(Scene: no key on the named channels to set an infinity on) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
   delete_uvs => Ok(unchanged) | status: "Scene edited" -> "No change"
+  reduce_mesh(percent) => Ok(changed) | scene changed; status: "Scene edited" -> "Mesh reduced"; can_redo: true -> false
+  reduce_mesh(region) => Err(Scene: the target is out of reach: borders and manifold limits stop at 8 triangles and 8 vertices) | no state change
+  reduce_mesh(all faces) => Ok(changed) | scene changed; status: "Scene edited" -> "Mesh reduced"; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -319,6 +332,7 @@
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
   export_obj(all) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
   export_obj(selection) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
+  export_obj(with_uvs) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   import_obj(valid) => Ok(imported) | scene changed; nodes: 1 -> 2; selected: pCube1 -> imported; status: "Scene edited" -> "Imported 1 object(s), 3 vertices and 1 faces (normals, UVs and materials are not imported)"; name_field: "pCube1" -> "imported"; can_redo: true -> false
   import_obj(not_obj) => Err(InvalidInput: Import path must end in .obj) | no state change
@@ -414,7 +428,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -428,6 +442,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -456,10 +472,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -603,7 +623,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -617,6 +637,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -645,10 +667,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -792,7 +818,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -806,6 +832,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -834,10 +862,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -981,7 +1013,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -995,6 +1027,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1023,10 +1057,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1170,7 +1208,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=true keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1184,6 +1222,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1212,10 +1252,14 @@
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_infinity(selection) => Err(Scene: no key on the named channels to set an infinity on) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   delete_uvs => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reduce_mesh(percent) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  reduce_mesh(region) => Err(Scene: the target is out of reach: borders and manifold limits stop at 8 triangles and 8 vertices) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reduce_mesh(all faces) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1359,7 +1403,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=true keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -1373,6 +1417,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1401,10 +1447,14 @@
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_infinity(selection) => Err(Scene: no key on the named channels to set an infinity on) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   delete_uvs => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reduce_mesh(percent) => Ok(changed) | scene changed; status: "Scene edited" -> "Mesh reduced"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  reduce_mesh(region) => Err(Scene: the target is out of reach: borders and manifold limits stop at 8 triangles and 8 vertices) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reduce_mesh(all faces) => Ok(changed) | scene changed; status: "Scene edited" -> "Mesh reduced"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1548,7 +1598,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Move -> Scale; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1562,6 +1612,8 @@
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(1) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(15) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1
@@ -1590,10 +1642,14 @@
   set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   euler_filter(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_infinity(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(percent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(region) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(all faces) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_vertices => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1737,7 +1793,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(scale) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1751,6 +1807,8 @@
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(1) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(15) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1779,10 +1837,14 @@
   set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   euler_filter(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_infinity(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(percent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(region) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(all faces) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1926,7 +1988,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Move -> Scale; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1940,6 +2002,8 @@
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(1) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(15) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move => Err(Move: manipulation belongs to another input source) | no state change
@@ -1968,10 +2032,14 @@
   set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   euler_filter(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_infinity(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(percent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(region) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(all faces) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_vertices => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2115,7 +2183,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(scale) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2129,6 +2197,8 @@
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_manipulator_size(1) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(15) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_rotate_step(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1
@@ -2157,10 +2227,14 @@
   set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   euler_filter(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_infinity(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(percent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(region) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(all faces) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2304,7 +2378,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -2318,6 +2392,8 @@
   set_tool_handle(scale,x) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_manipulator_size(2) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_manipulator_size(1) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_rotate_step(15) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_rotate_step(off) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_move => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_move(face_mode) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2346,10 +2422,14 @@
   set_keyframe(node,frame_9) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   delete_keys(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   euler_filter(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_infinity(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect_keys => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   project_uv_planar => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   delete_uvs => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  reduce_mesh(percent) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  reduce_mesh(region) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  reduce_mesh(all faces) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect_vertices => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect_uvs => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(plane) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2493,7 +2573,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2507,6 +2587,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2535,10 +2617,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2683,7 +2769,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
   set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
@@ -2697,6 +2783,8 @@
   set_tool_handle(scale,x) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_rotate_step(15) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_move => Ok(manipulation_started) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; active_move: none -> native; has_draft: true -> false; can_undo: false -> true
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2725,10 +2813,14 @@
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_infinity(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect => Ok(scene) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect_keys => Ok(keys) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  reduce_mesh(region) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  reduce_mesh(all faces) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect_vertices => Ok(vertices) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect_uvs => Ok(uvs) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2873,7 +2965,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2887,6 +2979,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2915,10 +3009,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3062,7 +3160,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3076,6 +3174,8 @@
   set_tool_handle(scale,x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_rotate_step(15) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -3104,10 +3204,14 @@
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_infinity(selection) => Err(Scene: no key on the named channels to set an infinity on) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect => Ok(scene) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   project_uv_planar => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   delete_uvs => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reduce_mesh(percent) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reduce_mesh(region) => Err(Scene: the target is out of reach: borders and manifold limits stop at 8 triangles and 8 vertices) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reduce_mesh(all faces) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_vertices => Ok(vertices) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_uvs => Ok(uvs) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPlane1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
@@ -3251,7 +3355,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3265,6 +3369,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3293,10 +3399,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3440,7 +3550,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3454,6 +3564,8 @@
   set_tool_handle(scale,x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_rotate_step(15) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -3482,10 +3594,14 @@
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_infinity(selection) => Err(Scene: no key on the named channels to set an infinity on) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect => Ok(scene) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   project_uv_planar => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   delete_uvs => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reduce_mesh(percent) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reduce_mesh(region) => Err(Scene: the target is out of reach: borders and manifold limits stop at 8 triangles and 8 vertices) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reduce_mesh(all faces) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_vertices => Ok(vertices) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_uvs => Ok(uvs) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -3629,7 +3745,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3643,6 +3759,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3671,10 +3789,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3818,7 +3940,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -3832,6 +3954,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -3860,10 +3984,14 @@
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | no state change
   euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | no state change
+  set_infinity(selection) => Err(Scene: no key on the named channels to set an infinity on) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
   delete_uvs => Ok(unchanged) | no state change
+  reduce_mesh(percent) => Ok(changed) | scene changed; can_redo: true -> false
+  reduce_mesh(region) => Err(Scene: the target is out of reach: borders and manifold limits stop at 8 triangles and 8 vertices) | no state change
+  reduce_mesh(all faces) => Ok(changed) | scene changed; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -4007,7 +4135,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4021,6 +4149,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4049,10 +4179,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4196,7 +4330,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4210,6 +4344,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -4238,10 +4374,14 @@
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | no state change
   euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | no state change
+  set_infinity(selection) => Err(Scene: no key on the named channels to set an infinity on) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
   delete_uvs => Ok(unchanged) | no state change
+  reduce_mesh(percent) => Ok(changed) | scene changed; can_redo: true -> false
+  reduce_mesh(region) => Err(Scene: the target is out of reach: borders and manifold limits stop at 8 triangles and 8 vertices) | no state change
+  reduce_mesh(all faces) => Ok(changed) | scene changed; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -4385,7 +4525,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4399,6 +4539,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4427,10 +4569,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4574,7 +4720,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4588,6 +4734,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4618,10 +4766,14 @@
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_infinity(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(region) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(all faces) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4765,7 +4917,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4779,6 +4931,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4807,10 +4961,14 @@
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_infinity(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(region) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(all faces) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4954,7 +5112,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4968,6 +5126,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4996,10 +5156,14 @@
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_infinity(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(region) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(all faces) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5143,7 +5307,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5157,6 +5321,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5185,10 +5351,14 @@
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_infinity(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(region) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(all faces) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5332,7 +5502,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5346,6 +5516,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5374,10 +5546,14 @@
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_infinity(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(region) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(all faces) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5521,7 +5697,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5535,6 +5711,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5563,10 +5741,14 @@
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_infinity(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(region) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(all faces) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5710,7 +5892,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5724,6 +5906,8 @@
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(15) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_rotate_step(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5752,10 +5936,14 @@
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_infinity(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(region) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(all faces) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5899,7 +6087,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -5913,6 +6101,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -5941,10 +6131,14 @@
   set_keyframe(node,frame_9) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   delete_keys(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   euler_filter(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  set_infinity(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   delete_uvs => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  reduce_mesh(percent) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  reduce_mesh(region) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  reduce_mesh(all faces) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   inspect_vertices => Err(Scene: native mesh shape 2 does not exist) | no state change
   inspect_uvs => Err(Scene: native mesh shape 2 does not exist) | no state change
   create(plane) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -6088,7 +6282,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -6102,6 +6296,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6130,10 +6326,14 @@
   set_keyframe(node,frame_9) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   delete_keys(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   euler_filter(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  set_infinity(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   delete_uvs => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  reduce_mesh(percent) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  reduce_mesh(region) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  reduce_mesh(all faces) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   inspect_vertices => Err(Scene: native mesh shape 2 does not exist) | no state change
   inspect_uvs => Err(Scene: native mesh shape 2 does not exist) | no state change
   create(plane) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -6278,7 +6478,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -6292,6 +6492,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6320,10 +6522,14 @@
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_infinity(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(region) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(all faces) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6468,7 +6674,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -6482,6 +6688,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6510,10 +6718,14 @@
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_infinity(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(region) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(all faces) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6658,7 +6870,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -6672,6 +6884,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6700,10 +6914,14 @@
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_infinity(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(region) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(all faces) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6848,7 +7066,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -6862,6 +7080,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -6890,10 +7110,14 @@
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_infinity(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(region) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(all faces) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7038,7 +7262,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -7068,7 +7292,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -7097,7 +7321,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_pivots(preserve) => Ok(changed) | scene changed; dirty: false -> true; can_undo: false -> true
   set_pivots(raw) => Ok(changed) | scene changed; dirty: false -> true; can_undo: false -> true
   reset_pivots(center) => Ok(changed) | scene changed; dirty: false -> true; can_undo: false -> true
@@ -7115,7 +7339,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_pivots(preserve) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; dirty: false -> true; can_undo: false -> true
   set_pivots(raw) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; dirty: false -> true; can_undo: false -> true
   reset_pivots(center) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; dirty: false -> true; can_undo: false -> true
@@ -7134,7 +7358,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -7148,6 +7372,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -7176,10 +7402,14 @@
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_infinity(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(region) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(all faces) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7324,7 +7554,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -7338,6 +7568,8 @@
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
+  set_rotate_step(15) => Ok(changed) | rotate_step: None -> Some(15.0)
+  set_rotate_step(off) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -7366,10 +7598,14 @@
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_infinity(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(region) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(all faces) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7514,7 +7750,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -7528,6 +7764,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7556,10 +7794,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7704,7 +7946,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1 bookmarks= recovery_files=0
+    manipulator_size=1 rotate_step=None bookmarks= recovery_files=0
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7718,6 +7960,8 @@
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(15) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_rotate_step(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7746,10 +7990,14 @@
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_infinity(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(region) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(all faces) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7882,4 +8130,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 7282
+cells: 7530

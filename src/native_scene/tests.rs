@@ -346,6 +346,58 @@ fn transform_paths_refuse_excess_path_identities_below_the_other_caps() {
     );
 }
 
+#[test]
+fn transform_paths_accept_exactly_the_depth_cap_and_refuse_one_deeper() {
+    for (nodes, accepted) in [
+        (MAX_TRANSFORM_DEPTH, true),
+        (MAX_TRANSFORM_DEPTH + 1, false),
+    ] {
+        let mut scene = flat_cubes(nodes);
+        let t = transform_ids(&scene);
+        for link in 1..t.len() {
+            instance(&mut scene, t[link - 1], t[link], false);
+        }
+        scene.validate().unwrap();
+        if accepted {
+            let paths = scene.transform_paths().unwrap();
+            assert_eq!(paths.len(), nodes);
+            assert_eq!(paths.last().unwrap().path.len(), MAX_TRANSFORM_DEPTH);
+        } else {
+            assert_eq!(scene.transform_paths(), Err(NativeError::ResourceLimit));
+        }
+    }
+}
+
+#[test]
+fn transform_paths_accept_exactly_the_identity_cap_and_refuse_one_more() {
+    // Two roots share a chain whose deepest path has `m` ids: those paths cost m * (m + 1)
+    // identities, and each extra flat root costs one more.
+    let m = 255;
+    for (extra, accepted) in [
+        (MAX_PATH_IDENTITIES - m * (m + 1), true),
+        (MAX_PATH_IDENTITIES - m * (m + 1) + 1, false),
+    ] {
+        let mut scene = flat_cubes(m + 1 + extra);
+        let t = transform_ids(&scene);
+        instance(&mut scene, t[0], t[2], false);
+        instance(&mut scene, t[1], t[2], true);
+        for link in 3..=m {
+            instance(&mut scene, t[link - 1], t[link], false);
+        }
+        scene.validate().unwrap();
+        if accepted {
+            let paths = scene.transform_paths().unwrap();
+            assert_eq!(
+                paths.iter().map(|target| target.path.len()).sum::<usize>(),
+                MAX_PATH_IDENTITIES
+            );
+            assert!(paths.len() < MAX_TRANSFORM_PATHS);
+        } else {
+            assert_eq!(scene.transform_paths(), Err(NativeError::ResourceLimit));
+        }
+    }
+}
+
 pub(super) fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
     scene.source = Some(SourceRetention {
         has_removals: false,
@@ -2027,7 +2079,13 @@ fn move_vertices_converts_the_declared_unit_and_vertex_positions_convert_back() 
         scene.units.linear = unit;
         let shape = scene.shapes[0].id;
         let before = scene.shapes[0].mesh.effective_point_cm(3).unwrap();
-        scene.move_vertices(shape, &[3], [2.0, 0.0, -1.0]).unwrap();
+        scene
+            .move_vertices(
+                shape,
+                &[3],
+                scene.declared_vector_to_cm([2.0, 0.0, -1.0]).unwrap(),
+            )
+            .unwrap();
         let after = scene.shapes[0].mesh.effective_point_cm(3).unwrap();
         for (k, delta) in [2.0, 0.0, -1.0].into_iter().enumerate() {
             assert_eq!(after[k], f64::from((before[k] + delta * factor) as f32));
@@ -2079,4 +2137,19 @@ fn a_zero_delta_leaves_every_bit_alone_including_negative_zero() {
         mesh.translate_points(&[9], [0.0; 3]),
         Err(NativeError::InvalidTopology)
     );
+}
+
+/// Statistics count records; the path caps count instance paths (#441).
+#[test]
+fn statistics_count_a_shared_node_once_but_its_paths_each() {
+    let mut scene = flat_cubes(2);
+    let ids = transform_ids(&scene);
+    instance(&mut scene, ids[0], ids[1], true);
+    let usage = scene.usage();
+    assert_eq!((usage.statistics.nodes, usage.statistics.shapes), (2, 2));
+    assert_eq!(usage.statistics.faces, 12);
+    let row = |name: &str| usage.caps.iter().find(|c| c.name == name).unwrap().used;
+    assert_eq!(row("instance_paths"), Some(3));
+    assert_eq!(row("instance_depth"), Some(2));
+    assert_eq!(row("instance_path_identities"), Some(4));
 }

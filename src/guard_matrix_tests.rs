@@ -18,9 +18,10 @@ use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, MaterialChoice, MoveSpace,
-    NativeScene, PivotReset, ReparentKeep, RotateAxis, ScaleHandle, SessionMaterialId,
-    TransformTarget, UngroupOptions, UvProjectAxis, VertexSetTarget, VertexTarget, WorldAxis,
+    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, MaterialChoice,
+    MoveSpace, NativeScene, PivotReset, ReduceTarget, ReparentKeep, RotateAxis, ScaleHandle,
+    SessionMaterialId, TransformTarget, UngroupOptions, UvProjectAxis, VertexSetTarget,
+    VertexTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -220,6 +221,8 @@ enum Pre {
     JointChain,
     /// Assigns a created material to the first shape, which a new Maya Binary cannot hold.
     AssignedMaterial,
+    /// Projects planar UVs on the first shape, which OBJ export writes as `vt` records.
+    PlanarUvs,
     /// Puts a file at the Save As destination before the operation runs.
     OccupiedDestination,
     /// Enables recovery files in `<directory>/recovery`, off in every other cell.
@@ -742,6 +745,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::SetToolHandle(ToolHandle::RotateAxis(RotateAxis::Y)),
         Operation::SetManipulatorSize(ManipulatorSize::new(2.0).unwrap()),
+        Operation::SetRotateStep {
+            degrees: Some(15.0),
+        },
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
@@ -808,6 +814,12 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             nodes: None,
             channels: [false, false, false, true, true, true, false, false, false],
         },
+        Operation::SetInfinity {
+            nodes: None,
+            channels: ALL_CHANNELS,
+            pre: Some(Infinity::Cycle),
+            post: None,
+        },
         Operation::Inspect { page: None },
         Operation::InspectKeys {
             node: None,
@@ -818,6 +830,11 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             axis: UvProjectAxis::Y,
         },
         Operation::DeleteUvs { shape: t.shape },
+        Operation::ReduceMesh {
+            shape: t.shape,
+            target: ReduceTarget::Percent(50.0),
+            faces: None,
+        },
         Operation::InspectVertices {
             shape: t.shape,
             cursor: None,
@@ -1095,6 +1112,18 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::SetToolHandle(ToolHandle::ScaleHandle(ScaleHandle::X)),
             ),
         ],
+        Operation::SetRotateStep { .. } => vec![
+            sample(
+                "set_rotate_step(15)",
+                Operation::SetRotateStep {
+                    degrees: Some(15.0),
+                },
+            ),
+            sample(
+                "set_rotate_step(off)",
+                Operation::SetRotateStep { degrees: None },
+            ),
+        ],
         Operation::SetManipulatorSize(_) => vec![
             sample(
                 "set_manipulator_size(2)",
@@ -1358,6 +1387,15 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 channels: [false, false, false, true, true, true, false, false, false],
             },
         )],
+        Operation::SetInfinity { .. } => vec![sample(
+            "set_infinity(selection)",
+            Operation::SetInfinity {
+                nodes: None,
+                channels: ALL_CHANNELS,
+                pre: Some(Infinity::Cycle),
+                post: None,
+            },
+        )],
         Operation::InspectKeys { .. } => vec![sample(
             "inspect_keys",
             Operation::InspectKeys {
@@ -1390,6 +1428,32 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "delete_uvs",
             Operation::DeleteUvs { shape: t.shape },
         )],
+        Operation::ReduceMesh { .. } => vec![
+            sample(
+                "reduce_mesh(percent)",
+                Operation::ReduceMesh {
+                    shape: t.shape,
+                    target: ReduceTarget::Percent(50.0),
+                    faces: None,
+                },
+            ),
+            sample(
+                "reduce_mesh(region)",
+                Operation::ReduceMesh {
+                    shape: t.shape,
+                    target: ReduceTarget::Percent(50.0),
+                    faces: Some(vec![0, 1, 2, 3]),
+                },
+            ),
+            sample(
+                "reduce_mesh(all faces)",
+                Operation::ReduceMesh {
+                    shape: t.shape,
+                    target: ReduceTarget::Percent(50.0),
+                    faces: Some((0..6).collect()),
+                },
+            ),
+        ],
         Operation::Create { .. } => vec![
             sample(
                 "create(plane)",
@@ -1859,6 +1923,17 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     selection_only: true,
                 },
             ),
+            Sample {
+                pre: Pre::PlanarUvs,
+                only: Some(&[State::Idle]),
+                ..sample(
+                    "export_obj(with_uvs)",
+                    Operation::ExportObj {
+                        path: t.export.clone(),
+                        selection_only: false,
+                    },
+                )
+            },
             sample(
                 "export_obj(not_obj)",
                 Operation::ExportObj {
@@ -2554,6 +2629,10 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
             editor.manipulation.manipulator_size().get().to_string(),
         ),
         (
+            "rotate_step",
+            format!("{:?}", editor.manipulation.rotate_step()),
+        ),
+        (
             "bookmarks",
             editor
                 .bookmarks
@@ -2649,6 +2728,18 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
                         color: [1.0, 0.0, 0.0],
                     },
                 });
+            }
+        }
+        Pre::PlanarUvs => {
+            if let Some(shape) = rig.editor.history.scene().shapes().first().map(|s| s.id()) {
+                rig.editor
+                    .history
+                    .execute(Command::ProjectUvPlanar {
+                        shape,
+                        axis: UvProjectAxis::Y,
+                    })
+                    .unwrap();
+                assert!(rig.editor.history.scene().uv_set(shape).is_some());
             }
         }
         Pre::OccupiedDestination => {

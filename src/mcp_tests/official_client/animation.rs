@@ -111,7 +111,7 @@ async fn animation_sdk_keys_scrubs_reads_undoes_and_deletes() {
     assert_eq!(read["unavailable_reason"], Value::Null);
     assert_eq!(
         read["keys"][1],
-        json!({"node_id": node, "channel": "translate_x", "frame": 11, "value": 10.0})
+        json!({"node_id": node, "channel": "translate_x", "frame": 11, "value": 10.0, "pre_infinity": "constant", "post_infinity": "constant"})
     );
 
     tool(
@@ -436,6 +436,8 @@ fn a_full_page_of_the_longest_keys_fits_the_reply_limits() {
                     channel: "translate_x",
                     frame: -azteccraft::native_scene::MAX_FRAME,
                     value: -1.234_567_890_123_456_7e-308,
+                    pre_infinity: "cycle_relative",
+                    post_infinity: "cycle_relative",
                 })
                 .collect(),
             next_cursor: Some(
@@ -536,39 +538,30 @@ async fn animation_sdk_refuses_more_node_ids_than_the_cap() {
 #[tokio::test]
 async fn animation_sdk_a_full_key_table_answers_key_limit_and_changes_nothing() {
     use azteccraft::history::History;
-    use azteccraft::native_scene::NativeScene;
+    use azteccraft::native_scene::{ALL_CHANNELS, NativeScene};
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     let mut scene = NativeScene::default();
-    let ids: Vec<String> = (0..1000)
-        .map(|n| {
-            scene
-                .create(Primitive::Cube, &format!("cube{n}"))
-                .unwrap()
-                .to_decimal()
-        })
+    let nodes: Vec<_> = (0..100)
+        .map(|n| scene.create(Primitive::Cube, &format!("cube{n}")).unwrap())
         .collect();
-    editor.history = History::new(scene);
-    // 1000 nodes keep 9000 keys per frame, so seven frames fit under the 65536 bound.
-    for frame in 0..7 {
-        let keyed = tool(
-            &mut editor,
-            &context,
-            &client,
-            "set_keyframe",
-            json!({"node_ids": ids, "time": frame}),
-        )
-        .await;
-        assert_ne!(keyed.is_error, Some(true), "frame {frame}");
+    let ids: Vec<String> = nodes.iter().map(|id| id.to_decimal()).collect();
+    // 100 nodes keep 900 keys per frame, so 72 frames (64800 keys) fit under the 65536 bound and
+    // a 73rd does not. Fill the table through the core call and keep the scene small: a protocol
+    // call over 1000 nodes took ~1 s in a test build and overran the per-call deadline under
+    // load. The refusal below still goes through the protocol.
+    for frame in 0..72 {
+        scene.set_keys(&nodes, frame, ALL_CHANNELS, 1).unwrap();
     }
-    assert_eq!(editor.history.scene().session_key_count(), 63_000);
+    assert_eq!(scene.session_key_count(), 64_800);
+    editor.history = History::new(scene);
     let before = editor.history.scene().clone();
     let full = tool(
         &mut editor,
         &context,
         &client,
         "set_keyframe",
-        json!({"node_ids": ids, "time": 7}),
+        json!({"node_ids": ids, "time": 72}),
     )
     .await;
     assert_eq!(full.is_error, Some(true));
@@ -691,6 +684,212 @@ async fn animation_sdk_euler_filter_is_one_undo_step_and_refuses_bad_input() {
     tool(&mut editor, &context, &client, "redo", json!({})).await;
     let redone = keys(&mut editor, &context, &client, json!({})).await;
     assert_eq!(rotate_y(&redone), vec![10.0, -10.0]);
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn animation_sdk_set_infinity_extends_the_curve_reads_back_and_undoes() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap();
+    let node = id.to_decimal();
+    let key = json!({"node_ids": [node.clone()], "channels": ["translate_x"]});
+    tool(&mut editor, &context, &client, "set_keyframe", key.clone()).await;
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time": 5}),
+    )
+    .await;
+    let edit = json!({"node_id": node, "translation": [8, null, null]});
+    tool(&mut editor, &context, &client, "edit_node", edit).await;
+    tool(&mut editor, &context, &client, "set_keyframe", key).await;
+    let settings = |keys: &Value| -> Vec<(String, String)> {
+        keys["keys"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|key| key["channel"] == "translate_x")
+            .map(|key| {
+                (
+                    key["pre_infinity"].as_str().unwrap().to_string(),
+                    key["post_infinity"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect()
+    };
+    let constant = ("constant".to_string(), "constant".to_string());
+    let read = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&read), vec![constant.clone(); 2]);
+
+    let set = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"channels": ["translate_x"], "pre": "linear", "post": "cycle_relative"}),
+    )
+    .await;
+    assert_eq!(outcome(set), "changed");
+    let cycle = ("linear".to_string(), "cycle_relative".to_string());
+    let read = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&read), vec![cycle.clone(); 2]);
+    // Frame 9 is a whole span past the last key: 8 plus the 8 the span rises.
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time": 9}),
+    )
+    .await;
+    assert_eq!(tx(&editor, id), 16.0);
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time": -3}),
+    )
+    .await;
+    assert_eq!(tx(&editor, id), -8.0);
+    let again = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"channels": ["translate_x"], "pre": "linear"}),
+    )
+    .await;
+    assert_eq!(outcome(again), "unchanged");
+
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    let undone = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&undone), vec![constant.clone(); 2]);
+    tool(&mut editor, &context, &client, "redo", json!({})).await;
+    let redone = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&redone), vec![cycle; 2]);
+
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "delete_keys",
+        json!({"channels": ["translate_x"]}),
+    )
+    .await;
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time": 1}),
+    )
+    .await;
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_keyframe",
+        json!({"channels": ["translate_x"]}),
+    )
+    .await;
+    let fresh = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(settings(&fresh), vec![constant]);
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn animation_sdk_set_infinity_refusals_change_nothing() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap().to_decimal();
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_keyframe",
+        json!({"channels": ["translate_x"]}),
+    )
+    .await;
+    let before = keys(&mut editor, &context, &client, json!({})).await;
+    let neither = tool(&mut editor, &context, &client, "set_infinity", json!({})).await;
+    assert_eq!(error_code(&neither), "invalid_input");
+    let unkeyed = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"channels": ["rotate_x"], "post": "cycle"}),
+    )
+    .await;
+    assert_eq!(error_code(&unkeyed), "no_keys");
+    let empty = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"node_ids": [], "post": "cycle"}),
+    )
+    .await;
+    assert_eq!(error_code(&empty), "invalid_input");
+    let unknown = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_infinity",
+        json!({"node_ids": ["999"], "post": "cycle"}),
+    )
+    .await;
+    assert_eq!(unknown.is_error, Some(true));
+    let scene_token = editor.scene_token.to_string();
+    for mut args in [
+        json!({"post": "bounce"}),
+        json!({"pre": "Cycle"}),
+        json!({"channels": [], "post": "cycle"}),
+        json!({"channels": ["translate_x", "translate_x"], "post": "cycle"}),
+        json!({"node_ids": [id.clone()], "post": "cycle", "extra": 1}),
+    ] {
+        args["scene_token"] = json!(scene_token);
+        let shown = args.to_string();
+        let refused =
+            call_response(&mut editor, &context, client.peer(), "set_infinity", args).await;
+        assert!(refused.is_err(), "{shown}");
+    }
+    assert_eq!(
+        keys(&mut editor, &context, &client, json!({})).await,
+        before
+    );
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn animation_sdk_euler_filter_refuses_a_key_beyond_the_turn_limit() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap().to_decimal();
+    for (time, degrees) in [(1, 0.0), (2, 3.6e8 + 1000.0)] {
+        let args = json!({"node_id": id, "translation": [0, 0, 0], "rotation_degrees": [0.0, degrees, 0.0], "scale": [1, 1, 1]});
+        let set = tool(&mut editor, &context, &client, "set_transform", args).await;
+        assert_ne!(set.is_error, Some(true), "{set:?}");
+        let key = json!({"time": time, "channels": ["rotate_y"]});
+        tool(&mut editor, &context, &client, "set_keyframe", key).await;
+    }
+    let before = keys(&mut editor, &context, &client, json!({})).await;
+    let refused = tool(&mut editor, &context, &client, "euler_filter", json!({})).await;
+    assert_eq!(error_code(&refused), "euler_value_too_large");
+    assert_eq!(
+        keys(&mut editor, &context, &client, json!({})).await,
+        before
+    );
     client.cancel().await.unwrap();
     server.await.unwrap();
 }

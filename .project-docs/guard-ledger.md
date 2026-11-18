@@ -39,6 +39,7 @@ caller. In order:
 2. Closing is `BusyEditing` (the first `is_closing()` check in `src/app/dispatch.rs "fn dispatch_operation_guarded"`), so a native `NewScene` while closing cancels the
    Move and then fails.
 3. `BoxDolly`, `UndoView`, `RedoView`, `DefaultView`, `SetGridVisible`, `SetShadingMode`, `SetView`, `SetMenuSet`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `dispatch_operation_guarded`). `SetToolSpace`, `SetToolHandle` and `SetManipulatorSize` are refused while modal by the per-variant modal list in `dispatch_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
+3. `SetGridVisible`, `SetShadingMode`, `SetView`, `SetMenuSet`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`). `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize` and `SetRotateStep` are refused while modal by the per-variant modal list in `apply_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
 4. File operations are decided in one match (`src/app/dispatch.rs "Operation::OpenScene { path } | Operation::SaveSceneAs { path }"`), before any draft commit. For
    `OpenScene` and `SaveSceneAs`, path validity (`src/app/dispatch.rs "Scene path must contain 1 to 4096 bytes and no NUL"`) runs first. `OpenScene` then
    reaches `open_candidate` with no modal check (`src/app/dispatch.rs "return self.open_candidate(path)"`); `SaveSceneAs` is refused while
@@ -46,7 +47,7 @@ caller. In order:
    `RequestClose` and `ResolveFileAction` decide internally (`src/app/dispatch.rs "Operation::NewScene => return self.new_document()"` and the two arms after it).
    `ExportObj` and `ImportObj` validate their `.obj` path before any draft commit (`src/app/dispatch.rs "validate_import_path(path)"`); `ImportObj` is also refused while modal at that point,
    and a valid native draft is committed before the import runs (`import_obj` cells in the guard matrix).
-5. `SetActiveTool`, `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize`, the Move, Rotate and Scale operations and every selection-changing operation (`Select`,
+5. `SetActiveTool`, `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize`, `SetRotateStep`, the Move, Rotate and Scale operations and every selection-changing operation (`Select`,
    `ModifySelection`, `SelectByRule`, `SelectInRect`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
    (the modal `matches!` after the file-operation match in `dispatch_operation_guarded`), whoever the caller. The refusal is in the pipeline, not only in the UI checks in
    `src/app/panels.rs` and runs before validation and before the draft commit, so a refused selection change never

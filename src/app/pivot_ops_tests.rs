@@ -104,7 +104,7 @@ fn native_and_remote_reach_the_same_command_for_both_operations() {
             native.apply_operation(operation(None)),
             Ok(OperationReply::Changed)
         ));
-        let generation = Some(remote_editor.selection.generation());
+        let generation = Some(remote_editor.selection_generation());
         assert!(matches!(
             remote(&mut remote_editor, operation(generation)),
             Ok(OperationReply::Changed)
@@ -658,7 +658,7 @@ fn a_remote_reset_over_several_objects_needs_the_current_selection_generation() 
         editor.apply_operation(set(target.node, false)).unwrap();
     }
     let before = baseline(&editor);
-    let current = editor.selection.generation();
+    let current = editor.selection_generation();
     assert!(matches!(
         remote(&mut editor, reset_with(None)),
         Err(OperationError::MultipleSelection)
@@ -681,7 +681,7 @@ fn a_stale_generation_refuses_a_single_object_reset_and_the_native_caller_needs_
     let (mut editor, ids) = cubes(1);
     editor.apply_operation(set(ids[0].node, false)).unwrap();
     let before = baseline(&editor);
-    let wrong = editor.selection.generation().wrapping_add(1);
+    let wrong = editor.selection_generation().wrapping_add(1);
     assert!(matches!(
         remote(&mut editor, reset_with(Some(wrong))),
         Err(OperationError::StaleSelection { .. })

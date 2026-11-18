@@ -10,7 +10,7 @@ use crate::editor_operations::{
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::ManipulationError,
-    native_scene::{NativeError, ScaleUnsupported, WorldMoveUnsupported},
+    native_scene::{NativeError, ReduceRefusal, ScaleUnsupported, WorldMoveUnsupported},
     scene::SceneError,
 };
 use rmcp::{
@@ -169,7 +169,20 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::KeyLimit) => "key_limit",
                 OperationError::Scene(NativeError::EulerNotRotation) => "not_rotation_channel",
                 OperationError::Scene(NativeError::EulerNoRotationKeys) => "no_rotation_keys",
+                OperationError::Scene(NativeError::InfinityNoKeys) => "no_keys",
                 OperationError::Scene(NativeError::EulerValueTooLarge) => "euler_value_too_large",
+                OperationError::Scene(NativeError::Reduce(reason)) => match reason {
+                    ReduceRefusal::InvalidTarget => "invalid_reduce_target",
+                    ReduceRefusal::NothingToReduce => "nothing_to_reduce",
+                    ReduceRefusal::NotManifold => "reduce_not_manifold",
+                    ReduceRefusal::LooseGeometry => "reduce_loose_geometry",
+                    ReduceRefusal::NotTriangulable => "reduce_not_triangulable",
+                    ReduceRefusal::TooLarge => "reduce_too_large",
+                    ReduceRefusal::EmptyRegion => "reduce_region_empty",
+                    ReduceRefusal::FaceOutOfRange { .. } => "reduce_face_out_of_range",
+                    ReduceRefusal::DuplicateFace { .. } => "reduce_duplicate_face",
+                    ReduceRefusal::Unreachable { .. } => "reduce_target_unreachable",
+                },
                 OperationError::Scene(NativeError::UndoState(_)) => "undo_state",
                 OperationError::Scene(NativeError::UnsupportedTimeUnit) => "unsupported_time_unit",
                 OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })
@@ -632,6 +645,21 @@ mod tests {
                 "set_manipulator_size",
                 json!({"scene_token":"not-a-uuid","size":1}),
             ),
+            ("set_rotate_step", json!({"scene_token":token})),
+            ("set_rotate_step", json!({"scene_token":token,"degrees":0})),
+            (
+                "set_rotate_step",
+                json!({"scene_token":token,"degrees":0.0000001}),
+            ),
+            (
+                "set_rotate_step",
+                json!({"scene_token":token,"degrees":"15"}),
+            ),
+            (
+                "set_rotate_step",
+                json!({"scene_token":token,"degrees":15,"extra":1}),
+            ),
+            ("set_rotate_step", json!({"degrees":15})),
             ("set_tool_handle", json!({"tool":"rotate","axis":"x"})),
             (
                 "set_tool_handle",
@@ -856,6 +884,7 @@ mod tests {
                     json!({"scene_token":token,"tool":"scale","handle":"uniform"})
                 }
                 "set_manipulator_size" => json!({"scene_token":token,"size":2.5}),
+                "set_rotate_step" => json!({"scene_token":token,"degrees":15}),
                 "set_undo_queue" => json!({"scene_token":token,"queue":"finite","size":5}),
                 "set_undo_enabled" => json!({"scene_token":token,"enabled":true}),
                 "open_undo_chunk" => json!({"scene_token":token,"name":"chunk"}),
@@ -908,13 +937,14 @@ mod tests {
                 }
                 "set_menu_set" => json!({"scene_token":token,"set":"rigging"}),
                 "set_current_time" => json!({"scene_token":token,"time":1}),
-                "set_keyframe" | "delete_keys" | "euler_filter" => {
+                "set_keyframe" | "delete_keys" | "euler_filter" | "set_infinity" => {
                     json!({"scene_token":token,"node_ids":["1"]})
                 }
                 "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
                 "inspect_keys" | "get_recovery_status" | "inspect_limits" => json!({}),
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
                 "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
+                "reduce_mesh" => json!({"scene_token":token,"shape_id":"2","percent":50}),
                 "inspect_uvs" => json!({"shape_id":"2"}),
                 "inspect_vertices" => json!({"shape_id":"2"}),
                 "set_transform" => {
@@ -1045,6 +1075,7 @@ mod tests {
                     | "set_tool_space"
                     | "set_tool_handle"
                     | "set_manipulator_size"
+                    | "set_rotate_step"
                     | "set_undo_queue"
                     | "set_undo_enabled"
                     | "select_node"
@@ -1055,6 +1086,7 @@ mod tests {
                     | "set_current_time"
                     | "delete_keys"
                     | "euler_filter"
+                    | "set_infinity"
                     | "set_playback_range"
                     | "play_timeline"
                     | "stop_timeline"
@@ -1275,6 +1307,33 @@ mod tests {
         assert!(line < crate::mcp::transport::MAX_INGRESS_BYTES, "{line}");
         let headroom = crate::mcp::transport::MAX_INGRESS_BYTES - line;
         assert!(headroom > 2048, "only {headroom} bytes of headroom");
+    }
+
+    #[test]
+    fn a_largest_reduce_mesh_request_fits_the_ingress_line() {
+        // Worst case: six-digit indices (a mesh has at most 200000 triangles), a 20-digit id.
+        let faces = vec![199_999; crate::mcp::features::reduce::MAX_REDUCE_FACES];
+        let envelope = json!({
+            "jsonrpc": "2.0", "id": 4_294_967_295_u64, "method": "tools/call",
+            "params": {"name": "reduce_mesh", "arguments": {
+                "scene_token": Uuid::new_v4().to_string(),
+                "shape_id": "18446744073709551615",
+                "percent": -1.7976931348623157e308, "faces": faces,
+            }},
+        });
+        let line = serde_json::to_vec(&envelope).unwrap().len();
+        assert!(line < crate::mcp::transport::MAX_INGRESS_BYTES, "{line}");
+        let headroom = crate::mcp::transport::MAX_INGRESS_BYTES - line;
+        assert!(headroom > 2048, "only {headroom} bytes of headroom");
+    }
+
+    #[test]
+    fn the_reduce_mesh_schema_caps_faces_at_the_named_constant() {
+        let schema = crate::mcp::features::reduce::TOOLS[0].schema;
+        assert_eq!(
+            schema()["properties"]["faces"]["maxItems"],
+            crate::mcp::features::reduce::MAX_REDUCE_FACES
+        );
     }
 
     type PickedComponent = Option<(

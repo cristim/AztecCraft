@@ -11,7 +11,10 @@ use glam::{DVec2, DVec4, Mat4, Vec2, Vec3, Vec4};
 use std::fmt;
 
 mod lens;
-pub use lens::Lens;
+pub use lens::{
+    FilmBack, FilmFit, InvalidFilmBack, Lens, MAX_FILM_SCALE, MAX_OFFSET_TAN, MAX_OVERSCAN,
+    MAX_TAN_HALF, MIN_FILM_SCALE, MIN_TAN_HALF, film_gate_ndc,
+};
 mod box_dolly;
 mod rect_pick;
 pub use rect_pick::{InvalidRect, NdcRect};
@@ -165,7 +168,7 @@ impl Default for Camera {
             yaw: 0.6,
             pitch: 0.4,
             distance: 8.0,
-            lens: Lens::Film,
+            lens: Lens::Film(FilmBack::DEFAULT),
             near: 0.1,
             far: 10_000.0,
             fit_factor: None,
@@ -352,7 +355,19 @@ impl Camera {
     /// Vertical field of view in radians at the viewport `aspect`; the film lens narrows it as
     /// the viewport widens beyond the film aspect.
     pub fn fov_y_for(&self, aspect: f32) -> f32 {
-        self.lens.half_angle_y(aspect) * 2.0
+        let lens = if self.projection == Projection::Orthographic {
+            self.lens.for_orthographic()
+        } else {
+            self.lens
+        };
+        match lens {
+            // Overscan and the 2D scales change the drawn extent, so they count here.
+            Lens::Film(film) => {
+                let tan = film.window(f64::from(aspect)).visible_tan_half_y();
+                (tan.atan() * 2.0) as f32
+            }
+            Lens::VerticalFov(_) => lens.half_angle_y(aspect) * 2.0,
+        }
     }
     pub fn near(&self) -> f32 {
         self.near
@@ -426,7 +441,7 @@ impl Camera {
             return Err(InvalidCameraInput);
         }
         if self.projection == Projection::Orthographic {
-            let half_height = self.distance * self.lens.tan_half_y(aspect);
+            let half_height = self.distance * self.lens.for_orthographic().tan_half_y(aspect);
             let depth = self.far - self.near;
             let matrix = Mat4::from_cols(
                 Vec4::new(1.0 / (half_height * aspect), 0.0, 0.0, 0.0),
@@ -439,14 +454,27 @@ impl Camera {
                 .then_some(matrix)
                 .ok_or(InvalidCameraInput);
         }
-        let y = 1.0 / self.lens.tan_half_y(aspect);
         let z = self.far / (self.near - self.far);
-        let matrix = Mat4::from_cols(
-            Vec4::new(y / aspect, 0.0, 0.0, 0.0),
-            Vec4::new(0.0, y, 0.0, 0.0),
-            Vec4::new(0.0, 0.0, z, -1.0),
-            Vec4::new(0.0, 0.0, z * self.near, 0.0),
-        );
+        let matrix = match self.lens {
+            Lens::VerticalFov(_) => {
+                let y = 1.0 / self.lens.tan_half_y(aspect);
+                Mat4::from_cols(
+                    Vec4::new(y / aspect, 0.0, 0.0, 0.0),
+                    Vec4::new(0.0, y, 0.0, 0.0),
+                    Vec4::new(0.0, 0.0, z, -1.0),
+                    Vec4::new(0.0, 0.0, z * self.near, 0.0),
+                )
+            }
+            Lens::Film(film) => {
+                let [x, y, c] = film.window(f64::from(aspect)).columns();
+                Mat4::from_cols(
+                    Vec4::new(x.x as f32, x.y as f32, 0.0, 0.0),
+                    Vec4::new(y.x as f32, y.y as f32, 0.0, 0.0),
+                    Vec4::new(c.x as f32, c.y as f32, z, -1.0),
+                    Vec4::new(0.0, 0.0, z * self.near, 0.0),
+                )
+            }
+        };
         if !matrix.is_finite() {
             return Err(InvalidCameraInput);
         }
@@ -785,10 +813,14 @@ impl Camera {
         }
         let target = min * 0.5 + max * 0.5;
         let radius = vertices.map(|v| v.distance(target)).fold(0.0_f32, f32::max);
-        let half_angle = self
-            .lens
+        let lens = if self.projection == Projection::Orthographic {
+            self.lens.for_orthographic()
+        } else {
+            self.lens
+        };
+        let half_angle = lens
             .half_angle_y(aspect)
-            .min((self.lens.tan_half_y(aspect) * aspect).atan());
+            .min((lens.tan_half_y(aspect) * aspect).atan());
         let mut next = self.clone();
         next.target = target;
         let floor = (self.near + radius).max(self.near * 2.0) * DEFAULT_FRAME_MARGIN;
@@ -803,6 +835,15 @@ impl Camera {
             }
         };
         next.distance = limit.max(floor);
+        if let (Projection::Perspective, Lens::Film(film)) = (self.projection, self.lens) {
+            // Shift the target so the framed centre projects to the window centre, not to the
+            // film offset (PROVISIONAL; pre/post scale and roll are ignored here).
+            let centre = film.window(f64::from(aspect)).centre();
+            let view = next.view_matrix().inverse();
+            let shift =
+                view.x_axis.truncate() * centre.x as f32 + view.y_axis.truncate() * centre.y as f32;
+            next.target -= shift * next.distance;
+        }
         next.far = self.far.max(next.distance + radius + self.near);
         next.validate()?;
         *self = next;
@@ -830,7 +871,7 @@ impl Camera {
         if !ndc.is_finite() || ndc.abs().max_element() > 1.0 {
             return Err(InvalidCameraInput);
         }
-        self.ray_from_projection(ndc, projection)
+        self.ray_from_projection(ndc, projection, aspect)
     }
 
     pub fn captured_ray(&self, ndc: Vec2, aspect: f32) -> Result<Ray, InvalidCameraInput> {
@@ -838,10 +879,15 @@ impl Camera {
         if !ndc.is_finite() {
             return Err(InvalidCameraInput);
         }
-        self.ray_from_projection(ndc, projection)
+        self.ray_from_projection(ndc, projection, aspect)
     }
 
-    fn ray_from_projection(&self, ndc: Vec2, projection: Mat4) -> Result<Ray, InvalidCameraInput> {
+    fn ray_from_projection(
+        &self,
+        ndc: Vec2,
+        projection: Mat4,
+        aspect: f32,
+    ) -> Result<Ray, InvalidCameraInput> {
         if self.projection == Projection::Orthographic {
             let inverse_view = self.view_matrix().inverse();
             let origin = inverse_view.transform_point3(Vec3::new(
@@ -855,11 +901,19 @@ impl Camera {
             }
             return Ok(Ray { origin, direction });
         }
-        let view_direction = Vec3::new(
-            ndc.x / projection.x_axis.x,
-            ndc.y / projection.y_axis.y,
-            -1.0,
-        );
+        let view_direction = match self.lens {
+            Lens::VerticalFov(_) => Vec3::new(
+                ndc.x / projection.x_axis.x,
+                ndc.y / projection.y_axis.y,
+                -1.0,
+            ),
+            Lens::Film(film) => {
+                let tan = film
+                    .window(f64::from(aspect))
+                    .tan_of_ndc(DVec2::new(f64::from(ndc.x), f64::from(ndc.y)));
+                Vec3::new(tan.x as f32, tan.y as f32, -1.0)
+            }
+        };
         let view_length_squared = view_direction.length_squared();
         if !view_direction.is_finite()
             || !view_length_squared.is_finite()
@@ -1574,6 +1628,10 @@ fn intersect(ray: Ray, a: Vec3, b: Vec3, c: Vec3) -> Option<f32> {
     (distance.is_finite() && distance >= 0.0).then_some(distance)
 }
 
+#[cfg(test)]
+mod film_range_tests;
+#[cfg(test)]
+mod film_tests;
 #[cfg(test)]
 mod ortho_tests;
 #[cfg(test)]

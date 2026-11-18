@@ -3,6 +3,7 @@ mod appearance;
 pub mod ascii;
 mod authored;
 pub mod binary;
+mod component_move;
 mod curve;
 mod group;
 mod import;
@@ -27,12 +28,15 @@ pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
     MaterialShader,
 };
+pub use component_move::{ComponentMoveFrame, MAX_MOVED_VERTICES, VertexBaseline};
 pub use curve::{CurveForm, NativeCurveShape};
 pub use group::{GroupOptions, GroupPivot, GroupUnder};
 pub use import::ObjImportPlan;
 pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use maya_import::{MAX_PREFIX_BYTES, MayaImportOptions, MayaImportPlan, MayaImportRefusal};
-pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
+pub use mesh::{
+    DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points, ReduceRefusal, ReduceTarget,
+};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{
     ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
@@ -51,8 +55,8 @@ pub use session_joint::{
 };
 use session_keys::SessionKeys;
 pub use session_keys::{
-    ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME,
-    MAX_SESSION_KEYS, check_euler_channels, whole_frame,
+    ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, Infinity, InfinityPair,
+    KEY_CHANNELS, KeyRow, MAX_FRAME, MAX_SESSION_KEYS, check_euler_channels, whole_frame,
 };
 use session_material::SessionMaterials;
 pub use session_material::{
@@ -1886,24 +1890,16 @@ impl NativeScene {
         self.shapes[index].mesh = mesh;
         Ok(())
     }
-    /// Moves vertices of one shape by `delta` in declared scene units, along the mesh's own axes.
-    /// Authored scenes only: a scene bound to a source file refuses, because its writer cannot
-    /// carry edited points. Shared-shape edits affect every instance.
+    /// Moves vertices of one shape by `delta_cm` centimetres along the mesh's own axes. Authored
+    /// scenes only: a scene bound to a source file refuses, because its writer cannot carry edited
+    /// points. Shared-shape edits affect every instance.
     pub fn move_vertices(
         &mut self,
         id: NativeId,
         vertices: &[usize],
-        delta: [f64; 3],
+        delta_cm: [f64; 3],
     ) -> Result<(), NativeError> {
-        self.structural_edit()?;
-        let index = self
-            .shapes
-            .iter()
-            .position(|shape| shape.id == id)
-            .ok_or(NativeError::MissingShape(id))?;
-        self.check_effects(id)?;
-        let factor = self.units.linear_factor()?;
-        let delta_cm = delta.map(|v| v * factor);
+        let index = self.check_vertex_move(id, vertices)?;
         self.shapes[index].mesh.translate_points(vertices, delta_cm)
     }
     /// Positions of vertices `range` of one shape in declared scene units along the mesh's own
@@ -2360,11 +2356,15 @@ pub enum NativeError {
     EulerNoRotationKeys,
     /// A rotation key is too large for a shift by whole turns to keep its precision.
     EulerValueTooLarge,
+    /// An infinity setting named channels that hold no key.
+    InfinityNoKeys,
     UnsupportedTimeUnit,
     InvalidSessionUvs,
     DegenerateUvProjection,
     UnsupportedUvTopology,
     UvsBlockTopologyEdit,
+    /// Mesh > Reduce refused its target or the mesh; see `ReduceRefusal`.
+    Reduce(ReduceRefusal),
     UnsupportedMove(WorldMoveUnsupported),
     UnsupportedRotate(RotateUnsupported),
     UnsupportedScale(ScaleUnsupported),
@@ -2471,6 +2471,7 @@ impl fmt::Display for NativeError {
             Self::EulerNoRotationKeys => {
                 f.write_str("the named rotation channels hold no key to filter")
             }
+            Self::InfinityNoKeys => f.write_str("no key on the named channels to set an infinity on"),
             Self::EulerValueTooLarge => f.write_str(
                 "a rotation key is too large to filter by whole turns without losing precision",
             ),
@@ -2485,6 +2486,7 @@ impl fmt::Display for NativeError {
             Self::UvsBlockTopologyEdit => {
                 f.write_str("UVs do not follow topology edits yet; delete the UVs first")
             }
+            Self::Reduce(reason) => reason.fmt(f),
             Self::AbsentChannelLeaf { channel, component } => write!(
                 f,
                 "{} is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported",

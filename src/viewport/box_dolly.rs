@@ -1,5 +1,5 @@
 //! Target-plane rectangle fitting; provisional until compared with Maya.
-use super::{Camera, InvalidCameraInput, NdcRect};
+use super::{Camera, InvalidCameraInput, NdcRect, Projection};
 
 impl Camera {
     /// Dolly into a positive-area viewport rectangle. Keep orientation and lens; center the
@@ -12,7 +12,12 @@ impl Camera {
         }
         self.projection_matrix(aspect)?;
         let center = (rect.min() + rect.max()) * 0.5;
-        let half_height = self.distance * self.lens.tan_half_y(aspect);
+        let lens = if self.projection == Projection::Orthographic {
+            self.lens.for_orthographic()
+        } else {
+            self.lens
+        };
+        let half_height = self.distance * lens.tan_half_y(aspect);
         let mut next = self.clone();
         next.pan(center * glam::Vec2::new(half_height * aspect, half_height))?;
         next.dolly(size.max_element() * 0.5)?;
@@ -96,5 +101,28 @@ mod tests {
             );
             assert_eq!(camera, before);
         }
+    }
+
+    #[test]
+    fn orthographic_box_dolly_uses_the_orthographic_lens_under_a_film_back() {
+        use crate::viewport::{FilmBack, Lens};
+        let aspect = 2.0;
+        let mut camera = Camera::default();
+        camera.show_orthographic(OrthographicView::Front).unwrap();
+        camera.lens = Lens::Film(FilmBack {
+            focal_mm: 70.0,
+            ..FilmBack::DEFAULT
+        });
+        let old = camera.clone();
+        let rect = NdcRect::new(Vec2::new(0.0, -0.25), Vec2::new(1.0, 0.25)).unwrap();
+        let half_height = old.distance * old.lens.for_orthographic().tan_half_y(aspect);
+        let point = old.target
+            + old.view_matrix().inverse().transform_vector3(Vec3::new(
+                half_height * aspect * 0.5,
+                0.0,
+                0.0,
+            ));
+        camera.box_dolly(rect, aspect).unwrap();
+        assert!((camera.project(point, aspect).unwrap().unwrap().truncate()).length() < 1e-4);
     }
 }

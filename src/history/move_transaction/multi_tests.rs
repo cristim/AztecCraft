@@ -222,7 +222,7 @@ fn the_lead_may_be_the_covered_member() {
     // The covered lead reports its own channels, which follow the parent without changing.
     let state = history.active_manipulation().unwrap();
     assert_eq!(state.target.node, child);
-    assert_eq!(state.baseline_channels, child_channels);
+    assert_eq!(state.baseline_channels, Some(child_channels));
     assert_eq!(state.current_channels, Some(child_channels));
 }
 

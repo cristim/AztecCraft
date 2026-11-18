@@ -1,8 +1,9 @@
 use crate::{
     native_scene::{
-        ChannelMask, DEFAULT_FRAME, GroupOptions, JointRequest, MaterialChoice, MayaImportPlan,
-        NativeError, NativeId, NativeScene, NativeTransform, ObjImportPlan, PivotReset,
-        ReparentKeep, SessionMaterialId, TransformTarget, UngroupOptions, UvProjectAxis,
+        ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest, MaterialChoice,
+        MayaImportPlan, NativeError, NativeId, NativeScene, NativeTransform, ObjImportPlan,
+        PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId, TransformTarget, UngroupOptions,
+        UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -12,7 +13,7 @@ mod move_transaction;
 use move_transaction::MoveTransaction;
 pub use move_transaction::{
     ManipulationError, ManipulationFinish, ManipulationId, ManipulationKindState,
-    ManipulationProvenance, ManipulationState, is_covered, selected_transform_ids,
+    ManipulationProvenance, ManipulationState, MoveDirection, is_covered, selected_transform_ids,
 };
 use std::collections::VecDeque;
 
@@ -98,11 +99,12 @@ pub enum Command {
         face_index: usize,
         distance: f64,
     },
-    /// Moves vertices of one shape by `delta` (scene units, mesh axes) as one undo step.
+    /// Moves vertices of one shape by `delta_cm` (centimetres, mesh axes) as one undo step. A
+    /// caller holding declared scene units converts with `NativeScene::declared_vector_to_cm`.
     MoveVertices {
         shape: NativeId,
         vertices: Vec<usize>,
-        delta: [f64; 3],
+        delta_cm: [f64; 3],
     },
     CreateJoint(JointRequest),
     /// Keys every node at `frame`, as one undo step, then evaluates at `current_frame`.
@@ -125,12 +127,28 @@ pub enum Command {
         channels: ChannelMask,
         current_frame: i32,
     },
+    /// Sets the pre and/or post infinity of the keyed curves of `channels`, then evaluates at
+    /// `current_frame`.
+    SetInfinity {
+        nodes: Vec<NodeId>,
+        channels: ChannelMask,
+        pre: Option<Infinity>,
+        post: Option<Infinity>,
+        current_frame: i32,
+    },
     ProjectUvPlanar {
         shape: NativeId,
         axis: UvProjectAxis,
     },
     DeleteUvs {
         shape: NativeId,
+    },
+    /// Decimates one shape's mesh to `target`; the scene must stay displayable.
+    ReduceMesh {
+        shape: NativeId,
+        target: ReduceTarget,
+        /// Reduce only these faces (face indices in the current numbering); `None` is the whole mesh.
+        faces: Option<Vec<usize>>,
     },
     /// Adds parsed OBJ objects as one undo step. The candidate scene must also pass view
     /// admission, so an import can never make the viewport refuse the scene.
@@ -173,8 +191,11 @@ impl Command {
             Self::SetKeys { .. } => "Set Key".to_string(),
             Self::DeleteKeys { .. } => "Delete Keys".to_string(),
             Self::EulerFilter { .. } => "Euler Filter".to_string(),
+            Self::SetInfinity { .. } => "Set Infinity".to_string(),
             Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
             Self::DeleteUvs { .. } => "Delete UVs".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::ReduceMesh { .. } => "Reduce".to_string(),
             // PROVISIONAL: Maya's docs name no undo entries.
             Self::ImportObjects(_) | Self::ImportMaya(_) => "Import".to_string(),
         }
@@ -346,6 +367,24 @@ impl History {
     }
     pub fn redo_len(&self) -> usize {
         self.redo.len()
+    }
+    /// `undoInfo -printQueue`: the labels of up to `limit` undo steps, the next Undo first.
+    pub fn undo_labels(&self, limit: usize) -> Vec<String> {
+        self.undo
+            .iter()
+            .rev()
+            .take(limit)
+            .map(|e| e.label.clone())
+            .collect()
+    }
+    /// `undoInfo -printRedoQueue`: the labels of up to `limit` redo steps, the next Redo first.
+    pub fn redo_labels(&self, limit: usize) -> Vec<String> {
+        self.redo
+            .iter()
+            .rev()
+            .take(limit)
+            .map(|e| e.label.clone())
+            .collect()
     }
     /// The name of the open undo chunk, if any.
     pub fn open_chunk_name(&self) -> Option<&str> {
@@ -543,6 +582,7 @@ impl History {
                 | Command::Ungroup { .. }
                 | Command::SetPivots { .. }
                 | Command::ResetPivots { .. }
+                | Command::ExtrudeFace { .. }
         );
         let transform_target = match &command {
             Command::SetTransform { id, .. } => Some(*id),
@@ -551,7 +591,8 @@ impl History {
         let evaluated_at = match &command {
             Command::SetKeys { current_frame, .. }
             | Command::DeleteKeys { current_frame, .. }
-            | Command::EulerFilter { current_frame, .. } => Some(*current_frame),
+            | Command::EulerFilter { current_frame, .. }
+            | Command::SetInfinity { current_frame, .. } => Some(*current_frame),
             _ => None,
         };
         let outcome = match command {
@@ -639,9 +680,9 @@ impl History {
             Command::MoveVertices {
                 shape,
                 vertices,
-                delta,
+                delta_cm,
             } => {
-                candidate.move_vertices(shape, &vertices, delta)?;
+                candidate.move_vertices(shape, &vertices, delta_cm)?;
                 ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(moved_view_refusal)?;
                 EditOutcome::Changed
             }
@@ -674,12 +715,31 @@ impl History {
                 candidate.euler_filter(&nodes, channels, current_frame)?;
                 EditOutcome::Changed
             }
+            Command::SetInfinity {
+                nodes,
+                channels,
+                pre,
+                post,
+                current_frame,
+            } => {
+                candidate.set_infinity(&nodes, channels, pre, post, current_frame)?;
+                EditOutcome::Changed
+            }
             Command::ProjectUvPlanar { shape, axis } => {
                 candidate.project_uv_planar(shape, axis)?;
                 EditOutcome::Changed
             }
             Command::DeleteUvs { shape } => {
                 candidate.delete_uvs(shape)?;
+                EditOutcome::Changed
+            }
+            Command::ReduceMesh {
+                shape,
+                target,
+                faces,
+            } => {
+                candidate.reduce_mesh(shape, target, faces.as_deref())?;
+                ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(view_refusal)?;
                 EditOutcome::Changed
             }
             Command::ImportObjects(plan) => {

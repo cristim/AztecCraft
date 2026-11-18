@@ -123,7 +123,7 @@ fn remote_begin_needs_the_current_generation_and_a_lead_target() {
         Err(OperationError::MultipleSelection)
     ));
     for provenance_remote in [false, true] {
-        let op = begin_op(members[0].clone(), Some(editor.selection.generation()));
+        let op = begin_op(members[0].clone(), Some(editor.selection_generation()));
         let result = if provenance_remote {
             remote(&mut editor, op)
         } else {
@@ -132,7 +132,7 @@ fn remote_begin_needs_the_current_generation_and_a_lead_target() {
         assert!(matches!(result, Err(OperationError::MultipleSelection)));
     }
     let current_lead = editor.selection.lead().unwrap().clone();
-    let generation = editor.selection.generation();
+    let generation = editor.selection_generation();
     let reply = remote(&mut editor, begin_op(current_lead, Some(generation))).unwrap();
     assert!(matches!(reply, OperationReply::ManipulationStarted { .. }));
     let inspection = editor.inspect(false).unwrap();
@@ -174,7 +174,7 @@ fn a_native_toggle_of_a_non_lead_member_makes_the_inspected_generation_stale() {
     editor.create(Primitive::Cube);
     let paths = editor.history.scene().transform_paths().unwrap();
     editor.set_selection_members_for_test(paths.clone());
-    let stale = editor.selection.generation();
+    let stale = editor.selection_generation();
     toggle(&mut editor, &paths[1]);
     assert_eq!(
         editor.selection.members(),
@@ -200,7 +200,7 @@ fn a_native_toggle_of_a_non_lead_member_makes_the_inspected_generation_stale() {
 fn a_generation_naming_a_larger_selection_is_refused_after_the_selection_shrinks() {
     let (mut editor, _, _) = two_selected();
     let members = editor.selection.members().to_vec();
-    let stale = editor.selection.generation();
+    let stale = editor.selection_generation();
     toggle(&mut editor, &members[0]);
     assert_eq!(editor.selection.len(), 1);
     let scene = editor.history.scene().clone();
@@ -229,7 +229,7 @@ fn the_lead_node_with_another_path_is_not_the_lead() {
         path: Vec::new(),
     };
     for provenance_remote in [false, true] {
-        let op = begin_op(wrong.clone(), Some(editor.selection.generation()));
+        let op = begin_op(wrong.clone(), Some(editor.selection_generation()));
         let result = if provenance_remote {
             remote(&mut editor, op)
         } else {
@@ -305,7 +305,7 @@ fn hierarchy_mode_moves_the_selection_and_face_mode_still_refuses() {
     )
     .unwrap();
     let lead = editor.selection.lead().unwrap().clone();
-    let generation = editor.selection.generation();
+    let generation = editor.selection_generation();
     remote(&mut editor, begin_op(lead, Some(generation))).unwrap();
     assert_eq!(
         editor.history.active_manipulation().unwrap().member_count(),
@@ -482,7 +482,7 @@ fn inspection_checks_every_member_so_a_bare_non_lead_member_makes_move_unavailab
 fn a_stale_generation_is_refused_before_the_mode_and_lead_checks() {
     let (mut editor, _, _) = two_selected();
     let members = editor.selection.members().to_vec();
-    let stale = editor.selection.generation();
+    let stale = editor.selection_generation();
     toggle(&mut editor, &members[0]);
     editor.create(Primitive::Cube);
     let paths = editor.history.scene().transform_paths().unwrap();
@@ -571,7 +571,7 @@ fn a_remote_object_move_sends_each_selected_object_along_its_own_axis() {
     edit_rotation(&mut editor, members[1].node, [0.0, 90.0, 0.0]);
     set_move_space(&mut editor, MoveSpace::Object);
     let lead = editor.selection.lead().unwrap().clone();
-    let generation = editor.selection.generation();
+    let generation = editor.selection_generation();
     let Ok(OperationReply::ManipulationStarted { manipulation_id }) =
         remote(&mut editor, begin_op(lead, Some(generation)))
     else {

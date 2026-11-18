@@ -144,6 +144,10 @@ jobs:
         run: cargo +1.99.0 clippy --workspace --all-targets --locked --features mcp -- -D warnings
       - name: MCP client-test Clippy
         run: cargo +1.99.0 clippy --workspace --all-targets --locked --features mcp-test-client -- -D warnings
+      - name: Scripting Clippy
+        run: cargo +1.99.0 clippy --workspace --all-targets --locked --features scripting -- -D warnings
+      - name: Scripting protocol tests
+        run: "cargo +1.99.0 test --workspace --locked --features scripting scripting::"
       - name: MCP official client and editor tests
         env:
           AZTECCRAFT_MCP_TEST_DEADLINE_MS: "15000"

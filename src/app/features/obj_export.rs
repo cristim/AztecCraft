@@ -27,6 +27,40 @@ pub(in crate::app) fn validate_obj_path(path: &Path, noun: &str) -> Result<(), O
     Ok(())
 }
 
+#[cfg(unix)]
+fn strip_one_trailing_dot(path: PathBuf) -> PathBuf {
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+    match path.as_os_str().as_bytes().strip_suffix(b".") {
+        Some(rest) => PathBuf::from(std::ffi::OsString::from_vec(rest.to_vec())),
+        None => path,
+    }
+}
+
+/// Non-Unix paths that are not valid Unicode keep their trailing dot.
+#[cfg(not(unix))]
+fn strip_one_trailing_dot(path: PathBuf) -> PathBuf {
+    match path.to_str().and_then(|text| text.strip_suffix('.')) {
+        Some(rest) => PathBuf::from(rest),
+        None => path,
+    }
+}
+
+/// The path a file panel result becomes: one trailing dot is dropped, then `.obj` is appended
+/// unless the extension already is `obj` (any case). Maya's "Default file extensions" option is
+/// on by default; whether each OS panel appends it itself is PROVISIONAL. MCP stays strict.
+fn with_default_extension(path: PathBuf) -> PathBuf {
+    let trimmed = strip_one_trailing_dot(path);
+    if trimmed
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("obj"))
+    {
+        return trimmed;
+    }
+    let mut text = trimmed.into_os_string();
+    text.push(".obj");
+    PathBuf::from(text)
+}
+
 impl Editor {
     /// Writes displayed polygon geometry to a new `.obj` file: every instance, or the instances
     /// under the selected objects. Reads the committed scene and changes nothing in it.
@@ -87,10 +121,11 @@ impl Editor {
         };
         if let Some(path) = rfd::FileDialog::new()
             .set_title(title)
+            .set_file_name("untitled.obj")
             .add_filter("OBJ", &["obj"])
             .save_file()
         {
-            self.run_export(path, selection_only);
+            self.run_export(with_default_extension(path), selection_only);
         }
     }
 

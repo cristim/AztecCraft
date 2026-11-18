@@ -229,7 +229,7 @@
       }
     ],
     "selection_count": 1,
-    "selection_generation": 1,
+    "selection_generation": 4,
     "selection_mode": "object",
     "session_materials": [
       {
@@ -321,7 +321,11 @@
       "open_chunk": null,
       "queue_size": 50,
       "redo_length": 0,
-      "undo_length": 1
+      "redo_queue": [],
+      "undo_length": 1,
+      "undo_queue": [
+        "Create"
+      ]
     },
     "units": {
       "angular": "deg",

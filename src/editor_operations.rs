@@ -412,6 +412,15 @@ pub enum Operation {
     SetToolHandle(ToolHandle),
     /// Sets the global manipulator size, a session-only tool setting.
     SetManipulatorSize(ManipulatorSize),
+    /// Sets the Rotate tool's relative Step Snap in degrees (`None` is off, the default): an
+    /// update's turn lands on a multiple of it. A step that is not finite or is below
+    /// `snap::MIN_ROTATE_STEP_DEGREES` is refused. Session-only; refused during a manipulation.
+    /// Only the MCP tool `set_rotate_step` constructs it; the native Tool Box control is a
+    /// separate #35 checklist item.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetRotateStep {
+        degrees: Option<f64>,
+    },
     /// Begins a Move of the selected objects with `target` as the lead. With several objects
     /// selected a remote caller must pass the `selection_generation` it inspected; a native caller
     /// moves the current selection.
@@ -499,12 +508,30 @@ pub enum Operation {
         nodes: Option<Vec<NodeId>>,
         channels: azteccraft::native_scene::ChannelMask,
     },
+    /// Sets the pre and/or post infinity of the keyed curves of `channels`, as one undo step. No
+    /// `nodes` means the object selection; at least one of `pre` and `post` is set.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetInfinity {
+        nodes: Option<Vec<NodeId>>,
+        channels: azteccraft::native_scene::ChannelMask,
+        pre: Option<azteccraft::native_scene::Infinity>,
+        post: Option<azteccraft::native_scene::Infinity>,
+    },
     ProjectUvPlanar {
         shape: NativeId,
         axis: azteccraft::native_scene::UvProjectAxis,
     },
     DeleteUvs {
         shape: NativeId,
+    },
+    /// Mesh > Reduce and MCP `reduce_mesh`: decimates one authored polygon mesh to `target` as one
+    /// undo step. Only MCP and tests build it until the Mesh menu item is wired (#462).
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    ReduceMesh {
+        shape: NativeId,
+        target: azteccraft::native_scene::ReduceTarget,
+        /// Face indices of the region to reduce; `None` reduces the whole mesh.
+        faces: Option<Vec<usize>>,
     },
     #[cfg(any(test, feature = "mcp"))]
     Inspect {
@@ -829,6 +856,7 @@ pub enum Operation {
     DefaultView,
     /// Absolute view, radians like `Orbit`. The lens and clip planes are untouched. Unchanged is
     /// judged numerically, so a pose differing only in zero signs replies Unchanged.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     SetCameraPose {
         target: [f32; 3],
         distance: f32,
@@ -878,6 +906,8 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     SceneLimits {
         limits: &'static [azteccraft::scene_limits::SceneLimit],
+        /// Statistics and cap headroom of the live scene.
+        usage: azteccraft::scene_statistics::SceneUsage,
     },
     Created {
         node_id: String,
@@ -1071,6 +1101,9 @@ pub struct KeyInspection {
     pub channel: &'static str,
     pub frame: i32,
     pub value: f64,
+    /// The curve's behaviour before its first key and after its last.
+    pub pre_infinity: &'static str,
+    pub post_infinity: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -1349,9 +1382,8 @@ pub const MAX_UV_CORNERS_PER_PAGE: usize = 4096;
 #[cfg(any(test, feature = "mcp"))]
 pub const MAX_VERTICES_PER_PAGE: usize = 1024;
 
-/// Most vertex indices one `MoveVertices` names. Bounded by the 64 KiB MCP ingress limit: a
-/// request of this many indices (up to about 6 bytes each) still fits with room for the envelope.
-pub const MAX_MOVED_VERTICES: usize = 8192;
+/// Most vertex indices one `MoveVertices` names; see the constant's own note.
+pub use azteccraft::native_scene::MAX_MOVED_VERTICES;
 /// Most indices one MCP `modify_component_selection` request carries. Like `move_vertices`, it
 /// keeps the line under the transport's 64 KiB ingress cap: indices reach 16,777,215 (the binary
 /// writer's edge limit), so 6144 eight-digit indices with commas are 54 KiB; a longer line closes
@@ -1510,8 +1542,18 @@ pub struct UndoStateInspection {
     pub queue_size: Option<usize>,
     pub undo_length: usize,
     pub redo_length: usize,
+    /// Counterpart of `undoInfo -printQueue`, which only prints to the Script Editor: the newest
+    /// `UNDO_PRINT_LIMIT` undo labels, next Undo first (the order is PROVISIONAL, not Maya's).
+    pub undo_queue: Vec<String>,
+    /// Counterpart of `-printRedoQueue`: the newest `UNDO_PRINT_LIMIT` redo labels, next Redo first
+    /// (PROVISIONAL order).
+    pub redo_queue: Vec<String>,
     pub open_chunk: Option<String>,
 }
+
+/// Most labels `inspect_scene` lists per queue (PROVISIONAL: bounds an Infinite queue's reply).
+#[cfg(any(test, feature = "mcp"))]
+pub const UNDO_PRINT_LIMIT: usize = 50;
 
 #[cfg(any(test, feature = "mcp"))]
 /// Why an autosave wrote nothing. Display carries no path, scene name or payload.
@@ -1859,7 +1901,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""selection_count":0,"selection_generation":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
     r#""remembered_edge":null,"component_selection":{"face":null,"vertex":null,"edge":null},"#,
     r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
-    r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
+    r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"undo_queue":[],"redo_queue":[],"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,

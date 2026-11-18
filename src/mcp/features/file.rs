@@ -283,7 +283,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "export_obj",
-        description: "Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces only: no normals, UVs, groups or materials. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
+        description: "Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces and session UVs (one vt per corner, f v/vt rows, mirrored instances re-wound together); no normals, groups or materials. A session UV set that does not match the displayed faces is refused with export_invalid. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
         schema: schema::<ExportArgs>,
         parse: parse_export_obj,
         idempotent: false,
@@ -291,7 +291,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "import_obj",
-        description: "Import a Wavefront OBJ file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per o/g group (faces before any group take the file name) as one undo step, selects them, and keeps the scene token. Meshes only: v and f records (triangles, quads, n-gons, negative indices); normals, UVs, materials, smoothing and .mtl are counted in ignored_records and dropped. Refuses free-form geometry, unknown records, overlapping groups, CR-only line endings and faces the viewport cannot display (concave or holed faces with 5 or more corners: triangulate and export again). Refused in a scene opened from .mb or .ma. PROVISIONAL: Maya's help is silent on units, naming, winding and limits. Replies with object, vertex and face counts and the new node_ids",
+        description: "Import a Wavefront OBJ file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per o/g group (faces before any group take the file name) as one undo step, selects them, and keeps the scene token. Meshes only: v and f records (triangles, quads, n-gons, negative indices); normals, materials, smoothing and .mtl are counted in ignored_records and dropped; vt records are parsed and validated but their UVs are not applied to the imported shapes yet and are not counted in ignored_records. Refuses free-form geometry, unknown records, overlapping groups, CR-only line endings and faces the viewport cannot display (concave or holed faces with 5 or more corners: triangulate and export again). Refused in a scene opened from .mb or .ma. PROVISIONAL: Maya's help is silent on units, naming, winding and limits. Replies with object, vertex and face counts and the new node_ids",
         schema: schema::<ImportArgs>,
         parse: parse_import_obj,
         idempotent: false,

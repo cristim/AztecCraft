@@ -24,8 +24,9 @@ File > Import... and MCP `import_obj` add the meshes of an OBJ file to the scene
 parity with Maya is claimed and nothing was compared with Maya's OBJ reader (#5).
 
 - **Meshes only.** `v` and `f` records, `o` and `g` groups (one new object per group, Multiple
-  Objects semantics). Normals, UVs, materials, smoothing groups and `.mtl` files are counted in
-  `ignored_records` and dropped. The Group and Single Object options and other import types do not
+  Objects semantics). Normals, materials, smoothing groups and `.mtl` files are counted in
+  `ignored_records` and dropped. `vt` records are parsed and validated (up to 262,144) but the UVs are
+  not yet applied to the imported shapes, and nothing reports them. The Group and Single Object options and other import types do not
   exist; the option box beside Import... is disabled.
 - **Opened Maya files refuse it.** A scene opened from `.mb` or `.ma` cannot take structural edits,
   so Import returns the same refusal Create gives. It works in Untitled, authored and legacy
@@ -96,7 +97,8 @@ PROVISIONAL, because the docs do not state it or the feature behind it is absent
   re-evaluate at the current time only when the restored snapshot was taken at another time, which
   they do not restore; at an unchanged time they give back the recorded state, held edits included.
 - Setting the time to the current frame replies unchanged and keeps a held edit.
-- Euler filter (#461, `euler_filter`) moves each rotation key by whole turns to lie nearest the previous key and, when all three rotation curves are named and share their key frames, may take the equivalent triple (a + 180, 180 - b, c + 180, b the middle axis of the rotate order) if that is nearer, so no key's orientation changes. Other cases only unroll each curve. The nearest-key rule, the distance measure and the tie rule are PROVISIONAL (the 2027 `filterCurve` page states no algorithm). A key beyond a million turns is refused. It has no Graph Editor or Channel Box control. Pre/post-infinity is not implemented: keys are not saved (above), so there is nothing to round-trip yet, and the Graph Editor and native-screenshot criteria of #461 stay open.
+- Euler filter (#461, `euler_filter`) moves each rotation key by whole turns to lie nearest the previous key and, when all three rotation curves are named and share their key frames, may take the equivalent triple (a + 180, 180 - b, c + 180, b the middle axis of the rotate order) if that is nearer, so no key's orientation changes. Other cases only unroll each curve. The nearest-key rule, the distance measure and the tie rule are PROVISIONAL (the 2027 `filterCurve` page states no algorithm). A key beyond a million turns is refused. It has no Graph Editor or Channel Box control.
+- Pre/post infinity (#461, `set_infinity`; read as `pre_infinity`/`post_infinity` on `inspect_keys` rows) is per keyed curve and session-only like the keys, so there is no `.ma`/`.mb` round trip of `preInfinity`/`postInfinity` yet: keys are not saved, so there is no animCurve node to carry them, and writers still refuse a scene holding keys. Reading a file's own animCurves is #62. The mode formulas are PROVISIONAL (the `setInfinity` page names the five modes only): constant holds the end value; linear continues the end segment's slope (no tangents exist); cycle repeats the keyed span; cycle_relative adds the first-to-last rise per cycle; oscillate alternates forwards and backwards; a one-key curve holds under every mode. Deleting a curve's last key resets its setting to constant. Evaluation can overflow to a non-finite value (cycle_relative far from the keys; linear with an enormous slope, such as keys at -f64::MAX and f64::MAX one frame apart); a time change or `set_infinity` that evaluates such a frame is refused as `invalid_input` and changes nothing. `set_infinity` checks only the current frame, so a curve that overflows only away from it is accepted and a later time change to those frames then fails (an accepted limitation). The Graph Editor/Channel Box UI and the native-screenshot criteria of #461 stay open.
 - Step Key does not wrap at the first or last key, and Step Frame ignores the Loop Play Range
   preferences. A held step repeats, and S does not.
 - Play from outside the playback range starts at the range start.
@@ -222,6 +224,32 @@ passed hooked and unhooked Open/Cancel. The source uses nested default-mode
 pumping, but that observation does not establish the cause or a fix. Native
 verification must distinguish this observation from a confirmed diagnosis.
 
+## Mesh > Reduce is a headless slice (#462)
+
+**Severity:** low
+**Area:** modeling, MCP
+
+`reduce_mesh` decimates one whole authored shape by quadric edge collapse. The `polyReduce` 2027
+page defines `-percentage` as the share of the original vertices removed, which `percent` follows
+(the count removed is rounded down, so never more than the percentage). It states no collapse
+order, cost or tie-break, so these are PROVISIONAL: every face becomes a triangle; border vertices
+never move (Maya's keep-borders, always on); collapses go to an endpoint or the midpoint of least
+quadric error, cheapest first, ties by vertex index. A collapse is accepted when each surviving
+triangle's new normal has a positive dot with its old one and a non-degenerate area, so a fold
+close to 90 degrees can pass (a design choice, not a Maya rule). An optional face list restricts
+the reduce to a region (PROVISIONAL, the page has no region flag): vertices on the region boundary
+are pinned like borders, faces outside keep their polygons and positions, percent and counts refer
+to the region's own vertices and triangles, and every face, edge and vertex pick is cleared after
+the op because face indices are renumbered. Every face is still triangulated for the engine, so an outside face no fan can split, the
+triangle cap and the manifold and loose-geometry checks apply to the whole mesh. The list is
+explicit (at most 8192 indices, what the 64 KiB request line holds), not the Editor's face
+selection set. A target that borders or manifold
+limits make unreachable is refused, not approximated. UVs block it (`uvs_block_topology_edit`), as
+for Extrude. Meshes over 200000 triangles are refused (`reduce_too_large`, PROVISIONAL): every
+collapse rescans vertex stars and queues duplicate candidates, so the cost grows with the mesh.
+Missing: the Mesh menu item and option box (and a selection-driven region), keep-quads, UV and colour
+weighting, and the native screenshot review. #462 stays open.
+
 ## Core authoring limits
 
 **Severity:** medium
@@ -234,7 +262,7 @@ unchanged. The dirty state compares the live scene with the saved scene by value
 so dropping old entries cannot make an edited scene read clean. Memory still
 scales with scene size times 50. Autosave and persisting history remain pending.
 
-The scene resource limits (input bytes, parser caps, instance paths, view and recovery budgets) are one table, `scene_limits()`, served by the MCP `inspect_limits` tool and listed in [development limits](.project-docs/development.md#scene-resource-budgets) (#441). Every value is PROVISIONAL policy; no per-scene statistics, memory measurement or viewport performance budget exists yet.
+The scene resource limits (input bytes, parser caps, instance paths, view and recovery budgets) are one table, `scene_limits()`, served by the MCP `inspect_limits` tool and listed in [development limits](.project-docs/development.md#scene-resource-budgets) (#441). Every value is PROVISIONAL policy; per-scene statistics and cap headroom are reported by `inspect_limits` (`usage`; the view byte figure is a lower bound without curve tessellation, and the reply carries no scene token), but no process memory measurement or viewport performance budget exists yet.
 
 Undo and Redo entry names are PROVISIONAL: the Maya 2027 documentation names no undo entries. A
 transform edit that changes several value groups reads "Transform"; Channel Box and numeric edits
@@ -409,10 +437,13 @@ Frame All and Frame Selected floor the distance at twice the near clip plus 5% (
 default near), so an object with a radius under 2·near·sin(limiting half angle), about 0.065 at aspect up to 1.5 and less in wider viewports, frames smaller than the screen
 fraction other objects get. There is no per-camera near clip control (Maya exposes Near Clip
 Plane on the camera); a Camera Attributes near-clip setting is the candidate, not built.
-The default lens is film-fit (development.md row 25). Only the Fill film fit is built;
-Horizontal, Vertical and Overscan fits, film offset, camera scale and lens squeeze are
-unsupported, and the focal length and aperture cannot be changed. The Fill threshold, the Fill
-default and treating the viewport aspect as the resolution gate are PROVISIONAL. Pan moves
+The default lens is film-fit (development.md row 25). The viewport models the four film fits,
+lens squeeze (as an effective horizontal aperture), overscan, film offset, Film Fit Offset, pre
+and post scale and film roll through `FilmBack`; camera scale, roll pivot and roll order are not
+modelled. Until the operation, Attribute Editor and MCP tasks (#458 T2 onward) land, nothing can
+change the film back, so the focal length, aperture and every other field stay at their
+defaults. Every film formula, the Fill threshold, the Fill default and treating the viewport
+aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
 1.21x (aspect <= 1.5) to 1.43x (16:9) faster than under the old 45 degrees; it is not
 cursor-locked (pre-existing). MCP-only sessions that never painted frame at viewport aspect 1.0
@@ -1055,7 +1086,7 @@ descendants, each instance once, in scene order rather than selection order (PRO
 the docs give no export order). Maya's options page says the parents of selected nodes are
 also exported; a parent's own mesh is not written here unless it is selected, so that is
 unmet. Normals, materials, smoothing groups, curves and Maya's OBJ Export Options are not
-written or offered, and a shape with session UVs is refused rather than exported without them (the option boxes are disabled), and export never overwrites an
+written or offered (the option boxes are disabled). A shape with session UVs writes one `vt` per corner and `f v/vt` rows, mirrored instances reversed together; a mixed file of plain and mapped objects is valid OBJ but some readers dislike it (PROVISIONAL), and scenes opened from .ma/.mb hold no session UVs, so they write no `vt`. Export never overwrites an
 existing file. The view of the whole scene is built first, so one mesh the viewport
 cannot display (for example a concave n-gon) fails every export, including Export
 Selection of another object. The Windows save dialog may first ask whether to
@@ -1458,8 +1489,7 @@ UVs exist only on shapes authored in the session, as one `map1` holding one UV p
 so no two faces share a UV, each an exact f32. An authored Maya ASCII `.ma` Save carries them (`mu` ids in
 the `.fc` rows plus `.uvst[0].uvsn`, `.uvsp` and `.cuvs`, layout PROVISIONAL, `.project-docs/uv-ascii-format.md`)
 and reopens with them f32-exactly. The `.mb` writer and the legacy view still refuse a scene
-holding them, rather than dropping them (`save_unwritable`, reason `session_uvs`), and OBJ export refuses a shape that has them
-(`export_invalid`, remedy Delete UVs) instead of writing it without `vt` records. A shape with UVs refuses Extrude until Delete UVs or Undo,
+holding them, rather than dropping them (`save_unwritable`, reason `session_uvs`), and OBJ export writes them as `vt` records and `f v/vt` rows. A shape with UVs refuses Extrude until Delete UVs or Undo,
 because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
 bounds of the face corners (Bounding box fit, PROVISIONAL; points no face uses do not affect the fit) only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
 Set, the projection manipulator and construction history are missing. The projections are oriented
@@ -1546,7 +1576,7 @@ Cost: a multi-object begin enumerates every transform path of the scene once (`t
   deferred with the same gap in the other tools.
 - `create_joint` refuses a position that is not representable as f32 (`unsupported_joint`), because
   one such joint would fail every view build. A transform edit (`edit_node`, `set_transform`),
-  a parent, a set pivots and a reset pivots that would make the
+  a parent, a set pivots, a reset pivots and an `extrude_face` that would make the
   view fail with a non-finite world position (a vertex or joint centre past f32) are refused with
   `world_out_of_range` (#396); `History::execute` checks the candidate with the same view build,
   and only when the scene before the edit still built. A Move, Rotate or Scale builds the
@@ -1651,3 +1681,13 @@ release tails). Comparison against Maya remains pending. The session viewport le
 reads do not inspect imported Maya camera nodes. Session view history has a provisional cap of 50, button-gesture grouping and no persistence;
 Native bracket-key and View menu history round trips passed on the isolated Linux
 Wayland window; independent review/test evidence is recorded in the #452 plan.
+## The inspect_scene size preflight ignores the undo labels
+
+`inspection_page_lower_bound` counts the scene only, not `undo_state.undo_queue` and `redo_queue` (up to 100
+labels, roughly 1 KB with short labels, and up to about 26 KB with long chunk names). A page can pass the
+preflight and still be refused `too_large` after serialising. Pre-existing pattern (the other history fields
+are uncounted too); fixing it needs the History in the bound.
+
+## Sandboxed scripting is not implemented (#57)
+
+Decision and design: `.project-docs/scripting-adr.md`. Nothing executes user scripts yet; scene-embedded scripts, expressions and bundled MEL stay inert data. When slice 1 lands its known limits are: each Run starts a fresh interpreter, so Maya's persistent Script Editor namespace is missing (PROVISIONAL, Maya does not document it on the pages read); only self-contained scripts run (no `site-packages`, C extensions, threads, files or network) and only a handful of `maya.cmds` commands exist; Python 3 only, Python 2 semantics for compatibility versions 2011 to 2021 are not emulated; installer growth up to about 80 MB (helper, python.wasm, notices); wasmtime or Cranelift advisories can weaken the WASM layer (pinned LTS, monthly update task) and an escaped helper could still read user files (reads are not scoped); a human can approve a malicious MCP-requested script, and an agent with desktop control can synthesise the click and the opt-in (Q-UIAuto open); the approval Run button ignores assistive-technology press actions, so screen-reader users must use the keyboard (conflict with #465); the Script Editor shares the missing live-region announcement gap (#465, G5); there are no MEL tab, Command Line Python mode or file calls.

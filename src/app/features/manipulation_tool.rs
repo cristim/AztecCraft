@@ -17,6 +17,7 @@ use azteccraft::{
     },
     move_handles::{HandleError, ManipulatorSize, ViewportCapture},
     native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget},
+    snap::snap_angle_to_step,
     view_scene::VIEW_BUDGET,
 };
 use eframe::egui;
@@ -39,6 +40,8 @@ pub(in crate::app) struct ManipulationOptions {
     scale_handle: ScaleHandle,
     // Global and session-only: it never enters the scene, the history or the dirty state.
     manipulator_size: ManipulatorSize,
+    // Relative Step Snap of the Rotate tool in degrees; None is off.
+    rotate_step: Option<f64>,
     numeric: String,
     // The status text last written for the handle under the pointer, and whether it is a refusal.
     hover: Option<(String, bool)>,
@@ -65,6 +68,7 @@ impl Default for ManipulationOptions {
             rotate_axis: RotateAxis::X,
             scale_handle: ScaleHandle::Uniform,
             manipulator_size: ManipulatorSize::default(),
+            rotate_step: None,
             numeric: String::new(),
             hover: None,
             quiet: false,
@@ -93,6 +97,11 @@ impl ManipulationOptions {
 
     pub(in crate::app) fn scale_handle(&self) -> ScaleHandle {
         self.scale_handle
+    }
+
+    #[cfg(test)]
+    pub(in crate::app) fn rotate_step(&self) -> Option<f64> {
+        self.rotate_step
     }
 
     pub(in crate::app) fn manipulator_size(&self) -> ManipulatorSize {
@@ -161,6 +170,23 @@ impl Editor {
 }
 
 impl Editor {
+    pub(in crate::app) fn set_rotate_step(
+        &mut self,
+        degrees: Option<f64>,
+    ) -> Result<OperationReply, OperationError> {
+        if let Some(step) = degrees {
+            snap_angle_to_step(0.0, step)
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+        }
+        Ok(
+            if std::mem::replace(&mut self.manipulation.rotate_step, degrees) == degrees {
+                OperationReply::Unchanged
+            } else {
+                OperationReply::Changed
+            },
+        )
+    }
+
     pub(in crate::app) fn set_manipulator_size(&mut self, size: ManipulatorSize) -> OperationReply {
         if std::mem::replace(&mut self.manipulation.manipulator_size, size) == size {
             OperationReply::Unchanged
@@ -172,7 +198,7 @@ impl Editor {
 
 pub(in crate::app) fn kind_name(kind: ManipulationKindState) -> &'static str {
     match kind {
-        ManipulationKindState::Move { .. } => "move",
+        ManipulationKindState::Move { .. } | ManipulationKindState::MoveComponents { .. } => "move",
         ManipulationKindState::Rotate { .. } => "rotate",
         ManipulationKindState::Scale { .. } => "scale",
     }
@@ -404,10 +430,10 @@ impl Editor {
         expected: Option<u64>,
     ) -> Result<(), OperationError> {
         match expected {
-            Some(expected) if expected != self.selection.generation() => {
+            Some(expected) if expected != self.selection_generation() => {
                 Err(OperationError::StaleSelection {
                     expected,
-                    current: self.selection.generation(),
+                    current: self.selection_generation(),
                 })
             }
             _ => Ok(()),
@@ -522,9 +548,20 @@ impl Editor {
         } else {
             number
         };
-        let declared = match value {
-            ManipulationValue::Angle(angle) => Some(angle),
-            _ => None,
+        let (number, declared) = match (self.manipulation.rotate_step, parameter) {
+            (Some(step), "angle") => (
+                snap_angle_to_step(number, step)
+                    .map_err(|error| OperationError::InvalidInput(error.to_string()))?,
+                // The inspection reads the snapped angle, not the one asked for.
+                None,
+            ),
+            _ => (
+                number,
+                match value {
+                    ManipulationValue::Angle(angle) => Some(angle),
+                    _ => None,
+                },
+            ),
         };
         let updated =
             self.history
