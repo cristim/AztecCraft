@@ -181,6 +181,7 @@ impl Editor {
             | Operation::SetMoveSpace { .. }
             | Operation::SetToolHandle(_)
             | Operation::SetManipulatorSize(_)
+            | Operation::SetRotateStep { .. }
             | Operation::SetUndoQueue(_)
             | Operation::SetUndoEnabled { .. }
             | Operation::OpenUndoChunk { .. }
@@ -402,6 +403,7 @@ impl Editor {
         if matches!(request.operation, Operation::InspectLimits) {
             return Ok(OperationReply::SceneLimits {
                 limits: azteccraft::scene_limits::scene_limits(),
+                usage: self.history.scene().usage(),
             });
         }
         if let Operation::InspectUvs { shape, cursor } = &request.operation {
@@ -619,6 +621,7 @@ impl Editor {
                     | Operation::SetMoveSpace { .. }
                     | Operation::SetToolHandle(_)
                     | Operation::SetManipulatorSize(_)
+                    | Operation::SetRotateStep { .. }
                     | Operation::BeginMove { .. }
                     | Operation::BeginRotate { .. }
                     | Operation::BeginScale { .. }
@@ -856,6 +859,7 @@ impl Editor {
             Operation::SetMoveSpace { space } => return Ok(self.set_move_space(space)),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
             Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
+            Operation::SetRotateStep { degrees } => return self.set_rotate_step(degrees),
             Operation::BeginMove {
                 target,
                 axis,
@@ -947,7 +951,15 @@ impl Editor {
             } => self.set_infinity_command(nodes, channels, pre, post),
             Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
             Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
-            Operation::ReduceMesh { shape, target } => Command::ReduceMesh { shape, target },
+            Operation::ReduceMesh {
+                shape,
+                target,
+                faces,
+            } => Command::ReduceMesh {
+                shape,
+                target,
+                faces,
+            },
             Operation::CreateCameraBookmark { name } => {
                 return self.create_camera_bookmark(&name);
             }
@@ -968,6 +980,7 @@ impl Editor {
             Operation::InspectLimits => {
                 return Ok(OperationReply::SceneLimits {
                     limits: azteccraft::scene_limits::scene_limits(),
+                    usage: self.history.scene().usage(),
                 });
             }
             Operation::SetGridVisible { visible } => {
@@ -1192,10 +1205,15 @@ impl Editor {
                     .scene()
                     .resolve_vertex_set(&target)
                     .map_err(OperationError::Scene)?;
+                let delta_cm = self
+                    .history
+                    .scene()
+                    .declared_vector_to_cm(delta)
+                    .map_err(OperationError::Scene)?;
                 Command::MoveVertices {
                     shape: target.shape,
                     vertices: target.vertex_indices,
-                    delta,
+                    delta_cm,
                 }
             }
             Operation::CreateJoint {
@@ -1263,8 +1281,7 @@ impl Editor {
                 if mode.is_component() && self.selection.len() > 1 {
                     return Err(OperationError::MultipleSelection);
                 }
-                let changed = self.selection_mode != mode;
-                self.selection_mode = mode;
+                let changed = self.set_selection_mode_field(mode);
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -1310,13 +1327,12 @@ impl Editor {
                 owner,
                 indices,
             } => {
-                let set = self.component_set_mut(kind);
-                let changed = match mode {
+                let changed = self.modify_component_set(kind, |set| match mode {
                     MarqueeMode::Replace => set.replace_with(&owner, indices),
                     MarqueeMode::Add => set.extend_absent(&owner, indices),
                     MarqueeMode::Remove => set.remove_all(&owner, indices),
                     MarqueeMode::Toggle => set.toggle_all(&owner, indices),
-                };
+                });
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -1334,7 +1350,7 @@ impl Editor {
                     || self.remembered_vertex().is_some()
                     || self.remembered_edge().is_some();
                 self.clear_remembered_components();
-                self.selection_mode = SelectionMode::Object;
+                self.set_selection_mode_field(SelectionMode::Object);
                 self.selection.clear();
                 self.sync_fields();
                 return Ok(if changed {

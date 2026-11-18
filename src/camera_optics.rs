@@ -1,4 +1,7 @@
 //! Full-precision camera-shape optics. No scene, viewport or file ownership lives here.
+use crate::viewport::{
+    MAX_FILM_SCALE, MAX_OFFSET_TAN, MAX_OVERSCAN, MAX_TAN_HALF, MIN_FILM_SCALE, MIN_TAN_HALF,
+};
 use glam::{DMat4, DVec4, Mat4};
 #[cfg(feature = "mcp")]
 use rmcp::schemars;
@@ -150,6 +153,31 @@ impl CameraOptics {
         {
             return Err(InvalidOptics);
         }
+        let to_tangent = 25.4 / self.focal_length_mm * self.camera_scale;
+        let horizontal = self.aperture_in[0] * self.lens_squeeze_ratio;
+        let vertical = self.aperture_in[1];
+        let aperture = match self.film_fit {
+            FilmFit::Horizontal => horizontal,
+            FilmFit::Vertical => vertical,
+            FilmFit::Fill => horizontal.min(vertical),
+            FilmFit::Overscan => horizontal.max(vertical),
+        };
+        let offsets = [
+            self.film_offset_in[0],
+            self.film_offset_in[1],
+            self.film_fit_offset_in,
+        ];
+        if self.overscan > MAX_OVERSCAN
+            || ![self.pre_scale, self.post_scale]
+                .into_iter()
+                .all(|scale| (MIN_FILM_SCALE..=MAX_FILM_SCALE).contains(&scale))
+            || !(MIN_TAN_HALF..=MAX_TAN_HALF).contains(&(aperture * 0.5 * to_tangent))
+            || offsets
+                .into_iter()
+                .any(|offset| !(0.0..=MAX_OFFSET_TAN).contains(&(offset.abs() * to_tangent)))
+        {
+            return Err(InvalidOptics);
+        }
         Ok(())
     }
 
@@ -261,6 +289,51 @@ mod tests {
     fn close(a: f64, b: f64) {
         assert!((a - b).abs() < 1e-10, "{a} != {b}");
     }
+    #[test]
+    fn authored_optics_observe_the_provisional_film_back_limits() {
+        let optics = CameraOptics::node_default();
+        for candidate in [
+            CameraOptics {
+                overscan: MAX_OVERSCAN.next_up(),
+                ..optics
+            },
+            CameraOptics {
+                pre_scale: MIN_FILM_SCALE.next_down(),
+                ..optics
+            },
+            CameraOptics {
+                post_scale: MAX_FILM_SCALE.next_up(),
+                ..optics
+            },
+            CameraOptics {
+                film_offset_in: [1e6, 0.0],
+                ..optics
+            },
+            CameraOptics {
+                film_fit_offset_in: -1e6,
+                ..optics
+            },
+            CameraOptics {
+                focal_length_mm: 1e9,
+                ..optics
+            },
+            CameraOptics {
+                aperture_in: [1e9, 1.0],
+                ..optics
+            },
+        ] {
+            assert_eq!(candidate.validate(), Err(InvalidOptics));
+        }
+        assert!(
+            CameraOptics {
+                overscan: MAX_OVERSCAN,
+                ..optics
+            }
+            .validate()
+            .is_ok()
+        );
+    }
+
     #[test]
     fn four_fits_have_independent_gate_bounds_and_identical_equal_aspect() {
         let mut o = CameraOptics {

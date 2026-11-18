@@ -137,6 +137,24 @@ fn parenting_under_a_huge_scale_and_pivot_edits_are_refused_too() {
     );
 }
 
+#[test]
+fn a_rotate_pivot_beyond_f32_range_is_refused_with_and_without_preserve() {
+    for preserve in [false, true] {
+        let (scene, node) = test_fixtures::cube();
+        let mut history = History::new(scene);
+        edit(&mut history, node, channel(Channel::RotateZ, 90.0)).unwrap();
+        refused_and_untouched(
+            &mut history,
+            Command::SetPivots {
+                id: node,
+                rotate_pivot: Some([1.0e300, 0.0, 0.0]),
+                scale_pivot: None,
+                preserve,
+            },
+        );
+    }
+}
+
 fn group_options(preserve_position: bool) -> crate::native_scene::GroupOptions {
     use crate::native_scene::{GroupPivot, GroupUnder};
     crate::native_scene::GroupOptions {

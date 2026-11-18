@@ -1,0 +1,39 @@
+//! Recorded violations: dialogs.
+
+/// Recorded on Windows only, see `gaps::WINDOWS`.
+pub(super) const WINDOWS_GAPS: &[&str] =
+    &["prompt-unsaved-scene|R3|Button|root/<Window>#0/Save As..."];
+
+pub(super) const GAPS: &[&str] = &[
+    "prompt-unsaved-scene|R3-modal-background",
+    "prompt-unsaved-scene|R3|Button|root/<Window>#0/Save",
+    "window-create-joints|R5|TextInput|joint_option[0]",
+    "window-create-joints|R5|TextInput|joint_option[1]",
+    "window-create-joints|R5|TextInput|joint_option[2]",
+    "window-extrude-options|R1|TextInput|root/<Window>#0/Extrude Options/<TextInput>#0",
+    "window-extrude-options|R1|TextInput|root/<Window>#0/Extrude Options/<TextInput>#1",
+    "window-extrude-options|R1|TextInput|root/<Window>#0/Extrude Options/<TextInput>#2",
+    "window-extrude-options|R1|TextInput|root/<Window>#0/Extrude Options/<TextInput>#3",
+    "window-extrude-options|R1|TextInput|root/<Window>#0/Extrude Options/<TextInput>#4",
+    "window-extrude-options|R1|TextInput|root/<Window>#0/Extrude Options/<TextInput>#5",
+    "window-extrude-options|R3|CheckBox|root/<Window>#0/Extrude Options/Keep faces together",
+    "window-extrude-options|R3|TextInput|root/<Window>#0/Extrude Options/<TextInput>#0",
+    "window-extrude-options|R3|TextInput|root/<Window>#0/Extrude Options/<TextInput>#1",
+    "window-extrude-options|R3|TextInput|root/<Window>#0/Extrude Options/<TextInput>#2",
+    "window-extrude-options|R3|TextInput|root/<Window>#0/Extrude Options/<TextInput>#3",
+    "window-extrude-options|R3|TextInput|root/<Window>#0/Extrude Options/<TextInput>#4",
+    "window-extrude-options|R3|TextInput|root/<Window>#0/Extrude Options/<TextInput>#5",
+    "window-planar-mapping|R3|CheckBox|root/<Window>#0/Planar Mapping Options/Create new UV Set",
+    "window-planar-mapping|R3|CheckBox|root/<Window>#0/Planar Mapping Options/Insert projection before deformers",
+    "window-planar-mapping|R3|CheckBox|root/<Window>#0/Planar Mapping Options/Keep image width/height ratio",
+    "window-planar-mapping|R3|RadioButton|root/<Window>#0/Planar Mapping Options/Best plane",
+    "window-planar-mapping|R3|RadioButton|root/<Window>#0/Planar Mapping Options/Camera",
+    "window-primitive-options|R3|Button|root/<Window>#0/Polygon Cube Options/Camera",
+    "window-primitive-options|R3|Button|root/<Window>#0/Polygon Cube Options/Free",
+    "window-primitive-options|R3|CheckBox|root/<Window>#0/Polygon Cube Options/Create UVs",
+    "window-primitive-options|R3|CheckBox|root/<Window>#0/Polygon Cube Options/Exit on completion",
+    "window-primitive-options|R3|CheckBox|root/<Window>#0/Polygon Cube Options/Interactive creation",
+    "window-primitive-options|R5|Button|root/<Window>#0/Polygon Cube Options/X",
+    "window-primitive-options|R5|Button|root/<Window>#0/Polygon Cube Options/Y",
+    "window-primitive-options|R5|Button|root/<Window>#0/Polygon Cube Options/Z",
+];

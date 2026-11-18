@@ -200,6 +200,12 @@ invert that matrix. Sphere framing uses its four side planes plus depth limits;
 refuse before mutation if the optical axis is outside the gate. Imported blocked
 camera contributors disable projection/picking with a visible unsupported reason.
 
+The scene optics share the provisional Film Back limits in development.md row
+56. Their offset bound follows the scene projection: camera scale contributes
+to the tangent conversion, and lens squeeze applies to the aperture only.
+The scene optics field-of-view readout includes overscan and uses the frustum
+before the 2D scale and roll transforms.
+
 A full-snapshot typed SetCameraOptics operation validates the current aspect and
 clip planes before History mutation. Native precise text drafts retain token,
 explicit camera and original optics, refuse stale baselines, participate in

@@ -83,7 +83,7 @@ fn name_of(editor: &Editor, id: NodeId) -> String {
 fn native_and_remote_group_and_ungroup_reach_the_same_scene() {
     let (mut native, _) = cubes(2);
     let (mut other, _) = cubes(2);
-    let generation = Some(other.selection.generation());
+    let generation = Some(other.selection_generation());
     assert!(matches!(
         native.apply_operation(group(None)),
         Ok(OperationReply::Created { .. })
@@ -94,7 +94,7 @@ fn native_and_remote_group_and_ungroup_reach_the_same_scene() {
     ));
     assert_eq!(shape(&native), shape(&other));
     assert_eq!(native.history.undo_label().as_deref(), Some("Group"));
-    let generation = Some(other.selection.generation());
+    let generation = Some(other.selection_generation());
     let Ok(OperationReply::Nodes { node_ids }) = native.apply_operation(ungroup(None)) else {
         panic!("ungroup");
     };
@@ -213,7 +213,7 @@ fn refusals_keep_selection_scene_and_undo_stack() {
 fn a_remote_caller_with_several_objects_needs_the_current_generation() {
     let (mut editor, _) = cubes(2);
     let before = baseline(&editor);
-    let current = editor.selection.generation();
+    let current = editor.selection_generation();
     assert!(matches!(
         remote(&mut editor, group(None)),
         Err(OperationError::MultipleSelection)

@@ -3,7 +3,7 @@ use glam::DMat3;
 use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 
-const MAX_PARENT_CONDITION: f64 = 1e12;
+pub(super) const MAX_PARENT_CONDITION: f64 = 1e12;
 pub(super) const ROUNDTRIP_EPSILON: f64 = 128.0 * f64::EPSILON;
 // A move is refused when the stored translation cannot resolve it to about one part in 2^20.
 pub(super) const MIN_RESOLUTION: f64 = 1.0 / 1_048_576.0;
@@ -26,6 +26,15 @@ impl WorldAxis {
             Self::X => DVec3::X,
             Self::Y => DVec3::Y,
             Self::Z => DVec3::Z,
+        }
+    }
+
+    /// 0, 1 or 2 for X, Y or Z: the position of this axis in a frame's three axes.
+    pub fn index(self) -> usize {
+        match self {
+            Self::X => 0,
+            Self::Y => 1,
+            Self::Z => 2,
         }
     }
 }
@@ -81,6 +90,11 @@ pub enum WorldMoveUnsupported {
     /// A selected ancestor also carries another instance of this uncovered selected object, whose
     /// translation would be applied twice there.
     AlternatePathAncestor,
+    /// A component Move follows the World or Object axes; the other Move Axis Orientation values
+    /// are not supported for components.
+    ComponentAxisOrientation,
+    /// A free component Move direction must be a finite, non-zero world vector.
+    ComponentDirection,
 }
 
 impl fmt::Display for WorldMoveUnsupported {
@@ -94,6 +108,12 @@ impl fmt::Display for WorldMoveUnsupported {
             }
             Self::AlternatePathAncestor => {
                 "a selected ancestor also carries another instance of this object, so it would move twice"
+            }
+            Self::ComponentAxisOrientation => {
+                "components move along the World or Object axes only"
+            }
+            Self::ComponentDirection => {
+                "a component Move direction must be a finite, non-zero world vector"
             }
         })
     }
@@ -712,7 +732,7 @@ pub(super) fn field_start(field: TransformField) -> usize {
     }
 }
 
-fn infinity_norm(matrix: DMat3) -> f64 {
+pub(super) fn infinity_norm(matrix: DMat3) -> f64 {
     let columns = matrix.to_cols_array_2d();
     (0..3)
         .map(|row| columns.iter().map(|column| column[row].abs()).sum::<f64>())

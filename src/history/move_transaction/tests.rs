@@ -41,6 +41,34 @@ fn cube_history() -> History {
 }
 
 #[test]
+fn a_manipulation_without_a_channel_baseline_is_still_active() {
+    let token = Uuid::new_v4();
+    let mut history = cube_history();
+    let id = start(&mut history, token);
+    history.active_manipulation.as_mut().unwrap().kind = ManipulationKind::Move {
+        axis: WorldAxis::X,
+        space: MoveSpace::World,
+        movers: Vec::new(),
+        covered_lead: None,
+    };
+    let state = history.active_manipulation().unwrap();
+    assert_eq!(state.id, id);
+    assert_eq!(state.baseline_channels, None);
+    assert_eq!(state.current_channels, None);
+    // The busy guard keys on the manipulation being active, whatever it edits.
+    assert!(matches!(
+        history.begin_move(
+            &target(&history),
+            WorldAxis::X,
+            token,
+            ManipulationProvenance::Native,
+            BUDGET,
+        ),
+        Err(ManipulationError::Busy)
+    ));
+}
+
+#[test]
 fn every_manipulation_write_to_the_scene_changes_the_revision() {
     let token = Uuid::new_v4();
     let finish = |finish| {
@@ -1134,13 +1162,13 @@ fn active_state_reports_the_baseline_and_live_channels_of_each_kind() {
         )
         .unwrap();
     let state = history.active_manipulation().unwrap();
-    assert_eq!(state.baseline_channels, [10.0, 0.0, 0.0]);
+    assert_eq!(state.baseline_channels, Some([10.0, 0.0, 0.0]));
     assert_eq!(state.current_channels, Some([10.0, 0.0, 0.0]));
     history
         .update_move(token, rotate, ManipulationProvenance::Remote, 30.0)
         .unwrap();
     let state = history.active_manipulation().unwrap();
-    assert_eq!(state.baseline_channels, [10.0, 0.0, 0.0]);
+    assert_eq!(state.baseline_channels, Some([10.0, 0.0, 0.0]));
     assert_eq!(state.current_channels, Some([40.0, 0.0, 0.0]));
     history
         .finish_move(
@@ -1165,13 +1193,13 @@ fn active_state_reports_the_baseline_and_live_channels_of_each_kind() {
         .update_move(token, scale, ManipulationProvenance::Remote, 2.0)
         .unwrap();
     let state = history.active_manipulation().unwrap();
-    assert_eq!(state.baseline_channels, [1.5, 1.0, 1.0]);
+    assert_eq!(state.baseline_channels, Some([1.5, 1.0, 1.0]));
     assert_eq!(state.current_channels, Some([3.0, 1.0, 1.0]));
     history.cancel_active_move().unwrap();
 
     let moved = start(&mut history, token);
     let state = history.active_manipulation().unwrap();
-    assert_eq!(state.baseline_channels, [1.0, 2.0, 3.0]);
+    assert_eq!(state.baseline_channels, Some([1.0, 2.0, 3.0]));
     assert_eq!(state.id, moved);
 }
 

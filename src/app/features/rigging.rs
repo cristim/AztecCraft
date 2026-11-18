@@ -56,7 +56,7 @@ fn joint_field_id(index: usize) -> egui::Id {
     egui::Id::unique(("joint_option", index))
 }
 
-fn window_id() -> egui::Id {
+pub(in crate::app) fn window_id() -> egui::Id {
     egui::Id::unique("joint_options_window")
 }
 

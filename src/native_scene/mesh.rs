@@ -255,6 +255,11 @@ impl NativeMesh {
         indices: &[usize],
         delta_cm: [f64; 3],
     ) -> Result<(), NativeError> {
+        self.check_move(indices, delta_cm)?;
+        let current = self.capture_points(indices)?;
+        self.displace_from(indices, &current, delta_cm)
+    }
+    fn check_move(&self, indices: &[usize], delta_cm: [f64; 3]) -> Result<(), NativeError> {
         if indices.is_empty() {
             return Err(NativeError::InvalidTopology);
         }
@@ -264,6 +269,14 @@ impl NativeMesh {
         if self.has_point_offsets() {
             return Err(NativeError::UnsupportedEdit);
         }
+        Ok(())
+    }
+    /// Whether `indices` could be moved: non-empty, no per-point offsets, in range and unique.
+    pub(super) fn check_points(&self, indices: &[usize]) -> Result<(), NativeError> {
+        self.check_move(indices, [0.0; 3])?;
+        self.check_indices(indices)
+    }
+    fn check_indices(&self, indices: &[usize]) -> Result<(), NativeError> {
         let mut seen = std::collections::HashSet::new();
         seen.try_reserve(indices.len())
             .map_err(|_| NativeError::ResourceLimit)?;
@@ -273,32 +286,41 @@ impl NativeMesh {
         {
             return Err(NativeError::InvalidTopology);
         }
-        // A zero delta is a true no-op: adding 0.0 would turn a -0.0 point into +0.0.
-        if delta_cm.iter().all(|v| *v == 0.0) {
-            return Ok(());
-        }
-        match &mut self.points {
-            Points::Float3(points) => {
-                let moved: Vec<[f32; 3]> = indices
-                    .iter()
-                    .map(|i| {
-                        let p = points[*i];
-                        [0, 1, 2].map(|k| (f64::from(p[k]) + delta_cm[k]) as f32)
-                    })
-                    .collect();
-                if moved.iter().flatten().any(|v| !v.is_finite()) {
-                    return Err(NativeError::NonFinite);
-                }
-                for (i, p) in indices.iter().zip(moved) {
-                    points[*i] = p;
-                }
-            }
+        Ok(())
+    }
+    /// The stored points at `indices`, in that order and precision, for `displace_from`.
+    pub(super) fn capture_points(&self, indices: &[usize]) -> Result<Points, NativeError> {
+        self.check_indices(indices)?;
+        Ok(match &self.points {
+            Points::Float3(points) => Points::Float3(indices.iter().map(|i| points[*i]).collect()),
             Points::Double3(points) => {
-                let moved: Vec<[f64; 3]> = indices
+                Points::Double3(indices.iter().map(|i| points[*i]).collect())
+            }
+        })
+    }
+    /// Sets the points at `indices` to `baseline + delta_cm`, never to the current value plus the
+    /// delta, so repeated previews do not accumulate and a zero delta restores the baseline
+    /// bit for bit (a `-0.0` stays `-0.0`). Same checks and per-point arithmetic as
+    /// `translate_points`; the mesh is unchanged on error.
+    pub(super) fn displace_from(
+        &mut self,
+        indices: &[usize],
+        baseline: &Points,
+        delta_cm: [f64; 3],
+    ) -> Result<(), NativeError> {
+        self.check_move(indices, delta_cm)?;
+        self.check_indices(indices)?;
+        let zero = delta_cm.iter().all(|v| *v == 0.0);
+        match (&mut self.points, baseline) {
+            (Points::Float3(points), Points::Float3(base)) if base.len() == indices.len() => {
+                let moved: Vec<[f32; 3]> = base
                     .iter()
-                    .map(|i| {
-                        let p = points[*i];
-                        [0, 1, 2].map(|k| p[k] + delta_cm[k])
+                    .map(|p| {
+                        if zero {
+                            *p
+                        } else {
+                            [0, 1, 2].map(|k| (f64::from(p[k]) + delta_cm[k]) as f32)
+                        }
                     })
                     .collect();
                 if moved.iter().flatten().any(|v| !v.is_finite()) {
@@ -308,6 +330,25 @@ impl NativeMesh {
                     points[*i] = p;
                 }
             }
+            (Points::Double3(points), Points::Double3(base)) if base.len() == indices.len() => {
+                let moved: Vec<[f64; 3]> = base
+                    .iter()
+                    .map(|p| {
+                        if zero {
+                            *p
+                        } else {
+                            [0, 1, 2].map(|k| p[k] + delta_cm[k])
+                        }
+                    })
+                    .collect();
+                if moved.iter().flatten().any(|v| !v.is_finite()) {
+                    return Err(NativeError::NonFinite);
+                }
+                for (i, p) in indices.iter().zip(moved) {
+                    points[*i] = p;
+                }
+            }
+            _ => return Err(NativeError::InvalidTopology),
         }
         Ok(())
     }
@@ -727,6 +768,8 @@ mod grid;
 #[cfg(test)]
 mod grid_tests;
 mod reduce;
+#[cfg(test)]
+mod reduce_region_tests;
 #[cfg(test)]
 mod reduce_tests;
 pub use reduce::{ReduceRefusal, ReduceTarget};

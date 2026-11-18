@@ -10074,7 +10074,7 @@ fn view_menu_default_view_row_restores_the_default_pose() {
     let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
     let row = face_text_position(&output, "Default View (Alt+Home)");
     face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
-    assert_eq!(editor.camera, Camera::default());
+    assert_eq!(editor.camera, Editor::default().camera);
     assert_eq!(editor.scene_token, token);
     assert_eq!(editor.history.scene(), &scene);
 }
@@ -10127,7 +10127,7 @@ fn alt_home_restores_the_default_pose_and_other_modifiers_do_not() {
         assert_eq!(editor.camera, disturbed, "{modifiers:?}");
     }
     press_alt_home(&mut editor, &ctx, egui::Modifiers::ALT);
-    assert_eq!(editor.camera, Camera::default());
+    assert_eq!(editor.camera, Editor::default().camera);
 }
 
 #[test]

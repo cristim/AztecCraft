@@ -745,6 +745,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::SetToolHandle(ToolHandle::RotateAxis(RotateAxis::Y)),
         Operation::SetManipulatorSize(ManipulatorSize::new(2.0).unwrap()),
+        Operation::SetRotateStep {
+            degrees: Some(15.0),
+        },
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
@@ -830,6 +833,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::ReduceMesh {
             shape: t.shape,
             target: ReduceTarget::Percent(50.0),
+            faces: None,
         },
         Operation::InspectVertices {
             shape: t.shape,
@@ -1152,6 +1156,18 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::SetToolHandle(ToolHandle::ScaleHandle(ScaleHandle::X)),
             ),
         ],
+        Operation::SetRotateStep { .. } => vec![
+            sample(
+                "set_rotate_step(15)",
+                Operation::SetRotateStep {
+                    degrees: Some(15.0),
+                },
+            ),
+            sample(
+                "set_rotate_step(off)",
+                Operation::SetRotateStep { degrees: None },
+            ),
+        ],
         Operation::SetManipulatorSize(_) => vec![
             sample(
                 "set_manipulator_size(2)",
@@ -1456,13 +1472,32 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "delete_uvs",
             Operation::DeleteUvs { shape: t.shape },
         )],
-        Operation::ReduceMesh { .. } => vec![sample(
-            "reduce_mesh(percent)",
-            Operation::ReduceMesh {
-                shape: t.shape,
-                target: ReduceTarget::Percent(50.0),
-            },
-        )],
+        Operation::ReduceMesh { .. } => vec![
+            sample(
+                "reduce_mesh(percent)",
+                Operation::ReduceMesh {
+                    shape: t.shape,
+                    target: ReduceTarget::Percent(50.0),
+                    faces: None,
+                },
+            ),
+            sample(
+                "reduce_mesh(region)",
+                Operation::ReduceMesh {
+                    shape: t.shape,
+                    target: ReduceTarget::Percent(50.0),
+                    faces: Some(vec![0, 1, 2, 3]),
+                },
+            ),
+            sample(
+                "reduce_mesh(all faces)",
+                Operation::ReduceMesh {
+                    shape: t.shape,
+                    target: ReduceTarget::Percent(50.0),
+                    faces: Some((0..6).collect()),
+                },
+            ),
+        ],
         Operation::Create { .. } => vec![
             sample(
                 "create(plane)",
@@ -2623,6 +2658,10 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         (
             "manipulator_size",
             editor.manipulation.manipulator_size().get().to_string(),
+        ),
+        (
+            "rotate_step",
+            format!("{:?}", editor.manipulation.rotate_step()),
         ),
         (
             "bookmarks",

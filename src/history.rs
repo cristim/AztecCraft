@@ -13,7 +13,7 @@ mod move_transaction;
 use move_transaction::MoveTransaction;
 pub use move_transaction::{
     ManipulationError, ManipulationFinish, ManipulationId, ManipulationKindState,
-    ManipulationProvenance, ManipulationState, is_covered, selected_transform_ids,
+    ManipulationProvenance, ManipulationState, MoveDirection, is_covered, selected_transform_ids,
 };
 use std::collections::VecDeque;
 
@@ -103,11 +103,12 @@ pub enum Command {
         face_index: usize,
         distance: f64,
     },
-    /// Moves vertices of one shape by `delta` (scene units, mesh axes) as one undo step.
+    /// Moves vertices of one shape by `delta_cm` (centimetres, mesh axes) as one undo step. A
+    /// caller holding declared scene units converts with `NativeScene::declared_vector_to_cm`.
     MoveVertices {
         shape: NativeId,
         vertices: Vec<usize>,
-        delta: [f64; 3],
+        delta_cm: [f64; 3],
     },
     CreateJoint(JointRequest),
     SetCameraFocalKey {
@@ -161,6 +162,8 @@ pub enum Command {
     ReduceMesh {
         shape: NativeId,
         target: ReduceTarget,
+        /// Reduce only these faces (face indices in the current numbering); `None` is the whole mesh.
+        faces: Option<Vec<usize>>,
     },
     /// Adds parsed OBJ objects as one undo step. The candidate scene must also pass view
     /// admission, so an import can never make the viewport refuse the scene.
@@ -718,9 +721,9 @@ impl History {
             Command::MoveVertices {
                 shape,
                 vertices,
-                delta,
+                delta_cm,
             } => {
-                candidate.move_vertices(shape, &vertices, delta)?;
+                candidate.move_vertices(shape, &vertices, delta_cm)?;
                 ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(moved_view_refusal)?;
                 EditOutcome::Changed
             }
@@ -771,8 +774,12 @@ impl History {
                 candidate.delete_uvs(shape)?;
                 EditOutcome::Changed
             }
-            Command::ReduceMesh { shape, target } => {
-                candidate.reduce_mesh(shape, target)?;
+            Command::ReduceMesh {
+                shape,
+                target,
+                faces,
+            } => {
+                candidate.reduce_mesh(shape, target, faces.as_deref())?;
                 ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(view_refusal)?;
                 EditOutcome::Changed
             }

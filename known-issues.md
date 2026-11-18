@@ -236,11 +236,18 @@ order, cost or tie-break, so these are PROVISIONAL: every face becomes a triangl
 never move (Maya's keep-borders, always on); collapses go to an endpoint or the midpoint of least
 quadric error, cheapest first, ties by vertex index. A collapse is accepted when each surviving
 triangle's new normal has a positive dot with its old one and a non-degenerate area, so a fold
-close to 90 degrees can pass (a design choice, not a Maya rule). A target that borders or manifold
+close to 90 degrees can pass (a design choice, not a Maya rule). An optional face list restricts
+the reduce to a region (PROVISIONAL, the page has no region flag): vertices on the region boundary
+are pinned like borders, faces outside keep their polygons and positions, percent and counts refer
+to the region's own vertices and triangles, and every face, edge and vertex pick is cleared after
+the op because face indices are renumbered. Every face is still triangulated for the engine, so an outside face no fan can split, the
+triangle cap and the manifold and loose-geometry checks apply to the whole mesh. The list is
+explicit (at most 8192 indices, what the 64 KiB request line holds), not the Editor's face
+selection set. A target that borders or manifold
 limits make unreachable is refused, not approximated. UVs block it (`uvs_block_topology_edit`), as
 for Extrude. Meshes over 200000 triangles are refused (`reduce_too_large`, PROVISIONAL): every
 collapse rescans vertex stars and queues duplicate candidates, so the cost grows with the mesh.
-Missing: the Mesh menu item and option box, a face-region reduce, keep-quads, UV and colour
+Missing: the Mesh menu item and option box (and a selection-driven region), keep-quads, UV and colour
 weighting, and the native screenshot review. #462 stays open.
 
 ## Core authoring limits
@@ -255,7 +262,7 @@ unchanged. The dirty state compares the live scene with the saved scene by value
 so dropping old entries cannot make an edited scene read clean. Memory still
 scales with scene size times 50. Autosave and persisting history remain pending.
 
-The scene resource limits (input bytes, parser caps, instance paths, view and recovery budgets) are one table, `scene_limits()`, served by the MCP `inspect_limits` tool and listed in [development limits](.project-docs/development.md#scene-resource-budgets) (#441). Every value is PROVISIONAL policy; no per-scene statistics, memory measurement or viewport performance budget exists yet.
+The scene resource limits (input bytes, parser caps, instance paths, view and recovery budgets) are one table, `scene_limits()`, served by the MCP `inspect_limits` tool and listed in [development limits](.project-docs/development.md#scene-resource-budgets) (#441). Every value is PROVISIONAL policy; per-scene statistics and cap headroom are reported by `inspect_limits` (`usage`; the view byte figure is a lower bound without curve tessellation, and the reply carries no scene token), but no process memory measurement or viewport performance budget exists yet.
 
 Undo and Redo entry names are PROVISIONAL: the Maya 2027 documentation names no undo entries. A
 transform edit that changes several value groups reads "Transform"; Channel Box and numeric edits
@@ -430,9 +437,9 @@ Frame All and Frame Selected floor the distance at twice the near clip plus 5% (
 default near), so an object with a radius under 2·near·sin(limiting half angle), about 0.065 at aspect up to 1.5 and less in wider viewports, frames smaller than the screen
 fraction other objects get. There is no per-camera near clip control (Maya exposes Near Clip
 Plane on the camera); a Camera Attributes near-clip setting is the candidate, not built.
-The default lens is film-fit (development.md row 25). Built-in camera optics now support all four fits, film offset, camera scale,
-lens squeeze, focal length and aperture edits (#458). The Fill threshold, the Fill
-default and treating the viewport aspect as the resolution gate are PROVISIONAL. Pan moves
+The default lens is film-fit (development.md row 25). Built-in camera optics now support all four fits,
+film offset, camera scale, lens squeeze, focal length and aperture edits (#458). The fit formulas
+and treating the viewport aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
 1.21x (aspect <= 1.5) to 1.43x (16:9) faster than under the old 45 degrees; it is not
 cursor-locked (pre-existing). MCP-only sessions that never painted frame at viewport aspect 1.0

@@ -72,6 +72,9 @@ pub struct Editor {
     selection: ObjectSelection,
     selection_mode: SelectionMode,
     picks: component_picks::ComponentPicks,
+    /// Counts every change to the remembered component sets and the selection mode. It lives
+    /// outside `ComponentPicks` so replacing that struct cannot reset it; see `selection_generation`.
+    pick_epoch: u64,
     camera: Camera,
     active_camera: azteccraft::native_scene::SceneCamera,
     camera_attributes_open: bool,
@@ -143,6 +146,7 @@ impl Default for Editor {
             selection: ObjectSelection::default(),
             selection_mode: SelectionMode::default(),
             picks: component_picks::ComponentPicks::default(),
+            pick_epoch: 0,
             camera: {
                 let mut camera = Camera::default();
                 camera.set_lens(azteccraft::viewport::Lens::Optics(
@@ -449,6 +453,9 @@ fn material_edit_id() -> egui::Id {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod a11y_tests;
 
 #[cfg(test)]
 #[path = "../snapshots.rs"]

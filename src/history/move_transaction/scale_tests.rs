@@ -211,7 +211,7 @@ fn a_covered_lead_reports_its_own_channels() {
     history.update_move(token, id, NATIVE, 3.0).unwrap();
     let state = history.active_manipulation().unwrap();
     assert_eq!(state.target.node, child);
-    assert_eq!(state.baseline_channels, own);
+    assert_eq!(state.baseline_channels, Some(own));
     assert_eq!(state.current_channels, Some(own));
     assert_eq!(scale_at(&history, parent), [3.0; 3]);
 }

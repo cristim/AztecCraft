@@ -954,3 +954,27 @@ fn orthographic_projected_fraction_uses_the_parallel_view_direction() {
     );
     assert_eq!(capture.view_direction(off_axis), -DVec3::Z);
 }
+
+#[test]
+fn pixel_scale_ignores_a_film_roll_and_offset() {
+    let (width, height) = (800.0, 600.0);
+    let pixels = DVec2::new(width, height);
+    let y = 2.0;
+    let plain = DMat4::from_cols(
+        DVec4::new(y / (width / height), 0.0, 0.0, 0.0),
+        DVec4::new(0.0, y, 0.0, 0.0),
+        DVec4::new(0.0, 0.0, -1.0, -1.0),
+        DVec4::ZERO,
+    );
+    assert!((pixel_scale(&plain, pixels) - y * height * 0.5).abs() < 1e-9);
+    // Roll by 30 degrees in pixel space (x divided by the aspect again) and a z-column offset.
+    let a = width / height;
+    let (s, c) = 30_f64.to_radians().sin_cos();
+    let rolled = DMat4::from_cols(
+        DVec4::new(c * y / a, s * a * y / a, 0.0, 0.0),
+        DVec4::new(-s / a * y, c * y, 0.0, 0.0),
+        DVec4::new(0.3, -0.2, -1.0, -1.0),
+        DVec4::ZERO,
+    );
+    assert!((pixel_scale(&rolled, pixels) - y * height * 0.5).abs() < 1e-9);
+}

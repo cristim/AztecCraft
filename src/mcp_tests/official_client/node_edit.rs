@@ -384,3 +384,44 @@ async fn native_sdk_transforms_preserve_double_precision_and_inspect_metadata_on
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn edit_node_scale_beyond_f32_range_is_refused_and_keeps_the_baseline() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let created = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "create_primitive",
+        json!({"scene_token":token,"primitive":"cube","name":"first"}),
+    )
+    .await;
+    let id = created.structured_content.unwrap()["node_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let before = editor.history.scene().clone();
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "edit_node",
+        json!({"scene_token":token,"node_id":id,"scale":[1e300,null,null]}),
+    )
+    .await;
+    assert_eq!(
+        result.structured_content.unwrap()["error"]["code"],
+        "world_out_of_range"
+    );
+    assert_eq!(editor.history.scene(), &before);
+    azteccraft::view_scene::ViewScene::from_native(
+        editor.history.scene(),
+        azteccraft::view_scene::VIEW_BUDGET,
+    )
+    .unwrap();
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

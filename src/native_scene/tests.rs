@@ -2079,7 +2079,13 @@ fn move_vertices_converts_the_declared_unit_and_vertex_positions_convert_back() 
         scene.units.linear = unit;
         let shape = scene.shapes[0].id;
         let before = scene.shapes[0].mesh.effective_point_cm(3).unwrap();
-        scene.move_vertices(shape, &[3], [2.0, 0.0, -1.0]).unwrap();
+        scene
+            .move_vertices(
+                shape,
+                &[3],
+                scene.declared_vector_to_cm([2.0, 0.0, -1.0]).unwrap(),
+            )
+            .unwrap();
         let after = scene.shapes[0].mesh.effective_point_cm(3).unwrap();
         for (k, delta) in [2.0, 0.0, -1.0].into_iter().enumerate() {
             assert_eq!(after[k], f64::from((before[k] + delta * factor) as f32));
@@ -2131,4 +2137,19 @@ fn a_zero_delta_leaves_every_bit_alone_including_negative_zero() {
         mesh.translate_points(&[9], [0.0; 3]),
         Err(NativeError::InvalidTopology)
     );
+}
+
+/// Statistics count records; the path caps count instance paths (#441).
+#[test]
+fn statistics_count_a_shared_node_once_but_its_paths_each() {
+    let mut scene = flat_cubes(2);
+    let ids = transform_ids(&scene);
+    instance(&mut scene, ids[0], ids[1], true);
+    let usage = scene.usage();
+    assert_eq!((usage.statistics.nodes, usage.statistics.shapes), (2, 2));
+    assert_eq!(usage.statistics.faces, 12);
+    let row = |name: &str| usage.caps.iter().find(|c| c.name == name).unwrap().used;
+    assert_eq!(row("instance_paths"), Some(3));
+    assert_eq!(row("instance_depth"), Some(2));
+    assert_eq!(row("instance_path_identities"), Some(4));
 }

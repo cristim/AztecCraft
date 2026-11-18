@@ -5,6 +5,7 @@ mod authored;
 pub mod binary;
 mod camera;
 pub use camera::SceneCamera;
+mod component_move;
 mod curve;
 mod group;
 mod import;
@@ -29,6 +30,7 @@ pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
     MaterialShader,
 };
+pub use component_move::{ComponentMoveFrame, MAX_MOVED_VERTICES, VertexBaseline};
 pub use curve::{CurveForm, NativeCurveShape};
 pub use group::{GroupOptions, GroupPivot, GroupUnder};
 pub use import::ObjImportPlan;
@@ -1915,24 +1917,16 @@ impl NativeScene {
         self.shapes[index].mesh = mesh;
         Ok(())
     }
-    /// Moves vertices of one shape by `delta` in declared scene units, along the mesh's own axes.
-    /// Authored scenes only: a scene bound to a source file refuses, because its writer cannot
-    /// carry edited points. Shared-shape edits affect every instance.
+    /// Moves vertices of one shape by `delta_cm` centimetres along the mesh's own axes. Authored
+    /// scenes only: a scene bound to a source file refuses, because its writer cannot carry edited
+    /// points. Shared-shape edits affect every instance.
     pub fn move_vertices(
         &mut self,
         id: NativeId,
         vertices: &[usize],
-        delta: [f64; 3],
+        delta_cm: [f64; 3],
     ) -> Result<(), NativeError> {
-        self.structural_edit()?;
-        let index = self
-            .shapes
-            .iter()
-            .position(|shape| shape.id == id)
-            .ok_or(NativeError::MissingShape(id))?;
-        self.check_effects(id)?;
-        let factor = self.units.linear_factor()?;
-        let delta_cm = delta.map(|v| v * factor);
+        let index = self.check_vertex_move(id, vertices)?;
         self.shapes[index].mesh.translate_points(vertices, delta_cm)
     }
     /// Positions of vertices `range` of one shape in declared scene units along the mesh's own

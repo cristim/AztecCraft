@@ -501,3 +501,183 @@ fn native_extrude_refuses_a_set_but_the_explicit_operation_extrudes_its_target_a
     // PROVISIONAL, as the single pick: the indices stay, they are not moved to the new faces.
     assert_eq!(members(&editor, ComponentKind::Face), [2, 5]);
 }
+
+fn select_object(editor: &mut Editor, index: usize) {
+    let target = editor
+        .history
+        .scene()
+        .transform_paths()
+        .unwrap()
+        .remove(index);
+    editor
+        .apply_operation(Operation::Select {
+            node: Some(target.node),
+            instance_path: Some(target.path),
+        })
+        .unwrap();
+}
+
+fn stale(editor: &Editor, inspected: u64) -> bool {
+    matches!(
+        editor.check_generation(Some(inspected)),
+        Err(OperationError::StaleSelection { .. })
+    )
+}
+
+#[test]
+fn every_set_or_mode_change_moves_the_generation_and_a_no_op_does_not() {
+    let mut editor = cube();
+    let mut seen = vec![editor.selection_generation()];
+    let mut moved = |editor: &Editor, what: &str| {
+        let now = editor.selection_generation();
+        assert!(!seen.contains(&now), "{what} repeated a generation");
+        seen.push(now);
+    };
+    mode(&mut editor, SelectionMode::Vertex);
+    moved(&editor, "mode change");
+    for (change, indices, what) in [
+        (MarqueeMode::Replace, &[1][..], "replace"),
+        (MarqueeMode::Add, &[2, 3], "add"),
+        (MarqueeMode::Toggle, &[3, 4], "toggle"),
+        (MarqueeMode::Remove, &[4], "remove"),
+    ] {
+        assert!(changed(modify(
+            &mut editor,
+            ComponentKind::Vertex,
+            change,
+            indices
+        )));
+        moved(&editor, what);
+    }
+    let held = editor.selection_generation();
+    // Re-selecting the mode, removing an absent member and re-adding a held one change nothing.
+    mode(&mut editor, SelectionMode::Vertex);
+    assert!(!changed(modify(
+        &mut editor,
+        ComponentKind::Vertex,
+        MarqueeMode::Remove,
+        &[7]
+    )));
+    assert!(!changed(modify(
+        &mut editor,
+        ComponentKind::Vertex,
+        MarqueeMode::Add,
+        &[1]
+    )));
+    assert_eq!(editor.selection_generation(), held);
+    // Clearing empty sets is a no-op too; a clear that drops members is not.
+    mode(&mut editor, SelectionMode::Face);
+    let face_mode = editor.selection_generation();
+    editor.clear_remembered_components();
+    assert_ne!(editor.selection_generation(), face_mode);
+    let cleared = editor.selection_generation();
+    editor.clear_remembered_components();
+    assert_eq!(editor.selection_generation(), cleared);
+}
+
+#[test]
+fn a_mode_switch_between_inspect_and_begin_is_stale_even_with_the_same_indices() {
+    let mut editor = cube();
+    mode(&mut editor, SelectionMode::Vertex);
+    modify(&mut editor, ComponentKind::Vertex, MarqueeMode::Add, &[1]).unwrap();
+    let inspected = editor.inspect(false).unwrap().selection_generation;
+    assert_eq!(inspected, editor.selection_generation());
+    assert!(!stale(&editor, inspected));
+    mode(&mut editor, SelectionMode::Edge);
+    mode(&mut editor, SelectionMode::Vertex);
+    assert!(stale(&editor, inspected));
+    assert_ne!(
+        editor.inspect(false).unwrap().selection_generation,
+        inspected
+    );
+}
+
+#[test]
+fn deselecting_and_picking_the_same_vertex_again_is_stale() {
+    let mut editor = cube();
+    mode(&mut editor, SelectionMode::Vertex);
+    modify(&mut editor, ComponentKind::Vertex, MarqueeMode::Add, &[1]).unwrap();
+    let inspected = editor.selection_generation();
+    editor.apply_operation(Operation::DeselectAll).unwrap();
+    select_object(&mut editor, 0);
+    mode(&mut editor, SelectionMode::Vertex);
+    modify(&mut editor, ComponentKind::Vertex, MarqueeMode::Add, &[1]).unwrap();
+    assert_eq!(members(&editor, ComponentKind::Vertex), [1]);
+    assert!(stale(&editor, inspected));
+}
+
+#[test]
+fn selecting_a_b_a_and_picking_again_never_returns_to_an_inspected_value() {
+    let mut editor = cube();
+    editor.create(Primitive::Cube);
+    select_object(&mut editor, 0);
+    mode(&mut editor, SelectionMode::Vertex);
+    let inspected = editor.selection_generation();
+    // Object selection moved by one step per change, component picks by one each: the sum
+    // would repeat if the two parts could offset each other.
+    select_object(&mut editor, 1);
+    select_object(&mut editor, 0);
+    modify(&mut editor, ComponentKind::Vertex, MarqueeMode::Add, &[0]).unwrap();
+    modify(&mut editor, ComponentKind::Vertex, MarqueeMode::Add, &[1]).unwrap();
+    assert!(stale(&editor, inspected));
+    // A pick, then another object and back, with the same pick restored, is stale as well.
+    let picked = editor.selection_generation();
+    select_object(&mut editor, 1);
+    select_object(&mut editor, 0);
+    mode(&mut editor, SelectionMode::Vertex);
+    modify(
+        &mut editor,
+        ComponentKind::Vertex,
+        MarqueeMode::Add,
+        &[0, 1],
+    )
+    .unwrap();
+    assert!(stale(&editor, picked));
+}
+
+#[test]
+fn the_generation_wraps_without_panicking_and_a_replaced_pick_struct_cannot_reset_it() {
+    let mut editor = cube();
+    mode(&mut editor, SelectionMode::Vertex);
+    modify(&mut editor, ComponentKind::Vertex, MarqueeMode::Add, &[1]).unwrap();
+    let before = editor.selection_generation();
+    editor.clear_remembered_components();
+    assert_ne!(editor.selection_generation(), before);
+    editor.pick_epoch = u64::MAX;
+    let top = editor.selection_generation();
+    mode(&mut editor, SelectionMode::Edge);
+    assert_eq!(editor.pick_epoch, 0);
+    assert_ne!(editor.selection_generation(), top);
+}
+
+#[test]
+fn deselect_all_reports_changed_exactly_when_the_generation_moved() {
+    let mut editor = cube();
+    for setup in 0..4 {
+        match setup {
+            0 => {}
+            1 => mode(&mut editor, SelectionMode::Vertex),
+            2 => {
+                mode(&mut editor, SelectionMode::Vertex);
+                select_object(&mut editor, 0);
+                modify(&mut editor, ComponentKind::Vertex, MarqueeMode::Add, &[1]).unwrap();
+            }
+            _ => {}
+        }
+        let before = editor.selection_generation();
+        let reply = editor.apply_operation(Operation::DeselectAll).unwrap();
+        let moved = editor.selection_generation() != before;
+        assert_eq!(
+            matches!(reply, OperationReply::Changed),
+            moved,
+            "setup {setup}"
+        );
+    }
+    // Nothing left to clear: unchanged, and the generation stays.
+    let settled = editor.selection_generation();
+    assert!(matches!(
+        editor.apply_operation(Operation::DeselectAll).unwrap(),
+        OperationReply::Unchanged
+    ));
+    assert_eq!(editor.selection_generation(), settled);
+}

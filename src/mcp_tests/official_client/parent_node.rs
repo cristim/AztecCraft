@@ -256,3 +256,41 @@ async fn sdk_parent_node_refuses_an_opened_ascii_scene_with_read_only_format() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_parent_node_keep_local_beyond_f32_range_is_refused_and_keeps_the_baseline() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let p = cube(&mut editor, &context, &client, "p").await;
+    let c = cube(&mut editor, &context, &client, "c").await;
+    for (node, channel, value) in [(&p, "scale", 1e20), (&c, "translation", 1e20)] {
+        let edited = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "edit_node",
+            json!({"scene_token":token,"node_id":node,channel:[value,null,null]}),
+        )
+        .await;
+        assert!(!edited.is_error.unwrap_or(false));
+    }
+    let before = editor.history.scene().clone();
+    let refused = parent(
+        &mut editor,
+        &context,
+        &client,
+        json!({"scene_token":token,"node_id":c,"parent_id":p,"keep":"local"}),
+    )
+    .await;
+    assert_eq!(refused["error"]["code"], "world_out_of_range");
+    assert_eq!(editor.history.scene(), &before);
+    azteccraft::view_scene::ViewScene::from_native(
+        editor.history.scene(),
+        azteccraft::view_scene::VIEW_BUDGET,
+    )
+    .unwrap();
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

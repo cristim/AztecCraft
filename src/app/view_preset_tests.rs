@@ -96,7 +96,7 @@ fn default_view_returns_an_orthographic_camera_to_the_default_perspective() {
     let mut editor = Editor::default();
     remote(&mut editor, Operation::SetView(ViewPreset::Side)).unwrap();
     editor.default_view();
-    assert_eq!(editor.camera, Camera::default());
+    assert_eq!(editor.camera, Editor::default().camera);
 }
 
 #[test]

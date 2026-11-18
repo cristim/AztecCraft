@@ -164,6 +164,14 @@ impl ManipulatorSize {
     }
 }
 
+/// Pixels per unit of view-space size at depth one: the square root of the determinant of the
+/// projection's 2x2 in pixels, which a film roll and offset leave alone (the old `y_axis.y`
+/// alone is wrong once the matrix has off-diagonal terms).
+fn pixel_scale(projection: &DMat4, pixels: DVec2) -> f64 {
+    let det = projection.x_axis.x * projection.y_axis.y - projection.y_axis.x * projection.x_axis.y;
+    (det * pixels.x * pixels.y * 0.25).abs().sqrt()
+}
+
 fn round_milli(value: f64) -> f64 {
     (value * 1000.0).round() / 1000.0
 }
@@ -213,7 +221,8 @@ impl ViewportCapture {
         let aspect = physical_size[0] as f32 / physical_size[1] as f32;
         let projection = camera.projection_matrix(aspect)?.as_dmat4();
         let view_projection = projection * camera.view_matrix().as_dmat4();
-        let focal_pixels = projection.y_axis.y * f64::from(physical_size[1]) * 0.5;
+        let pixels = DVec2::new(f64::from(physical_size[0]), f64::from(physical_size[1]));
+        let focal_pixels = pixel_scale(&projection, pixels);
         if !view_projection.is_finite() || !focal_pixels.is_finite() || focal_pixels <= 0.0 {
             return Err(HandleError::InvalidCapture);
         }

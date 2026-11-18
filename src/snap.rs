@@ -26,6 +26,8 @@ pub enum SnapError {
     AxisOffGrid,
     /// An input or the snapped result is not a finite number.
     NonFinite,
+    /// A step increment that is not a finite number above zero.
+    InvalidStep,
 }
 
 impl fmt::Display for SnapError {
@@ -36,6 +38,10 @@ impl fmt::Display for SnapError {
                  use World Axis Orientation or turn Snap to grids off",
             ),
             Self::NonFinite => f.write_str("Snap to grids needs finite values"),
+            Self::InvalidStep => write!(
+                f,
+                "Rotate step must be a finite number of at least {MIN_ROTATE_STEP_DEGREES} degrees"
+            ),
         }
     }
 }
@@ -84,9 +90,76 @@ pub fn snap_distance_to_grid(
     }
 }
 
+/// The smallest Rotate step in degrees. A smaller step makes `degrees / step` overflow or lose
+/// all precision, so it is refused instead of silently refusing every later rotate.
+pub const MIN_ROTATE_STEP_DEGREES: f64 = 1e-6;
+
+/// `degrees` rounded to the nearest multiple of `step` (relative step snap: the drag's turn, not
+/// the object's resulting angle); a half-way turn rounds away from zero and a result of zero is
+/// always `+0.0`. A turn of 2^52 steps or more is already a multiple within f64 precision and is
+/// returned as is. The only validation of a step: a setter calls it with 0.
+pub fn snap_angle_to_step(degrees: f64, step: f64) -> Result<f64, SnapError> {
+    if !step.is_finite() || step < MIN_ROTATE_STEP_DEGREES {
+        return Err(SnapError::InvalidStep);
+    }
+    if !degrees.is_finite() {
+        return Err(SnapError::NonFinite);
+    }
+    let steps = degrees / step;
+    if !steps.is_finite() || steps.abs() >= 4_503_599_627_370_496.0 {
+        return Ok(degrees);
+    }
+    let snapped = steps.round() * step + 0.0;
+    if snapped.is_finite() {
+        Ok(snapped)
+    } else {
+        Err(SnapError::NonFinite)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_angle_snaps_to_the_nearest_step_multiple() {
+        assert_eq!(snap_angle_to_step(37.0, 15.0), Ok(30.0));
+        assert_eq!(snap_angle_to_step(38.0, 15.0), Ok(45.0));
+        assert_eq!(snap_angle_to_step(-38.0, 15.0), Ok(-45.0));
+        assert_eq!(snap_angle_to_step(7.0, 15.0), Ok(0.0));
+    }
+
+    #[test]
+    fn a_half_way_turn_rounds_away_from_zero_and_zero_is_positive() {
+        assert_eq!(snap_angle_to_step(7.5, 15.0), Ok(15.0));
+        assert_eq!(snap_angle_to_step(-7.5, 15.0), Ok(-15.0));
+        let zero = snap_angle_to_step(-7.0, 15.0).unwrap();
+        assert!(zero == 0.0 && zero.is_sign_positive());
+    }
+
+    #[test]
+    fn a_step_above_a_full_turn_still_snaps() {
+        assert_eq!(snap_angle_to_step(37.0, 400.0), Ok(0.0));
+        assert_eq!(snap_angle_to_step(250.0, 400.0), Ok(400.0));
+        assert_eq!(snap_angle_to_step(-250.0, 400.0), Ok(-400.0));
+    }
+
+    #[test]
+    fn a_bad_step_or_angle_is_refused() {
+        for step in [0.0, -5.0, f64::NAN, f64::INFINITY, 5e-324, 1e-307, 9.9e-7] {
+            assert_eq!(snap_angle_to_step(10.0, step), Err(SnapError::InvalidStep));
+        }
+        assert_eq!(snap_angle_to_step(10.0, MIN_ROTATE_STEP_DEGREES), Ok(10.0));
+        assert_eq!(snap_angle_to_step(f64::NAN, 5.0), Err(SnapError::NonFinite));
+    }
+
+    #[test]
+    fn a_huge_turn_stays_finite() {
+        assert_eq!(snap_angle_to_step(1.7e308, 0.5), Ok(1.7e308));
+        assert_eq!(snap_angle_to_step(-1.7e308, 0.5), Ok(-1.7e308));
+        assert_eq!(snap_angle_to_step(f64::MAX, 1e-6), Ok(f64::MAX));
+        assert_eq!(snap_angle_to_step(1e300, 360.0), Ok(1e300));
+    }
 
     #[test]
     fn world_axis_lands_the_pivot_on_the_nearest_line() {

@@ -418,6 +418,15 @@ pub enum Operation {
     SetToolHandle(ToolHandle),
     /// Sets the global manipulator size, a session-only tool setting.
     SetManipulatorSize(ManipulatorSize),
+    /// Sets the Rotate tool's relative Step Snap in degrees (`None` is off, the default): an
+    /// update's turn lands on a multiple of it. A step that is not finite or is below
+    /// `snap::MIN_ROTATE_STEP_DEGREES` is refused. Session-only; refused during a manipulation.
+    /// Only the MCP tool `set_rotate_step` constructs it; the native Tool Box control is a
+    /// separate #35 checklist item.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetRotateStep {
+        degrees: Option<f64>,
+    },
     /// Begins a Move of the selected objects with `target` as the lead. With several objects
     /// selected a remote caller must pass the `selection_generation` it inspected; a native caller
     /// moves the current selection.
@@ -551,6 +560,8 @@ pub enum Operation {
     ReduceMesh {
         shape: NativeId,
         target: azteccraft::native_scene::ReduceTarget,
+        /// Face indices of the region to reduce; `None` reduces the whole mesh.
+        faces: Option<Vec<usize>>,
     },
     #[cfg(any(test, feature = "mcp"))]
     Inspect {
@@ -917,6 +928,8 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     SceneLimits {
         limits: &'static [azteccraft::scene_limits::SceneLimit],
+        /// Statistics and cap headroom of the live scene.
+        usage: azteccraft::scene_statistics::SceneUsage,
     },
     Created {
         node_id: String,
@@ -1402,9 +1415,8 @@ pub const MAX_UV_CORNERS_PER_PAGE: usize = 4096;
 #[cfg(any(test, feature = "mcp"))]
 pub const MAX_VERTICES_PER_PAGE: usize = 1024;
 
-/// Most vertex indices one `MoveVertices` names. Bounded by the 64 KiB MCP ingress limit: a
-/// request of this many indices (up to about 6 bytes each) still fits with room for the envelope.
-pub const MAX_MOVED_VERTICES: usize = 8192;
+/// Most vertex indices one `MoveVertices` names; see the constant's own note.
+pub use azteccraft::native_scene::MAX_MOVED_VERTICES;
 /// Most indices one MCP `modify_component_selection` request carries. Like `move_vertices`, it
 /// keeps the line under the transport's 64 KiB ingress cap: indices reach 16,777,215 (the binary
 /// writer's edge limit), so 6144 eight-digit indices with commas are 54 KiB; a longer line closes

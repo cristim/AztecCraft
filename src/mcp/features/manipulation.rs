@@ -12,6 +12,7 @@ use azteccraft::{
     history::ManipulationFinish,
     move_handles::ManipulatorSize,
     native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget, WorldAxis},
+    snap::snap_angle_to_step,
 };
 use rmcp::{
     model::{ErrorData, JsonObject},
@@ -112,6 +113,24 @@ struct ManipulatorSizeArgs {
     /// Between 0.1 and 10.0 inclusive; 2.5555 is stored and read back as 2.556.
     #[schemars(range(min = 0.1, max = 10.0))]
     size: f64,
+}
+
+/// Sets the Rotate tool's relative Step Snap.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct RotateStepArgs {
+    scene_token: String,
+    /// The step in degrees, at least 1e-6; null turns the step off. Required: an omitted field is
+    /// a protocol error, not "off".
+    #[serde(deserialize_with = "required_option")]
+    #[schemars(required, range(min = 1e-6))]
+    degrees: Option<f64>,
+}
+
+fn required_option<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<f64>, D::Error> {
+    Option::<f64>::deserialize(deserializer)
 }
 
 /// `kind` selects the manipulation; each kind takes its own handle fields and nothing else. Move
@@ -246,6 +265,20 @@ fn parse_set_manipulator_size(arguments: JsonObject) -> Result<RemoteRequest, Er
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::SetManipulatorSize(size),
+    ))
+}
+
+fn parse_set_rotate_step(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: RotateStepArgs = decode(arguments)?;
+    if let Some(step) = args.degrees {
+        snap_angle_to_step(0.0, step)
+            .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?;
+    }
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetRotateStep {
+            degrees: args.degrees,
+        },
     ))
 }
 
@@ -487,6 +520,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         read_only: false,
     },
     ToolSpec {
+        name: "set_rotate_step",
+        description: "Set the Rotate tool's relative Step Snap in degrees (at least 1e-6) or turn it off with null (the default); `degrees` is required. While set, every update_manipulation angle of a rotate, and the native numeric entry, is rounded to the nearest multiple of the step (a half-way turn rounds away from zero) before it is applied; the step snaps the turn, not the object's resulting angle, and the result is not read back as the requested angle. Move, Scale and the Snap to grids setting are unaffected. A step that is not finite or is below 1e-6 is invalid_params. Session-only and idempotent: it never dirties the scene or enters undo history, and there is no inspect_scene field for it yet. Refused with busy_manipulation during any manipulation and busy_editing during a draft, modal or close. Does not change the active tool",
+        schema: schema::<RotateStepArgs>,
+        parse: parse_set_rotate_step,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
         name: "begin_manipulation",
         description: "Begin one remote-owned Move (World axis), Rotate (Object or World space) or Scale (Object, World or Parent space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move or a Scale acts on the whole current selection with the named node as its lead (the last selected object), each object scaling about its own pivot by the same factor; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. Rotate still needs exactly one selected object",
         schema: schema::<BeginManipulationArgs>,
@@ -612,5 +653,48 @@ mod parse_manipulator_size_tests {
         for given in [0.0999, 10.0001, 0.0, -0.0, 1e300] {
             assert!(parsed(json!(given)).is_err(), "{given}");
         }
+    }
+}
+
+#[cfg(test)]
+mod parse_rotate_step_tests {
+    use super::*;
+
+    fn parsed(arguments: Value) -> Result<RemoteRequest, ErrorData> {
+        let Value::Object(arguments) = arguments else {
+            unreachable!()
+        };
+        parse_set_rotate_step(arguments)
+    }
+
+    fn with_token(degrees: Value) -> Value {
+        json!({"scene_token":uuid::Uuid::new_v4().to_string(),"degrees":degrees})
+    }
+
+    #[test]
+    fn a_step_or_null_parses_and_a_bad_one_is_invalid_params() {
+        for (given, expected) in [
+            (json!(15), Some(15.0)),
+            (json!(1e-6), Some(1e-6)),
+            (json!(null), None),
+        ] {
+            let operation = parsed(with_token(given)).ok().unwrap().operation;
+            assert!(matches!(
+                operation,
+                Operation::SetRotateStep { degrees } if degrees == expected
+            ));
+        }
+        for given in [
+            json!(0),
+            json!(-1),
+            json!(9.9e-7),
+            json!(5e-324),
+            json!(1e-307),
+            json!("15"),
+        ] {
+            assert!(parsed(with_token(given.clone())).is_err(), "{given}");
+        }
+        let token = uuid::Uuid::new_v4().to_string();
+        assert!(parsed(json!({"scene_token":token})).is_err());
     }
 }
