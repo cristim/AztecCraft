@@ -419,7 +419,7 @@ fn headless_gpu_resize_and_keyboard_discard_open_fit_the_current_viewport() {
         );
         assert!(!editor.files.is_modal());
         let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
-        let mut expected = Camera::default();
+        let mut expected = Editor::default().camera;
         expected.frame_view(&view, None, editor.aspect).unwrap();
         assert_eq!(
             editor.camera, expected,
