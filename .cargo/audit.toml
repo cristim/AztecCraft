@@ -10,4 +10,7 @@ ignore = [
     "RUSTSEC-2026-0370", # zvariant
     "RUSTSEC-2026-0371", # zbus_names
     "RUSTSEC-2026-0372", # zvariant_derive
+    # Informational only: rmcp and its schema support still pull chrono.
+    # Remove when the released SDK migrates. Tracking: modelcontextprotocol/rust-sdk#1469.
+    "RUSTSEC-2026-0543", # chrono
 ]
