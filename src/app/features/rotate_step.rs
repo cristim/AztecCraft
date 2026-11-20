@@ -99,3 +99,7 @@ fn name_control(response: &egui::Response, role: egui::Role, label: &str, value:
         node.set_value(value.to_owned());
     });
 }
+
+#[cfg(test)]
+#[path = "rotate_step/tests.rs"]
+mod tests;
