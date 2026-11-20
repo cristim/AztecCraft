@@ -22,6 +22,7 @@
 - [Operation guard ledger](guard-ledger.md): the native and remote guard pipelines, their order and side effects, with `file:line` anchors and the snapshot tests that enforce them.
 - [Native MCP verification](mcp-native-verification.md): scoped macOS window/protocol evidence, combined icons and selection, and unresolved idle responsiveness.
 - [UI parity inventory](ui-parity-inventory.md): Maya 2026 UI surfaces mapped to AztecCraft status, MCP tools and a prioritized backlog.
+- [Maya 2027 menu map](maya-2027-menu-map.md): global menus, menu sets, panel, shell and marking-menu surfaces from the Maya 2027.2 Help with per-entry evidence and gaps (issue #6).
 - [Contribution guidance](../CONTRIBUTING.md): local workflow, review evidence and publication restrictions.
 - [Known limitations](../known-issues.md): missing reference/denominator, desktop verification and compatibility evidence.
 - [Scripting threat model](scripting-threat-model.md): what may ever be executed, options evaluated, the owner-only decision and a staged first slice for scripting and plug-ins (issue #57).
