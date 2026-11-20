@@ -522,6 +522,17 @@ impl NativeMesh {
                 radius,
                 axis,
             } => Ok(Self::platonic_solid(solid, radius, axis)),
+            PrimitiveOptions::Pyramid {
+                side_length,
+                sides,
+                axis,
+            } => Ok(Self::polygon_pyramid(side_length, sides, axis)),
+            PrimitiveOptions::Prism {
+                side_length,
+                length,
+                sides,
+                axis,
+            } => Ok(Self::polygon_prism(side_length, length, sides, axis)),
         }
     }
     pub(super) fn from_legacy(mesh: &Mesh) -> Self {
@@ -788,6 +799,7 @@ mod platonic;
 #[cfg(test)]
 mod platonic_tests;
 pub(in crate::native_scene) mod primitive_uv;
+mod pyramid_prism;
 mod reduce;
 #[cfg(test)]
 mod reduce_region_tests;

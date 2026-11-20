@@ -12,7 +12,7 @@ use azteccraft::primitive_options::{Axis, PlatonicSolidKind, PrimitiveOptions};
 
 /// Cube has the most numeric fields: three sizes and three subdivision counts.
 const MAX_FIELDS: usize = 6;
-const PRIMITIVES: [Primitive; 7] = [
+const PRIMITIVES: [Primitive; 9] = [
     Primitive::Cube,
     Primitive::Plane,
     Primitive::Sphere,
@@ -20,6 +20,8 @@ const PRIMITIVES: [Primitive; 7] = [
     Primitive::Cone,
     Primitive::Torus,
     Primitive::PlatonicSolid,
+    Primitive::Pyramid,
+    Primitive::Prism,
 ];
 
 pub(in crate::app) fn option_field_ids() -> impl Iterator<Item = egui::Id> {
@@ -43,6 +45,8 @@ fn slot(primitive: Primitive) -> usize {
         Primitive::Cone => 4,
         Primitive::Torus => 5,
         Primitive::PlatonicSolid => 6,
+        Primitive::Pyramid => 7,
+        Primitive::Prism => 8,
     }
 }
 
@@ -55,6 +59,8 @@ fn title(primitive: Primitive) -> &'static str {
         Primitive::Cone => "Polygon Cone Options",
         Primitive::Torus => "Polygon Torus Options",
         Primitive::PlatonicSolid => "Polygon Platonic Solid Options",
+        Primitive::Pyramid => "Polygon Pyramid Options",
+        Primitive::Prism => "Polygon Prism Options",
     }
 }
 
@@ -96,6 +102,8 @@ fn labels(primitive: Primitive) -> (&'static [&'static str], &'static [&'static 
             &["Subdivisions axis", "Subdivisions height"],
         ),
         Primitive::PlatonicSolid => (&["Radius"], &[]),
+        Primitive::Pyramid => (&["Side length"], &["Number of sides"]),
+        Primitive::Prism => (&["Side length", "Length"], &["Number of sides"]),
     }
 }
 
@@ -154,6 +162,15 @@ fn texts(options: &PrimitiveOptions) -> Vec<String> {
             vec![sub_axis, sub_height],
         ),
         PrimitiveOptions::PlatonicSolid { radius, .. } => (vec![radius], vec![]),
+        PrimitiveOptions::Pyramid {
+            side_length, sides, ..
+        } => (vec![side_length], vec![sides]),
+        PrimitiveOptions::Prism {
+            side_length,
+            length,
+            sides,
+            ..
+        } => (vec![side_length, length], vec![sides]),
     };
     sizes
         .iter()
@@ -183,7 +200,9 @@ fn axis_of(options: &PrimitiveOptions) -> Axis {
         | PrimitiveOptions::Cylinder { axis, .. }
         | PrimitiveOptions::Cone { axis, .. }
         | PrimitiveOptions::Torus { axis, .. }
-        | PrimitiveOptions::PlatonicSolid { axis, .. } => axis,
+        | PrimitiveOptions::PlatonicSolid { axis, .. }
+        | PrimitiveOptions::Pyramid { axis, .. }
+        | PrimitiveOptions::Prism { axis, .. } => axis,
     }
 }
 
@@ -285,6 +304,17 @@ fn assemble(
             radius,
             axis,
         },
+        (Primitive::Pyramid, &[side_length], &[sides]) => PrimitiveOptions::Pyramid {
+            side_length,
+            sides,
+            axis,
+        },
+        (Primitive::Prism, &[side_length, length], &[sides]) => PrimitiveOptions::Prism {
+            side_length,
+            length,
+            sides,
+            axis,
+        },
         _ => return Err("Option fields are out of sync; reopen the window".into()),
     };
     options.validate(primitive).map_err(|e| e.to_string())?;
@@ -317,7 +347,7 @@ struct Dialog {
 }
 
 pub(in crate::app) struct PrimitiveOptionsUi {
-    remembered: [PrimitiveOptions; 7],
+    remembered: [PrimitiveOptions; 9],
     dialog: Option<Dialog>,
     /// Any text field (dialog, name, channel, ...) held focus at the end of the last frame; egui
     /// clears focus before Escape runs, so the key still belongs to that field.

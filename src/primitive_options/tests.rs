@@ -361,7 +361,10 @@ fn face_budget_binds_and_admits_the_other_maxima() {
                 *sub_axis = MAX_DIVISIONS;
                 *sub_height = MAX_DIVISIONS;
             }
-            PrimitiveOptions::Cube { .. } | PrimitiveOptions::PlatonicSolid { .. } => {
+            PrimitiveOptions::Cube { .. }
+            | PrimitiveOptions::PlatonicSolid { .. }
+            | PrimitiveOptions::Pyramid { .. }
+            | PrimitiveOptions::Prism { .. } => {
                 unreachable!()
             }
         }

@@ -56,6 +56,15 @@ pub const DEFAULT_TORUS_TWIST_DEG: f64 = 0.0;
 /// polyPlatonicSolid `-radius` default (command page, 2027).
 pub const DEFAULT_PLATONIC_RADIUS_CM: f64 = 1.0;
 
+/// polyPyramid `-numberOfSides` and `-sideLength` defaults (command page, 2018; the 2016 page says
+/// 3 sides, so the default is PROVISIONAL for 2027).
+pub const DEFAULT_PYRAMID_SIDES: u32 = 4;
+pub const DEFAULT_PYRAMID_SIDE_LENGTH_CM: f64 = 1.0;
+/// polyPrism `-numberOfSides`, `-sideLength` and `-length` defaults (command page, 2023).
+pub const DEFAULT_PRISM_SIDES: u32 = 3;
+pub const DEFAULT_PRISM_SIDE_LENGTH_CM: f64 = 2.0;
+pub const DEFAULT_PRISM_LENGTH_CM: f64 = 2.0;
+
 /// The solid a Platonic Solid primitive builds. Maya's `-solidType` lists 0 dodecahedron
 /// (default), 1 icosahedron, 2 octahedron and 3 tetrahedron; the cube is PROVISIONAL (#466): the
 /// issue lists it as a fifth solid but the command page does not.
@@ -166,6 +175,22 @@ pub enum PrimitiveOptions {
         /// Circumradius: every vertex lies at this distance from the centre. PROVISIONAL (#466):
         /// the command page does not say how `-radius` relates to `-sideLength` (not exposed here).
         radius: f64,
+        axis: Axis,
+    },
+    Pyramid {
+        /// Edge of the base polygon (`-sideLength`).
+        side_length: f64,
+        /// Base sides (`-numberOfSides`). The range 3 to 128 is a PROVISIONAL (#5) safety bound.
+        sides: u32,
+        axis: Axis,
+    },
+    Prism {
+        /// Edge of the cap polygons (`-sideLength`).
+        side_length: f64,
+        /// Extent along the axis (`-length`).
+        length: f64,
+        /// Cap sides (`-numberOfSides`). The range 3 to 128 is a PROVISIONAL (#5) safety bound.
+        sides: u32,
         axis: Axis,
     },
 }
@@ -279,6 +304,17 @@ impl PrimitiveOptions {
                 radius: DEFAULT_PLATONIC_RADIUS_CM,
                 axis,
             },
+            Primitive::Pyramid => Self::Pyramid {
+                side_length: DEFAULT_PYRAMID_SIDE_LENGTH_CM,
+                sides: DEFAULT_PYRAMID_SIDES,
+                axis,
+            },
+            Primitive::Prism => Self::Prism {
+                side_length: DEFAULT_PRISM_SIDE_LENGTH_CM,
+                length: DEFAULT_PRISM_LENGTH_CM,
+                sides: DEFAULT_PRISM_SIDES,
+                axis,
+            },
         }
     }
 
@@ -306,6 +342,8 @@ impl PrimitiveOptions {
             Self::Cone { .. } => Primitive::Cone,
             Self::Torus { .. } => Primitive::Torus,
             Self::PlatonicSolid { .. } => Primitive::PlatonicSolid,
+            Self::Pyramid { .. } => Primitive::Pyramid,
+            Self::Prism { .. } => Primitive::Prism,
         }
     }
 
@@ -387,6 +425,8 @@ impl PrimitiveOptions {
                 ..
             } => u64::from(sub_axis).checked_mul(u64::from(sub_height)),
             Self::PlatonicSolid { solid, .. } => Some(solid.face_count()),
+            Self::Pyramid { sides, .. } => u64::from(sides).checked_add(1),
+            Self::Prism { sides, .. } => u64::from(sides).checked_add(2),
         };
         counted.unwrap_or(u64::MAX)
     }
@@ -475,6 +515,21 @@ impl PrimitiveOptions {
                 ],
             ),
             Self::PlatonicSolid { radius, .. } => (vec![("radius", radius)], vec![]),
+            Self::Pyramid {
+                side_length, sides, ..
+            } => (
+                vec![("side_length", side_length)],
+                vec![("number_of_sides", sides, MIN_AXIS_DIVISIONS)],
+            ),
+            Self::Prism {
+                side_length,
+                length,
+                sides,
+                ..
+            } => (
+                vec![("side_length", side_length), ("length", length)],
+                vec![("number_of_sides", sides, MIN_AXIS_DIVISIONS)],
+            ),
         }
     }
 }

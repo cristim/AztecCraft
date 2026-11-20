@@ -53,7 +53,9 @@ impl Mesh {
             | Primitive::Cylinder
             | Primitive::Cone
             | Primitive::Torus
-            | Primitive::PlatonicSolid => {
+            | Primitive::PlatonicSolid
+            | Primitive::Pyramid
+            | Primitive::Prism => {
                 return Err(SceneError::UnsupportedPrimitive(primitive));
             }
         })
