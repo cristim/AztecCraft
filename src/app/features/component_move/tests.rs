@@ -25,7 +25,7 @@ fn owner_at(editor: &Editor, instance: usize) -> ComponentOwner {
     }
 }
 
-fn cube_with(vertices: &[usize]) -> Editor {
+pub(super) fn cube_with(vertices: &[usize]) -> Editor {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     editor
@@ -37,7 +37,7 @@ fn cube_with(vertices: &[usize]) -> Editor {
     editor
 }
 
-fn pick(editor: &mut Editor, vertices: &[usize]) {
+pub(super) fn pick(editor: &mut Editor, vertices: &[usize]) {
     let owner = owner_at(editor, 0);
     editor
         .apply_operation(Operation::ModifyComponentSelection {
@@ -49,7 +49,7 @@ fn pick(editor: &mut Editor, vertices: &[usize]) {
         .unwrap();
 }
 
-fn begin_op(editor: &Editor, generation: Option<u64>) -> Operation {
+pub(super) fn begin_op(editor: &Editor, generation: Option<u64>) -> Operation {
     Operation::BeginMove {
         target: editor.selected_move_lead().unwrap(),
         axis: WorldAxis::X,
@@ -57,7 +57,7 @@ fn begin_op(editor: &Editor, generation: Option<u64>) -> Operation {
     }
 }
 
-fn begin(editor: &mut Editor) -> ManipulationId {
+pub(super) fn begin(editor: &mut Editor) -> ManipulationId {
     let op = begin_op(editor, None);
     match editor.apply_operation(op).unwrap() {
         OperationReply::ManipulationStarted { manipulation_id } => {
@@ -67,7 +67,7 @@ fn begin(editor: &mut Editor) -> ManipulationId {
     }
 }
 
-fn update(editor: &mut Editor, id: ManipulationId, cm: f64) {
+pub(super) fn update(editor: &mut Editor, id: ManipulationId, cm: f64) {
     editor
         .apply_operation(Operation::UpdateMove {
             id,
@@ -247,7 +247,7 @@ fn begin_refuses_with_the_scene_untouched() {
     let mut editor = cube_with(&[0]);
     editor.snap_to_grid = true;
     refused_with(&mut editor, "Snap to grids");
-    // Remote caller, until the remote lifecycle lands.
+    // A remote caller must name the generation it inspected.
     let mut editor = cube_with(&[0]);
     let before = editor.history.scene().clone();
     let op = begin_op(&editor, None);
@@ -259,7 +259,7 @@ fn begin_refuses_with_the_scene_untouched() {
     assert!(matches!(
         remote,
         Err(OperationError::InvalidInput(ref message))
-            if message == "Component Move is not available to remote callers yet (tracked in #41)"
+            if message == "A remote component Move needs expected_selection_generation from inspect_scene"
     ));
     assert_eq!(editor.history.scene(), &before);
 }

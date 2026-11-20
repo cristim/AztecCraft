@@ -12,7 +12,6 @@
 - A component drag's `inspect_manipulation` block reports `baseline_channels` and `current_channels` as
   `[0, 0, 0]` and `member_count` 1 (the owning object), because the schema has no null channels and no
   vertex count. T6 extends the block.
-- The remote `begin_manipulation` `move` in Vertex selection is refused until T4b2.
 
 ## Huge coordinates save but cannot be reopened (pre-existing)
 

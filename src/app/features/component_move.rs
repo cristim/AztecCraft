@@ -53,10 +53,14 @@ impl Editor {
         target: &TransformTarget,
         axis: WorldAxis,
         provenance: ManipulationProvenance,
+        expected_generation: Option<u64>,
     ) -> Result<OperationReply, OperationError> {
-        if provenance == ManipulationProvenance::Remote {
+        // A remote caller moves the set it inspected: the generation (checked by the caller of
+        // this method, so a stale one is `StaleSelection`) is mandatory, as for several objects.
+        if provenance == ManipulationProvenance::Remote && expected_generation.is_none() {
             return Err(OperationError::InvalidInput(
-                "Component Move is not available to remote callers yet (tracked in #41)".into(),
+                "A remote component Move needs expected_selection_generation from inspect_scene"
+                    .into(),
             ));
         }
         self.check_single_instance_target("Move", target)?;
@@ -107,5 +111,7 @@ impl Editor {
     }
 }
 
+#[cfg(test)]
+mod remote_tests;
 #[cfg(test)]
 mod tests;

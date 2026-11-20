@@ -350,7 +350,12 @@ impl Editor {
         // Vertex selection only until Edge and Face map to vertices (#41).
         if self.selection_mode == crate::editor_operations::SelectionMode::Vertex {
             self.check_generation(expected_selection_generation)?;
-            return self.begin_component_move(target, axis, provenance);
+            return self.begin_component_move(
+                target,
+                axis,
+                provenance,
+                expected_selection_generation,
+            );
         }
         self.check_move_target(target, provenance, expected_selection_generation)?;
         let space = self.manipulation.move_space();

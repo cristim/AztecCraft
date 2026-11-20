@@ -572,9 +572,10 @@ async fn sdk_begin_manipulation_refuses_every_kind_in_vertex_and_edge_modes() {
             assert_eq!(refused.is_error, Some(true), "{mode} {kind}");
             let error = &refused.structured_content.unwrap()["error"];
             assert_eq!(error["code"], "invalid_input", "{mode} {kind}");
-            // Remote component Move in Vertex selection lands with the remote lifecycle (#41).
+            // Remote component Move in Vertex selection needs the inspected generation (#41).
             let expected = if mode == "vertex" && kind == "move" {
-                "Component Move is not available to remote callers yet (tracked in #41)".to_owned()
+                "A remote component Move needs expected_selection_generation from inspect_scene"
+                    .to_owned()
             } else {
                 format!("{name} is unavailable in {noun} selection; switch to Object selection")
             };

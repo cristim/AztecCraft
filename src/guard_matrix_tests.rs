@@ -214,6 +214,8 @@ enum Pre {
     None,
     FaceMode,
     VertexMode,
+    /// Vertex mode with vertex 0 picked: a Move then drags that vertex.
+    VertexPick,
     EdgeMode,
     /// Adds a second node with different channels, reselects the first and enters Face mode.
     SecondNodeFaceMode,
@@ -404,7 +406,7 @@ fn targets(rig: &Rig) -> Targets {
             || ManipulationId::from_decimal("999").unwrap(),
             |active| active.id,
         ),
-        selection_generation: editor.selection.generation(),
+        selection_generation: editor.selection_generation(),
         pending_id: editor
             .files
             .pending_inspection()
@@ -1170,6 +1172,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 only: Some(&[State::Idle, State::StaleToken]),
                 ..sample(
                     "begin_move(multi)",
+                    Operation::BeginMove {
+                        target: t.transform_target(),
+                        axis: WorldAxis::X,
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
+            // A picked vertex: native names no generation, remote must.
+            Sample {
+                pre: Pre::VertexPick,
+                ..sample(
+                    "begin_move(vertex_pick)",
+                    Operation::BeginMove {
+                        target: t.transform_target(),
+                        axis: WorldAxis::X,
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+            Sample {
+                pre: Pre::VertexPick,
+                ..sample(
+                    "begin_move(vertex_pick,generation)",
                     Operation::BeginMove {
                         target: t.transform_target(),
                         axis: WorldAxis::X,
@@ -2852,6 +2877,11 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
             .enable_recovery(rig.directory.path().join("recovery"))
             .unwrap(),
         Pre::VertexMode => rig.editor.selection_mode = SelectionMode::Vertex,
+        Pre::VertexPick => {
+            let vertex = targets(&rig).vertex();
+            rig.editor.set_selection_mode_field(SelectionMode::Vertex);
+            rig.editor.set_remembered_vertex(Some(vertex));
+        }
         Pre::EdgeMode => rig.editor.selection_mode = SelectionMode::Edge,
         Pre::AttributeEditorDock => {
             rig.editor.sidebar_dock = Some(crate::editor_operations::SidebarPanel::AttributeEditor)
