@@ -37,6 +37,22 @@ impl Zone {
     }
 }
 
+impl Zone {
+    /// The compass name used as the accessible name of the zone.
+    pub fn label(self) -> &'static str {
+        match self {
+            Zone::N => "North",
+            Zone::NE => "North-east",
+            Zone::E => "East",
+            Zone::SE => "South-east",
+            Zone::S => "South",
+            Zone::SW => "South-west",
+            Zone::W => "West",
+            Zone::NW => "North-west",
+        }
+    }
+}
+
 /// The zone a pointer displacement points at, in screen coordinates (y grows downwards). Sectors
 /// are 45 degrees wide and centred on the compass points; a sector edge belongs to the sector
 /// clockwise of it. Returns `None` inside the dead zone (distance below `dead_zone`, and always
@@ -109,6 +125,21 @@ impl<A> Entry<A> {
         self
     }
 
+    /// The accessible name: the label, then the check state and, for an entry that cannot be
+    /// chosen, whether it is disabled or unsupported and why.
+    pub fn accessible_name(&self) -> String {
+        let mut name = self.label.clone();
+        if self.checked {
+            name.push_str(", checked");
+        }
+        match &self.state {
+            EntryState::Enabled(_) => {}
+            EntryState::Disabled(reason) => name.push_str(&format!(", disabled: {reason}")),
+            EntryState::Unsupported(reason) => name.push_str(&format!(", unsupported: {reason}")),
+        }
+        name
+    }
+
     /// Why the entry cannot be chosen, or `None` when it can.
     pub fn disabled_reason(&self) -> Option<&str> {
         match &self.state {
@@ -177,5 +208,15 @@ impl<A> MarkingMenu<A> {
         zones
             .chain((0..self.list.len()).map(Target::List))
             .collect()
+    }
+
+    /// The accessible name of the entry at `target`: a zone is prefixed with its compass label,
+    /// a list row is just the entry's name. `None` for an empty zone or a row past the end.
+    pub fn accessible_name(&self, target: Target) -> Option<String> {
+        let name = self.entry(target)?.accessible_name();
+        Some(match target {
+            Target::Zone(zone) => format!("{}: {name}", zone.label()),
+            Target::List(_) => name,
+        })
     }
 }

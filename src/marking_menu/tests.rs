@@ -116,3 +116,38 @@ fn disabled_and_unsupported_are_distinct_states_with_reasons() {
         None
     );
 }
+
+#[test]
+fn accessible_names_carry_the_compass_label_state_and_reason() {
+    let menu = sample();
+    let labels: Vec<_> = Zone::ALL.iter().map(|z| z.label()).collect();
+    assert_eq!(
+        labels,
+        [
+            "North",
+            "North-east",
+            "East",
+            "South-east",
+            "South",
+            "South-west",
+            "West",
+            "North-west"
+        ]
+    );
+    let name = |t| menu.accessible_name(t);
+    assert_eq!(
+        name(Target::Zone(Zone::NW)).as_deref(),
+        Some("North-west: Vertex, checked")
+    );
+    assert_eq!(
+        name(Target::Zone(Zone::S)).as_deref(),
+        Some("South: Delete, disabled: Component delete is not implemented")
+    );
+    assert_eq!(
+        name(Target::Zone(Zone::W)).as_deref(),
+        Some("West: UV, unsupported: No UV mode yet")
+    );
+    assert_eq!(name(Target::List(0)).as_deref(), Some("Select All"));
+    assert_eq!(name(Target::Zone(Zone::N)), None);
+    assert_eq!(name(Target::List(9)), None);
+}
