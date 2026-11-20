@@ -167,6 +167,7 @@ mod official_client {
     mod snap;
     mod torus;
 
+    mod component_move;
     mod pointer_hit;
     mod primitive_options;
     mod recovery;
