@@ -59,6 +59,7 @@ impl Interaction {
             return Outcome::None;
         };
         self.touch(now);
+        self.set_armed(None);
         let next_focus = match key {
             NavKey::Number(n) => {
                 let Some(target) = n.checked_sub(1).and_then(|i| order.get(i)).copied() else {
@@ -101,6 +102,7 @@ impl Interaction {
             return Outcome::None;
         };
         self.touch(now);
+        self.set_armed(None);
         self.set_focus(None);
         self.choose(target, enabled, true)
     }

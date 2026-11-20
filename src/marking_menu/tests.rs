@@ -151,3 +151,11 @@ fn accessible_names_carry_the_compass_label_state_and_reason() {
     assert_eq!(name(Target::Zone(Zone::N)), None);
     assert_eq!(name(Target::List(9)), None);
 }
+
+#[test]
+fn an_empty_reason_leaves_no_trailing_colon() {
+    let none: Entry<u8> = Entry::disabled("Merge", "");
+    assert_eq!(none.accessible_name(), "Merge, disabled");
+    let none: Entry<u8> = Entry::unsupported("UV", "").checked(true);
+    assert_eq!(none.accessible_name(), "UV, checked, unsupported");
+}

@@ -192,3 +192,30 @@ fn keys_count_as_human_input_for_idle() {
         "a rejected activate touched idle"
     );
 }
+
+#[test]
+fn a_keyboard_action_clears_a_pointer_armed_entry() {
+    let m = menu();
+    let enabled = |x: Target| m.is_enabled(x);
+    // Navigation disarms: a later release over the entry must not dispatch.
+    let mut i = opened();
+    i.press(Button::Primary, O, Some(ROW), 1.0, &enabled);
+    assert_eq!(i.armed(), Some(ROW));
+    nav(&mut i, NavKey::Number(1), &m, 2.0);
+    assert_eq!(i.armed(), None);
+    assert_eq!(
+        i.release(Button::Primary, O, Some(ROW), 3.0, &enabled),
+        Outcome::None
+    );
+    // A rejected activation disarms too.
+    let mut j = opened();
+    nav(&mut j, NavKey::Number(2), &m, 1.0);
+    j.press(Button::Primary, O, Some(ROW), 2.0, &enabled);
+    assert_eq!(j.key_activate(3.0, &|_| false), Outcome::Rejected(E));
+    assert_eq!(j.armed(), None);
+    assert_eq!(
+        j.release(Button::Primary, O, Some(ROW), 4.0, &enabled),
+        Outcome::None,
+        "the earlier press no longer dispatches"
+    );
+}

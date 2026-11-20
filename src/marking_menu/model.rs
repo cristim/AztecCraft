@@ -99,6 +99,16 @@ pub struct Entry<A> {
     pub checked: bool,
 }
 
+/// ", <state>: <reason>", or just ", <state>" when there is no reason to read.
+fn push_state(name: &mut String, state: &str, reason: &str) {
+    name.push_str(", ");
+    name.push_str(state);
+    if !reason.is_empty() {
+        name.push_str(": ");
+        name.push_str(reason);
+    }
+}
+
 impl<A> Entry<A> {
     pub fn new(label: impl Into<String>, action: A) -> Self {
         Self::with_state(label, EntryState::Enabled(action))
@@ -134,8 +144,8 @@ impl<A> Entry<A> {
         }
         match &self.state {
             EntryState::Enabled(_) => {}
-            EntryState::Disabled(reason) => name.push_str(&format!(", disabled: {reason}")),
-            EntryState::Unsupported(reason) => name.push_str(&format!(", unsupported: {reason}")),
+            EntryState::Disabled(reason) => push_state(&mut name, "disabled", reason),
+            EntryState::Unsupported(reason) => push_state(&mut name, "unsupported", reason),
         }
         name
     }

@@ -58,7 +58,11 @@ fn escape_and_focus_loss_close_held_and_open() {
     for close in [Interaction::escape, Interaction::focus_lost] {
         let mut h = held(0.0);
         assert_eq!(close(&mut h), Outcome::Dismissed);
-        assert!(!h.holds_overlay());
+        assert!(!h.is_active(), "dismissed");
+        assert!(
+            h.holds_overlay(),
+            "but the held button's release is swallowed"
+        );
         let mut s = sticky();
         assert_eq!(close(&mut s), Outcome::Dismissed);
         assert!(!s.holds_overlay());
@@ -198,4 +202,47 @@ fn origin_is_the_press_position() {
     assert_eq!(i.origin(), Some([7.0, 9.0]));
     i.escape();
     assert_eq!(i.origin(), None);
+}
+
+#[test]
+fn escape_or_focus_loss_while_the_button_is_held_does_not_click_through() {
+    for close in [Interaction::escape, Interaction::focus_lost] {
+        let mut h = held(0.0);
+        assert_eq!(close(&mut h), Outcome::Dismissed);
+        assert!(h.holds_overlay() && !h.is_active());
+        assert_eq!(
+            close(&mut h),
+            Outcome::None,
+            "a second dismissal is not reported"
+        );
+        assert_eq!(
+            h.release(Button::Secondary, O, None, 0.2, YES),
+            Outcome::None
+        );
+        assert!(!h.holds_overlay(), "the release ends the swallow");
+
+        let mut lost = held(0.0);
+        close(&mut lost);
+        lost.tick(0.3, input(false, false));
+        assert!(!lost.holds_overlay(), "a lost release ends it on the tick");
+
+        let mut armed = sticky();
+        armed.press(Button::Primary, O, Some(Target::List(0)), 1.0, YES);
+        assert_eq!(armed.armed(), Some(Target::List(0)));
+        assert_eq!(close(&mut armed), Outcome::Dismissed);
+        assert!(armed.holds_overlay(), "the armed press is swallowed");
+        armed.release(Button::Primary, O, Some(Target::List(0)), 1.1, YES);
+        assert!(!armed.holds_overlay());
+    }
+}
+
+#[test]
+fn a_swallow_closed_by_idle_is_not_reported_twice() {
+    let mut i = sticky();
+    assert_eq!(
+        i.press(Button::Primary, [500.0, 500.0], None, 1.0, YES),
+        Outcome::Dismissed
+    );
+    assert_eq!(i.tick(40.0, input(false, true)), Outcome::None);
+    assert!(!i.holds_overlay());
 }

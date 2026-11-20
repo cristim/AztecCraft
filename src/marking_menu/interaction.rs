@@ -63,9 +63,10 @@ enum Phase {
 /// say whether a target can be chosen.
 ///
 /// Clock rules: a release decides drawn or flick from `now - t0` itself, so it does not depend
-/// on a tick having run during a long hold (a frame stall). Time going backwards clamps that
-/// elapsed time to zero (a fast flick) and never panics; a backwards `touch` moves the idle
-/// reference into the future, which only delays the idle dismissal.
+/// on a tick having run during a long hold (a frame stall). Time going backwards makes that
+/// elapsed time negative, which is below the draw delay (a fast flick), and never panics; a
+/// backwards `touch` moves the idle reference into the future, which only delays the idle
+/// dismissal.
 #[derive(Clone, Debug)]
 pub struct Interaction {
     phase: Phase,
@@ -251,8 +252,7 @@ impl Interaction {
             ) => {
                 self.touch(now);
                 let d = delta(origin, pos);
-                let elapsed = (now - t0).max(0.0);
-                let drawn = drawn || elapsed >= DRAW_DELAY;
+                let drawn = drawn || now - t0 >= DRAW_DELAY;
                 let zone = zone_at(d, DEAD_ZONE);
                 let flick = dist(d) >= f64::from(FLICK_DISTANCE);
                 match zone {
@@ -304,22 +304,33 @@ impl Interaction {
         }
     }
 
-    /// Escape: closes Held and Open. A Swallow keeps swallowing its pending release, so the
-    /// release cannot click through to the viewport; it reports nothing (already dismissed).
+    /// Escape: dismisses Held and Open. A button still down (the Secondary of a Held menu, the
+    /// Primary that armed an entry of a sticky one) is swallowed until it releases, so the
+    /// release cannot click through to the viewport. A Swallow keeps swallowing and reports
+    /// nothing (already dismissed).
     pub fn escape(&mut self) -> Outcome {
-        self.close_unless_swallowing()
+        self.dismiss_swallowing_a_held_button()
     }
 
-    /// Window focus loss or the pointer leaving the window: same as `escape`.
+    /// Window focus loss or the pointer leaving the window: same as `escape`. The release may
+    /// never arrive; `tick` ends the swallow once the button is no longer down.
     pub fn focus_lost(&mut self) -> Outcome {
-        self.close_unless_swallowing()
+        self.dismiss_swallowing_a_held_button()
     }
 
-    fn close_unless_swallowing(&mut self) -> Outcome {
-        if matches!(self.phase, Phase::Swallow { .. }) {
-            Outcome::None
-        } else {
-            self.close()
+    fn dismiss_swallowing_a_held_button(&mut self) -> Outcome {
+        let swallow = match self.phase {
+            Phase::Swallow { .. } => return Outcome::None,
+            Phase::Held { .. } => Some(Button::Secondary),
+            Phase::Open { armed: Some(_), .. } => Some(Button::Primary),
+            _ => None,
+        };
+        match swallow {
+            Some(button) => {
+                self.phase = Phase::Swallow { button };
+                Outcome::Dismissed
+            }
+            None => self.close(),
         }
     }
 
@@ -336,7 +347,13 @@ impl Interaction {
             self.touch(now);
         }
         if now - self.t_input >= IDLE_DISMISS {
-            return self.close();
+            // A Swallow was reported as Dismissed when it began; ending it is silent.
+            return if matches!(self.phase, Phase::Swallow { .. }) {
+                self.phase = Phase::Closed;
+                Outcome::None
+            } else {
+                self.close()
+            };
         }
         match &mut self.phase {
             Phase::Held { t0, drawn, .. } => {
