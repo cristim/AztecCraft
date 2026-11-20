@@ -223,8 +223,12 @@ CRV; UV → UVE.
   (options); Offset Edge Loop (options); Paint Reduce Weights (options; works
   with Mesh > Reduce); Paint Transfer Attributes (options); Quad Draw
   (options); Sculpting Tools submenu (page states Mesh Tools > Sculpting
-  Tools > <tool name> > for the sculpt tool settings); Slide Edge (options);
-  Target Weld (options; same mesh only).
+  Tools > <tool name> > for the sculpt tool settings; the linked
+  [Sculpting shelf](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-820F611F-3380-4D33-AC69-EEC62A59109B.htm)
+  page lists the tools as Sculpt (Ctrl+1), Smooth (Ctrl+2), Relax (Ctrl+3),
+  Grab (Ctrl+4), Pinch (Ctrl+5), Flatten (Ctrl+6), Foamy (Ctrl+7), Spray
+  (Ctrl+8), Repeat (Ctrl+9), Imprint, Wax, Scrape, Fill, Knife, Smear,
+  Bulge); Slide Edge (options); Target Weld (options; same mesh only).
 - `set.modeling.meshdisplay` ([Mesh Display](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-57FBF97C-F60F-4D8A-8801-852B8B56D4EF.htm)):
   Average (options), Conform, Reverse (options), Set to Face (options), Set
   Vertex Normal (options), Harden Edge (Normal angle 0), Soften Edge (Normal
@@ -235,8 +239,12 @@ CRV; UV → UVE.
   Current Set (polyColorMod), Set Keyframe for Vertex Color, Color Set Editor
   (options) under Vertex Color Sets; Prelight (Maya) (options), Assign New
   Set, Assign Existing Set, Edit Assigned Set under Vertex Bake Sets; Toggle
-  Display Colors Attribute, Color Material Channel, Material Blend Setting
-  under Display Attributes; Select Shared Instances, Share Instances under
+  Display Colors Attribute, Color Material Channel ([options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-04408333-F529-4193-9C38-E18A53BDFAB6.htm):
+  None, Ambient, Ambient+Diffuse, Diffuse (the page's default), Specular,
+  Emission; selecting CPV Modulate on a Layered Texture also ignores this
+  setting), Material Blend Setting ([options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-B62EED3D-CCE7-4A06-B057-856276653459.htm):
+  Overwrite, Add, Subtract, Multiply, Divide, Average, Modulate2X) under
+  Display Attributes; Select Shared Instances, Share Instances under
   Per Instance Sharing. Section groupings other than Normals are page
   sections without stated paths: nesting PROVISIONAL.
 - `set.modeling.curves` ([Curves](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-44AC128C-47DC-4751-8457-22CE823B6F97.htm)):
@@ -253,8 +261,13 @@ CRV; UV → UVE.
   options), CV Hardness (options), Fit B-spline (options), Project Tangent
   (options), Smooth (page writes Curves > (Edit) Smooth with its own options
   page; two Smooth entries exist, one per section), Bezier Curves submenu
-  (Curves > Bezier Curves > Tangent Options and Anchor Presets), Rebuild
-  (options), Reverse Direction (options).
+  (Curves > Bezier Curves > Tangent Options: Smooth Anchor Tangents, Break
+  Anchor Tangents, Even Anchor Tangents, Uneven Tangents per the
+  [Bezier Curve Tangent Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-3CA09C8F-6D4C-459F-8123-EE435D3B8413.htm)
+  page; Curves > Bezier Curves > Anchor Presets: Bezier, Bezier Corner,
+  Corner per the [Bezier Curve Anchor
+  Presets](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-F2F18AE2-1005-40B3-9535-7EF756E7F6B0.htm)
+  page), Rebuild (options), Reverse Direction (options).
 - `set.modeling.surfaces` ([Surfaces](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-7251C28B-8198-4188-BBF2-A4C25F26A606.htm)):
   under the page's Create section: Loft, Planar, Revolve, Extrude, Boundary,
   Square, Bevel and Bevel Plus (each with options), Birail submenu (Surfaces >
