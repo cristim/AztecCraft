@@ -216,3 +216,7 @@ fn to_local(axis: Axis, p: [f64; 3]) -> [f64; 3] {
         Axis::Z => [p[0], p[2], -p[1]],
     }
 }
+
+#[cfg(test)]
+#[path = "primitive_uv_tests.rs"]
+mod tests;
