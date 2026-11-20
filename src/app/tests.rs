@@ -2347,6 +2347,39 @@ fn display_menu_shows_grid_options_disabled_with_the_default_grid_reason() {
     assert!(super::menus::GRID_OPTIONS_REASON.contains("+/-12 units (PROVISIONAL)"));
 }
 
+#[test]
+fn display_menu_shows_the_unbuilt_snap_kinds_disabled_with_the_issue_reason() {
+    let mut editor = Editor::default();
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let menu = face_text_position(&output, "Display");
+    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let update = output.platform_output.accesskit_update.as_ref().unwrap();
+    for label in super::menus::UNBUILT_SNAP_KINDS {
+        let node = update
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some(label))
+            .unwrap_or_else(|| panic!("no node named {label:?}"))
+            .1
+            .clone();
+        assert!(node.is_disabled(), "{label}");
+        assert_eq!(
+            node.description(),
+            Some("Unavailable: Not implemented yet; see #454"),
+            "{label}"
+        );
+    }
+    let before = (editor.snap_to_grid, editor.history.scene().clone());
+    let row = face_text_position(&output, "Snap to Curves");
+    face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+    assert_eq!(
+        (editor.snap_to_grid, editor.history.scene().clone()),
+        before
+    );
+}
+
 /// Maya 2025.1's SelectNone runs `changeSelectMode -component; changeSelectMode -object;
 /// select -cl`, so Deselect All also leaves component and hierarchy modes.
 #[test]

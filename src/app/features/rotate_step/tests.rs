@@ -1,7 +1,10 @@
 use super::*;
 use crate::app::tests::{click_at, frame_with, key};
 use crate::editor_operations::{ActiveTool, ManipulationSpace, Operation, OperationReply};
-use azteccraft::{native_scene::RotateAxis, scene::Primitive};
+use azteccraft::{
+    native_scene::{RotateAxis, ScaleHandle},
+    scene::Primitive,
+};
 use eframe::egui::accesskit;
 
 const SIZE: egui::Vec2 = egui::vec2(1440.0, 900.0);
@@ -14,6 +17,10 @@ struct Rig {
 
 impl Rig {
     fn new() -> Self {
+        Self::with_tool(ActiveTool::Rotate)
+    }
+
+    fn with_tool(tool: ActiveTool) -> Self {
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         let mut editor = Editor {
@@ -21,7 +28,7 @@ impl Rig {
             ..Editor::default()
         };
         editor.create(Primitive::Cube);
-        editor.native_operation(Operation::SetActiveTool(ActiveTool::Rotate));
+        editor.native_operation(Operation::SetActiveTool(tool));
         let mut rig = Rig {
             editor,
             ctx,
@@ -271,4 +278,141 @@ fn tab_reaches_the_combo_and_the_increment_field() {
         }
     }
     assert_eq!(reached, [STEP_COMBO_LABEL, STEP_FIELD_LABEL]);
+}
+
+fn scale_rig() -> Rig {
+    Rig::with_tool(ActiveTool::Scale)
+}
+
+fn scale_step_inspected(rig: &Rig) -> Option<f64> {
+    rig.editor.inspect(false).unwrap().manipulation.scale_step
+}
+
+#[test]
+fn each_tool_draws_only_its_own_step_row() {
+    let mut rig = Rig::new();
+    assert_eq!(rig.node(STEP_COMBO_LABEL).value(), Some("Off"));
+    assert!(!has_node(&rig, SCALE_STEP_COMBO_LABEL));
+    rig.editor
+        .native_operation(Operation::SetActiveTool(ActiveTool::Scale));
+    rig.settle();
+    assert_eq!(rig.node(SCALE_STEP_COMBO_LABEL).value(), Some("Off"));
+    assert!(!has_node(&rig, STEP_COMBO_LABEL));
+}
+
+fn has_node(rig: &Rig, label: &str) -> bool {
+    rig.output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .any(|(_, node)| node.label() == Some(label))
+}
+
+#[test]
+fn the_scale_combo_dispatches_set_scale_step_and_matches_inspection() {
+    let mut rig = scale_rig();
+    assert_eq!(scale_step_inspected(&rig), None);
+    rig.click(SCALE_STEP_COMBO_LABEL);
+    rig.click("Relative");
+    rig.settle();
+    assert_eq!(rig.editor.manipulation.scale_step(), Some(0.25));
+    assert_eq!(scale_step_inspected(&rig), Some(0.25));
+    // The Rotate step is a different operation and stays untouched.
+    assert_eq!(rig.editor.manipulation.rotate_step(), None);
+    assert_eq!(rig.node(SCALE_STEP_COMBO_LABEL).value(), Some("Relative"));
+    assert_eq!(rig.node(SCALE_STEP_FIELD_LABEL).value(), Some("0.25"));
+    rig.click(SCALE_STEP_COMBO_LABEL);
+    rig.click("Off");
+    rig.settle();
+    assert_eq!(scale_step_inspected(&rig), None);
+}
+
+#[test]
+fn a_typed_scale_increment_sets_the_step_and_a_bad_one_keeps_it() {
+    let mut rig = scale_rig();
+    rig.editor
+        .native_operation(Operation::SetScaleStep { step: Some(0.25) });
+    rig.settle();
+    rig.click(SCALE_STEP_FIELD_LABEL);
+    rig.editor.manipulation.scale_step_text = "0.5".into();
+    rig.frame(vec![key(egui::Key::Enter)]);
+    rig.settle();
+    assert_eq!(scale_step_inspected(&rig), Some(0.5));
+    assert_eq!(rig.editor.manipulation.rotate_step(), None);
+    for bad in ["0", "-1", "nan", "abc", "", "1e-7"] {
+        rig.editor.error = false;
+        rig.click(SCALE_STEP_FIELD_LABEL);
+        rig.editor.manipulation.scale_step_text = bad.into();
+        rig.frame(vec![key(egui::Key::Enter)]);
+        rig.settle();
+        assert_eq!(scale_step_inspected(&rig), Some(0.5), "{bad:?}");
+        assert!(rig.editor.error, "{bad:?}");
+    }
+}
+
+#[test]
+fn the_scale_control_reflects_a_step_set_through_the_shared_operation() {
+    let mut rig = scale_rig();
+    rig.editor
+        .apply_operation(Operation::SetScaleStep { step: Some(2.0) })
+        .unwrap();
+    rig.settle();
+    assert_eq!(rig.node(SCALE_STEP_COMBO_LABEL).value(), Some("Relative"));
+    assert_eq!(rig.node(SCALE_STEP_FIELD_LABEL).value(), Some("2"));
+    rig.editor
+        .apply_operation(Operation::SetScaleStep { step: None })
+        .unwrap();
+    rig.settle();
+    assert_eq!(rig.node(SCALE_STEP_COMBO_LABEL).value(), Some("Off"));
+    assert!(rig.node(SCALE_STEP_FIELD_LABEL).is_disabled());
+    assert_eq!(
+        rig.node(SCALE_STEP_FIELD_LABEL).description(),
+        Some("Unavailable: Step Snap is Off")
+    );
+}
+
+#[test]
+fn the_scale_controls_are_disabled_with_a_reason_during_a_manipulation() {
+    let mut rig = scale_rig();
+    rig.editor
+        .native_operation(Operation::SetScaleStep { step: Some(0.25) });
+    rig.settle();
+    assert!(!rig.node(SCALE_STEP_COMBO_LABEL).is_disabled());
+    let target = rig.editor.selected_move_lead().unwrap();
+    rig.editor
+        .apply_operation(Operation::BeginScale {
+            target,
+            handle: ScaleHandle::Uniform,
+            space: ManipulationSpace::World,
+            expected_selection_generation: None,
+        })
+        .unwrap();
+    rig.settle();
+    for label in [SCALE_STEP_COMBO_LABEL, SCALE_STEP_FIELD_LABEL] {
+        let node = rig.node(label);
+        assert!(node.is_disabled(), "{label}");
+        assert_eq!(
+            node.description(),
+            Some("Unavailable: a manipulation is in progress"),
+            "{label}"
+        );
+    }
+}
+
+#[test]
+fn the_scale_controls_are_disabled_with_a_reason_while_a_dialog_is_open() {
+    let mut rig = scale_rig();
+    rig.editor
+        .native_operation(Operation::SetScaleStep { step: Some(0.25) });
+    rig.editor.request_close();
+    assert!(rig.editor.files.is_modal());
+    rig.settle();
+    for label in [SCALE_STEP_COMBO_LABEL, SCALE_STEP_FIELD_LABEL] {
+        let node = rig.node(label);
+        assert!(node.is_disabled(), "{label}");
+        assert_eq!(node.description(), Some("Unavailable: a dialog is open"));
+    }
 }
