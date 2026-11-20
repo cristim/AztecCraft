@@ -1,5 +1,5 @@
 use super::model::{Target, zone_at};
-use super::{DEAD_ZONE, DRAW_DELAY, FLICK_DISTANCE, FLICK_TIME, IDLE_DISMISS};
+use super::{DEAD_ZONE, DRAW_DELAY, FLICK_DISTANCE, IDLE_DISMISS};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Button {
@@ -13,8 +13,8 @@ pub enum Outcome {
     None,
     /// Dispatch the entry at the target. The menu is closed.
     Dispatch(Target),
-    /// The target exists but cannot be chosen (disabled, unsupported, or an empty dial zone on a
-    /// release). A held menu is closed; a sticky one stays open. The caller shows the reason.
+    /// The target cannot be chosen (disabled, unsupported, or an empty dial zone on a release).
+    /// A held menu closes; a sticky menu stays open and disarmed. The caller shows the reason.
     Rejected(Target),
     /// The menu closed without choosing anything.
     Dismissed,
@@ -36,7 +36,6 @@ enum Phase {
     /// Secondary button down. `excursion` is set once the pointer left the dead zone.
     Held {
         origin: [f32; 2],
-        pos: [f32; 2],
         t0: f64,
         excursion: bool,
         drawn: bool,
@@ -56,6 +55,11 @@ enum Phase {
 /// Input state machine with injected time (seconds). Positions are points; non-finite time or
 /// positions are ignored. The menu content is not known here: the caller passes `enabled` to
 /// say whether a target can be chosen.
+///
+/// Clock rules: a release decides drawn or flick from `now - t0` itself, so it does not depend
+/// on a tick having run during a long hold (a frame stall). Time going backwards clamps that
+/// elapsed time to zero (a fast flick) and never panics; a backwards `touch` moves the idle
+/// reference into the future, which only delays the idle dismissal.
 #[derive(Clone, Debug)]
 pub struct Interaction {
     phase: Phase,
@@ -132,8 +136,10 @@ impl Interaction {
         }
     }
 
-    /// A press. Secondary opens the menu when Closed. In a sticky menu Primary on an enabled
-    /// `target` arms it, on a disabled one is rejected, and anywhere else dismisses and swallows
+    /// A press. Secondary opens the menu when Closed. `target` is the entry under the pointer;
+    /// the caller passes `None` for an empty zone, a list row past the end and any point outside
+    /// the menu. In a sticky menu Primary on an enabled `target` arms it, on a disabled or
+    /// unsupported one is rejected (the menu stays open), and on `None` dismisses and swallows
     /// the release; a Secondary press dismisses and swallows.
     pub fn press(
         &mut self,
@@ -150,7 +156,6 @@ impl Interaction {
             (Phase::Closed, Button::Secondary) => {
                 self.phase = Phase::Held {
                     origin: pos,
-                    pos,
                     t0: now,
                     excursion: false,
                     drawn: false,
@@ -194,13 +199,9 @@ impl Interaction {
             return;
         }
         if let Phase::Held {
-            origin,
-            pos: p,
-            excursion,
-            ..
+            origin, excursion, ..
         } = &mut self.phase
         {
-            *p = pos;
             if zone_at(delta(*origin, pos), DEAD_ZONE).is_some() {
                 *excursion = true;
             }
@@ -210,11 +211,13 @@ impl Interaction {
 
     /// A release.
     ///
-    /// Held, Secondary: a flick (not drawn, travelled at least `FLICK_DISTANCE` in under
-    /// `FLICK_TIME`) or a drawn release over a zone chooses it; a release in the dead zone after
+    /// Held, Secondary: a flick (released before the dial is drawn, at least `FLICK_DISTANCE`
+    /// from the origin; PROVISIONAL, the Maya help does not say that a quick gesture skips the
+    /// dial) or a drawn release over a zone chooses it; a release in the dead zone after
     /// an excursion dismisses; any other release (a click) turns the menu sticky.
-    /// Open, Primary: dispatches the armed entry when released over it. Swallow: the matching
-    /// release closes it. `enabled` is consulted for the chosen target.
+    /// Open, Primary: dispatches the armed entry when released over it; if it has become
+    /// disabled since the press the release is `Rejected` and the menu stays open. Swallow: the
+    /// matching release closes it. `enabled` is consulted for the chosen target.
     pub fn release(
         &mut self,
         button: Button,
@@ -242,9 +245,9 @@ impl Interaction {
                 let elapsed = (now - t0).max(0.0);
                 let drawn = drawn || elapsed >= DRAW_DELAY;
                 let zone = zone_at(d, DEAD_ZONE);
-                let flick = !drawn && elapsed < FLICK_TIME && dist(d) >= f64::from(FLICK_DISTANCE);
+                let flick = dist(d) >= f64::from(FLICK_DISTANCE);
                 match zone {
-                    Some(z) if flick || drawn => self.choose(Target::Zone(z), enabled),
+                    Some(z) if flick || drawn => self.choose(Target::Zone(z), enabled, false),
                     None if excursion => self.close(),
                     _ => {
                         self.phase = Phase::Open {
@@ -262,7 +265,7 @@ impl Interaction {
                     armed: None,
                 };
                 match (armed, target) {
-                    (Some(a), Some(t)) if a == t => self.choose(t, enabled),
+                    (Some(a), Some(t)) if a == t => self.choose(t, enabled, true),
                     _ => Outcome::None,
                 }
             }
@@ -274,26 +277,47 @@ impl Interaction {
         }
     }
 
-    fn choose(&mut self, target: Target, enabled: &dyn Fn(Target) -> bool) -> Outcome {
-        self.phase = Phase::Closed;
+    /// Every choice goes through here: an enabled target dispatches and closes the menu, any
+    /// other is rejected. A held menu closes either way (its button is up); a sticky menu stays
+    /// open, so the user can pick another entry.
+    fn choose(
+        &mut self,
+        target: Target,
+        enabled: &dyn Fn(Target) -> bool,
+        sticky: bool,
+    ) -> Outcome {
         if enabled(target) {
+            self.phase = Phase::Closed;
             Outcome::Dispatch(target)
         } else {
+            if !sticky {
+                self.phase = Phase::Closed;
+            }
             Outcome::Rejected(target)
         }
     }
 
-    /// Escape: closes any phase.
+    /// Escape: closes Held and Open. A Swallow keeps swallowing its pending release, so the
+    /// release cannot click through to the viewport; it reports nothing (already dismissed).
     pub fn escape(&mut self) -> Outcome {
-        self.close()
+        self.close_unless_swallowing()
     }
 
-    /// Window focus loss or the pointer leaving the window: closes any phase.
+    /// Window focus loss or the pointer leaving the window: same as `escape`.
     pub fn focus_lost(&mut self) -> Outcome {
-        self.close()
+        self.close_unless_swallowing()
     }
 
-    /// The per-frame pass, before any remote request is applied. Human input resets the idle
+    fn close_unless_swallowing(&mut self) -> Outcome {
+        if matches!(self.phase, Phase::Swallow { .. }) {
+            Outcome::None
+        } else {
+            self.close()
+        }
+    }
+
+    /// The per-frame pass. Call it after this frame's events have been fed in and before any
+    /// remote request is applied. Human input resets the idle
     /// time; a frame without it never does. Closes the menu after `IDLE_DISMISS` of no human
     /// input, when a Held menu's Secondary button is no longer down, and when a Swallow's
     /// button is no longer down. Draws a Held menu after `DRAW_DELAY`.

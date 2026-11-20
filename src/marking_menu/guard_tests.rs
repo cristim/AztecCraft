@@ -54,7 +54,7 @@ fn swallow_ends_when_the_button_is_no_longer_down() {
 }
 
 #[test]
-fn escape_and_focus_loss_close_every_phase() {
+fn escape_and_focus_loss_close_held_and_open() {
     for close in [Interaction::escape, Interaction::focus_lost] {
         let mut h = held(0.0);
         assert_eq!(close(&mut h), Outcome::Dismissed);
@@ -68,6 +68,32 @@ fn escape_and_focus_loss_close_every_phase() {
             "closing a closed menu is a no-op"
         );
     }
+}
+
+#[test]
+fn escape_and_focus_loss_during_swallow_keep_swallowing_the_release() {
+    for close in [Interaction::escape, Interaction::focus_lost] {
+        let mut i = sticky();
+        i.press(Button::Primary, [500.0, 500.0], None, 1.0, YES);
+        assert_eq!(close(&mut i), Outcome::None, "already dismissed once");
+        assert!(
+            i.holds_overlay(),
+            "the release must still not click through"
+        );
+        assert_eq!(
+            i.release(Button::Primary, [500.0, 500.0], None, 1.1, YES),
+            Outcome::None
+        );
+        assert!(!i.holds_overlay());
+    }
+}
+
+#[test]
+fn motion_while_held_counts_as_human_input_for_idle() {
+    let mut i = held(0.0);
+    i.moved(NORTH, 29.0);
+    assert_eq!(i.tick(30.5, input(false, true)), Outcome::None);
+    assert_eq!(i.tick(59.1, input(false, true)), Outcome::Dismissed);
 }
 
 #[test]

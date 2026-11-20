@@ -35,7 +35,6 @@ fn sticky() -> Interaction {
 #[test]
 fn constants_are_pinned() {
     assert_eq!(DRAW_DELAY, 0.25);
-    assert_eq!(FLICK_TIME, 0.25);
     assert_eq!(FLICK_DISTANCE, 24.0);
     assert_eq!(IDLE_DISMISS, 30.0);
 }
@@ -219,4 +218,38 @@ fn a_second_secondary_press_while_open_dismisses_and_swallows() {
     assert!(i.holds_overlay());
     i.release(Button::Secondary, O, None, 1.1, YES);
     assert!(!i.holds_overlay());
+}
+
+#[test]
+fn sticky_release_of_an_armed_entry_that_became_disabled_is_rejected_and_stays_open() {
+    let mut i = sticky();
+    i.press(Button::Primary, [60.0, 60.0], Some(VERTEX), 1.0, YES);
+    assert_eq!(
+        i.release(Button::Primary, [60.0, 60.0], Some(VERTEX), 1.1, NO),
+        Outcome::Rejected(VERTEX)
+    );
+    assert!(i.is_active(), "a sticky menu stays open after a rejection");
+    assert_eq!(i.armed(), None);
+    i.press(Button::Primary, [60.0, 60.0], Some(VERTEX), 1.2, YES);
+    assert_eq!(
+        i.release(Button::Primary, [60.0, 60.0], Some(VERTEX), 1.3, YES),
+        Outcome::Dispatch(VERTEX)
+    );
+}
+
+#[test]
+fn flick_is_chosen_at_the_flick_distance_and_not_below_it() {
+    let mut at = held(0.0);
+    at.moved([100.0, 76.0], 0.05);
+    assert_eq!(
+        at.release(Button::Secondary, [100.0, 76.0], None, 0.1, YES),
+        Outcome::Dispatch(Target::Zone(Zone::N))
+    );
+    let mut below = held(0.0);
+    below.moved([100.0, 76.1], 0.05);
+    assert_eq!(
+        below.release(Button::Secondary, [100.0, 76.1], None, 0.1, YES),
+        Outcome::None
+    );
+    assert!(below.is_active());
 }
