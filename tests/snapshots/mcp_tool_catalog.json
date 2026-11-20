@@ -2259,13 +2259,22 @@
   },
   {
     "name": "move_vertices",
-    "description": "Translate vertices of one polygon mesh together by delta, in declared scene units along the mesh's own axes (the Move tool's Object axis orientation). Requires node, shape and full root-to-shape path and distinct vertex indices; shared-shape edits affect every instance. One undo step. Authored scenes only: scenes opened from a file refuse until their writer can carry edited points. World-axis moves are unsupported",
+    "description": "Translate vertices of one polygon mesh together by delta, in declared scene units along the mesh's own axes (space object, the default, the Move tool's Object axis orientation) or along the world axes (space world, Maya's World axis orientation; it needs a finite, invertible, well-conditioned instance transform, else scene_error). Requires node, shape and full root-to-shape path and distinct vertex indices; shared-shape edits affect every instance. One undo step. Authored scenes only: scenes opened from a file refuse until their writer can carry edited points.",
     "inputSchema": {
+      "$defs": {
+        "MoveVerticesSpace": {
+          "enum": [
+            "object",
+            "world"
+          ],
+          "type": "string"
+        }
+      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
         "delta": {
-          "description": "Offset along the mesh's own X, Y and Z axes in declared scene units.",
+          "description": "Offset in declared scene units, along the axes `space` names.",
           "items": {
             "format": "double",
             "type": "number"
@@ -2290,6 +2299,10 @@
         },
         "shape_id": {
           "type": "string"
+        },
+        "space": {
+          "$ref": "#/$defs/MoveVerticesSpace",
+          "description": "`object` (the default) runs `delta` along the mesh's own X, Y and Z axes; `world` along\nthe world axes."
         },
         "vertex_indices": {
           "items": {

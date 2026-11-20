@@ -1,5 +1,7 @@
 use crate::{
-    editor_operations::{MAX_MCP_MOVED_VERTICES, Operation, PageCursor, RemoteRequest},
+    editor_operations::{
+        ComponentMoveSpace, MAX_MCP_MOVED_VERTICES, Operation, PageCursor, RemoteRequest,
+    },
     mcp::{
         args::{decode, native_id, node_id, schema, scoped, token},
         registry::ToolSpec,
@@ -22,8 +24,20 @@ struct MoveVerticesArgs {
     instance_path: Vec<String>,
     #[schemars(length(min = 1, max = MAX_MCP_MOVED_VERTICES))]
     vertex_indices: Vec<usize>,
-    /// Offset along the mesh's own X, Y and Z axes in declared scene units.
+    /// Offset in declared scene units, along the axes `space` names.
     delta: [f64; 3],
+    /// `object` (the default) runs `delta` along the mesh's own X, Y and Z axes; `world` along
+    /// the world axes.
+    #[serde(default)]
+    space: MoveVerticesSpace,
+}
+
+#[derive(Clone, Copy, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum MoveVerticesSpace {
+    #[default]
+    Object,
+    World,
 }
 
 fn parse_move_vertices(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
@@ -53,6 +67,10 @@ fn parse_move_vertices(arguments: JsonObject) -> Result<RemoteRequest, ErrorData
                 vertex_indices: args.vertex_indices,
             },
             delta: args.delta,
+            space: match args.space {
+                MoveVerticesSpace::Object => ComponentMoveSpace::Object,
+                MoveVerticesSpace::World => ComponentMoveSpace::World,
+            },
         },
     ))
 }
@@ -87,7 +105,7 @@ fn parse_inspect_vertices(arguments: JsonObject) -> Result<RemoteRequest, ErrorD
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "move_vertices",
-        description: "Translate vertices of one polygon mesh together by delta, in declared scene units along the mesh's own axes (the Move tool's Object axis orientation). Requires node, shape and full root-to-shape path and distinct vertex indices; shared-shape edits affect every instance. One undo step. Authored scenes only: scenes opened from a file refuse until their writer can carry edited points. World-axis moves are unsupported",
+        description: "Translate vertices of one polygon mesh together by delta, in declared scene units along the mesh's own axes (space object, the default, the Move tool's Object axis orientation) or along the world axes (space world, Maya's World axis orientation; it needs a finite, invertible, well-conditioned instance transform, else scene_error). Requires node, shape and full root-to-shape path and distinct vertex indices; shared-shape edits affect every instance. One undo step. Authored scenes only: scenes opened from a file refuse until their writer can carry edited points.",
         schema: schema::<MoveVerticesArgs>,
         parse: parse_move_vertices,
         idempotent: false,

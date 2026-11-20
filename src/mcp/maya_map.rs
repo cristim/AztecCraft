@@ -39,7 +39,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("reset_pivots", "Modify > Center Pivot (`xform -centerPivots`) and Zero Pivot (`xform -zeroTransformPivots`)", "box space and Zero Pivot channel placement are PROVISIONAL; refused on a keyed node"),
     ("extrude_face", "`polyExtrudeFacet -localTranslateZ`", "one quad, no history node"),
     ("reduce_mesh", "`polyReduce -percentage` / `-triangleCount` / `-vertexCount`", "quadric edge collapse to an all-triangle mesh; borders always kept, an optional `faces` list restricts it to a face region whose boundary is pinned like a border (percent and counts relative to the region; the page has no region flag, PROVISIONAL), no UV, quad or other keep options; refuses UVs, holes and non-manifold meshes; `-percentage` is a share of the original vertices, as the page says; collapse order, cost and ties PROVISIONAL (the page states none)"),
-    ("move_vertices", "`move -relative -objectSpace` on `vtx[n]` components", "translate only, Object axis orientation only (Maya defaults to World); no soft select, no Preserve UVs, authored scenes only"),
+    ("move_vertices", "`move -relative -objectSpace` or `-worldSpace` on `vtx[n]` components", "translate only, space object (the default here; Maya defaults to World) or world; no soft select, no Preserve UVs, authored scenes only"),
     ("inspect_vertices", "`xform -q -translation` on `vtx[n]`, `pointPosition`", "paged by offset and count, Object space only"),
     ("create_joint", "`joint -position -relative -radius -name`", "session-only, not saved; joint chains only, no orientation, rotation 0 and scale 1 (PROVISIONAL)"),
     ("set_current_time", "`currentTime`", "whole frames only"),

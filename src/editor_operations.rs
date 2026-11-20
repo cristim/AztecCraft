@@ -775,11 +775,13 @@ pub enum Operation {
         distance: f64,
     },
     /// MCP `move_vertices`: translates vertices of one polygon mesh by `delta` in declared scene
-    /// units along the mesh's own axes (Move tool Object axis orientation), as one undo step.
+    /// units, as one undo step. `space` says whether `delta` runs along the mesh's own axes or
+    /// the world axes.
     #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     MoveVertices {
         target: VertexSetTarget,
         delta: [f64; 3],
+        space: ComponentMoveSpace,
     },
     /// Skeleton > Create Joints and MCP `create_joint`. The caller passes `parent` explicitly: the
     /// window resolves it from the selection and MCP names it, and `None` starts a new hierarchy.
@@ -1399,6 +1401,16 @@ pub const MAX_UV_CORNERS_PER_PAGE: usize = 4096;
 /// tool reply limit.
 #[cfg(any(test, feature = "mcp"))]
 pub const MAX_VERTICES_PER_PAGE: usize = 1024;
+
+/// The axes a one-shot `MoveVertices` delta is expressed along (Maya `move -objectSpace` or
+/// `-worldSpace`). `Object` is the mesh-local meaning slice 1 shipped and the default.
+#[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ComponentMoveSpace {
+    #[default]
+    Object,
+    World,
+}
 
 /// Most vertex indices one `MoveVertices` names; see the constant's own note.
 pub use azteccraft::native_scene::MAX_MOVED_VERTICES;

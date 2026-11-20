@@ -1,5 +1,7 @@
 use super::*;
-use crate::editor_operations::{ComponentKind, MAX_COMPONENT_INDICES, MAX_MOVED_VERTICES};
+use crate::editor_operations::{
+    ComponentKind, ComponentMoveSpace, MAX_COMPONENT_INDICES, MAX_MOVED_VERTICES,
+};
 use azteccraft::history::{ManipulationFinish, ManipulationKindState};
 use azteccraft::native_scene::NativeTransformNode;
 
@@ -1179,7 +1181,11 @@ impl Editor {
                     distance,
                 }
             }
-            Operation::MoveVertices { target, delta } => {
+            Operation::MoveVertices {
+                target,
+                delta,
+                space,
+            } => {
                 if !(2..=azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 1)
                     .contains(&target.path.len())
                     || target.vertex_indices.is_empty()
@@ -1194,11 +1200,29 @@ impl Editor {
                     .scene()
                     .resolve_vertex_set(&target)
                     .map_err(OperationError::Scene)?;
-                let delta_cm = self
-                    .history
-                    .scene()
+                let scene = self.history.scene();
+                let declared_cm = scene
                     .declared_vector_to_cm(delta)
                     .map_err(OperationError::Scene)?;
+                let delta_cm = match space {
+                    ComponentMoveSpace::Object => declared_cm,
+                    ComponentMoveSpace::World => {
+                        let (_, owner_path) =
+                            target.path.split_last().ok_or(OperationError::Scene(
+                                azteccraft::native_scene::NativeError::InvalidInstancePath,
+                            ))?;
+                        let owner = TransformTarget {
+                            node: target.transform,
+                            path: owner_path.to_vec(),
+                        };
+                        scene
+                            .component_move_frame(&owner)
+                            .and_then(|frame| {
+                                frame.local_delta_cm(glam::DVec3::from_array(declared_cm))
+                            })
+                            .map_err(OperationError::Scene)?
+                    }
+                };
                 Command::MoveVertices {
                     shape: target.shape,
                     vertices: target.vertex_indices,

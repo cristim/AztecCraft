@@ -12295,12 +12295,14 @@ fn native_move_vertices_caps_the_index_count_before_touching_the_scene() {
     let refused = editor.native_operation_result(Operation::MoveVertices {
         target: target(8193),
         delta: [1.0, 0.0, 0.0],
+        space: crate::editor_operations::ComponentMoveSpace::Object,
     });
     assert!(matches!(refused, Err(OperationError::InvalidInput(_))));
     assert_eq!(editor.history.scene(), &before);
     let accepted = editor.native_operation_result(Operation::MoveVertices {
         target: target(8192),
         delta: [1.0, 0.0, 0.0],
+        space: crate::editor_operations::ComponentMoveSpace::Object,
     });
     assert!(matches!(accepted, Ok(OperationReply::Changed)));
 }

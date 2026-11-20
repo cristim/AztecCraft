@@ -11,8 +11,8 @@
 
 use super::*;
 use crate::editor_operations::{
-    ComponentKind, FileDecision, ManipulationSpace, ManipulationValue, MarqueeMode, MoveDistance,
-    RemoteRequest, SelectRule, ToolHandle, TransformInput,
+    ComponentKind, ComponentMoveSpace, FileDecision, ManipulationSpace, ManipulationValue,
+    MarqueeMode, MoveDistance, RemoteRequest, SelectRule, ToolHandle, TransformInput,
 };
 use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
@@ -944,6 +944,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::MoveVertices {
             target: t.vertex_set(),
             delta: [0.5, 0.0, 0.0],
+            space: ComponentMoveSpace::Object,
         },
         Operation::CreateJoint {
             parent: None,
@@ -2190,13 +2191,24 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 distance: 0.5,
             },
         )],
-        Operation::MoveVertices { .. } => vec![sample(
-            "move_vertices",
-            Operation::MoveVertices {
-                target: t.vertex_set(),
-                delta: [0.5, 0.0, 0.0],
-            },
-        )],
+        Operation::MoveVertices { .. } => vec![
+            sample(
+                "move_vertices",
+                Operation::MoveVertices {
+                    target: t.vertex_set(),
+                    delta: [0.5, 0.0, 0.0],
+                    space: ComponentMoveSpace::Object,
+                },
+            ),
+            sample(
+                "move_vertices_world",
+                Operation::MoveVertices {
+                    target: t.vertex_set(),
+                    delta: [0.5, 0.0, 0.0],
+                    space: ComponentMoveSpace::World,
+                },
+            ),
+        ],
         Operation::CreateJoint { .. } => {
             let root = Operation::CreateJoint {
                 parent: None,

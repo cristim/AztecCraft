@@ -386,3 +386,185 @@ async fn move_vertices_on_a_transformed_node_moves_along_the_mesh_axes() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn world_space_moves_by_the_world_vector_under_a_rotated_scaled_node_and_object_matches_omitted()
+ {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    editor.create(Primitive::Cube);
+    let ids = ids(&editor);
+    let set = call(&mut editor, &context, client.peer(), "set_transform", json!({"scene_token":token,"node_id":ids.node,"translation":[4.0,-2.0,1.0],"rotation_degrees":[30.0,45.0,60.0],"scale":[2.0,3.0,0.5]})).await;
+    assert_eq!(set.structured_content.unwrap()["outcome"], "changed");
+    let world = |editor: &Editor, index: usize| {
+        let scene = editor.history.scene();
+        let node = scene.nodes()[0].id();
+        let target = azteccraft::native_scene::TransformTarget {
+            node,
+            path: vec![scene.node(node).unwrap().transform_id()],
+        };
+        scene
+            .component_move_frame(&target)
+            .unwrap()
+            .world_point_cm(point(editor, index))
+    };
+    let (before_moved, before_still) = (world(&editor, 2), world(&editor, 5));
+    let before_local = point(&editor, 2);
+    let mut world_args = args(&token, &ids, json!([2]), json!([1.0, 2.0, -3.0]));
+    world_args["space"] = json!("world");
+    let moved = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "move_vertices",
+        world_args,
+    )
+    .await;
+    assert_eq!(moved.structured_content.unwrap()["outcome"], "changed");
+    let delta = world(&editor, 2) - before_moved;
+    for (got, want) in delta.to_array().into_iter().zip([1.0, 2.0, -3.0]) {
+        assert!((got - want).abs() < 1e-3, "{delta:?}");
+    }
+    assert_eq!(world(&editor, 5), before_still);
+    assert!(editor.history.undo());
+    assert_eq!(point(&editor, 2), before_local);
+    assert!(editor.history.redo());
+    // Explicit `object` equals the omitted default, bit for bit.
+    let after_world = editor.history.scene().clone();
+    assert!(editor.history.undo());
+    let mut explicit = args(&token, &ids, json!([2]), json!([1.0, 0.0, 0.0]));
+    explicit["space"] = json!("object");
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "move_vertices",
+        explicit,
+    )
+    .await;
+    let object_explicit = point(&editor, 2);
+    assert!(editor.history.undo());
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "move_vertices",
+        args(&token, &ids, json!([2]), json!([1.0, 0.0, 0.0])),
+    )
+    .await;
+    assert_eq!(
+        point(&editor, 2).map(f64::to_bits),
+        object_explicit.map(f64::to_bits)
+    );
+    assert_ne!(&after_world, editor.history.scene());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+fn set_scale(editor: &mut Editor, scale: [f64; 3]) {
+    use azteccraft::native_scene::Channel;
+    let node = editor.history.scene().nodes()[0].id();
+    let mut scene = editor.history.scene().clone();
+    for (axis, value) in [Channel::ScaleX, Channel::ScaleY, Channel::ScaleZ]
+        .into_iter()
+        .zip(scale)
+    {
+        scene.set_channel(node, axis, value).unwrap();
+    }
+    editor.history = azteccraft::history::History::new(scene);
+    editor.sync_fields();
+}
+
+async fn world_move(
+    editor: &mut Editor,
+    context: &egui::Context,
+    client: &rmcp::service::Peer<rmcp::RoleClient>,
+    token: &str,
+    ids: &Ids,
+    delta: Value,
+) -> Value {
+    let mut a = args(token, ids, json!([2]), delta);
+    a["space"] = json!("world");
+    call(editor, context, client, "move_vertices", a)
+        .await
+        .structured_content
+        .unwrap()
+}
+
+#[tokio::test]
+async fn world_moves_refuse_a_singular_or_ill_conditioned_frame_and_a_non_finite_result() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    editor.create(Primitive::Cube);
+    let ids = ids(&editor);
+    // Singular, and condition number 1e13 past the 1e12 limit: scene_error carries the reason.
+    for scale in [[0.0, 1.0, 1.0], [1.0, 1.0, 1.0e-13]] {
+        set_scale(&mut editor, scale);
+        let before = editor.history.scene().clone();
+        let (revision, undo_len) = (editor.history.revision(), editor.history.undo_len());
+        let reply = world_move(
+            &mut editor,
+            &context,
+            client.peer(),
+            &token,
+            &ids,
+            json!([1.0, 0.0, 0.0]),
+        )
+        .await;
+        assert_eq!(reply["error"]["code"], "scene_error", "{scale:?} {reply}");
+        assert_eq!(editor.history.scene(), &before);
+        assert_eq!(editor.history.revision(), revision);
+        assert_eq!(editor.history.undo_len(), undo_len);
+    }
+    // A uniform 1e-13 scale is well conditioned, but 1e300 / 1e-13 overflows f64.
+    set_scale(&mut editor, [1.0e-13; 3]);
+    let before = editor.history.scene().clone();
+    let (revision, undo_len) = (editor.history.revision(), editor.history.undo_len());
+    let reply = world_move(
+        &mut editor,
+        &context,
+        client.peer(),
+        &token,
+        &ids,
+        json!([1.0e300, 0.0, 0.0]),
+    )
+    .await;
+    assert_eq!(reply["error"]["code"], "scene_error", "{reply}");
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.history.revision(), revision);
+    assert_eq!(editor.history.undo_len(), undo_len);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn a_world_move_under_a_mirrored_scale_works() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    editor.create(Primitive::Cube);
+    let ids = ids(&editor);
+    set_scale(&mut editor, [-1.0, 1.0, 1.0]);
+    let before = point(&editor, 2);
+    let reply = world_move(
+        &mut editor,
+        &context,
+        client.peer(),
+        &token,
+        &ids,
+        json!([1.0, 0.0, 0.0]),
+    )
+    .await;
+    assert_eq!(reply["outcome"], "changed", "{reply}");
+    // Mirrored in X: a world +1 is a local -1.
+    let after = point(&editor, 2);
+    assert_eq!(after[0], f64::from((before[0] - 1.0) as f32));
+    assert_eq!(&after[1..], &before[1..]);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

@@ -2095,11 +2095,38 @@ mod tests {
         let token = Uuid::new_v4().to_string();
         let valid = json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"vertex_indices":[0,3],"delta":[1,-2.5,0]});
         let request = parse_request("move_vertices", valid.as_object().unwrap().clone()).unwrap();
-        let Operation::MoveVertices { target, delta } = request.operation else {
+        let Operation::MoveVertices {
+            target,
+            delta,
+            space,
+        } = request.operation
+        else {
             panic!("expected move_vertices")
         };
         assert_eq!(target.vertex_indices, [0, 3]);
         assert_eq!(delta, [1.0, -2.5, 0.0]);
+        assert_eq!(space, crate::editor_operations::ComponentMoveSpace::Object);
+        for (text, want) in [
+            ("world", crate::editor_operations::ComponentMoveSpace::World),
+            (
+                "object",
+                crate::editor_operations::ComponentMoveSpace::Object,
+            ),
+        ] {
+            let mut args = valid.clone();
+            args["space"] = json!(text);
+            let request =
+                parse_request("move_vertices", args.as_object().unwrap().clone()).unwrap();
+            let Operation::MoveVertices { space, .. } = request.operation else {
+                panic!("expected move_vertices")
+            };
+            assert_eq!(space, want);
+        }
+        for bad in [json!("parent"), json!(""), json!(null), json!(1)] {
+            let mut args = valid.clone();
+            args["space"] = bad;
+            assert!(parse_request("move_vertices", args.as_object().unwrap().clone()).is_err());
+        }
         for bad in [
             json!({"shape_id":"2","cursor":"bad"}),
             json!({"shape_id":"2","count":1}),
