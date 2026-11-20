@@ -162,6 +162,7 @@ mod official_client {
     mod pivot_edit_documents;
     mod pivot_edit_guards;
     mod pivots;
+    mod platonic;
     mod reduce;
     mod rotate_step;
     mod snap;
