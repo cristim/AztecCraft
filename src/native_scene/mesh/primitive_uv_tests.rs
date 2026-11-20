@@ -420,3 +420,30 @@ fn pole_and_apex_corners_sit_at_the_middle_of_their_column() {
         }
     }
 }
+
+#[test]
+fn platonic_solids_get_the_planar_placeholder_and_validate() {
+    // NOT DONE: no layout is designed for them; they share the cube's Y planar placeholder.
+    for solid in crate::primitive_options::PlatonicSolidKind::ALL {
+        for axis in AXES {
+            let options = PrimitiveOptions::PlatonicSolid {
+                solid,
+                radius: 1.5,
+                axis,
+            };
+            let scene = built(&options);
+            scene.validate().unwrap();
+            let shape = &scene.shapes()[0];
+            let set = scene.uv_set(shape.id()).expect("uvs");
+            assert_eq!(set.faces().len(), shape.mesh().faces().len(), "{options:?}");
+            for corners in set.faces() {
+                for [u, v] in corners {
+                    assert!(
+                        (0.0..=1.0).contains(u) && (0.0..=1.0).contains(v),
+                        "{options:?}"
+                    );
+                }
+            }
+        }
+    }
+}
