@@ -1546,6 +1546,54 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
             sample(
+                "create(cylinder,round caps)",
+                Operation::Create {
+                    primitive: Primitive::Cylinder,
+                    options: Some(PrimitiveOptions::Cylinder {
+                        radius: 1.0,
+                        height: 2.0,
+                        sub_axis: 8,
+                        sub_height: 2,
+                        sub_caps: 2,
+                        round_cap: true,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                },
+            ),
+            sample(
+                "create(cone,max cap subdivisions)",
+                Operation::Create {
+                    primitive: Primitive::Cone,
+                    options: Some(PrimitiveOptions::Cone {
+                        radius: 1.0,
+                        height: 2.0,
+                        sub_axis: 128,
+                        sub_height: 1,
+                        sub_caps: 128,
+                        round_cap: false,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                },
+            ),
+            sample(
+                "create(cylinder,over-budget caps)",
+                Operation::Create {
+                    primitive: Primitive::Cylinder,
+                    options: Some(PrimitiveOptions::Cylinder {
+                        radius: 1.0,
+                        height: 2.0,
+                        sub_axis: 128,
+                        sub_height: 1,
+                        sub_caps: 128,
+                        round_cap: false,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                },
+            ),
+            sample(
                 "create(sphere,invalid options)",
                 Operation::Create {
                     primitive: Primitive::Sphere,

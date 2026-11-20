@@ -641,7 +641,7 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder, cone or torus in the live editor. Optional options set sizes, subdivisions, axis (x, y or z) and the torus twist in degrees for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+    "description": "Create a cube, plane, sphere, cylinder, cone or torus in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
     "inputSchema": {
       "$defs": {
         "ConeOptions": {
@@ -670,11 +670,24 @@
               "minimum": 1e-6,
               "type": "number"
             },
+            "round_cap": {
+              "default": false,
+              "description": "Domes the base cap; has no effect while `subdivisions_caps` is 0.",
+              "type": "boolean"
+            },
             "subdivisions_axis": {
               "default": 20,
               "format": "uint32",
               "maximum": 128,
               "minimum": 3,
+              "type": "integer"
+            },
+            "subdivisions_caps": {
+              "default": 0,
+              "description": "Subdivisions on the base cap (Maya `-subdivisionsCap`, singular); 0 keeps one n-gon.",
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 0,
               "type": "integer"
             },
             "subdivisions_height": {
@@ -770,11 +783,24 @@
               "minimum": 1e-6,
               "type": "number"
             },
+            "round_cap": {
+              "default": false,
+              "description": "Domes the caps; has no effect while `subdivisions_caps` is 0.",
+              "type": "boolean"
+            },
             "subdivisions_axis": {
               "default": 20,
               "format": "uint32",
               "maximum": 128,
               "minimum": 3,
+              "type": "integer"
+            },
+            "subdivisions_caps": {
+              "default": 0,
+              "description": "Subdivisions on each cap (Maya `-subdivisionsCaps`); 0 keeps one n-gon per cap.",
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 0,
               "type": "integer"
             },
             "subdivisions_height": {

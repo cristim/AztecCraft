@@ -841,6 +841,15 @@ Edges are hard, there are no UVs or normals, and persistence follows the sphere.
 Polygon Primitives > Torus row and its option box (with a Twist field) are enabled; the in-app
 check is still pending.
 
+## Cylinder and cone caps are provisional (#453)
+
+`subdivisions_caps` (0 to 128, default 0) and `round_cap` (default false) are implemented in core,
+MCP and the Cylinder and Cone option boxes. Maya's options page states that the round cap needs a
+cap subdivision of 1 or more; everything else is PROVISIONAL: the ring spacing (linear shrink), the
+quarter-circle dome (`r = R cos t`, `h = R sin t`, extending up to R beyond the cap plane, which
+grows the bounding box) and the vertex order. Maya's pages do not say whether the value counts rings
+or divisions. Create UVs are still not offered.
+
 ## World-space Rotate
 
 The ASCII importer reads a node's `inheritsTransform` (`.it`) and `offsetParentMatrix` (`.opm`,

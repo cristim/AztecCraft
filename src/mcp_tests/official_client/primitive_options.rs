@@ -1,7 +1,7 @@
 use super::*;
 
 /// MCP primitive, options, then expected points, edges and faces (closed forms: Euler 2).
-const BUILDS: [(&str, &str, [u64; 3]); 7] = [
+const BUILDS: [(&str, &str, [u64; 3]); 11] = [
     (
         "cube",
         r#"{"width":2,"height":3,"depth":4,"subdivisions_width":2,"subdivisions_height":3,"subdivisions_depth":4,"axis":"x"}"#,
@@ -31,6 +31,24 @@ const BUILDS: [(&str, &str, [u64; 3]); 7] = [
         "torus",
         r#"{"radius":3,"section_radius":4,"subdivisions_axis":6,"subdivisions_height":5,"axis":"x"}"#,
         [30, 60, 30],
+    ),
+    // Cap subdivisions add a centre vertex and axis * caps faces per cap (cone: base only).
+    (
+        "cylinder",
+        r#"{"subdivisions_axis":6,"subdivisions_height":3,"subdivisions_caps":2}"#,
+        [38, 78, 42],
+    ),
+    (
+        "cone",
+        r#"{"subdivisions_axis":6,"subdivisions_height":3,"subdivisions_caps":2,"round_cap":true}"#,
+        [26, 54, 30],
+    ),
+    // Round cap alone is accepted and changes nothing while caps are 0.
+    ("cylinder", r#"{"round_cap":true}"#, [40, 60, 22]),
+    (
+        "cone",
+        r#"{"round_cap":true,"subdivisions_caps":0}"#,
+        [21, 40, 21],
     ),
     // An empty options object is the defaults, like omitting it.
     ("cube", "{}", [8, 12, 6]),
@@ -176,6 +194,24 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
         ("torus", json!({"subdivisions_axis":2.5})),
         ("torus", json!({"twist":null})),
         ("torus", json!({"twist":"45"})),
+        ("cylinder", json!({"subdivisions_caps":129})),
+        ("cone", json!({"subdivisions_caps":-1})),
+        ("cylinder", json!({"subdivisions_caps":"2"})),
+        ("cone", json!({"subdivisions_caps":2.5})),
+        ("cylinder", json!({"subdivisions_caps":null})),
+        ("cylinder", json!({"round_cap":"true"})),
+        ("cone", json!({"round_cap":1})),
+        ("cone", json!({"round_cap":null})),
+        // The cone's Maya flag is -subdivisionsCap, but the wire field is subdivisions_caps only.
+        ("cone", json!({"subdivisions_cap":1})),
+        ("cube", json!({"subdivisions_caps":1})),
+        ("sphere", json!({"round_cap":true})),
+        ("torus", json!({"subdivisions_caps":1})),
+        // 2 caps of 128 x 128 faces exceed the 20,000-face budget though every field is in range.
+        (
+            "cylinder",
+            json!({"subdivisions_axis":128,"subdivisions_caps":128}),
+        ),
         ("cylinder", json!({"twist":45})),
         ("sphere", json!({"twist":0})),
     ];
@@ -233,8 +269,84 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
 }
 
 #[tokio::test]
+async fn round_cap_reaches_the_mesh_only_with_cap_subdivisions() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    // Radius 1, height 2 on Y: flat caps stop at |y| = 1, a round cap domes up to 1 beyond.
+    let cases = [
+        (
+            "cylinder",
+            json!({"subdivisions_caps":2,"round_cap":true}),
+            2.0,
+        ),
+        (
+            "cylinder",
+            json!({"subdivisions_caps":2,"round_cap":false}),
+            1.0,
+        ),
+        (
+            "cylinder",
+            json!({"subdivisions_caps":0,"round_cap":true}),
+            1.0,
+        ),
+        ("cone", json!({"subdivisions_caps":2,"round_cap":true}), 2.0),
+        ("cone", json!({"subdivisions_caps":0,"round_cap":true}), 1.0),
+    ];
+    for (primitive, options, extent) in cases {
+        let created = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "create_primitive",
+            json!({"scene_token":token,"primitive":primitive,"options":options}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let inspected = inspect(&mut editor, &context, client.peer()).await;
+        let nodes = inspected["inspection"]["nodes"].as_array().unwrap();
+        let shape = nodes
+            .iter()
+            .find(|n| n["id"] == created["node_id"])
+            .unwrap()["shape_ids"][0]
+            .clone();
+        let vertices = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_vertices",
+            json!({"shape_id":shape}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let lowest = vertices["inspection"]["positions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p[1].as_f64().unwrap())
+            .fold(f64::MAX, f64::min);
+        // The cone's top is its apex at +1, so its extent shows on the base side.
+        assert!(
+            (lowest + extent).abs() < 1e-5,
+            "{primitive} {options}: lowest y {lowest}"
+        );
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
 async fn optioned_create_obeys_the_scene_token_draft_modal_and_close_guards() {
-    let options = json!({"width":2,"subdivisions_width":3});
+    guards("cube", json!({"width":2,"subdivisions_width":3})).await;
+    for primitive in ["cylinder", "cone"] {
+        guards(primitive, json!({"subdivisions_caps":2,"round_cap":true})).await;
+    }
+}
+
+async fn guards(primitive: &str, options: Value) {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     editor.create(Primitive::Cube);
@@ -245,7 +357,7 @@ async fn optioned_create_obeys_the_scene_token_draft_modal_and_close_guards() {
         &context,
         client.peer(),
         "create_primitive",
-        json!({"scene_token":Uuid::new_v4().to_string(),"primitive":"cube","options":options}),
+        json!({"scene_token":Uuid::new_v4().to_string(),"primitive":primitive,"options":options}),
     )
     .await;
     assert_eq!(
@@ -260,7 +372,7 @@ async fn optioned_create_obeys_the_scene_token_draft_modal_and_close_guards() {
         &context,
         client.peer(),
         "create_primitive",
-        json!({"scene_token":token,"primitive":"cube","options":options}),
+        json!({"scene_token":token,"primitive":primitive,"options":options}),
     )
     .await;
     assert_eq!(
@@ -287,7 +399,7 @@ async fn optioned_create_obeys_the_scene_token_draft_modal_and_close_guards() {
         &context,
         client.peer(),
         "create_primitive",
-        json!({"scene_token":token,"primitive":"cube","options":options}),
+        json!({"scene_token":token,"primitive":primitive,"options":options}),
     )
     .await;
     assert_eq!(
@@ -309,7 +421,7 @@ async fn optioned_create_obeys_the_scene_token_draft_modal_and_close_guards() {
         &context,
         client.peer(),
         "create_primitive",
-        json!({"scene_token":token,"primitive":"cube","options":options}),
+        json!({"scene_token":token,"primitive":primitive,"options":options}),
     )
     .await;
     assert_eq!(

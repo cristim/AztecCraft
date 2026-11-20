@@ -7,8 +7,8 @@ use azteccraft::{
         DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS, DEFAULT_HEIGHT_CM, DEFAULT_PLANE_DIVISIONS,
         DEFAULT_PLANE_SIZE_CM, DEFAULT_RADIUS_CM, DEFAULT_ROUND_CAP, DEFAULT_SECTION_RADIUS_CM,
         DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_SUB_CAPS, DEFAULT_TORUS_HEIGHT_DIVISIONS,
-        DEFAULT_TORUS_TWIST_DEG, MAX_DIVISIONS, MAX_SIZE_CM, MIN_AXIS_DIVISIONS, MIN_DIVISIONS,
-        MIN_SIZE_CM, MIN_SPHERE_HEIGHT_DIVISIONS, PrimitiveOptions,
+        DEFAULT_TORUS_TWIST_DEG, MAX_DIVISIONS, MAX_SIZE_CM, MIN_AXIS_DIVISIONS, MIN_CAP_DIVISIONS,
+        MIN_DIVISIONS, MIN_SIZE_CM, MIN_SPHERE_HEIGHT_DIVISIONS, PrimitiveOptions,
     },
     scene::Primitive,
 };
@@ -102,12 +102,20 @@ option_structs! {
         height: f64 = DEFAULT_HEIGHT_CM, MIN_SIZE_CM, MAX_SIZE_CM;
         subdivisions_axis: u32 = DEFAULT_AXIS_DIVISIONS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
         subdivisions_height: u32 = DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS, MIN_DIVISIONS, MAX_DIVISIONS;
+        /// Subdivisions on each cap (Maya `-subdivisionsCaps`); 0 keeps one n-gon per cap.
+        subdivisions_caps: u32 = DEFAULT_SUB_CAPS, MIN_CAP_DIVISIONS, MAX_DIVISIONS;
+        /// Domes the caps; has no effect while `subdivisions_caps` is 0.
+        round_cap: bool = DEFAULT_ROUND_CAP;
     }
     ConeOptions => Cone {
         radius: f64 = DEFAULT_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
         height: f64 = DEFAULT_HEIGHT_CM, MIN_SIZE_CM, MAX_SIZE_CM;
         subdivisions_axis: u32 = DEFAULT_AXIS_DIVISIONS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
         subdivisions_height: u32 = DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS, MIN_DIVISIONS, MAX_DIVISIONS;
+        /// Subdivisions on the base cap (Maya `-subdivisionsCap`, singular); 0 keeps one n-gon.
+        subdivisions_caps: u32 = DEFAULT_SUB_CAPS, MIN_CAP_DIVISIONS, MAX_DIVISIONS;
+        /// Domes the base cap; has no effect while `subdivisions_caps` is 0.
+        round_cap: bool = DEFAULT_ROUND_CAP;
     }
     SphereOptions => Sphere {
         radius: f64 = DEFAULT_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
@@ -244,8 +252,8 @@ impl CreateArgs {
                     height: o.height,
                     sub_axis: o.subdivisions_axis,
                     sub_height: o.subdivisions_height,
-                    sub_caps: DEFAULT_SUB_CAPS,
-                    round_cap: DEFAULT_ROUND_CAP,
+                    sub_caps: o.subdivisions_caps,
+                    round_cap: o.round_cap,
                     axis: o.axis.into(),
                 }),
             ),
@@ -262,8 +270,8 @@ impl CreateArgs {
                     height: o.height,
                     sub_axis: o.subdivisions_axis,
                     sub_height: o.subdivisions_height,
-                    sub_caps: DEFAULT_SUB_CAPS,
-                    round_cap: DEFAULT_ROUND_CAP,
+                    sub_caps: o.subdivisions_caps,
+                    round_cap: o.round_cap,
                     axis: o.axis.into(),
                 }),
             ),
