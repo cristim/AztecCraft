@@ -31,19 +31,23 @@ says AztecCraft loads, implements or is compatible with any Maya API.
 ## Name counts
 
 Counts of catalog names (2027 / 2026) as reported by the contributor from
-their 2026-11-14 crawl. They were not recounted on 2026-11-20 because the
-fetch tool truncates the long index pages; the differences below were
-checked (see the delta table), the absolute numbers were not.
+their 2026-11-14 crawl. The C++ class count was recounted on 2026-11-20 with
+`scripts/maya-catalog-crawl.sh` and the live 2027 page showed 641, one more
+than reported (see the delta table); the other absolute numbers were not
+recounted. The differences below were checked (see the delta table).
 
 | Surface | 2027 | 2026 | Difference check |
 | --- | --- | --- | --- |
 | Commands | 1528 | 1524 | 4 names, all confirmed below |
 | Nodes | 944 | 943 | 1 name (`shotLabel`), confirmed by diffing both full pages |
-| C++ classes (qualified) | 640 | 634 | 6 names, all confirmed below |
+| C++ classes (qualified) | 641 (contributor: 640) | 634 | 7 names, see below |
 | Python API 2.0 classes | 313 | 310 | 3 names, all confirmed below |
 
-The raw name lists and the crawl script from the PR are intentionally not part
-of this file; regenerate them from the linked pages if a list is needed.
+The raw name lists are intentionally not part of the repository. To regenerate
+them locally, run `scripts/maya-catalog-crawl.sh`; it fetches the public
+catalog index pages, keeps names only (no description text) and writes into a
+git-ignored directory (`target/maya-catalog` by default). Do not commit its
+output.
 
 ## Release delta, 2026 catalog to 2027 catalog
 
@@ -58,7 +62,7 @@ those two names were not independently re-read.
 | --- | --- |
 | Commands | `cameraSequencer` (marked "Updated" in the 2027 index), `cameraSequencerCurrentTimeCtx`, `polySmartBevel`, `traxAudioTrack` (marked "New") |
 | Nodes | `shotLabel` |
-| C++ classes | `MHWRender::MPreviewRenderEnvironment`, `MPxFileDialog`, `MSequencerDrawPrimitive`, `MSequencerDrawPrimitives`, `MSequencerEditPrimitiveFct`, `MSequencerPrimitiveBuildMenuFct` |
+| C++ classes | `MHWRender::MPreviewRenderEnvironment`, `MPxFileDialog`, `MSequencerDrawPrimitive`, `MSequencerDrawPrimitives`, `MSequencerEditPrimitiveFct`, `MSequencerPrimitiveBuildMenuFct`, `MPxTexture2dEvaluator` (seen in the 2026-11-20 recount; its absence from the contributor's 2026-11-14 list suggests it was added later, unconfirmed) |
 | Python API 2.0 | `MPreviewRenderEnvironment`, `MSequencerCustomDrawManager`, `MSequencerDrawPrimitive` |
 
 Note: a node named `polySmartBevel` is in both years' node lists, so only the
