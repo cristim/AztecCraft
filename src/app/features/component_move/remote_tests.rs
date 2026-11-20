@@ -132,3 +132,49 @@ fn a_remote_begin_with_two_objects_selected_is_refused() {
         Err(OperationError::MultipleSelection)
     ));
 }
+
+#[test]
+fn zero_non_finite_and_huge_distances_never_change_the_baseline_unexpectedly() {
+    let mut editor = cube_with(&[3]);
+    let before = editor.history.scene().clone();
+    let undo_label = editor.history.undo_label();
+    let id = remote_begin(&mut editor);
+    for distance in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 1e300, -1e300] {
+        let result = remote(
+            &mut editor,
+            Operation::UpdateMove {
+                id,
+                distance: MoveDistance::Declared(distance),
+            },
+        );
+        assert!(result.is_err(), "{distance}");
+        assert_eq!(editor.history.scene(), &before, "{distance}");
+    }
+    remote(
+        &mut editor,
+        Operation::UpdateMove {
+            id,
+            distance: MoveDistance::Declared(0.0),
+        },
+    )
+    .unwrap();
+    assert_eq!(editor.history.scene(), &before);
+    finish(&mut editor, id, true);
+    // A zero drag commits nothing: the scene and the undo stack are as before the drag.
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.history.undo_label(), undo_label);
+}
+
+#[test]
+fn a_native_begin_while_a_remote_one_is_pending_is_refused_with_the_scene_untouched() {
+    let mut editor = cube_with(&[0]);
+    let id = remote_begin(&mut editor);
+    let preview = editor.history.scene().clone();
+    let op = begin_op(&editor, None);
+    assert!(matches!(
+        editor.apply_operation(op),
+        Err(OperationError::BusyManipulation)
+    ));
+    assert_eq!(editor.history.scene(), &preview);
+    assert_eq!(editor.history.active_manipulation().unwrap().id, id);
+}

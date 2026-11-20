@@ -17,17 +17,28 @@ async fn cube_in_vertex_mode(
     vertex: u64,
 ) -> Setup {
     let token = editor.scene_token.to_string();
-    let created = call(
-        editor,
-        context,
-        peer,
-        "create_primitive",
-        json!({"scene_token":token,"primitive":"cube"}),
-    )
-    .await
-    .structured_content
-    .unwrap();
-    let node = created["node_id"].as_str().unwrap().to_owned();
+    let opened = editor
+        .history
+        .scene()
+        .nodes()
+        .first()
+        .map(|n| n.id().to_decimal());
+    let node = match opened {
+        Some(node) => node,
+        None => call(
+            editor,
+            context,
+            peer,
+            "create_primitive",
+            json!({"scene_token":token,"primitive":"cube"}),
+        )
+        .await
+        .structured_content
+        .unwrap()["node_id"]
+            .as_str()
+            .unwrap()
+            .to_owned(),
+    };
     let inspected = call(editor, context, peer, "inspect_scene", json!({}))
         .await
         .structured_content
@@ -336,12 +347,13 @@ async fn sdk_remote_component_move_begin_refuses_with_the_baseline_untouched() {
 }
 
 #[tokio::test]
-async fn sdk_active_component_move_is_busy_and_a_native_drag_cannot_be_updated_remotely() {
+async fn sdk_active_component_move_blocks_other_calls_and_a_cancel_restores_the_scene() {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     let peer = client.peer();
     let setup = cube_in_vertex_mode(&mut editor, &context, peer, 3).await;
     let at = generation(&mut editor, &context, peer).await;
+    let before = editor.history.scene().clone();
     let begin = call(
         &mut editor,
         &context,
@@ -354,6 +366,18 @@ async fn sdk_active_component_move_is_busy_and_a_native_drag_cannot_be_updated_r
     .unwrap();
     let id = begin["manipulation_id"].as_str().unwrap().to_owned();
     let preview = editor.history.scene().clone();
+    // A native begin while the remote one is pending is refused and leaves the drag alone.
+    let target = editor.selected_move_lead().unwrap();
+    let native = editor.apply_operation(crate::editor_operations::Operation::BeginMove {
+        target,
+        axis: azteccraft::native_scene::WorldAxis::X,
+        expected_selection_generation: None,
+    });
+    assert!(matches!(
+        native,
+        Err(crate::editor_operations::OperationError::BusyManipulation)
+    ));
+    assert_eq!(editor.history.scene(), &preview);
     let second = call(
         &mut editor,
         &context,
@@ -384,7 +408,79 @@ async fn sdk_active_component_move_is_busy_and_a_native_drag_cannot_be_updated_r
     .await;
     assert_eq!(cancelled.is_error, Some(false));
     assert!(editor.history.active_manipulation().is_none());
-    assert!(vertex_x(&editor, 3).is_finite());
+    assert_eq!(editor.history.scene(), &before);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_component_move_distances_that_cannot_move_leave_the_baseline_alone() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let peer = client.peer();
+    let setup = cube_in_vertex_mode(&mut editor, &context, peer, 3).await;
+    let at = generation(&mut editor, &context, peer).await;
+    let before = editor.history.scene().clone();
+    let undo_label = editor.history.undo_label();
+    let token = editor.scene_token;
+    let begin = call(
+        &mut editor,
+        &context,
+        peer,
+        "begin_manipulation",
+        begin_args(&setup, Some(at)),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let id = begin["manipulation_id"].as_str().unwrap().to_owned();
+    // JSON has no NaN or infinity: they arrive as null or overflow, and the call is refused.
+    for distance in [
+        json!(f64::NAN),
+        json!(f64::INFINITY),
+        json!(f64::NEG_INFINITY),
+        json!(1e300),
+        json!(-1e300),
+    ] {
+        let result = call_response(
+            &mut editor,
+            &context,
+            peer,
+            "update_manipulation",
+            json!({"scene_token":setup.token,"manipulation_id":id,"distance":distance}),
+        )
+        .await;
+        let refused = match result {
+            Ok(result) => result.is_error == Some(true),
+            Err(_) => true,
+        };
+        assert!(refused, "{distance}");
+        assert_eq!(editor.history.scene(), &before, "{distance}");
+    }
+    let zero = call(
+        &mut editor,
+        &context,
+        peer,
+        "update_manipulation",
+        json!({"scene_token":setup.token,"manipulation_id":id,"distance":0.0}),
+    )
+    .await;
+    assert_eq!(zero.is_error, Some(false));
+    assert_eq!(editor.history.scene(), &before);
+    let finished = call(
+        &mut editor,
+        &context,
+        peer,
+        "finish_manipulation",
+        json!({"scene_token":setup.token,"manipulation_id":id,"finish":"commit"}),
+    )
+    .await;
+    assert_eq!(finished.is_error, Some(false));
+    // A zero drag commits nothing: no undo step, same scene and token.
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.history.undo_label(), undo_label);
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
