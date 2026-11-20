@@ -1,7 +1,7 @@
 //! Paint and AccessKit nodes of the drawn dial. The geometry is the hit test's: wedges are the
 //! 45 degree sectors of `zone_at` out to `DIAL_RADIUS`. Original look, no image assets.
 
-use super::layout::{DIAL_RADIUS, MeshAction, hit};
+use super::layout::{DIAL_RADIUS, MeshAction, dial_centre, hit, hit_origin};
 use super::point;
 use azteccraft::marking_menu::{DEAD_ZONE, Interaction, MarkingMenu, Target, Zone};
 use eframe::egui::{
@@ -51,18 +51,25 @@ fn accessible_label(zone: Zone, label: &str, checked: bool) -> String {
     name
 }
 
-pub(super) fn paint(ui: &egui::Ui, interaction: &Interaction, menu: &MarkingMenu<MeshAction>) {
-    let Some(origin) = interaction.origin() else {
+pub(super) fn paint(
+    ui: &egui::Ui,
+    interaction: &Interaction,
+    menu: &MarkingMenu<MeshAction>,
+    viewport: Rect,
+) {
+    let (Some(press), Some(gesture)) = (interaction.origin(), hit_origin(interaction, viewport))
+    else {
         return;
     };
-    let origin = Pos2::new(origin[0], origin[1]);
+    let centre = dial_centre(press, viewport);
+    let origin = Pos2::new(centre[0], centre[1]);
     let ctx = ui.ctx();
     let layer = LayerId::new(Order::Foreground, Id::unique("marking_menu_layer"));
     let painter = ctx.layer_painter(layer);
     let visuals = ctx.global_style().visuals.clone();
     let hovered = ui
         .input(|input| input.pointer.latest_pos())
-        .and_then(|pos| hit(menu, point(origin), point(pos)));
+        .and_then(|pos| hit(menu, gesture, point(pos)));
     let focused = interaction.focused();
     painter.circle_filled(origin, DIAL_RADIUS, Color32::from_black_alpha(215));
     painter.circle_stroke(

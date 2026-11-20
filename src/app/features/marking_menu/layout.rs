@@ -2,7 +2,8 @@
 
 use crate::app::SelectionModeIntent;
 use crate::editor_operations::SelectionMode;
-use azteccraft::marking_menu::{DEAD_ZONE, Entry, MarkingMenu, Target, Zone, zone_at};
+use azteccraft::marking_menu::{DEAD_ZONE, Entry, Interaction, MarkingMenu, Target, Zone, zone_at};
+use eframe::egui::Rect;
 
 /// Points from the press origin to the rim of the dial: a sticky press farther out is "elsewhere".
 pub(in crate::app) const DIAL_RADIUS: f32 = 110.0;
@@ -96,4 +97,37 @@ pub(in crate::app) fn hit(
     }
     let target = Target::Zone(zone_at(delta, DEAD_ZONE)?);
     menu.entry(target).map(|_| target)
+}
+
+/// Points from the dial centre to the farthest label edge: the clamp keeps this much inside the
+/// viewport (PROVISIONAL, set by the label layout in `paint.rs`).
+pub(in crate::app) const DIAL_EXTENT: f32 = 120.0;
+
+/// Where the dial is drawn for a press at `origin`: the origin pulled inside `viewport` so no
+/// label is cut off. A viewport smaller than the dial gets it centred; an unusable rect leaves
+/// the origin alone.
+pub(in crate::app) fn dial_centre(origin: [f32; 2], viewport: Rect) -> [f32; 2] {
+    if !viewport.is_finite() {
+        return origin;
+    }
+    let inner = viewport.shrink(DIAL_EXTENT);
+    if inner.width() < 0.0 || inner.height() < 0.0 {
+        return [viewport.center().x, viewport.center().y];
+    }
+    [
+        origin[0].clamp(inner.min.x, inner.max.x),
+        origin[1].clamp(inner.min.y, inner.max.y),
+    ]
+}
+
+/// The point entries are hit from. A held menu's gesture reads from the press origin (a flick
+/// goes where the hand went, wherever the dial was drawn); a sticky menu is clicked where it is
+/// drawn.
+pub(in crate::app) fn hit_origin(interaction: &Interaction, viewport: Rect) -> Option<[f32; 2]> {
+    let origin = interaction.origin()?;
+    Some(if interaction.is_sticky() {
+        dial_centre(origin, viewport)
+    } else {
+        origin
+    })
 }

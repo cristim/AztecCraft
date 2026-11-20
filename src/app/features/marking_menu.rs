@@ -17,7 +17,7 @@ mod paint;
 use crate::app::{Editor, SelectionModeIntent};
 use azteccraft::marking_menu::{Button, FrameInput, MarkingMenu, NavKey, Outcome, Target};
 use eframe::egui::{self, Event, Key, Modifiers, PointerButton, Pos2, Rect, accesskit};
-use layout::{MeshAction, hit, mesh_menu};
+use layout::{MeshAction, hit, hit_origin, mesh_menu};
 
 /// The keyboard opener: no Maya key is documented (PROVISIONAL), Shift+F10 is the platform's
 /// context-menu chord.
@@ -137,12 +137,23 @@ impl Editor {
                     pressed,
                     modifiers,
                 } => {
-                    let origin = self.marking_menu.origin();
+                    let origin = hit_origin(&self.marking_menu, viewport);
                     let target = target_at(origin, *pos);
                     match (button, pressed) {
                         (PointerButton::Secondary, true)
                             if !self.marking_menu.holds_overlay()
-                                && !self.marking_menu_may_open(ui, viewport, *pos, *modifiers) => {}
+                                && !self.marking_menu_may_open(ui, viewport, *pos, *modifiers) =>
+                        {
+                            // Shift and Ctrl menus exist in Maya but not here: say so, once.
+                            if (modifiers.shift || modifiers.ctrl)
+                                && !modifiers.alt
+                                && self.marking_menu_may_open(ui, viewport, *pos, Modifiers::NONE)
+                            {
+                                self.status =
+                                    "Shift+RMB and Ctrl+RMB menus: not implemented yet".into();
+                                self.error = false;
+                            }
+                        }
                         (PointerButton::Secondary, true) => {
                             outcomes.push(self.marking_menu.press(
                                 Button::Secondary,
@@ -223,7 +234,9 @@ impl Editor {
                             self.marking_menu
                                 .key_open(point(origin.unwrap_or(viewport.center())), now);
                         }
-                    } else if self.marking_menu.is_active() && self.marking_menu.origin().is_some()
+                    } else if self.marking_menu.is_active()
+                        && self.marking_menu.origin().is_some()
+                        && !crate::app::text_edit_focused(ui.ctx())
                     {
                         if let Some(nav) = nav_key(*key, *modifiers) {
                             self.marking_menu.key_nav(nav, &menu.nav_order(), now);
@@ -257,8 +270,8 @@ impl Editor {
                 .request_repaint_after(std::time::Duration::from_secs_f64(wait));
         }
         if self.marking_menu.is_drawn() {
-            self.marking_menu_help(ui, &menu);
-            paint::paint(ui, &self.marking_menu, &menu);
+            self.marking_menu_help(ui, &menu, viewport);
+            paint::paint(ui, &self.marking_menu, &menu, viewport);
         } else {
             self.restore_menu_help();
         }
@@ -307,8 +320,8 @@ impl Editor {
     /// chosen shows its reason in the Help Line. The text is transient: the status it replaced
     /// comes back when the pointer leaves the entry or the menu closes, and an error message is
     /// never overwritten.
-    fn marking_menu_help(&mut self, ui: &egui::Ui, menu: &MarkingMenu<MeshAction>) {
-        let under_pointer = self.marking_menu.origin().and_then(|origin| {
+    fn marking_menu_help(&mut self, ui: &egui::Ui, menu: &MarkingMenu<MeshAction>, viewport: Rect) {
+        let under_pointer = hit_origin(&self.marking_menu, viewport).and_then(|origin| {
             let pos = ui.input(|input| input.pointer.latest_pos())?;
             hit(menu, origin, point(pos))
         });
@@ -344,9 +357,18 @@ impl Editor {
     /// Called from `raw_input_hook`, before egui reads the frame: while the menu is sticky-open
     /// its navigation keys are taken out of the raw input, so egui's own focus traversal and a
     /// focused widget's Enter or Space activation never see them; the pass handles them instead.
-    pub(in crate::app) fn take_marking_menu_keys(&mut self, input: &mut egui::RawInput) {
+    ///
+    /// Not while a text field has focus (a screen reader can move focus into a field under an
+    /// open menu): the field keeps its keys and the pass ignores them. The taken keys are applied
+    /// after the frame's pointer events, so a key acts on the state those events left. Keys taken
+    /// in a frame where a modal then opens (a remote close request) are dropped with the menu.
+    pub(in crate::app) fn take_marking_menu_keys(
+        &mut self,
+        input: &mut egui::RawInput,
+        text_focused: bool,
+    ) {
         self.marking_menu_keys.clear();
-        if !self.marking_menu.is_active() {
+        if !self.marking_menu.is_active() || text_focused {
             return;
         }
         let taken = |event: &Event| {
@@ -363,6 +385,8 @@ impl Editor {
 
 #[cfg(test)]
 mod a11y_tests;
+#[cfg(test)]
+mod edge_tests;
 #[cfg(test)]
 mod layout_tests;
 #[cfg(test)]

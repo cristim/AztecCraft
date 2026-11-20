@@ -402,6 +402,11 @@ impl Editor {
                 _ => egui::Rect::NOTHING,
             },
         );
+        if menu_frame.intent.is_some() && !matches!(&captured, Ok(Some(_))) {
+            // No viewport input this frame (a zero-sized viewport): nothing below can apply it.
+            self.status = "Marking menu choice ignored: the editor is busy".into();
+            self.error = false;
+        }
         let selection_intent = menu_frame.intent.or(selection_intent);
         self.file_modal(ui.ctx());
         self.primitive_options_window(ui.ctx());

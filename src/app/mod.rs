@@ -325,7 +325,7 @@ impl eframe::App for Editor {
             | egui::Event::MouseWheel { .. }
             | egui::Event::AccessKitActionRequest(_) => true,
         });
-        self.take_marking_menu_keys(input);
+        self.take_marking_menu_keys(input, text_edit_focused(ctx));
     }
 
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {

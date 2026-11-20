@@ -108,6 +108,11 @@ impl Interaction {
         !matches!(self.phase, Phase::Closed)
     }
 
+    /// Open: the menu stays up after a click, the cursor or the keys pick.
+    pub fn is_sticky(&self) -> bool {
+        matches!(self.phase, Phase::Open { .. })
+    }
+
     /// The dial is painted: a held button past the draw delay, or a sticky menu.
     pub fn is_drawn(&self) -> bool {
         matches!(
