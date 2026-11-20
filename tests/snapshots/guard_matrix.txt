@@ -81,6 +81,8 @@
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
+  create(platonic,icosahedron) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlatonic1; name_field: "pCube1" -> "pPlatonic1"; can_redo: true -> false
+  create(platonic,invalid radius) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | no state change
@@ -299,6 +301,8 @@
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
+  create(platonic,icosahedron) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlatonic1; name_field: "pCube1" -> "pPlatonic1"; can_redo: true -> false
+  create(platonic,invalid radius) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | no state change
@@ -515,6 +519,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -721,6 +727,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -927,6 +935,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1133,6 +1143,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1339,6 +1351,8 @@
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create(platonic,icosahedron) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlatonic1; name_field: "pCube1" -> "pPlatonic1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(platonic,invalid radius) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1545,6 +1559,8 @@
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create(platonic,icosahedron) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlatonic1; name_field: "pCube1" -> "pPlatonic1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(platonic,invalid radius) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1751,6 +1767,8 @@
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic,icosahedron) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic,invalid radius) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,round caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,max cap subdivisions) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,over-budget caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1957,6 +1975,8 @@
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic,icosahedron) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic,invalid radius) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,round caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,max cap subdivisions) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,over-budget caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2163,6 +2183,8 @@
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic,icosahedron) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic,invalid radius) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,round caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,max cap subdivisions) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,over-budget caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2369,6 +2391,8 @@
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic,icosahedron) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic,invalid radius) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,round caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,max cap subdivisions) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,over-budget caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2575,6 +2599,8 @@
   create(cube,options) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(torus,twist) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(torus,non-finite twist) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(platonic,icosahedron) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(platonic,invalid radius) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cylinder,round caps) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cone,max cap subdivisions) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cylinder,over-budget caps) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2781,6 +2807,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2988,6 +3016,8 @@
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(platonic,icosahedron) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(platonic,invalid radius) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3195,6 +3225,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3401,6 +3433,8 @@
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCube2"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pTorus1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create(platonic,icosahedron) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlatonic1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPlatonic1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
+  create(platonic,invalid radius) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3607,6 +3641,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3813,6 +3849,8 @@
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create(platonic,icosahedron) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlatonic1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPlatonic1"; can_redo: true -> false
+  create(platonic,invalid radius) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -4019,6 +4057,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4225,6 +4265,8 @@
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
+  create(platonic,icosahedron) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlatonic1; name_field: "pCube1" -> "pPlatonic1"; can_redo: true -> false
+  create(platonic,invalid radius) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | no state change
@@ -4431,6 +4473,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4637,6 +4681,8 @@
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
+  create(platonic,icosahedron) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlatonic1; name_field: "pCube1" -> "pPlatonic1"; can_redo: true -> false
+  create(platonic,invalid radius) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | no state change
@@ -4843,6 +4889,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5049,6 +5097,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5257,6 +5307,8 @@
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,icosahedron) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,invalid radius) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5463,6 +5515,8 @@
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,icosahedron) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,invalid radius) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5669,6 +5723,8 @@
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,icosahedron) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,invalid radius) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5875,6 +5931,8 @@
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,icosahedron) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,invalid radius) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6081,6 +6139,8 @@
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,icosahedron) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,invalid radius) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6287,6 +6347,8 @@
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,icosahedron) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,invalid radius) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6493,6 +6555,8 @@
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,icosahedron) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic,invalid radius) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6699,6 +6763,8 @@
   create(cube,options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(torus,twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(torus,non-finite twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(platonic,icosahedron) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(platonic,invalid radius) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder,round caps) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone,max cap subdivisions) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder,over-budget caps) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -6905,6 +6971,8 @@
   create(cube,options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(torus,twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(torus,non-finite twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(platonic,icosahedron) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(platonic,invalid radius) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder,round caps) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone,max cap subdivisions) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder,over-budget caps) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -7112,6 +7180,8 @@
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,icosahedron) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,invalid radius) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7319,6 +7389,8 @@
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,icosahedron) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,invalid radius) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7526,6 +7598,8 @@
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,icosahedron) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,invalid radius) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7733,6 +7807,8 @@
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,icosahedron) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,invalid radius) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8040,6 +8116,8 @@
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,icosahedron) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,invalid radius) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8247,6 +8325,8 @@
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,icosahedron) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic,invalid radius) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8454,6 +8534,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -8661,6 +8743,8 @@
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,icosahedron) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic,invalid radius) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
