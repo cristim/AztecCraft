@@ -583,6 +583,7 @@ impl History {
                 | Command::SetPivots { .. }
                 | Command::ResetPivots { .. }
                 | Command::ExtrudeFace { .. }
+                | Command::MoveVertices { .. }
         );
         let transform_target = match &command {
             Command::SetTransform { id, .. } => Some(*id),
@@ -683,7 +684,12 @@ impl History {
                 delta_cm,
             } => {
                 candidate.move_vertices(shape, &vertices, delta_cm)?;
-                ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(moved_view_refusal)?;
+                // World coordinates past f32 are `refuse_undrawable_world`'s call, which lets a
+                // move that repairs an already undrawable scene through.
+                match ViewScene::from_native(&candidate, VIEW_BUDGET) {
+                    Ok(_) | Err(ViewError::NonFiniteWorld) => {}
+                    Err(error) => return Err(moved_view_refusal(error)),
+                }
                 EditOutcome::Changed
             }
             Command::CreateJoint(request) => {

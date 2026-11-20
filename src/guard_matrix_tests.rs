@@ -2208,6 +2208,14 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     space: ComponentMoveSpace::World,
                 },
             ),
+            sample(
+                "move_vertices_world_out_of_range",
+                Operation::MoveVertices {
+                    target: t.vertex_set(),
+                    delta: [3.0e38, 0.0, 0.0],
+                    space: ComponentMoveSpace::World,
+                },
+            ),
         ],
         Operation::CreateJoint { .. } => {
             let root = Operation::CreateJoint {

@@ -149,6 +149,7 @@ mod official_client {
     mod material;
     mod maya_import;
     mod move_vertices;
+    mod move_vertices_range;
     mod multi_move;
     mod multi_scale;
     mod node_edit;

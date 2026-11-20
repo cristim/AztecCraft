@@ -1,10 +1,10 @@
 use super::*;
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 
-struct Ids {
-    node: String,
-    shape: String,
-    path: Vec<String>,
+pub(super) struct Ids {
+    pub(super) node: String,
+    pub(super) shape: String,
+    pub(super) path: Vec<String>,
 }
 
 fn ids(editor: &Editor) -> Ids {
@@ -19,7 +19,7 @@ fn ids(editor: &Editor) -> Ids {
     }
 }
 
-fn args(token: &str, ids: &Ids, vertices: Value, delta: Value) -> Value {
+pub(super) fn args(token: &str, ids: &Ids, vertices: Value, delta: Value) -> Value {
     json!({"scene_token":token,"node_id":ids.node,"shape_id":ids.shape,"instance_path":ids.path,"vertex_indices":vertices,"delta":delta})
 }
 
