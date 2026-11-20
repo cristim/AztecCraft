@@ -955,6 +955,9 @@ mod tests {
                 "delete_selected" => json!({"scene_token":token}),
                 "orbit_camera" => json!({"scene_token":token,"radians":[0,0]}),
                 "pan_camera" => json!({"scene_token":token,"world_units":[0,0]}),
+                "undo_view_change" | "redo_view_change" | "default_camera_view" => {
+                    json!({"scene_token":token})
+                }
                 "box_dolly_camera" => {
                     json!({"scene_token":token,"min":[-0.5,-0.5],"max":[0.5,0.5]})
                 }
@@ -1093,6 +1096,7 @@ mod tests {
                     | "select_vertex"
                     | "select_edge"
                     | "set_camera_pose"
+                    | "default_camera_view"
                     | "set_pivots"
                     | "reset_pivots"
                     | "list_camera_bookmarks"
