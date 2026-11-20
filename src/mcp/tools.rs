@@ -661,6 +661,14 @@ mod tests {
                 json!({"scene_token":token,"degrees":15,"extra":1}),
             ),
             ("set_rotate_step", json!({"degrees":15})),
+            ("set_scale_step", json!({"scene_token":token})),
+            ("set_scale_step", json!({"scene_token":token,"step":0})),
+            ("set_scale_step", json!({"scene_token":token,"step":"1"})),
+            (
+                "set_scale_step",
+                json!({"scene_token":token,"step":1,"extra":1}),
+            ),
+            ("set_scale_step", json!({"step":1})),
             ("set_tool_handle", json!({"tool":"rotate","axis":"x"})),
             (
                 "set_tool_handle",
@@ -886,6 +894,7 @@ mod tests {
                 }
                 "set_manipulator_size" => json!({"scene_token":token,"size":2.5}),
                 "set_rotate_step" => json!({"scene_token":token,"degrees":15}),
+                "set_scale_step" => json!({"scene_token":token,"step":0.25}),
                 "set_undo_queue" => json!({"scene_token":token,"queue":"finite","size":5}),
                 "set_undo_enabled" => json!({"scene_token":token,"enabled":true}),
                 "open_undo_chunk" => json!({"scene_token":token,"name":"chunk"}),
@@ -1077,6 +1086,7 @@ mod tests {
                     | "set_tool_handle"
                     | "set_manipulator_size"
                     | "set_rotate_step"
+                    | "set_scale_step"
                     | "set_undo_queue"
                     | "set_undo_enabled"
                     | "select_node"
