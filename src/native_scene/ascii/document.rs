@@ -131,6 +131,8 @@ fn candidate_of(
 }
 
 #[cfg(test)]
+mod cap_tests;
+#[cfg(test)]
 mod link_tests;
 #[cfg(test)]
 mod material_connect_tests;

@@ -765,6 +765,8 @@ impl NativeMesh {
 mod axis;
 mod cap;
 #[cfg(test)]
+mod cap_golden;
+#[cfg(test)]
 mod cap_tests;
 mod cone;
 #[cfg(test)]
