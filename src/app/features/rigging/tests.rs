@@ -1,5 +1,7 @@
 use super::*;
-use crate::app::menus::{ALWAYS_ON_MENUS, HELP_MENU, MODELING_SET_MENUS, RIGGING_SET_MENUS};
+use crate::app::menus::{
+    ALWAYS_ON_MENUS, HELP_MENU, MODELING_SET_MENUS, RENDERING_SET_MENUS, RIGGING_SET_MENUS,
+};
 use crate::app::tests::{frame_with, remote};
 use crate::editor_operations::{MenuSet, SelectionMode};
 use azteccraft::native_scene::NativeId;
@@ -149,6 +151,18 @@ fn f3_shows_the_rigging_menus_and_f2_returns_to_modeling() {
     assert_eq!(editor.menu_set, MenuSet::Rigging);
     let output = run(&mut editor, &ctx, vec![]);
     assert_eq!(bar_labels(&output), expected_bar(&RIGGING_SET_MENUS));
+    assert!(!editor.is_dirty(), "a menu set is not a scene edit");
+    run(&mut editor, &ctx, vec![key(Key::F2)]);
+    assert_eq!(editor.menu_set, MenuSet::Modeling);
+}
+
+#[test]
+fn f6_shows_the_rendering_menus_and_f2_returns_to_modeling() {
+    let (mut editor, ctx) = setup();
+    run(&mut editor, &ctx, vec![key(Key::F6)]);
+    assert_eq!(editor.menu_set, MenuSet::Rendering);
+    let output = run(&mut editor, &ctx, vec![]);
+    assert_eq!(bar_labels(&output), expected_bar(&RENDERING_SET_MENUS));
     assert!(!editor.is_dirty(), "a menu set is not a scene edit");
     run(&mut editor, &ctx, vec![key(Key::F2)]);
     assert_eq!(editor.menu_set, MenuSet::Modeling);

@@ -46,6 +46,7 @@ fn parse_set_sidebar_panel_visibility(arguments: JsonObject) -> Result<RemoteReq
 enum MenuSetInput {
     Modeling,
     Rigging,
+    Rendering,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -60,6 +61,7 @@ fn parse_set_menu_set(arguments: JsonObject) -> Result<RemoteRequest, ErrorData>
     let set = match args.set {
         MenuSetInput::Modeling => MenuSet::Modeling,
         MenuSetInput::Rigging => MenuSet::Rigging,
+        MenuSetInput::Rendering => MenuSet::Rendering,
     };
     Ok(scoped(
         token(&args.scene_token)?,
@@ -130,7 +132,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_menu_set",
-        description: "Switch the menu set the native menu bar shows, like the Status Line selector or F2 and F3. Only modeling and rigging exist; Animation, FX and Rendering are not implemented. Session-only and idempotent: it does not edit the scene, mark it dirty or change the scene token, New and Open keep it, and it cannot be undone. Refused while a file dialog is open. `inspect_scene` reports it as `menu_set`",
+        description: "Switch the menu set the native menu bar shows, like the Status Line selector or F2, F3 and F6. Only modeling, rigging and rendering exist; Animation and FX are not implemented. Session-only and idempotent: it does not edit the scene, mark it dirty or change the scene token, New and Open keep it, and it cannot be undone. Refused while a file dialog is open. `inspect_scene` reports it as `menu_set`",
         schema: schema::<MenuSetArgs>,
         parse: parse_set_menu_set,
         idempotent: true,

@@ -255,7 +255,7 @@ fn open_combo_popup_blocks_shortcuts_and_disabled_sets_stay_disabled() {
         ("Rigging", false),
         ("Animation", true),
         ("FX", true),
-        ("Rendering", true),
+        ("Rendering", false),
     ] {
         let entry = controls(&output)
             .into_iter()

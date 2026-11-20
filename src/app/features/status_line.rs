@@ -6,13 +6,13 @@ use azteccraft::history::ManipulationProvenance;
 use azteccraft::ui_icons::UiIcon;
 use eframe::egui::{self, Align, Layout};
 
-/// `None` while the set is unsupported. F2 and F3 reach the same two sets (`shortcuts()`).
+/// `None` while the set is unsupported. F2, F3 and F6 reach the same sets (`shortcuts()`).
 const MENU_SETS: [(&str, Option<MenuSet>); 5] = [
     ("Modeling", Some(MenuSet::Modeling)),
     ("Rigging", Some(MenuSet::Rigging)),
     ("Animation", None),
     ("FX", None),
-    ("Rendering", None),
+    ("Rendering", Some(MenuSet::Rendering)),
 ];
 const MENU_SET_LABEL: &str = "Menu set";
 const MENU_SET_UNAVAILABLE: &str = "not implemented yet";

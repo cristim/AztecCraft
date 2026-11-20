@@ -28,13 +28,14 @@ pub enum SidebarPanel {
 }
 
 /// The menu sets the editor implements. Session-only: New and Open keep it, it is not undoable
-/// and it never marks the scene dirty. Animation, FX and Rendering stay disabled.
+/// and it never marks the scene dirty. Animation and FX stay disabled.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MenuSet {
     #[default]
     Modeling,
     Rigging,
+    Rendering,
 }
 
 /// An Attribute Editor tab. Each variant names its owner: the selected transform, or a direct

@@ -106,7 +106,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `frame_all` | `fit_factor` (number, optional, see `frame_selected`) | Frames every mesh and curve instance and every joint with the live camera, ignoring the selection (Maya View > Frame All, hotkey A); a scene with none returns `nothing_to_frame` and keeps the camera. Session-only: no history entry, selection and scene unchanged; changed or unchanged outcome |
 | `set_grid_visibility` | `visible`: required boolean | Changed or unchanged grid visibility in this window's viewport |
 | `set_snap_mode` | `grid`: required boolean | Changed or unchanged Snap to grids session state (off by default, PROVISIONAL). While on, a Move begun afterwards lands the lead pivot on the nearest line of the drawn 1 cm grid (absolute); the Move axis must lie along a world axis or `begin_manipulation` returns `invalid_input` and starts nothing (PROVISIONAL refusal of oblique axes); a pivot within a few ulps of a line stays put. Refused with `busy_manipulation` during a manipulation and `busy_editing` during a modal or close. Grid only: curve, point, surface, view-plane and relative step snapping are unsupported |
-| `set_menu_set` | `set`: required, `modeling` or `rigging` | Changed or unchanged session menu set; `menu_set` in inspection |
+| `set_menu_set` | `set`: required, `modeling`, `rigging` or `rendering` | Changed or unchanged session menu set; `menu_set` in inspection |
 | `create_joint` | `parent_id`, `position`, `relative`, `radius`, `name`: all optional | Created `node_id`, selected with its full path; `nodes[].joint.radius` in inspection; refusal `unsupported_joint` for a non-joint parent, a singular parent or a radius outside above 0 through 1e6 (PROVISIONAL safety bound) |
 | `set_shading_mode` | `mode`: required, `"wireframe"` or `"smooth_shade_all"` | Changed or unchanged shading mode in this window's viewport |
 | `set_viewport_view` | `view`: required, `"persp"`, `"top"`, `"front"` or `"side"` | Changed or unchanged viewport camera view |
@@ -650,8 +650,8 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Settings | Sidebar panel visibility (Channel Box, Attribute Editor, Ctrl+A) | supported | `set_sidebar_panel_visibility` | `sidebar_panels` | |
 | Settings | Attribute Editor tab | supported | `select_attribute_editor_tab` | `attribute_editor_tab` | |
 | Settings | Attribute Editor Pin Tab (disabled button) and read-only shape attributes | unsupported | | | |
-| Settings | Menu set (Modeling and Rigging) | supported | `set_menu_set` | `menu_set` | |
-| Settings | Modeling Toolkit, HumanIK, Tool Settings panels, Animation, FX and Rendering menu sets, selection presets | unsupported | | | |
+| Settings | Menu set (Modeling, Rigging and Rendering) | supported | `set_menu_set` | `menu_set` | |
+| Settings | Modeling Toolkit, HumanIK, Tool Settings panels, Animation and FX menu sets, selection presets | unsupported | | | |
 | Rigging | Create a session-only joint or chain; delete it through `delete_node` or `delete_selected` | supported | `create_joint` | `nodes.joint` | |
 | Settings | Preferences and Working Units | unsupported | | | |
 | Panels | Range Slider, Auto Key, tangents, Graph Editor, Dope Sheet, Layer Editor, Outliner filters | unsupported | | | |

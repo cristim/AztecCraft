@@ -209,6 +209,8 @@ async fn sdk_menu_set_is_session_state_that_survives_new_and_leaves_the_document
     for (set, outcome) in [
         ("rigging", "changed"),
         ("rigging", "unchanged"),
+        ("rendering", "changed"),
+        ("rendering", "unchanged"),
         ("modeling", "changed"),
         ("rigging", "changed"),
     ] {

@@ -36,8 +36,8 @@ impl Editor {
                 _ => None,
             })
         });
-        // F2 and F3 switch sets; the last press of a frame wins, as for history chords. F4 to F6
-        // stay unbound: their sets are not implemented.
+        // F2, F3 and F6 switch sets; the last press of a frame wins, as for history chords. F4
+        // and F5 stay unbound: their sets are not implemented.
         let menu_set = ctx.input(|i| {
             i.events
                 .iter()
@@ -51,6 +51,7 @@ impl Editor {
                     } if modifiers.is_none() => match key {
                         Key::F2 => Some(MenuSet::Modeling),
                         Key::F3 => Some(MenuSet::Rigging),
+                        Key::F6 => Some(MenuSet::Rendering),
                         _ => None,
                     },
                     _ => None,

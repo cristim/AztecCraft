@@ -52,6 +52,11 @@ pub(super) const MODELING_SET_MENUS: [&str; 9] = [
 pub(super) const RIGGING_SET_MENUS: [&str; 5] =
     ["Skeleton", "Skin", "Deform", "Constrain", "Control"];
 
+/// The Rendering set topics; Maya's list and order are PROVISIONAL (the 2027 menu-set page is
+/// re-checked in #467). Lighting/Shading is the first because assignment lives there.
+pub(super) const RENDERING_SET_MENUS: [&str; 5] =
+    ["Lighting/Shading", "Texturing", "Render", "Toon", "Stereo"];
+
 /// Help follows the Modeling set; its Maya position is UNCONFIRMED (the pages do not place it).
 pub(super) const HELP_MENU: &str = "Help";
 
@@ -560,6 +565,11 @@ impl Editor {
                 MenuSet::Rigging => {
                     self.skeleton_menu(ui, read_only_reason);
                     for label in &RIGGING_SET_MENUS[1..] {
+                        placeholder_menu(ui, label);
+                    }
+                }
+                MenuSet::Rendering => {
+                    for label in RENDERING_SET_MENUS {
                         placeholder_menu(ui, label);
                     }
                 }
