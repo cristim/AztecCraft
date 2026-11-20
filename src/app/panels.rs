@@ -249,6 +249,7 @@ impl Editor {
         delete_intent: bool,
         frame_admitted: bool,
     ) {
+        let mut view_history_requested = None;
         let mut grid_requested = false;
         let mut shading_requested = None;
         let mut default_view_requested = false;
@@ -279,6 +280,14 @@ impl Editor {
                 // Alt+Home are from the Maya 2027 "Return to the default view" page; the
                 // default pose itself is an AztecCraft choice (Maya's persp pose is undocumented).
                 ui.menu_button("View", |ui| {
+                    for (label, redo, enabled) in [
+                        ("Undo View Change ([)", false, !self.view_history.undo.is_empty()),
+                        ("Redo View Change (])", true, !self.view_history.redo.is_empty()),
+                    ] {
+                        if ui.add_enabled(enabled, egui::Button::new(label)).clicked() {
+                            view_history_requested = Some(redo); ui.close();
+                        }
+                    }
                     if ui.button("Default View (Alt+Home)").clicked() {
                         default_view_requested = true;
                         ui.close();
@@ -366,6 +375,15 @@ impl Editor {
             .ok()
             .and_then(Option::as_ref)
             .is_some_and(|input| input.navigation_active());
+        if !self.native_camera_drag
+            || captured
+                .as_ref()
+                .ok()
+                .and_then(Option::as_ref)
+                .is_some_and(|input| input.navigation_boundary())
+        {
+            self.view_history.end_gesture();
+        }
         if let Ok(Some(input)) = &captured {
             self.aspect = input.aspect();
         }
@@ -380,6 +398,15 @@ impl Editor {
         if grid_requested && self.scene_token == frame_token {
             self.native_operation(Operation::SetGridVisible {
                 visible: !self.grid_visible,
+            });
+        }
+        if let Some(redo) = view_history_requested
+            && self.scene_token == frame_token
+        {
+            self.native_operation(if redo {
+                Operation::RedoView
+            } else {
+                Operation::UndoView
             });
         }
         if default_view_requested && self.scene_token == frame_token {

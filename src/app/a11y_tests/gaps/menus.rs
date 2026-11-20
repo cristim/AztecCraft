@@ -86,4 +86,6 @@ pub(super) const GAPS: &[&str] = &[
     "menu-view|R3|Button|root/<Window>#0/View/Back",
     "menu-view|R3|Button|root/<Window>#0/View/Bottom",
     "menu-view|R3|Button|root/<Window>#0/View/Left Side",
+    "menu-view|R3|Button|root/<Window>#0/View/Redo",
+    "menu-view|R3|Button|root/<Window>#0/View/Undo",
 ];

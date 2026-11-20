@@ -109,6 +109,7 @@ pub struct ViewportInput {
     marquee_preview: Option<Rect>,
     navigation: Vec<Operation>,
     navigation_active: bool,
+    navigation_boundary: bool,
 }
 
 pub fn capture(
@@ -397,6 +398,11 @@ pub fn capture(
         marquee,
         marquee_preview,
         navigation,
+        navigation_boundary: ui.input(|i| {
+            i.events
+                .iter()
+                .any(|event| matches!(event, egui::Event::PointerButton { .. }))
+        }),
         navigation_active: (box_input.active || dolly_chord || alt)
             && ui.input(|i| {
                 i.pointer.button_down(PointerButton::Primary)
@@ -407,6 +413,9 @@ pub fn capture(
 }
 
 impl ViewportInput {
+    pub fn navigation_boundary(&self) -> bool {
+        self.navigation_boundary
+    }
     pub fn navigation_active(&self) -> bool {
         self.navigation_active
     }

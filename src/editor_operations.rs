@@ -867,9 +867,7 @@ pub enum Operation {
     BoxDolly {
         rect: NdcRect,
     },
-    #[allow(dead_code)]
     UndoView,
-    #[allow(dead_code)]
     RedoView,
     DefaultView,
     /// Absolute view, radians like `Orbit`. The lens and clip planes are untouched. Unchanged is
