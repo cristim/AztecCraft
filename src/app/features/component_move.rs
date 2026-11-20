@@ -1,5 +1,6 @@
 //! The native begin of a component Move (#41): which set a drag moves and every check that must
-//! pass before the transaction starts. Vertex selection only; Edge and Face keep the mode refusal.
+//! pass before the transaction starts. Vertex, Edge and Face selection each map their picked set to
+//! vertices; Object and Hierarchy selection move objects.
 
 use super::manipulation_tool::{begin_error, tool_name};
 use crate::app::Editor;
@@ -60,16 +61,16 @@ impl Editor {
             )));
         }
         let scene = self.history.scene();
-        let limit = |count: String| {
+        let limit = |detail: String| {
             OperationError::InvalidInput(format!(
-                "Move is limited to {MAX_MOVED_VERTICES} vertices; {count} selected"
+                "Move is limited to {MAX_MOVED_VERTICES} vertices; {detail}"
             ))
         };
         let vertex_indices = match kind {
             ComponentKind::Vertex => {
                 let count = set.indices().len();
                 if count > MAX_MOVED_VERTICES {
-                    return Err(limit(format!("{count} are")));
+                    return Err(limit(format!("{count} are selected")));
                 }
                 Ok(set.indices().to_vec())
             }
@@ -77,7 +78,9 @@ impl Editor {
             ComponentKind::Face => scene.vertices_of_faces(owner.shape, set.indices()),
         }
         .map_err(|error| match error {
-            NativeError::ResourceLimit => limit(format!("the selected {noun}s reach more")),
+            NativeError::ResourceLimit => limit(format!(
+                "the selected {noun}s reach more vertices than that"
+            )),
             other => OperationError::Scene(other),
         })?;
         Ok(VertexSetTarget {

@@ -4,7 +4,7 @@
 use super::tests::pick;
 use super::*;
 use crate::app::features::move_tool::tests::{button, frame, key, press_x, raw, setup};
-use crate::editor_operations::{Operation, SelectionMode};
+use crate::editor_operations::{ComponentKind, Operation, SelectionMode};
 use eframe::egui::{self, Event, Key, Modifiers, Pos2, Rect};
 
 /// The default cube with all eight vertices picked in Vertex selection, so the arrows sit at the
@@ -239,4 +239,132 @@ fn an_ill_conditioned_frame_is_refused_by_the_plan_the_handles_inspection_and_be
     assert!(begin.is_err());
     assert!(editor.history.active_manipulation().is_none());
     assert_eq!(editor.history.scene(), &scene);
+}
+
+/// The default cube with every edge (or face) picked, so the arrows sit at the cube centre.
+fn all_components(
+    mode: SelectionMode,
+    kind: ComponentKind,
+    count: usize,
+) -> (Editor, egui::Context, Rect) {
+    let (mut editor, context, rect) = setup(1.0);
+    editor
+        .apply_operation(Operation::SetSelectionMode(mode))
+        .unwrap();
+    let view =
+        azteccraft::view_scene::ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+    let instance = &view.instances()[0];
+    let owner = azteccraft::selection::ComponentOwner {
+        transform: instance.transform(),
+        shape: instance.shape(),
+        path: instance.path().to_vec(),
+    };
+    editor
+        .apply_operation(Operation::ModifyComponentSelection {
+            kind,
+            mode: crate::editor_operations::MarqueeMode::Replace,
+            owner,
+            indices: (0..count).collect(),
+        })
+        .unwrap();
+    (editor, context, rect)
+}
+
+const EDGE_FACE: [(SelectionMode, ComponentKind, usize); 2] = [
+    (SelectionMode::Edge, ComponentKind::Edge, 12),
+    (SelectionMode::Face, ComponentKind::Face, 6),
+];
+
+#[test]
+fn edge_and_face_arrow_drags_move_the_picked_components_with_one_undo() {
+    for (mode, kind, count) in EDGE_FACE {
+        let (mut editor, context, rect) = all_components(mode, kind, count);
+        let before = editor.history.scene().clone();
+        let base = x_of(&editor, 0);
+        let begin = press_x(&mut editor, &context, rect, 1.0);
+        assert_eq!(editor.status, "World X Move (8 vertices)", "{mode:?}");
+        let end = begin + egui::vec2(rect.height() / 20.0, 0.0);
+        pointer_to(&mut editor, &context, end);
+        assert!((x_of(&editor, 0) - base - 1.0).abs() < 1e-3, "{mode:?}");
+        frame(
+            &mut editor,
+            &context,
+            raw(
+                egui::vec2(1440.0, 900.0),
+                Pos2::ZERO,
+                1.0,
+                button(end, false),
+            ),
+        );
+        assert_eq!(editor.status, "Move committed", "{mode:?}");
+        assert!(editor.history.active_manipulation().is_none());
+        editor.apply_operation(Operation::Undo).unwrap();
+        assert_eq!(editor.history.scene(), &before, "{mode:?}");
+        // Handles were drawn for the picked components.
+        let inspected = editor.inspect_manipulation().unwrap();
+        assert!(inspected.kinds[0].available, "{mode:?}");
+    }
+}
+
+#[test]
+fn escape_a_mode_switch_and_a_selection_change_cancel_an_edge_or_face_drag() {
+    for (mode, kind, count) in EDGE_FACE {
+        for cancel in 0..3 {
+            let (mut editor, context, rect) = all_components(mode, kind, count);
+            let before = editor.history.scene().clone();
+            let begin = press_x(&mut editor, &context, rect, 1.0);
+            pointer_to(
+                &mut editor,
+                &context,
+                begin + egui::vec2(rect.height() / 10.0, 0.0),
+            );
+            assert_ne!(editor.history.scene(), &before, "{mode:?} {cancel}");
+            match cancel {
+                0 => {
+                    frame(
+                        &mut editor,
+                        &context,
+                        raw(
+                            egui::vec2(1440.0, 900.0),
+                            Pos2::ZERO,
+                            1.0,
+                            vec![key(Key::Escape)],
+                        ),
+                    );
+                }
+                1 => {
+                    editor
+                        .apply_operation(Operation::SetSelectionMode(SelectionMode::Object))
+                        .unwrap();
+                }
+                _ => {
+                    pick_set(&mut editor, kind, &[0]);
+                }
+            }
+            assert!(
+                editor.history.active_manipulation().is_none() && editor.native_move.is_none(),
+                "{mode:?} {cancel}"
+            );
+            assert_eq!(editor.history.scene(), &before, "{mode:?} {cancel}");
+        }
+    }
+}
+
+fn pick_set(editor: &mut Editor, kind: ComponentKind, indices: &[usize]) {
+    let view =
+        azteccraft::view_scene::ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+    let instance = &view.instances()[0];
+    let owner = azteccraft::selection::ComponentOwner {
+        transform: instance.transform(),
+        shape: instance.shape(),
+        path: instance.path().to_vec(),
+    };
+    editor
+        .apply_operation(Operation::ModifyComponentSelection {
+            kind,
+            mode: crate::editor_operations::MarqueeMode::Replace,
+            owner,
+            indices: indices.to_vec(),
+        })
+        .unwrap();
 }

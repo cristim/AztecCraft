@@ -1,6 +1,5 @@
 //! The Move tool in Edge and Face selection: the picked components map to their unique vertices
 //! (a shared vertex once), with the same refusals as Vertex selection (#41 T5).
-use super::tests::pick;
 use super::*;
 use crate::editor_operations::{
     ComponentKind, MarqueeMode, MoveDistance, Operation, OperationError, OperationReply,
@@ -207,9 +206,9 @@ fn a_selection_reaching_over_the_vertex_cap_refuses_with_text_and_changes_nothin
     let before = editor.history.scene().clone();
     match begin(&mut editor) {
         Err(OperationError::InvalidInput(message)) => {
-            assert!(
-                message.contains("Move is limited to 8192 vertices"),
-                "{message}"
+            assert_eq!(
+                message,
+                "Move is limited to 8192 vertices; the selected faces reach more vertices than that"
             );
         }
         other => panic!("{other:?}"),
@@ -278,26 +277,13 @@ fn ill_conditioned_and_overflowing_frames_agree_across_plan_handles_inspection_a
 #[test]
 fn another_objects_edges_or_faces_are_not_moved() {
     let mut editor = cube_picking(SelectionMode::Face, ComponentKind::Face, &[0]);
+    // The set names the first cube while the second is selected (no prune ran).
+    let first = owner(&editor);
     editor.create(Primitive::Cube);
-    let other = owner(&editor);
-    // The set now names the first cube while the second is selected, without a prune.
-    let first = {
-        let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
-        let instance = &view.instances()[0];
-        ComponentOwner {
-            transform: instance.transform(),
-            shape: instance.shape(),
-            path: instance.path().to_vec(),
-        }
-    };
-    let _ = (other, pick);
     editor.modify_component_set(ComponentKind::Face, |set| set.replace_with(&first, [0]));
     match begin(&mut editor) {
         Err(OperationError::InvalidInput(message)) => {
-            assert!(
-                message.contains("faces belong to another object"),
-                "{message}"
-            );
+            assert_eq!(message, "The selected faces belong to another object");
         }
         other => panic!("{other:?}"),
     }

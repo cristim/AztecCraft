@@ -566,3 +566,76 @@ async fn sdk_remote_edge_and_face_moves_move_the_union_of_their_vertices() {
         server.await.unwrap();
     }
 }
+
+/// Two edges that share a vertex move the union (three vertices), the shared one once, over MCP.
+#[tokio::test]
+async fn sdk_two_edges_sharing_a_vertex_move_three_vertices_once() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let peer = client.peer();
+    let setup = cube_in_vertex_mode(&mut editor, &context, peer, 0).await;
+    call(
+        &mut editor,
+        &context,
+        peer,
+        "set_selection_mode",
+        json!({"scene_token":setup.token,"mode":"edge"}),
+    )
+    .await;
+    let scene = editor.history.scene();
+    let shape = scene.shapes()[0].id();
+    let other = (1..12)
+        .find(|&e| scene.vertices_of_edges(shape, &[0, e]).unwrap().len() == 3)
+        .expect("an edge sharing a vertex with edge 0");
+    let owner = json!({
+        "node_id":setup.target["node_id"],"shape_id":setup.target["shape_id"],
+        "instance_path":setup.target["instance_path"]
+    });
+    let modified = call(
+        &mut editor,
+        &context,
+        peer,
+        "modify_component_selection",
+        json!({"scene_token":setup.token,"kind":"edge","mode":"replace","owner":owner,"indices":[0, other]}),
+    )
+    .await;
+    assert_eq!(modified.is_error, Some(false));
+    let before: Vec<f64> = (0..8).map(|v| vertex_x(&editor, v)).collect();
+    let at = generation(&mut editor, &context, peer).await;
+    let begin = call(
+        &mut editor,
+        &context,
+        peer,
+        "begin_manipulation",
+        begin_args(&setup, Some(at)),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let id = begin["manipulation_id"].as_str().unwrap().to_owned();
+    for (name, args) in [
+        (
+            "update_manipulation",
+            json!({"scene_token":setup.token,"manipulation_id":id,"distance":2.0}),
+        ),
+        (
+            "finish_manipulation",
+            json!({"scene_token":setup.token,"manipulation_id":id,"finish":"commit"}),
+        ),
+    ] {
+        let result = call(&mut editor, &context, peer, name, args).await;
+        assert_eq!(result.is_error, Some(false), "{name}");
+    }
+    let moved: Vec<f64> = (0..8)
+        .map(|v| vertex_x(&editor, v) - before[v])
+        .filter(|delta| delta.abs() > 1e-9)
+        .collect();
+    assert_eq!(moved.len(), 3);
+    assert!(
+        moved.iter().all(|delta| (delta - 2.0).abs() < 1e-5),
+        "{moved:?}"
+    );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
