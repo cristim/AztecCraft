@@ -143,6 +143,8 @@ mod material_roundtrip_tests;
 #[cfg(test)]
 mod material_tests;
 #[cfg(test)]
+mod primitive_uv_tests;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod uv_tests;
