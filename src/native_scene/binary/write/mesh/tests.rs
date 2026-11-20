@@ -10,7 +10,10 @@ use crate::native_scene::{
 use crate::primitive_options::{PrimitiveOptions, SINGLE_QUAD_PLANE};
 use crate::scene::Primitive;
 
-const UUID: Uuid = Uuid::from_bytes([0x5a; 16]);
+/// Distinct bytes, so the RFC (big-endian) and GUID (little-endian) layouts differ.
+const UUID: Uuid = Uuid::from_bytes([
+    0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+]);
 
 /// A mesh whose faces share an edge when two loops walk the same vertex pair.
 fn mesh_of(points: &[[f32; 3]], loops: &[&[usize]]) -> NativeMesh {
@@ -257,6 +260,7 @@ fn the_dmsh_group_is_crea_then_mesh_with_the_shape_name_parent_and_uuid() {
     let mut expected = vec![0x04];
     expected.extend_from_slice(b"cubeShape\0cube\0");
     expected.extend_from_slice(&UUID.to_bytes_le());
+    assert_ne!(UUID.to_bytes_le(), *UUID.as_bytes());
     assert_eq!(kids[0].bytes(&bytes), expected);
 }
 
