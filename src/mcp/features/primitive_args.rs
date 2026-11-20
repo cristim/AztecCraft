@@ -5,11 +5,13 @@ use azteccraft::{
     primitive_options::{
         Axis, DEFAULT_AXIS, DEFAULT_AXIS_DIVISIONS, DEFAULT_CUBE_DIVISIONS, DEFAULT_CUBE_SIZE_CM,
         DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS, DEFAULT_HEIGHT_CM, DEFAULT_PLANE_DIVISIONS,
-        DEFAULT_PLANE_SIZE_CM, DEFAULT_PLATONIC_RADIUS_CM, DEFAULT_RADIUS_CM, DEFAULT_ROUND_CAP,
-        DEFAULT_SECTION_RADIUS_CM, DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_SUB_CAPS,
-        DEFAULT_TORUS_HEIGHT_DIVISIONS, DEFAULT_TORUS_TWIST_DEG, MAX_DIVISIONS, MAX_SIZE_CM,
-        MIN_AXIS_DIVISIONS, MIN_CAP_DIVISIONS, MIN_DIVISIONS, MIN_SIZE_CM,
-        MIN_SPHERE_HEIGHT_DIVISIONS, PlatonicSolidKind, PrimitiveOptions,
+        DEFAULT_PLANE_SIZE_CM, DEFAULT_PLATONIC_RADIUS_CM, DEFAULT_PRISM_LENGTH_CM,
+        DEFAULT_PRISM_SIDE_LENGTH_CM, DEFAULT_PRISM_SIDES, DEFAULT_PYRAMID_SIDE_LENGTH_CM,
+        DEFAULT_PYRAMID_SIDES, DEFAULT_RADIUS_CM, DEFAULT_ROUND_CAP, DEFAULT_SECTION_RADIUS_CM,
+        DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_SUB_CAPS, DEFAULT_TORUS_HEIGHT_DIVISIONS,
+        DEFAULT_TORUS_TWIST_DEG, MAX_DIVISIONS, MAX_SIZE_CM, MIN_AXIS_DIVISIONS, MIN_CAP_DIVISIONS,
+        MIN_DIVISIONS, MIN_SIZE_CM, MIN_SPHERE_HEIGHT_DIVISIONS, PlatonicSolidKind,
+        PrimitiveOptions,
     },
     scene::Primitive,
 };
@@ -162,6 +164,23 @@ option_structs! {
         /// Circumradius (distance from the centre to every vertex).
         radius: f64 = DEFAULT_PLATONIC_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
     }
+    PyramidOptions => Pyramid {
+        /// Edge of the base polygon (Maya `-sideLength`, default 1).
+        side_length: f64 = DEFAULT_PYRAMID_SIDE_LENGTH_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+        /// Base sides (Maya `-numberOfSides`, default 4). The 3 to 128 range is a PROVISIONAL
+        /// AztecCraft safety bound (#5). The pyramid height (equal to `side_length`) and its
+        /// centring on the origin are PROVISIONAL: the command page documents neither.
+        number_of_sides: u32 = DEFAULT_PYRAMID_SIDES, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
+    }
+    PrismOptions => Prism {
+        /// Edge of the cap polygons (Maya `-sideLength`, default 2).
+        side_length: f64 = DEFAULT_PRISM_SIDE_LENGTH_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+        /// Extent along the axis (Maya `-length`, default 2); centring is PROVISIONAL.
+        length: f64 = DEFAULT_PRISM_LENGTH_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+        /// Cap sides (Maya `-numberOfSides`, default 3). The 3 to 128 range is a PROVISIONAL
+        /// AztecCraft safety bound (#5).
+        number_of_sides: u32 = DEFAULT_PRISM_SIDES, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
+    }
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -252,6 +271,28 @@ pub(super) enum CreateArgs {
         #[schemars(with = "PlatonicSolidOptions")]
         options: Option<PlatonicSolidOptions>,
         /// Always refused: the Platonic solids have no UV layout yet, so true is rejected with
+        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.
+        #[serde(default)]
+        create_uvs: bool,
+    },
+    Pyramid {
+        scene_token: String,
+        name: Option<String>,
+        #[serde(default, deserialize_with = "present")]
+        #[schemars(with = "PyramidOptions")]
+        options: Option<PyramidOptions>,
+        /// Always refused: the pyramid has no UV layout yet, so true is rejected with
+        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.
+        #[serde(default)]
+        create_uvs: bool,
+    },
+    Prism {
+        scene_token: String,
+        name: Option<String>,
+        #[serde(default, deserialize_with = "present")]
+        #[schemars(with = "PrismOptions")]
+        options: Option<PrismOptions>,
+        /// Always refused: the prism has no UV layout yet, so true is rejected with
         /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.
         #[serde(default)]
         create_uvs: bool,
@@ -400,6 +441,39 @@ impl CreateArgs {
                     axis: o.axis.into(),
                 }),
             ),
+            Self::Pyramid {
+                scene_token,
+                name,
+                options,
+                create_uvs,
+            } => (
+                scene_token,
+                name,
+                create_uvs,
+                Primitive::Pyramid,
+                options.map(|o| PrimitiveOptions::Pyramid {
+                    side_length: o.side_length,
+                    sides: o.number_of_sides,
+                    axis: o.axis.into(),
+                }),
+            ),
+            Self::Prism {
+                scene_token,
+                name,
+                options,
+                create_uvs,
+            } => (
+                scene_token,
+                name,
+                create_uvs,
+                Primitive::Prism,
+                options.map(|o| PrimitiveOptions::Prism {
+                    side_length: o.side_length,
+                    length: o.length,
+                    sides: o.number_of_sides,
+                    axis: o.axis.into(),
+                }),
+            ),
         };
         if let Some(options) = &options {
             options
@@ -509,6 +583,24 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(PlatonicSolidOptions::default()),
+                create_uvs: false,
+            },
+        );
+        check(
+            Primitive::Pyramid,
+            CreateArgs::Pyramid {
+                scene_token: t(),
+                name: None,
+                options: Some(PyramidOptions::default()),
+                create_uvs: false,
+            },
+        );
+        check(
+            Primitive::Prism,
+            CreateArgs::Prism {
+                scene_token: t(),
+                name: None,
+                options: Some(PrismOptions::default()),
                 create_uvs: false,
             },
         );
