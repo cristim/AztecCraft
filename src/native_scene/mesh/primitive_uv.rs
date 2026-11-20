@@ -307,3 +307,7 @@ fn to_local(axis: Axis, p: [f64; 3]) -> [f64; 3] {
 #[cfg(test)]
 #[path = "primitive_uv_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "primitive_uv_cube_tests.rs"]
+mod cube_tests;

@@ -10,7 +10,8 @@ use crate::{
     view_scene::{VIEW_BUDGET, ViewScene},
 };
 
-const LAYOUT_PRIMITIVES: [Primitive; 4] = [
+const LAYOUT_PRIMITIVES: [Primitive; 5] = [
+    Primitive::Cube,
     Primitive::Sphere,
     Primitive::Cylinder,
     Primitive::Cone,
