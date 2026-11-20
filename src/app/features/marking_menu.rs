@@ -12,6 +12,7 @@
 //! positions or entries.
 
 mod layout;
+mod paint;
 
 use crate::app::{Editor, SelectionModeIntent};
 use azteccraft::marking_menu::{Button, FrameInput, MarkingMenu, NavKey, Outcome, Target};
@@ -248,6 +249,7 @@ impl Editor {
         }
         if self.marking_menu.is_drawn() {
             self.marking_menu_help(ui, &menu);
+            paint::paint(ui, &self.marking_menu, &menu);
         }
         frame
     }
@@ -295,6 +297,8 @@ impl Editor {
     }
 }
 
+#[cfg(test)]
+mod a11y_tests;
 #[cfg(test)]
 mod layout_tests;
 #[cfg(test)]
