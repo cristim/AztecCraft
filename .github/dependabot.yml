@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # The #57 sandbox pins one wasmtime LTS line exactly (see .project-docs/scripting-adr.md).
+      # A major bump needs a sandbox re-review, so it is ignored here. Patch and minor PRs of
+      # the pinned line are still opened; check each against the pin before merging.
+      - dependency-name: wasmtime
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
