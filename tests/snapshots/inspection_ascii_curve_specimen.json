@@ -85,8 +85,10 @@
       "refusal": null,
       "rotate_axis": "x",
       "rotate_space": "object",
+      "rotate_step_degrees": null,
       "scale_handle": "uniform",
       "scale_space": "world",
+      "scale_step": null,
       "units": {
         "angle": "deg",
         "distance": "cm",

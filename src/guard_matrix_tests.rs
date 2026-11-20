@@ -756,6 +756,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::SetRotateStep {
             degrees: Some(15.0),
         },
+        Operation::SetScaleStep { step: Some(0.25) },
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
@@ -1141,6 +1142,16 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "set_rotate_step(off)",
                 Operation::SetRotateStep { degrees: None },
+            ),
+        ],
+        Operation::SetScaleStep { .. } => vec![
+            sample(
+                "set_scale_step(0.25)",
+                Operation::SetScaleStep { step: Some(0.25) },
+            ),
+            sample(
+                "set_scale_step(off)",
+                Operation::SetScaleStep { step: None },
             ),
         ],
         Operation::SetManipulatorSize(_) => vec![
@@ -2719,6 +2730,10 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         (
             "rotate_step",
             format!("{:?}", editor.manipulation.rotate_step()),
+        ),
+        (
+            "scale_step",
+            format!("{:?}", editor.manipulation.scale_step()),
         ),
         (
             "bookmarks",

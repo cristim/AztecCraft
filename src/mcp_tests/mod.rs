@@ -163,6 +163,7 @@ mod official_client {
     mod pivots;
     mod reduce;
     mod rotate_step;
+    mod scale_step;
     mod snap;
     mod torus;
 
