@@ -188,6 +188,7 @@ pub(in crate::app) fn changes_camera(operation: &Operation) -> bool {
             | Operation::Dolly { .. }
             | Operation::BoxDolly { .. }
             | Operation::SetCameraPose { .. }
+            | Operation::SetCameraFilmBack(_)
             | Operation::SetView(_)
             | Operation::FrameSelected { .. }
             | Operation::FrameAll { .. }

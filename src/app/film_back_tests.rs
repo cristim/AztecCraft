@@ -185,3 +185,28 @@ fn a_stale_token_is_refused_and_native_dispatch_matches_remote() {
     assert_eq!(film(&editor).focal_mm, 50.0);
     assert!(editor.error);
 }
+
+#[test]
+fn a_film_back_edit_is_one_view_history_step_so_undo_view_keeps_the_pose_and_redo_restores_the_lens()
+ {
+    let mut editor = fov_lens_editor();
+    remote_film(
+        &mut editor,
+        Operation::Orbit {
+            radians: [0.3, 0.1],
+        },
+    )
+    .unwrap();
+    let after_orbit = editor.camera.clone();
+    remote_film(&mut editor, film_edit(|f| f.focal_mm = Some(50.0))).unwrap();
+    let after_film = editor.camera.clone();
+    assert_ne!(after_orbit, after_film);
+
+    remote_film(&mut editor, Operation::UndoView).unwrap();
+    assert_eq!(
+        editor.camera, after_orbit,
+        "undo view reverts the lens edit only, not the orbit"
+    );
+    remote_film(&mut editor, Operation::RedoView).unwrap();
+    assert_eq!(editor.camera, after_film);
+}
