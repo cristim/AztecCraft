@@ -202,6 +202,8 @@ impl Editor {
 }
 
 #[cfg(test)]
+mod mapping_tests;
+#[cfg(test)]
 mod remote_tests;
 #[cfg(test)]
 mod tests;
