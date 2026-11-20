@@ -17,7 +17,7 @@ use azteccraft::{
     },
     move_handles::{HandleError, ManipulatorSize, ViewportCapture},
     native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget},
-    snap::snap_angle_to_step,
+    snap::{snap_angle_to_step, snap_factor_to_step},
     view_scene::VIEW_BUDGET,
 };
 use eframe::egui;
@@ -42,6 +42,8 @@ pub(in crate::app) struct ManipulationOptions {
     manipulator_size: ManipulatorSize,
     // Relative Step Snap of the Rotate tool in degrees; None is off.
     rotate_step: Option<f64>,
+    // Relative Step Snap of the Scale tool's factor; None is off.
+    scale_step: Option<f64>,
     numeric: String,
     // The status text last written for the handle under the pointer, and whether it is a refusal.
     hover: Option<(String, bool)>,
@@ -69,6 +71,7 @@ impl Default for ManipulationOptions {
             scale_handle: ScaleHandle::Uniform,
             manipulator_size: ManipulatorSize::default(),
             rotate_step: None,
+            scale_step: None,
             numeric: String::new(),
             hover: None,
             quiet: false,
@@ -99,9 +102,14 @@ impl ManipulationOptions {
         self.scale_handle
     }
 
-    #[cfg(test)]
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     pub(in crate::app) fn rotate_step(&self) -> Option<f64> {
         self.rotate_step
+    }
+
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    pub(in crate::app) fn scale_step(&self) -> Option<f64> {
+        self.scale_step
     }
 
     pub(in crate::app) fn manipulator_size(&self) -> ManipulatorSize {
@@ -180,6 +188,23 @@ impl Editor {
         }
         Ok(
             if std::mem::replace(&mut self.manipulation.rotate_step, degrees) == degrees {
+                OperationReply::Unchanged
+            } else {
+                OperationReply::Changed
+            },
+        )
+    }
+
+    pub(in crate::app) fn set_scale_step(
+        &mut self,
+        step: Option<f64>,
+    ) -> Result<OperationReply, OperationError> {
+        if let Some(step) = step {
+            snap_factor_to_step(1.0, step)
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+        }
+        Ok(
+            if std::mem::replace(&mut self.manipulation.scale_step, step) == step {
                 OperationReply::Unchanged
             } else {
                 OperationReply::Changed
@@ -573,11 +598,20 @@ impl Editor {
         } else {
             number
         };
-        let (number, declared) = match (self.manipulation.rotate_step, parameter) {
-            (Some(step), "angle") => (
+        let (number, declared) = match (
+            self.manipulation.rotate_step,
+            self.manipulation.scale_step,
+            parameter,
+        ) {
+            (Some(step), _, "angle") => (
                 snap_angle_to_step(number, step)
                     .map_err(|error| OperationError::InvalidInput(error.to_string()))?,
                 // The inspection reads the snapped angle, not the one asked for.
+                None,
+            ),
+            (_, Some(step), "factor") => (
+                snap_factor_to_step(number, step)
+                    .map_err(|error| OperationError::InvalidInput(error.to_string()))?,
                 None,
             ),
             _ => (

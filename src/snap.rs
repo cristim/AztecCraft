@@ -28,6 +28,8 @@ pub enum SnapError {
     NonFinite,
     /// A step increment that is not a finite number above zero.
     InvalidStep,
+    /// A Scale step that is not a finite number of at least `MIN_SCALE_STEP`.
+    InvalidScaleStep,
 }
 
 impl fmt::Display for SnapError {
@@ -41,6 +43,10 @@ impl fmt::Display for SnapError {
             Self::InvalidStep => write!(
                 f,
                 "Rotate step must be a finite number of at least {MIN_ROTATE_STEP_DEGREES} degrees"
+            ),
+            Self::InvalidScaleStep => write!(
+                f,
+                "Scale step must be a finite number of at least {MIN_SCALE_STEP}"
             ),
         }
     }
@@ -117,9 +123,65 @@ pub fn snap_angle_to_step(degrees: f64, step: f64) -> Result<f64, SnapError> {
     }
 }
 
+/// The smallest Scale step, for the same overflow reason as `MIN_ROTATE_STEP_DEGREES`.
+/// PROVISIONAL: Maya's Scale tool snap value range is not confirmed against the pinned reference.
+pub const MIN_SCALE_STEP: f64 = 1e-6;
+
+/// `factor` rounded to the nearest multiple of `step` (relative step snap of the drag's scale
+/// factor); a half-way factor rounds away from zero. A factor that would round to zero keeps one
+/// step with its own sign, because a zero scale factor collapses the object. PROVISIONAL: whether
+/// Maya snaps the factor or the resulting scale is not confirmed against the pinned reference.
+pub fn snap_factor_to_step(factor: f64, step: f64) -> Result<f64, SnapError> {
+    if !step.is_finite() || step < MIN_SCALE_STEP {
+        return Err(SnapError::InvalidScaleStep);
+    }
+    if !factor.is_finite() {
+        return Err(SnapError::NonFinite);
+    }
+    let steps = factor / step;
+    if !steps.is_finite() || steps.abs() >= 4_503_599_627_370_496.0 {
+        return Ok(factor);
+    }
+    let rounded = steps.round();
+    let snapped = if rounded == 0.0 {
+        step.copysign(factor)
+    } else {
+        rounded * step
+    };
+    if snapped.is_finite() {
+        Ok(snapped)
+    } else {
+        Err(SnapError::NonFinite)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_factor_snaps_to_the_nearest_step_and_never_to_zero() {
+        assert_eq!(snap_factor_to_step(1.12, 0.25), Ok(1.0));
+        assert_eq!(snap_factor_to_step(1.13, 0.25), Ok(1.25));
+        assert_eq!(snap_factor_to_step(0.125, 0.25), Ok(0.25));
+        assert_eq!(snap_factor_to_step(0.01, 0.25), Ok(0.25));
+        assert_eq!(snap_factor_to_step(-0.01, 0.25), Ok(-0.25));
+        assert_eq!(snap_factor_to_step(1e300, 0.25), Ok(1e300));
+    }
+
+    #[test]
+    fn a_bad_scale_step_or_factor_is_refused() {
+        for step in [0.0, -1.0, f64::NAN, f64::INFINITY, 9.9e-7] {
+            assert_eq!(
+                snap_factor_to_step(2.0, step),
+                Err(SnapError::InvalidScaleStep)
+            );
+        }
+        assert_eq!(
+            snap_factor_to_step(f64::NAN, 0.5),
+            Err(SnapError::NonFinite)
+        );
+    }
 
     #[test]
     fn an_angle_snaps_to_the_nearest_step_multiple() {

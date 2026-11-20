@@ -12,7 +12,7 @@ use azteccraft::{
     history::ManipulationFinish,
     move_handles::ManipulatorSize,
     native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget, WorldAxis},
-    snap::snap_angle_to_step,
+    snap::{snap_angle_to_step, snap_factor_to_step},
 };
 use rmcp::{
     model::{ErrorData, JsonObject},
@@ -125,6 +125,18 @@ struct RotateStepArgs {
     #[serde(deserialize_with = "required_option")]
     #[schemars(required, range(min = 1e-6))]
     degrees: Option<f64>,
+}
+
+/// Sets the Scale tool's relative Step Snap.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ScaleStepArgs {
+    scene_token: String,
+    /// The step on the scale factor, at least 1e-6; null turns the step off. Required: an
+    /// omitted field is a protocol error, not "off".
+    #[serde(deserialize_with = "required_option")]
+    #[schemars(required, range(min = 1e-6))]
+    step: Option<f64>,
 }
 
 fn required_option<'de, D: serde::Deserializer<'de>>(
@@ -279,6 +291,18 @@ fn parse_set_rotate_step(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
         Operation::SetRotateStep {
             degrees: args.degrees,
         },
+    ))
+}
+
+fn parse_set_scale_step(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ScaleStepArgs = decode(arguments)?;
+    if let Some(step) = args.step {
+        snap_factor_to_step(1.0, step)
+            .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?;
+    }
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetScaleStep { step: args.step },
     ))
 }
 
@@ -521,9 +545,17 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_rotate_step",
-        description: "Set the Rotate tool's relative Step Snap in degrees (at least 1e-6) or turn it off with null (the default); `degrees` is required. While set, every update_manipulation angle of a rotate, and the native numeric entry, is rounded to the nearest multiple of the step (a half-way turn rounds away from zero) before it is applied; the step snaps the turn, not the object's resulting angle, and the result is not read back as the requested angle. Move, Scale and the Snap to grids setting are unaffected. A step that is not finite or is below 1e-6 is invalid_params. Session-only and idempotent: it never dirties the scene or enters undo history, and there is no inspect_scene field for it yet. Refused with busy_manipulation during any manipulation and busy_editing during a draft, modal or close. Does not change the active tool",
+        description: "Set the Rotate tool's relative Step Snap in degrees (at least 1e-6) or turn it off with null (the default); `degrees` is required. While set, every update_manipulation angle of a rotate, and the native numeric entry, is rounded to the nearest multiple of the step (a half-way turn rounds away from zero) before it is applied; the step snaps the turn, not the object's resulting angle, and the result is not read back as the requested angle. Move, Scale and the Snap to grids setting are unaffected. A step that is not finite or is below 1e-6 is invalid_params. Session-only and idempotent: it never dirties the scene or enters undo history, inspect_scene manipulation.rotate_step_degrees reports it. Refused with busy_manipulation during any manipulation and busy_editing during a draft, modal or close. Does not change the active tool",
         schema: schema::<RotateStepArgs>,
         parse: parse_set_rotate_step,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "set_scale_step",
+        description: "Set the Scale tool's relative Step Snap on the scale factor (at least 1e-6) or turn it off with null (the default); `step` is required. While set, every update_manipulation factor of a scale is rounded to the nearest multiple of the step (a half-way factor rounds away from zero; a factor that would round to zero keeps one step with its own sign) before it is applied, and the result is not read back as the requested factor. Move, Rotate and the Snap to grids setting are unaffected. A step that is not finite or is below 1e-6 is invalid_params. Session-only and idempotent: it never dirties the scene or enters undo history; inspect_scene manipulation.scale_step reports it. Refused with busy_manipulation during any manipulation and busy_editing during a draft, modal or close. Does not change the active tool. PROVISIONAL: the Maya Scale tool snap settings are not mapped one to one, and whether Maya snaps the factor or the resulting scale is unconfirmed",
+        schema: schema::<ScaleStepArgs>,
+        parse: parse_set_scale_step,
         idempotent: true,
         read_only: false,
     },
@@ -653,6 +685,42 @@ mod parse_manipulator_size_tests {
         for given in [0.0999, 10.0001, 0.0, -0.0, 1e300] {
             assert!(parsed(json!(given)).is_err(), "{given}");
         }
+    }
+}
+
+#[cfg(test)]
+mod parse_scale_step_tests {
+    use super::*;
+
+    fn parsed(step: Value) -> Result<RemoteRequest, ErrorData> {
+        let Value::Object(arguments) =
+            json!({"scene_token":uuid::Uuid::new_v4().to_string(),"step":step})
+        else {
+            unreachable!()
+        };
+        parse_set_scale_step(arguments)
+    }
+
+    #[test]
+    fn a_step_or_null_parses_and_a_bad_one_is_invalid_params() {
+        for (given, expected) in [
+            (json!(0.25), Some(0.25)),
+            (json!(1e-6), Some(1e-6)),
+            (json!(null), None),
+        ] {
+            let operation = parsed(given).ok().unwrap().operation;
+            assert!(matches!(
+                operation,
+                Operation::SetScaleStep { step } if step == expected
+            ));
+        }
+        for given in [json!(0), json!(-1), json!(9.9e-7), json!("1")] {
+            assert!(parsed(given.clone()).is_err(), "{given}");
+        }
+        let Value::Object(missing) = json!({"scene_token":uuid::Uuid::new_v4().to_string()}) else {
+            unreachable!()
+        };
+        assert!(parse_set_scale_step(missing).is_err());
     }
 }
 
