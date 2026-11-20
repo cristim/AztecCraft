@@ -10,10 +10,10 @@ use eframe::egui::{Key, Pos2, vec2};
 
 const SIZE: egui::Vec2 = egui::vec2(1440.0, 900.0);
 
+/// A sticky menu opened from the keyboard: the per-frame pass leaves it alone (a Held menu with
+/// no Secondary button down is closed by the first frame), and it is `is_active` like a Held one.
 pub(in crate::app) fn hold_menu(editor: &mut Editor) {
-    editor
-        .marking_menu
-        .press(Button::Secondary, [100.0, 100.0], None, 0.0, &|_| true);
+    editor.marking_menu.key_open([100.0, 100.0], 0.0);
     assert!(editor.marking_menu.is_active());
 }
 
@@ -47,7 +47,10 @@ fn the_gate_follows_every_menu_phase_and_the_popup() {
     let context = egui::Context::default();
     let mut editor = Editor::default();
     assert!(!editor.overlay_open(&context), "closed menu, no popup");
-    hold_menu(&mut editor);
+    editor
+        .marking_menu
+        .press(Button::Secondary, [100.0, 100.0], None, 0.0, &|_| true);
+    assert!(editor.marking_menu.is_active());
     assert!(editor.overlay_open(&context), "held");
     editor
         .marking_menu
@@ -121,18 +124,10 @@ fn a_held_menu_blocks_a_viewport_click_pick() {
         editor.selected().is_some(),
         "click under the menu picks nothing"
     );
-    // Escape while the button is down swallows its release (no click-through); the release
-    // frame ends it, then the same click works.
-    editor.marking_menu.escape();
-    click(&mut editor);
     assert!(
-        editor.selected().is_some(),
-        "a swallowed release still picks nothing"
+        !editor.marking_menu.holds_overlay(),
+        "the press dismissed it"
     );
-    editor
-        .marking_menu
-        .release(Button::Secondary, [100.0, 100.0], None, 0.2, &|_| true);
-    assert!(!editor.marking_menu.holds_overlay());
     click(&mut editor);
     assert!(
         editor.selected().is_none(),

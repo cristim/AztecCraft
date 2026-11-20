@@ -363,7 +363,12 @@ impl Editor {
                 .on_hover_text("Alt + left + middle: dolly | Ctrl + Alt + left drag: box dolly");
         });
         self.manipulation_options(ui);
-        let captured = crate::viewport_ui::capture(ui, &self.camera, self.scene_token);
+        let captured = crate::viewport_ui::capture_with(
+            ui,
+            &self.camera,
+            self.scene_token,
+            self.marking_menu.holds_overlay(),
+        );
         if !matches!(&captured, Ok(Some(_)))
             && let Err(error) = self.missing_move_viewport()
         {
@@ -388,6 +393,16 @@ impl Editor {
             self.aspect = input.aspect();
         }
         let admitted = frame_admitted && !self.files.is_modal() && !self.files.is_closing();
+        // Before the picks are read: a chosen mode joins the intents, the menu is closed by the
+        // time `can_select` is computed, and a release it took is withheld from the picks.
+        let menu_frame = self.marking_menu_pass(
+            ui,
+            match &captured {
+                Ok(Some(input)) => input.rect(),
+                _ => egui::Rect::NOTHING,
+            },
+        );
+        let selection_intent = menu_frame.intent.or(selection_intent);
         self.file_modal(ui.ctx());
         self.primitive_options_window(ui.ctx());
         self.joint_options_window(ui.ctx());
@@ -467,15 +482,17 @@ impl Editor {
                 && !self.files.is_closing()
                 && !text_edit_focused(ui.ctx())
                 && !self.overlay_open(ui.ctx());
-            let clickable = input.click_ndc().filter(|_| can_select && !consumed);
+            let clickable = input
+                .click_ndc()
+                .filter(|_| can_select && !consumed && !menu_frame.primary_release_taken);
             let selection_intent = selection_intent.filter(|_| can_select);
             // A mode change on the release frame leaves the drag belonging to the old mode: drop it.
             // An intent that keeps the mode leaves the release as if no intent were present.
             let mode_changes = selection_intent
                 .is_some_and(|intent| self.selection_mode_for(intent) != self.selection_mode);
-            let marquee = input
-                .marquee()
-                .filter(|_| can_select && !consumed && !mode_changes);
+            let marquee = input.marquee().filter(|_| {
+                can_select && !consumed && !mode_changes && !menu_frame.primary_release_taken
+            });
             let delete_intent = delete_intent && can_select;
             // Mirrors the press-time mode refusal in move_tool.rs, which is more specific.
             let mode_refused = features::manipulation_tool::is_manipulation_tool(self.active_tool)
@@ -494,6 +511,7 @@ impl Editor {
             );
             let selection_refusal = input.unsupported_selection().filter(|refusal| {
                 can_select
+                    && !menu_frame.primary_release_taken
                     && (*refusal != crate::viewport_ui::SelectionRefusal::ComponentMarquee
                         || (!object_mode && !(consumed || mode_refused || mode_changes)))
             });

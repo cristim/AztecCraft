@@ -3729,8 +3729,9 @@ fn a_held_marking_menu_suppresses_hover_status_but_inspection_still_picks() {
 fn a_held_marking_menu_blocks_a_press_on_the_ring() {
     let (mut editor, context, at) = hovering_the_y_ring();
     crate::app::overlay_gate_tests::hold_menu(&mut editor);
+    // The press lands outside the dial, so it dismisses the menu; the ring must not start.
     press(&mut editor, &context, 1.0, at);
-    assert!(editor.marking_menu.is_active());
+    assert!(editor.marking_menu.holds_overlay());
     assert!(editor.history.active_manipulation().is_none());
     assert_eq!(editor.status, editor.tool_help());
     assert!(!editor.error);

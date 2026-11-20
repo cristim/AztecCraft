@@ -112,10 +112,22 @@ pub struct ViewportInput {
     navigation_boundary: bool,
 }
 
+#[cfg(test)]
 pub fn capture(
     ui: &mut egui::Ui,
     camera: &Camera,
     scene_token: uuid::Uuid,
+) -> Result<Option<ViewportInput>, InvalidCameraInput> {
+    capture_with(ui, camera, scene_token, false)
+}
+
+/// `menu_owns_secondary`: a marking menu holds the Secondary button, so Alt pressed after the
+/// press must not turn the drag into a dolly.
+pub fn capture_with(
+    ui: &mut egui::Ui,
+    camera: &Camera,
+    scene_token: uuid::Uuid,
+    menu_owns_secondary: bool,
 ) -> Result<Option<ViewportInput>, InvalidCameraInput> {
     let (response, painter) =
         ui.allocate_painter(ui.available_size(), egui::Sense::click_and_drag());
@@ -248,7 +260,12 @@ pub fn capture(
             world_units: (Vec2::new(-delta.x, delta.y) * camera.distance() * 0.002).to_array(),
         });
     }
-    if response.dragged_by(PointerButton::Secondary) && alt && !dolly_chord && !box_input.active {
+    if response.dragged_by(PointerButton::Secondary)
+        && alt
+        && !menu_owns_secondary
+        && !dolly_chord
+        && !box_input.active
+    {
         navigation.push(Operation::Dolly {
             factor: (-delta.y * 0.01).exp(),
         });

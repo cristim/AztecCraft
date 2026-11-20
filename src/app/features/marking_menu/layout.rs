@@ -1,7 +1,5 @@
 //! The mesh menu layout and its hit test: pure functions of the selection mode.
 
-#![allow(dead_code)]
-
 use crate::app::SelectionModeIntent;
 use crate::editor_operations::SelectionMode;
 use azteccraft::marking_menu::{DEAD_ZONE, Entry, MarkingMenu, Target, Zone, zone_at};
