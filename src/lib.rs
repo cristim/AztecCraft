@@ -7,6 +7,7 @@ pub mod gltf;
 pub mod history;
 pub mod image_plane;
 pub mod manipulator_handles;
+pub mod marking_menu;
 pub(crate) mod maya_ascii;
 pub mod maya_binary;
 pub mod mesh;
