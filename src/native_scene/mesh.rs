@@ -478,22 +478,32 @@ impl NativeMesh {
                 height,
                 sub_axis,
                 sub_height,
+                sub_caps,
+                round_cap,
                 axis,
-                ..
             } => Ok(Self::polygon_cylinder(
                 &revolve(radius, sub_axis, sub_height, axis),
                 height,
+                cap::CapOptions {
+                    sub_caps: sub_caps as usize,
+                    round_cap,
+                },
             )),
             PrimitiveOptions::Cone {
                 radius,
                 height,
                 sub_axis,
                 sub_height,
+                sub_caps,
+                round_cap,
                 axis,
-                ..
             } => Ok(Self::polygon_cone(
                 &revolve(radius, sub_axis, sub_height, axis),
                 height,
+                cap::CapOptions {
+                    sub_caps: sub_caps as usize,
+                    round_cap,
+                },
             )),
             PrimitiveOptions::Torus {
                 radius,
@@ -753,6 +763,9 @@ impl NativeMesh {
 }
 
 mod axis;
+mod cap;
+#[cfg(test)]
+mod cap_tests;
 mod cone;
 #[cfg(test)]
 mod cone_tests;

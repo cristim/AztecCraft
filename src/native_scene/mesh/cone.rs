@@ -1,11 +1,17 @@
-use super::{NativeMesh, axis::orient, grid::RevolveGrid};
+use super::{
+    NativeMesh,
+    axis::orient,
+    cap::{Cap, CapOptions},
+    grid::RevolveGrid,
+};
 use std::f64::consts::PI;
 
 impl NativeMesh {
     /// Cone along `axis`: the apex (vertex 0) on top, `height_divisions` rings of
     /// `axis_divisions` vertices below it (the last is the base), an outward triangle fan, quad
-    /// bands between rings and one true n-gon base cap, with no cap centre vertex.
-    pub(super) fn polygon_cone(grid: &RevolveGrid, height: f64) -> Self {
+    /// bands between rings and one base cap: a true n-gon with no centre vertex at 0 cap subdivisions, else a centre vertex
+    /// with a fan and quad bands, domed when `caps.round_cap` is set (see `cap`).
+    pub(super) fn polygon_cone(grid: &RevolveGrid, height: f64, caps: CapOptions) -> Self {
         let RevolveGrid {
             radius,
             axis_divisions: columns,
@@ -44,7 +50,15 @@ impl NativeMesh {
                 ]);
             }
         }
-        loops.push((0..columns).map(|c| vertex(bands, c)).collect());
+        Cap {
+            radius,
+            columns,
+            axis,
+            rim_y: -0.5 * height,
+            facing: -1.0,
+            options: caps,
+        }
+        .append(&mut points, &mut loops, |c| vertex(bands, c), false);
         Self::from_loops(points, loops)
     }
 }
