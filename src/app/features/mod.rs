@@ -9,6 +9,7 @@ pub(super) mod gltf_export;
 mod group_edit;
 mod history;
 pub(in crate::app) mod manipulation_tool;
+pub(in crate::app) mod marking_menu;
 mod material;
 #[cfg(any(test, feature = "mcp"))]
 pub(super) mod maya_import;
