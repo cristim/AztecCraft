@@ -4,6 +4,8 @@ Status: early native prototype implemented, with remaining workflow and verifica
 
 ## Product and publication gate
 
+Navigation and API-catalog evidence from the Maya 2027.2 documentation is in the [menu map](maya-2027-menu-map.md) and the [API catalog sources](maya-2027-api-inventory.md). They are a documentation lens only; they do not replace the Maya 2026 acceptance target or claim the family inventories are complete.
+
 Final objective: a Maya-identical Rust desktop application. Work in incremental commits. Historically the user required verified 80–90% coverage of **all Maya 2026 functionality, including simulation, rendering, scripting, and plugin compatibility** before the first GitHub push. The subsequent explicit instruction to push/merge to `main` supersedes that first-push restriction and authorizes early prototype publication. The full-functionality target and exact parity remain unmet acceptance requirements. Expand and pin the complete workflow inventory before reporting any percentage, without redefining it as a small modeling subset.
 
 The integrated prototype contains scene edits, command history, validated JSON
