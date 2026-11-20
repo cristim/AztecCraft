@@ -1,0 +1,345 @@
+use super::model::{Target, zone_at};
+use super::{DEAD_ZONE, DRAW_DELAY, FLICK_DISTANCE, FLICK_TIME, IDLE_DISMISS};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Button {
+    Primary,
+    Secondary,
+}
+
+/// What the interaction decided; the caller acts on it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Outcome {
+    None,
+    /// Dispatch the entry at the target. The menu is closed.
+    Dispatch(Target),
+    /// The target exists but cannot be chosen (disabled, unsupported, or an empty dial zone on a
+    /// release). A held menu is closed; a sticky one stays open. The caller shows the reason.
+    Rejected(Target),
+    /// The menu closed without choosing anything.
+    Dismissed,
+}
+
+/// Per-frame facts the caller reads from the frame's input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FrameInput {
+    /// The frame carries a human pointer or key event. A frame woken by MCP or by the timer does
+    /// not, and never extends the idle time.
+    pub human_input: bool,
+    pub primary_down: bool,
+    pub secondary_down: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Phase {
+    Closed,
+    /// Secondary button down. `excursion` is set once the pointer left the dead zone.
+    Held {
+        origin: [f32; 2],
+        pos: [f32; 2],
+        t0: f64,
+        excursion: bool,
+        drawn: bool,
+    },
+    /// Sticky: the cursor picks, a Primary press arms an entry and its release dispatches.
+    Open {
+        origin: [f32; 2],
+        armed: Option<Target>,
+    },
+    /// The menu was dismissed by a press; keeps the overlay gate until that button releases so
+    /// the release cannot click through to the viewport.
+    Swallow {
+        button: Button,
+    },
+}
+
+/// Input state machine with injected time (seconds). Positions are points; non-finite time or
+/// positions are ignored. The menu content is not known here: the caller passes `enabled` to
+/// say whether a target can be chosen.
+#[derive(Clone, Debug)]
+pub struct Interaction {
+    phase: Phase,
+    t_input: f64,
+}
+
+impl Default for Interaction {
+    fn default() -> Self {
+        Self {
+            phase: Phase::Closed,
+            t_input: 0.0,
+        }
+    }
+}
+
+fn finite(pos: [f32; 2]) -> bool {
+    pos[0].is_finite() && pos[1].is_finite()
+}
+
+fn delta(from: [f32; 2], to: [f32; 2]) -> [f32; 2] {
+    [to[0] - from[0], to[1] - from[1]]
+}
+
+fn dist(d: [f32; 2]) -> f64 {
+    f64::from(d[0]).hypot(f64::from(d[1]))
+}
+
+impl Interaction {
+    /// Held or Open: a remote mutation is refused while the user is in the menu.
+    pub fn is_active(&self) -> bool {
+        matches!(self.phase, Phase::Held { .. } | Phase::Open { .. })
+    }
+
+    /// Anything but Closed: the shared overlay gate (picks, hover, shortcuts) stays shut.
+    pub fn holds_overlay(&self) -> bool {
+        !matches!(self.phase, Phase::Closed)
+    }
+
+    /// The dial is painted: a held button past the draw delay, or a sticky menu.
+    pub fn is_drawn(&self) -> bool {
+        matches!(
+            self.phase,
+            Phase::Held { drawn: true, .. } | Phase::Open { .. }
+        )
+    }
+
+    /// The press origin while Held or Open; zones resolve from it.
+    pub fn origin(&self) -> Option<[f32; 2]> {
+        match self.phase {
+            Phase::Held { origin, .. } | Phase::Open { origin, .. } => Some(origin),
+            _ => None,
+        }
+    }
+
+    /// The entry a Primary press armed in a sticky menu.
+    pub fn armed(&self) -> Option<Target> {
+        match self.phase {
+            Phase::Open { armed, .. } => armed,
+            _ => None,
+        }
+    }
+
+    fn touch(&mut self, now: f64) {
+        self.t_input = now;
+    }
+
+    fn close(&mut self) -> Outcome {
+        let was = self.holds_overlay();
+        self.phase = Phase::Closed;
+        if was {
+            Outcome::Dismissed
+        } else {
+            Outcome::None
+        }
+    }
+
+    /// A press. Secondary opens the menu when Closed. In a sticky menu Primary on an enabled
+    /// `target` arms it, on a disabled one is rejected, and anywhere else dismisses and swallows
+    /// the release; a Secondary press dismisses and swallows.
+    pub fn press(
+        &mut self,
+        button: Button,
+        pos: [f32; 2],
+        target: Option<Target>,
+        now: f64,
+        enabled: &dyn Fn(Target) -> bool,
+    ) -> Outcome {
+        if !finite(pos) || !now.is_finite() {
+            return Outcome::None;
+        }
+        match (self.phase, button) {
+            (Phase::Closed, Button::Secondary) => {
+                self.phase = Phase::Held {
+                    origin: pos,
+                    pos,
+                    t0: now,
+                    excursion: false,
+                    drawn: false,
+                };
+                self.touch(now);
+                Outcome::None
+            }
+            (Phase::Open { origin, .. }, Button::Primary) => {
+                self.touch(now);
+                match target {
+                    Some(t) if enabled(t) => {
+                        self.phase = Phase::Open {
+                            origin,
+                            armed: Some(t),
+                        };
+                        Outcome::None
+                    }
+                    Some(t) => Outcome::Rejected(t),
+                    None => {
+                        self.phase = Phase::Swallow {
+                            button: Button::Primary,
+                        };
+                        Outcome::Dismissed
+                    }
+                }
+            }
+            (Phase::Open { .. }, Button::Secondary) => {
+                self.touch(now);
+                self.phase = Phase::Swallow {
+                    button: Button::Secondary,
+                };
+                Outcome::Dismissed
+            }
+            _ => Outcome::None,
+        }
+    }
+
+    /// Pointer motion while a menu is Held.
+    pub fn moved(&mut self, pos: [f32; 2], now: f64) {
+        if !finite(pos) || !now.is_finite() {
+            return;
+        }
+        if let Phase::Held {
+            origin,
+            pos: p,
+            excursion,
+            ..
+        } = &mut self.phase
+        {
+            *p = pos;
+            if zone_at(delta(*origin, pos), DEAD_ZONE).is_some() {
+                *excursion = true;
+            }
+            self.t_input = now;
+        }
+    }
+
+    /// A release.
+    ///
+    /// Held, Secondary: a flick (not drawn, travelled at least `FLICK_DISTANCE` in under
+    /// `FLICK_TIME`) or a drawn release over a zone chooses it; a release in the dead zone after
+    /// an excursion dismisses; any other release (a click) turns the menu sticky.
+    /// Open, Primary: dispatches the armed entry when released over it. Swallow: the matching
+    /// release closes it. `enabled` is consulted for the chosen target.
+    pub fn release(
+        &mut self,
+        button: Button,
+        pos: [f32; 2],
+        target: Option<Target>,
+        now: f64,
+        enabled: &dyn Fn(Target) -> bool,
+    ) -> Outcome {
+        if !finite(pos) || !now.is_finite() {
+            return Outcome::None;
+        }
+        match (self.phase, button) {
+            (
+                Phase::Held {
+                    origin,
+                    t0,
+                    excursion,
+                    drawn,
+                    ..
+                },
+                Button::Secondary,
+            ) => {
+                self.touch(now);
+                let d = delta(origin, pos);
+                let elapsed = (now - t0).max(0.0);
+                let drawn = drawn || elapsed >= DRAW_DELAY;
+                let zone = zone_at(d, DEAD_ZONE);
+                let flick = !drawn && elapsed < FLICK_TIME && dist(d) >= f64::from(FLICK_DISTANCE);
+                match zone {
+                    Some(z) if flick || drawn => self.choose(Target::Zone(z), enabled),
+                    None if excursion => self.close(),
+                    _ => {
+                        self.phase = Phase::Open {
+                            origin,
+                            armed: None,
+                        };
+                        Outcome::None
+                    }
+                }
+            }
+            (Phase::Open { origin, armed }, Button::Primary) => {
+                self.touch(now);
+                self.phase = Phase::Open {
+                    origin,
+                    armed: None,
+                };
+                match (armed, target) {
+                    (Some(a), Some(t)) if a == t => self.choose(t, enabled),
+                    _ => Outcome::None,
+                }
+            }
+            (Phase::Swallow { button: b }, _) if b == button => {
+                self.phase = Phase::Closed;
+                Outcome::None
+            }
+            _ => Outcome::None,
+        }
+    }
+
+    fn choose(&mut self, target: Target, enabled: &dyn Fn(Target) -> bool) -> Outcome {
+        self.phase = Phase::Closed;
+        if enabled(target) {
+            Outcome::Dispatch(target)
+        } else {
+            Outcome::Rejected(target)
+        }
+    }
+
+    /// Escape: closes any phase.
+    pub fn escape(&mut self) -> Outcome {
+        self.close()
+    }
+
+    /// Window focus loss or the pointer leaving the window: closes any phase.
+    pub fn focus_lost(&mut self) -> Outcome {
+        self.close()
+    }
+
+    /// The per-frame pass, before any remote request is applied. Human input resets the idle
+    /// time; a frame without it never does. Closes the menu after `IDLE_DISMISS` of no human
+    /// input, when a Held menu's Secondary button is no longer down, and when a Swallow's
+    /// button is no longer down. Draws a Held menu after `DRAW_DELAY`.
+    pub fn tick(&mut self, now: f64, input: FrameInput) -> Outcome {
+        if !now.is_finite() || !self.holds_overlay() {
+            return Outcome::None;
+        }
+        if input.human_input {
+            self.touch(now);
+        }
+        if now - self.t_input >= IDLE_DISMISS {
+            return self.close();
+        }
+        match &mut self.phase {
+            Phase::Held { t0, drawn, .. } => {
+                if !input.secondary_down {
+                    return self.close();
+                }
+                if now - *t0 >= DRAW_DELAY {
+                    *drawn = true;
+                }
+            }
+            Phase::Swallow { button } => {
+                let down = match button {
+                    Button::Primary => input.primary_down,
+                    Button::Secondary => input.secondary_down,
+                };
+                if !down {
+                    self.phase = Phase::Closed;
+                }
+            }
+            _ => {}
+        }
+        Outcome::None
+    }
+
+    /// Seconds until the next frame the interaction needs, or `None` when Closed (an idle
+    /// editor schedules nothing).
+    pub fn repaint_after(&self, now: f64) -> Option<f64> {
+        let idle = (self.t_input + IDLE_DISMISS - now).max(0.0);
+        match self.phase {
+            Phase::Closed => None,
+            Phase::Held {
+                t0, drawn: false, ..
+            } => Some(idle.min((t0 + DRAW_DELAY - now).max(0.0))),
+            _ => Some(idle),
+        }
+    }
+}
