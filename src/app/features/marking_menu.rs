@@ -147,6 +147,7 @@ impl Editor {
                             // Shift and Ctrl menus exist in Maya but not here: say so, once.
                             if (modifiers.shift || modifiers.ctrl)
                                 && !modifiers.alt
+                                && !self.error
                                 && self.marking_menu_may_open(ui, viewport, *pos, Modifiers::NONE)
                             {
                                 self.status =

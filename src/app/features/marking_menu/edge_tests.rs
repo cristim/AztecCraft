@@ -96,6 +96,21 @@ fn shift_and_ctrl_rmb_say_they_are_unsupported_and_alt_and_outside_say_nothing()
     let both = button(nowhere(&view), PointerButton::Secondary, true, alt_shift);
     at(&mut editor, &ctx, 1.5, both);
     assert_eq!(editor.status, "Ready", "Alt wins over Shift");
+    editor.status = "Export failed".into();
+    editor.error = true;
+    let shift = button(
+        nowhere(&view),
+        PointerButton::Secondary,
+        true,
+        Modifiers::SHIFT,
+    );
+    at(&mut editor, &ctx, 1.7, shift);
+    assert_eq!(
+        editor.status, "Export failed",
+        "an error is never overwritten"
+    );
+    editor.status = "Ready".into();
+    editor.error = false;
     let outside = button(
         Pos2::new(40.0, 4.0),
         PointerButton::Secondary,
@@ -173,10 +188,51 @@ fn a_focused_text_field_keeps_its_keys() {
     drop(tab);
     assert_eq!(editor.marking_menu.focused(), None, "the menu ignored Tab");
     assert!(
-        ctx.input(|input| input
-            .events
-            .iter()
-            .any(|e| matches!(e, Event::Key { key: Key::Tab, .. }))),
+        ctx.input(|input| input.events.iter().any(|e| matches!(
+            e,
+            Event::Key {
+                key: Key::Tab,
+                pressed: true,
+                ..
+            }
+        ))),
         "and the hook left it for the field"
     );
+}
+
+#[test]
+fn a_held_dial_near_an_edge_is_drawn_where_its_zones_are_flicked() {
+    let (mut editor, ctx, view) = setup();
+    let press = view.rect.left_top() + egui::vec2(5.0, 300.0);
+    at(&mut editor, &ctx, 1.0, rmb(press, true));
+    let output = at(&mut editor, &ctx, 1.3, vec![]);
+    assert!(editor.marking_menu.is_drawn() && !editor.marking_menu.is_sticky());
+    let update = output.platform_output.accesskit_update.unwrap();
+    let mut checked = 0;
+    for (_, node) in &update.nodes {
+        let Some(label) = node
+            .label()
+            .filter(|_| node.role() == egui::accesskit::Role::MenuItem)
+        else {
+            continue;
+        };
+        let rect = node.bounds().expect("entries have bounds");
+        let centre = Pos2::new(
+            ((rect.x0 + rect.x1) / 2.0) as f32,
+            ((rect.y0 + rect.y1) / 2.0) as f32,
+        );
+        let picked = azteccraft::marking_menu::zone_at(
+            [centre.x - press.x, centre.y - press.y],
+            azteccraft::marking_menu::DEAD_ZONE,
+        );
+        let drawn = Zone::ALL
+            .into_iter()
+            .find(|z| label.starts_with(&format!("{}:", z.label())));
+        assert_eq!(
+            picked, drawn,
+            "{label} is drawn in the zone a flick there picks"
+        );
+        checked += 1;
+    }
+    assert_eq!(checked, 7, "Object mode shows seven entries");
 }

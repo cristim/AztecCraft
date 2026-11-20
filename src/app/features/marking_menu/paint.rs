@@ -1,7 +1,7 @@
 //! Paint and AccessKit nodes of the drawn dial. The geometry is the hit test's: wedges are the
 //! 45 degree sectors of `zone_at` out to `DIAL_RADIUS`. Original look, no image assets.
 
-use super::layout::{DIAL_RADIUS, MeshAction, dial_centre, hit, hit_origin};
+use super::layout::{DIAL_RADIUS, MeshAction, hit, hit_origin};
 use super::point;
 use azteccraft::marking_menu::{DEAD_ZONE, Interaction, MarkingMenu, Target, Zone};
 use eframe::egui::{
@@ -57,12 +57,12 @@ pub(super) fn paint(
     menu: &MarkingMenu<MeshAction>,
     viewport: Rect,
 ) {
-    let (Some(press), Some(gesture)) = (interaction.origin(), hit_origin(interaction, viewport))
-    else {
+    // Drawn where it is hit from: a held dial at the press (what is flicked is what is shown), a
+    // sticky one pulled inside the viewport.
+    let Some(gesture) = hit_origin(interaction, viewport) else {
         return;
     };
-    let centre = dial_centre(press, viewport);
-    let origin = Pos2::new(centre[0], centre[1]);
+    let origin = Pos2::new(gesture[0], gesture[1]);
     let ctx = ui.ctx();
     let layer = LayerId::new(Order::Foreground, Id::unique("marking_menu_layer"));
     let painter = ctx.layer_painter(layer);

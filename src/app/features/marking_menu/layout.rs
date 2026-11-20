@@ -120,9 +120,9 @@ pub(in crate::app) fn dial_centre(origin: [f32; 2], viewport: Rect) -> [f32; 2] 
     ]
 }
 
-/// The point entries are hit from. A held menu's gesture reads from the press origin (a flick
-/// goes where the hand went, wherever the dial was drawn); a sticky menu is clicked where it is
-/// drawn.
+/// The point entries are hit from, and the dial centre. A held menu is drawn and read from the
+/// press origin (a flick goes where the hand went, so the dial is not moved under it); only a
+/// sticky menu is pulled inside the viewport, since it is clicked where it is drawn.
 pub(in crate::app) fn hit_origin(interaction: &Interaction, viewport: Rect) -> Option<[f32; 2]> {
     let origin = interaction.origin()?;
     Some(if interaction.is_sticky() {
