@@ -274,7 +274,7 @@ fn assemble(
 
 /// Gives a disabled control the AccessKit description `Unavailable: <reason>` the accessibility
 /// gate (#465) requires; egui's hover text alone is not exposed to screen readers.
-fn describe_unavailable(ctx: &egui::Context, id: egui::Id, reason: &str) {
+pub(in crate::app) fn describe_unavailable(ctx: &egui::Context, id: egui::Id, reason: &str) {
     ctx.accesskit_node_builder(id, |node| {
         node.set_description(format!("Unavailable: {reason}"))
     });
