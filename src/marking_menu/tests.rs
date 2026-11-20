@@ -60,8 +60,10 @@ fn sample() -> MarkingMenu<Act> {
     let mut menu = MarkingMenu::default();
     menu.zones[Zone::NW.index()] = Some(Entry::new("Vertex", Act::Vertex).checked(true));
     menu.zones[Zone::W.index()] = Some(Entry::unsupported("UV", "No UV mode yet"));
-    menu.zones[Zone::S.index()] =
-        Some(Entry::new("Delete", Act::Vertex).disabled("Component delete is not implemented"));
+    menu.zones[Zone::S.index()] = Some(Entry::disabled(
+        "Delete",
+        "Component delete is not implemented",
+    ));
     menu.list.push(Entry::new("Select All", Act::Vertex));
     menu
 }
@@ -97,4 +99,20 @@ fn only_enabled_dispatch_entries_are_enabled() {
     assert!(!menu.is_enabled(Target::Zone(Zone::W)));
     assert!(!menu.is_enabled(Target::Zone(Zone::S)));
     assert!(!menu.is_enabled(Target::Zone(Zone::N)));
+}
+
+#[test]
+fn disabled_and_unsupported_are_distinct_states_with_reasons() {
+    let menu = sample();
+    let uv = menu.entry(Target::Zone(Zone::W)).unwrap();
+    let delete = menu.entry(Target::Zone(Zone::S)).unwrap();
+    assert!(matches!(uv.state, EntryState::Unsupported(_)));
+    assert!(matches!(delete.state, EntryState::Disabled(_)));
+    assert_eq!(uv.disabled_reason(), Some("No UV mode yet"));
+    assert_eq!(
+        menu.entry(Target::Zone(Zone::NW))
+            .unwrap()
+            .disabled_reason(),
+        None
+    );
 }

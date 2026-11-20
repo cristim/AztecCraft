@@ -12,7 +12,7 @@ mod model;
 
 pub use interaction::{Button, FrameInput, Interaction, Outcome};
 
-pub use model::{Action, Availability, Entry, MarkingMenu, Resolved, Target, Zone, zone_at};
+pub use model::{Entry, EntryState, MarkingMenu, Resolved, Target, Zone, zone_at};
 
 /// Pointer distance, in points, inside which no zone is chosen.
 pub const DEAD_ZONE: f32 = 12.0;

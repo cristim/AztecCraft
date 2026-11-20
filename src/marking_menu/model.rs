@@ -63,53 +63,45 @@ pub enum Target {
     List(usize),
 }
 
-/// What choosing an entry does. `Unsupported` entries are drawn but never dispatch; the reason
-/// says why, so the control is visibly unfinished rather than a dummy.
+/// The state of an entry: what choosing it does, or why it cannot be chosen. The caller computes
+/// it from a snapshot when the menu opens and the interaction checks it again at dispatch.
+/// `Disabled` is a context refusal (the entry may work in another context); `Unsupported` is a
+/// control that has no implementation yet. Neither dispatches; each carries the reason shown to
+/// the user, so a control is visibly unfinished rather than a dummy.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Action<A> {
-    Dispatch(A),
-    Unsupported(String),
-}
-
-/// Whether an entry can be chosen in the current context, computed by the caller from a snapshot
-/// when the menu opens and checked again at dispatch.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Availability {
-    Enabled,
+pub enum EntryState<A> {
+    Enabled(A),
     Disabled(String),
+    Unsupported(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Entry<A> {
     pub label: String,
-    pub action: Action<A>,
-    pub availability: Availability,
+    pub state: EntryState<A>,
     /// Drawn with a check mark, for the current selection mode.
     pub checked: bool,
 }
 
 impl<A> Entry<A> {
     pub fn new(label: impl Into<String>, action: A) -> Self {
-        Self {
-            label: label.into(),
-            action: Action::Dispatch(action),
-            availability: Availability::Enabled,
-            checked: false,
-        }
+        Self::with_state(label, EntryState::Enabled(action))
+    }
+
+    pub fn disabled(label: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self::with_state(label, EntryState::Disabled(reason.into()))
     }
 
     pub fn unsupported(label: impl Into<String>, reason: impl Into<String>) -> Self {
-        Self {
-            label: label.into(),
-            action: Action::Unsupported(reason.into()),
-            availability: Availability::Enabled,
-            checked: false,
-        }
+        Self::with_state(label, EntryState::Unsupported(reason.into()))
     }
 
-    pub fn disabled(mut self, reason: impl Into<String>) -> Self {
-        self.availability = Availability::Disabled(reason.into());
-        self
+    fn with_state(label: impl Into<String>, state: EntryState<A>) -> Self {
+        Self {
+            label: label.into(),
+            state,
+            checked: false,
+        }
     }
 
     pub fn checked(mut self, checked: bool) -> Self {
@@ -119,10 +111,9 @@ impl<A> Entry<A> {
 
     /// Why the entry cannot be chosen, or `None` when it can.
     pub fn disabled_reason(&self) -> Option<&str> {
-        match (&self.action, &self.availability) {
-            (Action::Unsupported(reason), _) => Some(reason),
-            (_, Availability::Disabled(reason)) => Some(reason),
-            _ => None,
+        match &self.state {
+            EntryState::Enabled(_) => None,
+            EntryState::Disabled(reason) | EntryState::Unsupported(reason) => Some(reason),
         }
     }
 }
@@ -161,13 +152,12 @@ impl<A> MarkingMenu<A> {
     }
 
     pub fn resolve(&self, target: Target) -> Resolved<'_, A> {
-        let Some(entry) = self.entry(target) else {
-            return Resolved::Empty;
-        };
-        match (&entry.action, entry.disabled_reason()) {
-            (_, Some(reason)) => Resolved::Disabled(reason),
-            (Action::Dispatch(action), None) => Resolved::Dispatch(action),
-            (Action::Unsupported(reason), None) => Resolved::Disabled(reason),
+        match self.entry(target).map(|entry| &entry.state) {
+            None => Resolved::Empty,
+            Some(EntryState::Enabled(action)) => Resolved::Dispatch(action),
+            Some(EntryState::Disabled(reason) | EntryState::Unsupported(reason)) => {
+                Resolved::Disabled(reason)
+            }
         }
     }
 
