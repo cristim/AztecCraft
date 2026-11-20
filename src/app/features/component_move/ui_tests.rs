@@ -121,3 +121,69 @@ fn a_shift_press_on_an_arrow_does_not_start_a_drag() {
     assert!(editor.native_move.is_none() && editor.history.active_manipulation().is_none());
     assert_eq!(editor.history.scene(), &before);
 }
+
+#[test]
+fn without_a_picked_vertex_the_arrows_are_unavailable_and_a_press_falls_through() {
+    let (mut editor, context, rect) = setup(1.0);
+    editor
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Vertex))
+        .unwrap();
+    let before = editor.history.scene().clone();
+    let position = rect.center() + egui::vec2(40.0, 0.0);
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            egui::vec2(1440.0, 900.0),
+            Pos2::ZERO,
+            1.0,
+            button(position, true),
+        ),
+    );
+    assert!(editor.native_move.is_none() && editor.history.active_manipulation().is_none());
+    assert_eq!(editor.history.scene(), &before);
+    let inspected = editor.inspect_manipulation().unwrap();
+    assert!(!inspected.kinds[0].available);
+    assert!(
+        inspected.kinds[0]
+            .unavailable_reason
+            .as_deref()
+            .unwrap()
+            .contains("at least one selected vertex")
+    );
+}
+
+#[test]
+fn inspection_reports_the_move_available_with_a_viewport_block_when_vertices_are_picked() {
+    let (mut editor, context, rect) = all_vertices();
+    pointer_to(&mut editor, &context, rect.center() + egui::vec2(40.0, 0.0));
+    let inspected = editor.inspect_manipulation().unwrap();
+    assert!(
+        inspected.kinds[0].available,
+        "{:?}",
+        inspected.kinds[0].unavailable_reason
+    );
+    let viewport = inspected.viewport.expect("viewport block in Vertex Move");
+    assert_eq!(viewport.pointer_hit, Some("x"));
+    // Rotate and Scale keep the selection-mode refusal.
+    assert!(!inspected.kinds[1].available && !inspected.kinds[2].available);
+}
+
+#[test]
+fn a_single_vertex_puts_the_arrows_at_that_vertex() {
+    let (mut editor, _context, _rect) = setup(1.0);
+    editor
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Vertex))
+        .unwrap();
+    pick(&mut editor, &[0]);
+    let target = editor.selected_move_lead().unwrap();
+    let origin = editor.move_handle_origin(&target).unwrap();
+    let point = editor.history.scene().shapes()[0]
+        .mesh()
+        .effective_point_cm(0)
+        .unwrap();
+    assert!(
+        (origin - glam::DVec3::from_array(point)).length() < 1e-9,
+        "{origin:?} {point:?}"
+    );
+}
