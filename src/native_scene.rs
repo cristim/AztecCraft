@@ -60,7 +60,8 @@ pub use session_keys::{
 };
 use session_material::SessionMaterials;
 pub use session_material::{
-    Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId, ShadingGroup,
+    DEFAULT_LAMBERT_COLOR, Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId,
+    ShadingGroup,
 };
 use session_uv::SessionUvs;
 pub use session_uv::{DEFAULT_UV_SET, UvProjectAxis, UvSet};

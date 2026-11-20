@@ -474,3 +474,67 @@ fn validate_requires_single_precision_for_created_materials_only() {
     scene.session_materials.materials[id.index()].color[1] = 0.1;
     assert_eq!(scene.validate(), Err(NativeError::InvalidSessionMaterials));
 }
+
+#[test]
+fn default_lambert_color_is_mayas_and_f32_exact() {
+    assert_eq!(DEFAULT_LAMBERT_COLOR, [0.5; 3]);
+    assert!(is_single(DEFAULT_LAMBERT_COLOR));
+    let (mut scene, _) = cube();
+    let id = scene
+        .create_session_material(DEFAULT_LAMBERT_COLOR)
+        .unwrap();
+    assert_eq!(scene.session_materials()[id.index()].color(), [0.5; 3]);
+}
+
+#[test]
+fn edit_refusal_matches_what_the_edits_return() {
+    let (mut scene, _) = cube();
+    assert_eq!(scene.session_material_edit_refusal(), None);
+    crate::native_scene::tests::retain(&mut scene, b"original", std::iter::once(0..8).collect());
+    assert_eq!(
+        scene.session_material_edit_refusal(),
+        Some(NativeError::ReadOnlyFormat)
+    );
+    assert_eq!(
+        scene.create_session_material([0.1; 3]),
+        Err(NativeError::ReadOnlyFormat)
+    );
+    scene.source.as_mut().unwrap().format = crate::native_scene::source::SourceFormat::Binary;
+    assert_eq!(
+        scene.session_material_edit_refusal(),
+        Some(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(
+        scene.create_session_material([0.1; 3]),
+        Err(NativeError::UnsupportedEdit)
+    );
+}
+
+#[test]
+fn shape_count_follows_assign_reassign_and_a_sourced_scene() {
+    let (mut scene, _) = crate::native_scene::test_fixtures::twin_shapes();
+    let [a, b] = [scene.shapes[0].id, scene.shapes[1].id];
+    let initial = SessionMaterialId(0);
+    assert_eq!(scene.session_material_shape_count(initial), 2);
+    let lambert = scene
+        .assign_session_material(a, MaterialChoice::New { color: [0.2; 3] })
+        .unwrap();
+    assert_eq!(scene.session_material_shape_count(lambert), 1);
+    assert_eq!(scene.session_material_shape_count(initial), 1);
+    scene
+        .assign_session_material(b, MaterialChoice::Existing(lambert))
+        .unwrap();
+    assert_eq!(scene.session_material_shape_count(lambert), 2);
+    assert_eq!(scene.session_material_shape_count(initial), 0);
+    scene
+        .assign_session_material(a, MaterialChoice::Existing(initial))
+        .unwrap();
+    assert_eq!(scene.session_material_shape_count(lambert), 1);
+    assert_eq!(scene.session_material_shape_count(initial), 1);
+    assert_eq!(scene.session_material_shape_count(SessionMaterialId(9)), 0);
+    scene
+        .assign_session_material(b, MaterialChoice::Existing(initial))
+        .unwrap();
+    crate::native_scene::tests::retain(&mut scene, b"original", std::iter::once(0..8).collect());
+    assert_eq!(scene.session_material_shape_count(initial), 0);
+}

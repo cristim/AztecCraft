@@ -1,7 +1,8 @@
 //! Session-only lambert materials assigned to whole authored shapes.
 //!
-//! The table is not saved and never touches source appearance: sourced scenes keep their
-//! `MaterialDiffuse` path and refuse session edits. Names follow Maya 2025.1 (#177): the
+//! The table never touches source appearance: sourced scenes keep their `MaterialDiffuse` path
+//! and refuse session edits. An authored scene's table is written to `.ma` (#156 S3c); `.mb`
+//! refuses it. Names follow Maya 2025.1 (#177): the
 //! initial shading group's shader is `standardSurface1`, and new lamberts start at `lambert2`
 //! with `lambert2SG` because Maya's unconnected `lambert1` always exists. Maya 2026 is
 //! unverified, and the initial shader's colour is a placeholder equal to the viewport base fill.
@@ -13,6 +14,12 @@ use std::collections::{BTreeMap, HashSet};
 /// Bound on materials per scene. Kept far below what `inspect_scene` can list (see the
 /// inspection budget test) so a full table never makes inspection `too_large`.
 pub const MAX_SESSION_MATERIALS: usize = 512;
+
+/// Colour of a newly created lambert: Maya's lambert `color` default (0.5 grey, 2027 node
+/// reference). Exactly representable in f32, so it passes `quantize_color` unchanged.
+// Caller: the native Assign New Material row (#467 T2a).
+#[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+pub const DEFAULT_LAMBERT_COLOR: [f64; 3] = [0.5; 3];
 
 /// An index into the current table. It is valid only at the current history position: undoing a
 /// create frees its index for the next create, so callers must take ids from operation outcomes
@@ -245,6 +252,39 @@ impl NativeScene {
         let group = self.session_materials.assignments.get(&shape.id).copied();
         let group = self.session_materials.groups.get(group.unwrap_or(0))?;
         Some(group.material)
+    }
+
+    /// Why session-material edits are refused on this scene, without the full `validate` pass
+    /// that `structural_edit` runs, so a UI can ask every frame. `None` means an edit may be
+    /// attempted; the edit itself still validates and can fail. Same refusal as the edits give:
+    /// read-only source first, then any retained source.
+    // Caller: menu and Attribute Editor disabled reasons (#467 T2a, T5a).
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    pub fn session_material_edit_refusal(&self) -> Option<NativeError> {
+        self.authoring_read_only_reason().or_else(|| {
+            self.source
+                .is_some()
+                .then_some(NativeError::UnsupportedEdit)
+        })
+    }
+
+    /// Number of authored shapes that display this material; 0 for an unknown id and for
+    /// sourced scenes, which the table does not own.
+    // Caller: the Attribute Editor "shared by" line (#467 T5a).
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    pub fn session_material_shape_count(&self, material: SessionMaterialId) -> usize {
+        let table = &self.session_materials;
+        if self.source.is_some() {
+            return 0;
+        }
+        let Ok(group) = table.group_of(material) else {
+            return 0;
+        };
+        if group == 0 {
+            self.shapes.len().saturating_sub(table.assignments.len())
+        } else {
+            table.assignments.values().filter(|g| **g == group).count()
+        }
     }
 
     pub fn create_session_material(
