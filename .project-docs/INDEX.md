@@ -25,3 +25,4 @@
 - [Contribution guidance](../CONTRIBUTING.md): local workflow, review evidence and publication restrictions.
 - [Known limitations](../known-issues.md): missing reference/denominator, desktop verification and compatibility evidence.
 - [Scripting threat model](scripting-threat-model.md): what may ever be executed, options evaluated, the owner-only decision and a staged first slice for scripting and plug-ins (issue #57).
+- [Scripting boundary decision](scripting-boundary-decision.md): what may ever be executed, what is refused, the approval path and what is built versus decided (issue #442); the sandbox design is in [scripting-adr.md](scripting-adr.md).
