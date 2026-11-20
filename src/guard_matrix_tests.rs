@@ -92,6 +92,9 @@ enum State {
     PivotDraft,
     TextFocus,
     NativeInputPending,
+    /// A marking menu held or sticky-open. Remote pipeline only: it refuses remote mutation
+    /// through `is_active`, while native operations are never gated by the menu's phase.
+    MarkingMenuActive,
     StaleToken,
     StaleLocalMove,
     StaleRemoteMove,
@@ -118,7 +121,7 @@ enum State {
     NoInstallModal,
 }
 
-const STATES: [State; 27] = [
+const STATES: [State; 28] = [
     State::Idle,
     State::Closing,
     State::Modal,
@@ -131,6 +134,7 @@ const STATES: [State; 27] = [
     State::PivotDraft,
     State::TextFocus,
     State::NativeInputPending,
+    State::MarkingMenuActive,
     State::StaleToken,
     State::StaleLocalMove,
     State::StaleRemoteMove,
@@ -163,6 +167,7 @@ impl State {
             Self::PivotDraft => "pivot_draft",
             Self::TextFocus => "text_focus",
             Self::NativeInputPending => "native_input_pending",
+            Self::MarkingMenuActive => "marking_menu_active",
             Self::StaleToken => "stale_token",
             Self::StaleLocalMove => "stale_token+local_move",
             Self::StaleRemoteMove => "stale_token+remote_move",
@@ -199,6 +204,7 @@ impl State {
     fn reachable(self, pipeline: Pipeline) -> bool {
         !(self.stale_over().is_some() && pipeline == Pipeline::Native)
             && (self != Self::AuthoredAsciiDirty || cfg!(unix))
+            && (self != Self::MarkingMenuActive || pipeline == Pipeline::Remote)
     }
 }
 
@@ -682,6 +688,7 @@ fn build(state: State) -> Rig {
             context.memory_mut(|memory| memory.request_focus(name_edit_id()));
         }
         State::NativeInputPending => editor.native_input_pending = true,
+        State::MarkingMenuActive => crate::app::overlay_gate_tests::hold_menu(&mut editor),
         State::StaleToken
         | State::StaleLocalMove
         | State::StaleRemoteMove
