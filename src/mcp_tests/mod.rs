@@ -129,6 +129,7 @@ mod official_client {
     mod authored_ascii_save;
     mod camera;
     mod camera_bookmarks;
+    mod camera_film_back;
     mod component_set;
     mod cylinder_cone;
     mod delete_selected;
