@@ -165,3 +165,17 @@ impl<A> MarkingMenu<A> {
         matches!(self.resolve(target), Resolved::Dispatch(_))
     }
 }
+
+impl<A> MarkingMenu<A> {
+    /// The existing entries in keyboard order: dial zones clockwise from north, then the list
+    /// rows. Empty zones are skipped. PROVISIONAL, like the layout.
+    pub fn nav_order(&self) -> Vec<Target> {
+        let zones = Zone::ALL
+            .into_iter()
+            .filter(|zone| self.zones[zone.index()].is_some())
+            .map(Target::Zone);
+        zones
+            .chain((0..self.list.len()).map(Target::List))
+            .collect()
+    }
+}

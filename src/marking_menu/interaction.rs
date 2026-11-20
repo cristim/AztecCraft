@@ -1,4 +1,8 @@
 use super::model::{Target, zone_at};
+mod keyboard;
+
+pub use keyboard::NavKey;
+
 use super::{DEAD_ZONE, DRAW_DELAY, FLICK_DISTANCE, IDLE_DISMISS};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,6 +48,8 @@ enum Phase {
     Open {
         origin: [f32; 2],
         armed: Option<Target>,
+        /// Keyboard focus; see `keyboard.rs`.
+        focus: Option<Target>,
     },
     /// The menu was dismissed by a press; keeps the overlay gate until that button releases so
     /// the release cannot click through to the viewport.
@@ -122,6 +128,12 @@ impl Interaction {
         }
     }
 
+    fn set_armed(&mut self, to: Option<Target>) {
+        if let Phase::Open { armed, .. } = &mut self.phase {
+            *armed = to;
+        }
+    }
+
     fn touch(&mut self, now: f64) {
         self.t_input = now;
     }
@@ -163,14 +175,11 @@ impl Interaction {
                 self.touch(now);
                 Outcome::None
             }
-            (Phase::Open { origin, .. }, Button::Primary) => {
+            (Phase::Open { .. }, Button::Primary) => {
                 self.touch(now);
                 match target {
                     Some(t) if enabled(t) => {
-                        self.phase = Phase::Open {
-                            origin,
-                            armed: Some(t),
-                        };
+                        self.set_armed(Some(t));
                         Outcome::None
                     }
                     Some(t) => Outcome::Rejected(t),
@@ -253,17 +262,15 @@ impl Interaction {
                         self.phase = Phase::Open {
                             origin,
                             armed: None,
+                            focus: None,
                         };
                         Outcome::None
                     }
                 }
             }
-            (Phase::Open { origin, armed }, Button::Primary) => {
+            (Phase::Open { armed, .. }, Button::Primary) => {
                 self.touch(now);
-                self.phase = Phase::Open {
-                    origin,
-                    armed: None,
-                };
+                self.set_armed(None);
                 match (armed, target) {
                     (Some(a), Some(t)) if a == t => self.choose(t, enabled, true),
                     _ => Outcome::None,

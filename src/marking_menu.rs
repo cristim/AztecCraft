@@ -10,7 +10,7 @@
 mod interaction;
 mod model;
 
-pub use interaction::{Button, FrameInput, Interaction, Outcome};
+pub use interaction::{Button, FrameInput, Interaction, NavKey, Outcome};
 
 pub use model::{Entry, EntryState, MarkingMenu, Resolved, Target, Zone, zone_at};
 
@@ -28,5 +28,7 @@ pub const IDLE_DISMISS: f64 = 30.0;
 mod guard_tests;
 #[cfg(test)]
 mod interaction_tests;
+#[cfg(test)]
+mod keyboard_tests;
 #[cfg(test)]
 mod tests;
