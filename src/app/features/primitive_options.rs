@@ -8,17 +8,18 @@
 //! click uses; here Create keeps it open and a plain click uses the remembered options.
 
 use crate::app::*;
-use azteccraft::primitive_options::{Axis, PrimitiveOptions};
+use azteccraft::primitive_options::{Axis, PlatonicSolidKind, PrimitiveOptions};
 
 /// Cube has the most numeric fields: three sizes and three subdivision counts.
 const MAX_FIELDS: usize = 6;
-const PRIMITIVES: [Primitive; 6] = [
+const PRIMITIVES: [Primitive; 7] = [
     Primitive::Cube,
     Primitive::Plane,
     Primitive::Sphere,
     Primitive::Cylinder,
     Primitive::Cone,
     Primitive::Torus,
+    Primitive::PlatonicSolid,
 ];
 
 pub(in crate::app) fn option_field_ids() -> impl Iterator<Item = egui::Id> {
@@ -41,6 +42,7 @@ fn slot(primitive: Primitive) -> usize {
         Primitive::Cylinder => 3,
         Primitive::Cone => 4,
         Primitive::Torus => 5,
+        Primitive::PlatonicSolid => 6,
     }
 }
 
@@ -52,6 +54,7 @@ fn title(primitive: Primitive) -> &'static str {
         Primitive::Cylinder => "Polygon Cylinder Options",
         Primitive::Cone => "Polygon Cone Options",
         Primitive::Torus => "Polygon Torus Options",
+        Primitive::PlatonicSolid => "Polygon Platonic Solid Options",
     }
 }
 
@@ -92,6 +95,7 @@ fn labels(primitive: Primitive) -> (&'static [&'static str], &'static [&'static 
             &["Radius", "Section radius", "Twist"],
             &["Subdivisions axis", "Subdivisions height"],
         ),
+        Primitive::PlatonicSolid => (&["Radius"], &[]),
     }
 }
 
@@ -149,6 +153,7 @@ fn texts(options: &PrimitiveOptions) -> Vec<String> {
             vec![radius, section_radius, twist],
             vec![sub_axis, sub_height],
         ),
+        PrimitiveOptions::PlatonicSolid { radius, .. } => (vec![radius], vec![]),
     };
     sizes
         .iter()
@@ -177,7 +182,15 @@ fn axis_of(options: &PrimitiveOptions) -> Axis {
         | PrimitiveOptions::Sphere { axis, .. }
         | PrimitiveOptions::Cylinder { axis, .. }
         | PrimitiveOptions::Cone { axis, .. }
-        | PrimitiveOptions::Torus { axis, .. } => axis,
+        | PrimitiveOptions::Torus { axis, .. }
+        | PrimitiveOptions::PlatonicSolid { axis, .. } => axis,
+    }
+}
+
+fn solid_of(options: &PrimitiveOptions) -> PlatonicSolidKind {
+    match *options {
+        PrimitiveOptions::PlatonicSolid { solid, .. } => solid,
+        _ => PlatonicSolidKind::default(),
     }
 }
 
@@ -186,8 +199,9 @@ fn assemble(
     primitive: Primitive,
     texts: &[String],
     axis: Axis,
-    round_cap: bool,
+    extras: Extras,
 ) -> Result<PrimitiveOptions, String> {
+    let Extras { round_cap, solid } = extras;
     let (size_labels, division_labels) = labels(primitive);
     if texts.len() != size_labels.len() + division_labels.len() {
         return Err("Option fields are out of sync; reopen the window".into());
@@ -266,6 +280,11 @@ fn assemble(
                 axis,
             }
         }
+        (Primitive::PlatonicSolid, &[radius], &[]) => PrimitiveOptions::PlatonicSolid {
+            solid,
+            radius,
+            axis,
+        },
         _ => return Err("Option fields are out of sync; reopen the window".into()),
     };
     options.validate(primitive).map_err(|e| e.to_string())?;
@@ -280,17 +299,25 @@ fn describe_unavailable(ctx: &egui::Context, id: egui::Id, reason: &str) {
     });
 }
 
+/// Non-numeric choices the dialog keeps beside its text drafts.
+#[derive(Clone, Copy)]
+struct Extras {
+    /// Cylinder and cone only; kept while the caps field is 0, where the core ignores it.
+    round_cap: bool,
+    /// Platonic Solid only.
+    solid: PlatonicSolidKind,
+}
+
 struct Dialog {
     primitive: Primitive,
     texts: Vec<String>,
     axis: Axis,
-    /// Cylinder and cone only; kept while the caps field is 0, where the core ignores it.
-    round_cap: bool,
+    extras: Extras,
     message: Option<String>,
 }
 
 pub(in crate::app) struct PrimitiveOptionsUi {
-    remembered: [PrimitiveOptions; 6],
+    remembered: [PrimitiveOptions; 7],
     dialog: Option<Dialog>,
     /// Any text field (dialog, name, channel, ...) held focus at the end of the last frame; egui
     /// clears focus before Escape runs, so the key still belongs to that field.
@@ -372,7 +399,10 @@ impl Editor {
             primitive,
             texts: texts(&options),
             axis: axis_of(&options),
-            round_cap: round_cap_of(&options),
+            extras: Extras {
+                round_cap: round_cap_of(&options),
+                solid: solid_of(&options),
+            },
             message: None,
         });
     }
@@ -432,12 +462,7 @@ impl Editor {
     }
 
     fn create_from_dialog(&mut self, dialog: &mut Dialog) {
-        match assemble(
-            dialog.primitive,
-            &dialog.texts,
-            dialog.axis,
-            dialog.round_cap,
-        ) {
+        match assemble(dialog.primitive, &dialog.texts, dialog.axis, dialog.extras) {
             Err(message) => dialog.message = Some(message),
             Ok(options) => {
                 self.native_operation(Operation::Create {
@@ -479,6 +504,17 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, read_only: Option<&str>) 
                 .labelled_by(label.id);
                 ui.end_row();
             }
+            if dialog.primitive == Primitive::PlatonicSolid {
+                let label = ui.label("Solid type");
+                ui.horizontal(|ui| {
+                    for kind in PlatonicSolidKind::ALL {
+                        ui.selectable_value(&mut dialog.extras.solid, kind, kind.name());
+                    }
+                })
+                .response
+                .labelled_by(label.id);
+                ui.end_row();
+            }
             ui.label("Axis");
             ui.horizontal(|ui| {
                 for (axis, name) in [(Axis::X, "X"), (Axis::Y, "Y"), (Axis::Z, "Z")] {
@@ -517,7 +553,7 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, read_only: Option<&str>) 
             .is_some_and(|n| n >= 1);
         let response = ui.add_enabled(
             caps_on,
-            egui::Checkbox::new(&mut dialog.round_cap, "Round cap"),
+            egui::Checkbox::new(&mut dialog.extras.round_cap, "Round cap"),
         );
         if !caps_on {
             let caps_label = labels(dialog.primitive)
