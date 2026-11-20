@@ -1008,7 +1008,7 @@ require an initial Save As; subsequent Save operations persist changes (see "Mes
 PROVISIONAL"). The AztecCraft limits (size 1e-6 to 1e6 cm, subdivisions up to 128,
 at most 20,000 faces) are safety bounds,
 PROVISIONAL because the Maya pages state no ranges, until the pinned reference install (#5).
-Not supported: cylinder and cone cap divisions and round cap, UVs and texture mapping,
+Not supported: UVs and texture mapping,
 interactive creation and Exit on Completion (both are disabled rows in Create > Polygon
 Primitives and in the options window; their drawn unchecked state is PROVISIONAL, no default is cited), Free and Camera axis, and editing the options after creation (no
 construction history). The plane default is 1x1 with 10x10 subdivisions (#176), PROVISIONAL:
