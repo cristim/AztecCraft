@@ -2209,10 +2209,10 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
             sample(
-                "move_vertices_world_out_of_range",
+                "move_vertices_world_non_finite",
                 Operation::MoveVertices {
                     target: t.vertex_set(),
-                    delta: [3.0e38, 0.0, 0.0],
+                    delta: [1.0e39, 0.0, 0.0],
                     space: ComponentMoveSpace::World,
                 },
             ),

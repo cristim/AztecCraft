@@ -59,7 +59,7 @@ async fn a_move_past_the_f32_world_range_is_world_out_of_range_and_changes_nothi
 }
 
 #[tokio::test]
-async fn a_move_that_brings_an_undrawable_scene_back_in_range_succeeds() {
+async fn a_small_move_in_an_already_undrawable_scene_is_not_refused() {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     let (ids, token) = scaled_parent_scene(&mut editor);
@@ -69,12 +69,13 @@ async fn a_move_that_brings_an_undrawable_scene_back_in_range_succeeds() {
         .move_vertices(shape, &[0], [1.0e10, 0.0, 0.0])
         .unwrap();
     editor.history = azteccraft::history::History::new(scene);
+    // Vertex 0 is already past f32 world range; moving vertex 1 leaves the scene undrawable.
     let moved = call(
         &mut editor,
         &context,
         client.peer(),
         "move_vertices",
-        args(&token, &ids, json!([0]), json!([-1.0e10, 0.0, 0.0])),
+        args(&token, &ids, json!([1]), json!([1.0, 0.0, 0.0])),
     )
     .await;
     let reply = moved.structured_content.unwrap();

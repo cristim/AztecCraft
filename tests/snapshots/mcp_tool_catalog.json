@@ -2259,7 +2259,7 @@
   },
   {
     "name": "move_vertices",
-    "description": "Translate vertices of one polygon mesh together by delta, in declared scene units along the mesh's own axes (space object, the default, the Move tool's Object axis orientation) or along the world axes (space world, Maya's World axis orientation; it needs a finite, invertible, well-conditioned instance transform, else scene_error). Requires node, shape and full root-to-shape path and distinct vertex indices; shared-shape edits affect every instance. One undo step. Authored scenes only: scenes opened from a file refuse until their writer can carry edited points.",
+    "description": "Translate vertices of one polygon mesh together by delta, in declared scene units along the mesh's own axes (space object, the default, the Move tool's Object axis orientation) or along the world axes (space world, Maya's World axis orientation; it needs a finite, invertible, well-conditioned instance transform, else scene_error). A move that pushes world coordinates past f32 range returns world_out_of_range in both spaces. Requires node, shape and full root-to-shape path and distinct vertex indices; shared-shape edits affect every instance. One undo step. Authored scenes only: scenes opened from a file refuse until their writer can carry edited points.",
     "inputSchema": {
       "$defs": {
         "MoveVerticesSpace": {
