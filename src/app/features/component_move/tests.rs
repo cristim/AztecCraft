@@ -2,10 +2,12 @@
 //! drag moves, the refusals before it starts, cancellation, and the inspection block.
 use super::*;
 use crate::editor_operations::{
-    ComponentKind, MarqueeMode, MoveDistance, Operation, OperationReply, SelectionMode,
+    ComponentKind, MarqueeMode, MoveDistance, Operation, OperationError, OperationReply,
+    SelectionMode,
 };
 use azteccraft::{
     history::{ManipulationFinish, ManipulationId},
+    native_scene::NativeError,
     scene::Primitive,
     selection::ComponentOwner,
     view_scene::ViewScene,
@@ -77,6 +79,17 @@ fn x_of(editor: &Editor, vertex: usize) -> f64 {
         .mesh()
         .effective_point_cm(vertex)
         .unwrap()[0]
+}
+
+fn refused_with(editor: &mut Editor, text: &str) {
+    let before = editor.history.scene().clone();
+    let op = begin_op(editor, None);
+    match editor.apply_operation(op) {
+        Err(OperationError::InvalidInput(message)) => assert!(message.contains(text), "{message}"),
+        other => panic!("expected `{text}`, got {other:?}"),
+    }
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(editor.history.scene(), &before);
 }
 
 #[test]
@@ -157,6 +170,183 @@ fn a_component_pick_mid_drag_cancels_it() {
     let id = begin(&mut editor);
     update(&mut editor, id, 4.0);
     pick(&mut editor, &[1]);
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn begin_refuses_with_the_scene_untouched() {
+    // No vertex picked.
+    let mut editor = cube_with(&[]);
+    refused_with(&mut editor, "at least one selected vertex");
+    // Two objects selected.
+    let mut editor = cube_with(&[0]);
+    editor.create(Primitive::Cube);
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(paths);
+    let op = begin_op(&editor, None);
+    assert!(matches!(
+        editor.apply_operation(op),
+        Err(OperationError::MultipleSelection)
+    ));
+    // A set owned by another object than the selected one.
+    let mut editor = cube_with(&[0]);
+    editor.create(Primitive::Cube);
+    let other = owner_at(&editor, 0);
+    editor.modify_component_set(ComponentKind::Vertex, |set| set.replace_with(&other, [0]));
+    refused_with(&mut editor, "belong to another object");
+    // Parent orientation.
+    let mut editor = cube_with(&[0]);
+    editor
+        .apply_operation(Operation::SetMoveSpace {
+            space: azteccraft::native_scene::MoveSpace::Parent,
+        })
+        .unwrap();
+    refused_with(&mut editor, "World and Object axis orientations only");
+    // A mirrored ancestor makes the Object frame left-handed.
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.native_group();
+    let group = editor.selected_move_lead().unwrap().node;
+    editor
+        .apply_operation(Operation::EditNode {
+            id: group,
+            name: None,
+            translation: [None; 3],
+            rotation_degrees: [None; 3],
+            scale: [Some(-1.0), Some(1.0), Some(1.0)],
+        })
+        .unwrap();
+    let child = editor
+        .history
+        .scene()
+        .transform_paths()
+        .unwrap()
+        .pop()
+        .unwrap();
+    editor
+        .apply_operation(Operation::Select {
+            node: Some(child.node),
+            instance_path: Some(child.path),
+        })
+        .unwrap();
+    editor
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Vertex))
+        .unwrap();
+    pick(&mut editor, &[0]);
+    editor
+        .apply_operation(Operation::SetMoveSpace {
+            space: azteccraft::native_scene::MoveSpace::Object,
+        })
+        .unwrap();
+    refused_with(&mut editor, "mirrored");
+    // Snap to grids.
+    let mut editor = cube_with(&[0]);
+    editor.snap_to_grid = true;
+    refused_with(&mut editor, "Snap to grids");
+    // Remote caller, until the remote lifecycle lands.
+    let mut editor = cube_with(&[0]);
+    let before = editor.history.scene().clone();
+    let op = begin_op(&editor, None);
+    let remote = editor.apply_operation_guarded(
+        azteccraft::history::ManipulationProvenance::Remote,
+        op,
+        &|| true,
+    );
+    assert!(matches!(remote, Err(OperationError::InvalidInput(_))));
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn a_set_over_the_vertex_cap_refuses_with_its_count() {
+    let mut editor = cube_with(&[]);
+    let owner = owner_at(&editor, 0);
+    editor.modify_component_set(ComponentKind::Vertex, |set| {
+        set.replace_with(&owner, 0..=azteccraft::native_scene::MAX_MOVED_VERTICES)
+    });
+    refused_with(&mut editor, "limited to 8192 vertices; 8193 are selected");
+}
+
+#[test]
+fn a_stale_generation_is_refused_before_the_drag_starts() {
+    let mut editor = cube_with(&[0]);
+    let stale = editor.selection_generation().wrapping_sub(1);
+    let op = begin_op(&editor, Some(stale));
+    assert!(matches!(
+        editor.apply_operation(op),
+        Err(OperationError::StaleSelection { .. })
+    ));
+    assert!(editor.history.active_manipulation().is_none());
+}
+
+#[test]
+fn inspection_during_a_component_drag_names_the_move() {
+    let mut editor = cube_with(&[0]);
+    let id = begin(&mut editor);
+    update(&mut editor, id, 3.0);
+    let inspected = editor.inspect_manipulation().unwrap();
+    let active = inspected.active.unwrap();
+    assert_eq!(active.kind, "move");
+    assert_eq!(active.axis, Some("x"));
+    assert_eq!(active.space, "world");
+    assert_eq!(active.provenance, "native");
+    assert!(active.value != 0.0);
+    assert!(editor.inspect(false).is_ok());
+}
+
+#[cfg(unix)]
+#[test]
+fn an_opened_source_bound_scene_refuses_a_component_move_with_the_scene_reason() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("authored.mb");
+    let mut authored = Editor::default();
+    authored.create(Primitive::Cube);
+    authored
+        .apply_operation(Operation::SaveSceneAs { path: path.clone() })
+        .unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    editor
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Vertex))
+        .unwrap();
+    let scene = editor.history.scene();
+    assert_eq!(
+        scene.vertex_move_refusal(scene.shapes()[0].id(), &[0]),
+        Some(NativeError::UnsupportedEdit)
+    );
+    let paths = scene.transform_paths().unwrap();
+    let owner = {
+        let view = ViewScene::from_native(scene, 1 << 28).unwrap();
+        let instance = &view.instances()[0];
+        ComponentOwner {
+            transform: instance.transform(),
+            shape: instance.shape(),
+            path: instance.path().to_vec(),
+        }
+    };
+    let node = owner.transform;
+    editor
+        .apply_operation(Operation::Select {
+            node: Some(node),
+            instance_path: Some(paths.iter().find(|p| p.node == node).unwrap().path.clone()),
+        })
+        .unwrap();
+    editor
+        .apply_operation(Operation::ModifyComponentSelection {
+            kind: ComponentKind::Vertex,
+            mode: MarqueeMode::Replace,
+            owner,
+            indices: vec![0],
+        })
+        .unwrap();
+    let before = editor.history.scene().clone();
+    let op = begin_op(&editor, None);
+    assert!(matches!(
+        editor.apply_operation(op),
+        Err(OperationError::Scene(NativeError::UnsupportedEdit))
+    ));
     assert!(editor.history.active_manipulation().is_none());
     assert_eq!(editor.history.scene(), &before);
 }
