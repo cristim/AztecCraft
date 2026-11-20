@@ -505,7 +505,7 @@ impl Editor {
         };
         let record = Operation::repeatable(&operation);
         let reply = self.apply_operation_unrecorded(provenance, operation, may_install)?;
-        if matches!(reply, OperationReply::Changed) {
+        if matches!(reply, OperationReply::Changed) && record.is_some() {
             self.last_repeatable = record;
         }
         Ok(reply)

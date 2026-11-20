@@ -207,3 +207,21 @@ fn a_changing_operation_outside_the_allowlist_is_not_recorded_for_repeat() {
         Err(OperationError::NothingToRepeat)
     ));
 }
+
+#[test]
+fn selecting_through_dispatch_keeps_the_recorded_repeat() {
+    let (mut editor, all) = cubes(3);
+    editor.set_selection_members_for_test(vec![all[2].clone()]);
+    editor.apply_operation(Operation::DeleteSelection).unwrap();
+    editor
+        .apply_operation(Operation::Select {
+            node: Some(all[1].node),
+            instance_path: None,
+        })
+        .unwrap();
+    assert!(matches!(
+        editor.apply_operation(Operation::RepeatLast),
+        Ok(OperationReply::Changed)
+    ));
+    assert_eq!(editor.history.scene().nodes().len(), 1);
+}

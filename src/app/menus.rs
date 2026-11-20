@@ -55,8 +55,9 @@ pub(super) const RIGGING_SET_MENUS: [&str; 5] =
 /// Help follows the Modeling set; its Maya position is UNCONFIRMED (the pages do not place it).
 pub(super) const HELP_MENU: &str = "Help";
 
-/// Maya's Edit > Delete by Type and Delete All by Type rows; the type list is not implemented.
+/// Edit > Repeat hover reason while nothing repeatable is recorded (PROVISIONAL).
 pub(super) const REPEAT_REASON: &str = "No repeatable command yet";
+/// Maya's Edit > Delete by Type and Delete All by Type rows; the type list is not implemented.
 pub(super) const DELETE_BY_TYPE_REASON: &str =
     "Deleting by node type is not supported yet; select the object and use Delete";
 
