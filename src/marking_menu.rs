@@ -27,4 +27,6 @@ pub const FLICK_DISTANCE: f32 = 24.0;
 pub const IDLE_DISMISS: f64 = 30.0;
 
 #[cfg(test)]
+mod interaction_tests;
+#[cfg(test)]
 mod tests;
