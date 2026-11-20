@@ -393,6 +393,15 @@ impl Editor {
         if let Some(refusal) = mode_refusal(tool, self.selection_mode) {
             return Err(OperationError::InvalidInput(refusal));
         }
+        self.check_single_instance_target(tool, target)
+    }
+
+    /// One object selected and `target` is exactly its transform instance.
+    pub(in crate::app) fn check_single_instance_target(
+        &self,
+        tool: &str,
+        target: &TransformTarget,
+    ) -> Result<(), OperationError> {
         if self.selection.len() > 1 {
             return Err(OperationError::MultipleSelection);
         }

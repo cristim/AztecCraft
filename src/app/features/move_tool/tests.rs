@@ -1380,10 +1380,16 @@ fn vertex_and_edge_modes_refuse_move_everywhere_face_does() {
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.status, refusal);
         let target = editor.selected_move_target().unwrap();
+        // Vertex selection begins a component Move; with no vertex picked it says so.
+        let begin_refusal = if mode == SelectionMode::Vertex {
+            "Move needs at least one selected vertex"
+        } else {
+            refusal.as_str()
+        };
         assert!(matches!(
             editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
             , expected_selection_generation: None }),
-            Err(OperationError::InvalidInput(message)) if message == refusal
+            Err(OperationError::InvalidInput(message)) if message == begin_refusal
         ));
         let inspected = editor.inspect_manipulation().unwrap();
         assert!(!inspected.kinds[0].available);

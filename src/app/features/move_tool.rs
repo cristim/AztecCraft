@@ -124,6 +124,21 @@ fn scale_handle_id(handle: ScaleHandle) -> &'static str {
     }
 }
 
+/// A node's channel triple; a component Move has none, so its block reports zeros.
+#[cfg(any(test, feature = "mcp"))]
+fn component_channels(
+    channels: Option<[f64; 3]>,
+    kind: azteccraft::history::ManipulationKindState,
+) -> Result<[f64; 3], OperationError> {
+    match (channels, kind) {
+        (Some(channels), _) => Ok(channels),
+        (None, azteccraft::history::ManipulationKindState::MoveComponents { .. }) => Ok([0.0; 3]),
+        (None, _) => Err(OperationError::InvalidInput(
+            "Manipulated node is unreadable".into(),
+        )),
+    }
+}
+
 fn edit_reply(outcome: EditOutcome) -> OperationReply {
     match outcome {
         EditOutcome::Changed
@@ -332,6 +347,11 @@ impl Editor {
         provenance: ManipulationProvenance,
         expected_selection_generation: Option<u64>,
     ) -> Result<OperationReply, OperationError> {
+        // Vertex selection only until Edge and Face map to vertices (#41).
+        if self.selection_mode == crate::editor_operations::SelectionMode::Vertex {
+            self.check_generation(expected_selection_generation)?;
+            return self.begin_component_move(target, axis, provenance);
+        }
         self.check_move_target(target, provenance, expected_selection_generation)?;
         let space = self.manipulation.move_space();
         let snap = if self.snap_to_grid {
@@ -650,10 +670,26 @@ impl Editor {
                             angular_unit_name(&units.angular).to_owned(),
                         )
                     }
-                    ManipulationKindState::MoveComponents { .. } => {
-                        return Err(OperationError::InvalidInput(
-                            "Inspecting a component Move is not supported yet".into(),
-                        ));
+                    ManipulationKindState::MoveComponents { axis, space } => {
+                        let value = match self.manipulation.declared {
+                            Some((id, declared)) if id == active.id => declared,
+                            _ => {
+                                active.parameter
+                                    / units.linear_factor().map_err(OperationError::Scene)?
+                            }
+                        };
+                        (
+                            "move",
+                            match space {
+                                Some(MoveSpace::Object) => "object",
+                                _ => "world",
+                            },
+                            axis.map(axis_name),
+                            None,
+                            "distance",
+                            value,
+                            linear_unit_name(&units.linear).to_owned(),
+                        )
                     }
                     ManipulationKindState::Scale { handle, space } => (
                         "scale",
@@ -700,12 +736,9 @@ impl Editor {
                         ManipulationKindState::Rotate { .. } => "rotate",
                         ManipulationKindState::Scale { .. } => "scale",
                     },
-                    baseline_channels: active.baseline_channels.ok_or_else(|| {
-                        OperationError::InvalidInput("Manipulated node is unreadable".into())
-                    })?,
-                    current_channels: active.current_channels.ok_or_else(|| {
-                        OperationError::InvalidInput("Manipulated node is unreadable".into())
-                    })?,
+                    // A component Move edits mesh points, not channels: both read zero.
+                    baseline_channels: component_channels(active.baseline_channels, active.kind)?,
+                    current_channels: component_channels(active.current_channels, active.kind)?,
                     member_count: active.member_count(),
                     covered_count: active.covered_count(),
                 })
