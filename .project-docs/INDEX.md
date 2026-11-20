@@ -26,3 +26,4 @@
 - [Known limitations](../known-issues.md): missing reference/denominator, desktop verification and compatibility evidence.
 - [Scripting threat model](scripting-threat-model.md): what may ever be executed, options evaluated, the owner-only decision and a staged first slice for scripting and plug-ins (issue #57).
 - [Scripting boundary decision](scripting-boundary-decision.md): what may ever be executed, what is refused, the approval path and what is built versus decided (issue #442); the sandbox design is in [scripting-adr.md](scripting-adr.md).
+- [3DEqualizer solve import decision](3dequalizer-solve-import-decision.md): import data-only exports through interchange camera formats, never evaluate 3DEqualizer's MEL or Python export scripts (issue #464).
