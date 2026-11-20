@@ -3746,6 +3746,148 @@
     }
   },
   {
+    "name": "set_camera_film_back",
+    "description": "Edit the live camera's film back in Maya units (camera -e): focal_length mm; horizontal_film_aperture, vertical_film_aperture, film_fit_offset, horizontal_film_offset and vertical_film_offset in inches; film_fit (fill, horizontal, vertical, overscan); lens_squeeze_ratio, overscan, pre_scale, post_scale; film_roll_value in degrees; display_film_gate. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error, code camera_error) leaves every field untouched. Reports changed or unchanged, judged numerically. Allowed in every projection but only the perspective view follows it; a vertical-field-of-view lens becomes a film back with defaults for the fields you do not name. display_film_gate does not change overscan. Session-only; does not edit the scene",
+    "inputSchema": {
+      "$defs": {
+        "FilmFitArg": {
+          "description": "Maya's `filmFit` values.",
+          "enum": [
+            "fill",
+            "horizontal",
+            "vertical",
+            "overscan"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "Maya `camera -e` film back attributes in Maya's units; every field is optional (omit or null\nleaves it unchanged) and at least one must be set.",
+      "properties": {
+        "display_film_gate": {
+          "description": "Draw the film gate (`displayFilmGate`); never changes overscan.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "film_fit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FilmFitArg"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`fill`, `horizontal`, `vertical` or `overscan` (`filmFit`)."
+        },
+        "film_fit_offset": {
+          "description": "Film fit offset in inches (`filmFitOffset`); only an explicit horizontal or vertical fit uses it.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "film_roll_value": {
+          "description": "Film roll in degrees (`filmRollValue`), exactly as stored.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "focal_length": {
+          "description": "Focal length in millimetres (`focalLength`).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "horizontal_film_aperture": {
+          "description": "Horizontal film aperture in inches (`horizontalFilmAperture`).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "horizontal_film_offset": {
+          "description": "Horizontal film offset in inches (`horizontalFilmOffset`).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lens_squeeze_ratio": {
+          "description": "Lens squeeze ratio (`lensSqueezeRatio`), greater than zero.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "overscan": {
+          "description": "Overscan (`overscan`), greater than zero.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "post_scale": {
+          "description": "Post scale (`postScale`), greater than zero.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pre_scale": {
+          "description": "Pre scale (`preScale`), greater than zero.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "vertical_film_aperture": {
+          "description": "Vertical film aperture in inches (`verticalFilmAperture`).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "vertical_film_offset": {
+          "description": "Vertical film offset in inches (`verticalFilmOffset`).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "SetCameraFilmBackArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "pan_camera",
     "description": "Translate the live camera target by [right, up] camera-plane world units",
     "inputSchema": {

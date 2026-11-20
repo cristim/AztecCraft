@@ -78,6 +78,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("set_viewport_view", "`viewSet -persp`, `-top`, `-front`, `-rightSide`", "four views; orthographic zoom maps to the camera distance (PROVISIONAL); no back, bottom, left or home"),
     ("orbit_camera", "`tumble`", "radians; pitch clamps near the poles"),
     ("set_camera_pose", "`viewPlace -eyePoint` (PROVISIONAL: flag semantics unconfirmed beyond the synopsis), `camera -e`", "target, distance, yaw and pitch; FOV and clip planes untouched (PROVISIONAL)"),
+    ("set_camera_film_back", "`camera -e` (`-focalLength`, `-horizontalFilmAperture`, `-verticalFilmAperture`, `-filmFit`, `-filmFitOffset`, `-horizontalFilmOffset`, `-verticalFilmOffset`, `-lensSqueezeRatio`, `-overscan`, `-preScale`, `-postScale`, `-filmRollValue`, `-displayFilmGate`)", "the live viewport camera only, session-only (not saved or undoable); film back fields only (no camera scale, translate, roll pivot or order, shake); the projection formulas, signs and Fill rule are PROVISIONAL (development.md rows 25 and 56)"),
     ("pan_camera", "`track`", "camera-plane world units"),
     ("dolly_camera", "`dolly`", "multiplicative factor"),
     ("list_camera_bookmarks", "no equivalent (PROVISIONAL: `cameraView` has no query flag in the pages read)", "in-session list in creation order; bookmarks are not saved in the scene"),

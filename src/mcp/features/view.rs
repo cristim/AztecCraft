@@ -5,7 +5,7 @@ use crate::{
         registry::ToolSpec,
     },
 };
-use azteccraft::viewport::MAX_PITCH;
+use azteccraft::viewport::{FilmBackEdit, FilmFit, MAX_PITCH};
 use rmcp::{
     model::{ErrorData, JsonObject},
     schemars::{self, JsonSchema},
@@ -73,6 +73,61 @@ struct SetCameraPoseArgs {
     distance: f64,
     yaw_degrees: f64,
     pitch_degrees: f64,
+}
+
+/// Maya's `filmFit` values.
+#[derive(Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum FilmFitArg {
+    Fill,
+    Horizontal,
+    Vertical,
+    Overscan,
+}
+
+impl From<FilmFitArg> for FilmFit {
+    fn from(fit: FilmFitArg) -> Self {
+        match fit {
+            FilmFitArg::Fill => Self::Fill,
+            FilmFitArg::Horizontal => Self::Horizontal,
+            FilmFitArg::Vertical => Self::Vertical,
+            FilmFitArg::Overscan => Self::Overscan,
+        }
+    }
+}
+
+/// Maya `camera -e` film back attributes in Maya's units; every field is optional (omit or null
+/// leaves it unchanged) and at least one must be set.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SetCameraFilmBackArgs {
+    scene_token: String,
+    /// Focal length in millimetres (`focalLength`).
+    focal_length: Option<f64>,
+    /// Horizontal film aperture in inches (`horizontalFilmAperture`).
+    horizontal_film_aperture: Option<f64>,
+    /// Vertical film aperture in inches (`verticalFilmAperture`).
+    vertical_film_aperture: Option<f64>,
+    /// `fill`, `horizontal`, `vertical` or `overscan` (`filmFit`).
+    film_fit: Option<FilmFitArg>,
+    /// Film fit offset in inches (`filmFitOffset`); only an explicit horizontal or vertical fit uses it.
+    film_fit_offset: Option<f64>,
+    /// Horizontal film offset in inches (`horizontalFilmOffset`).
+    horizontal_film_offset: Option<f64>,
+    /// Vertical film offset in inches (`verticalFilmOffset`).
+    vertical_film_offset: Option<f64>,
+    /// Lens squeeze ratio (`lensSqueezeRatio`), greater than zero.
+    lens_squeeze_ratio: Option<f64>,
+    /// Overscan (`overscan`), greater than zero.
+    overscan: Option<f64>,
+    /// Pre scale (`preScale`), greater than zero.
+    pre_scale: Option<f64>,
+    /// Post scale (`postScale`), greater than zero.
+    post_scale: Option<f64>,
+    /// Film roll in degrees (`filmRollValue`), exactly as stored.
+    film_roll_value: Option<f64>,
+    /// Draw the film gate (`displayFilmGate`); never changes overscan.
+    display_film_gate: Option<bool>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -249,6 +304,26 @@ fn parse_default_view(arguments: JsonObject) -> Result<RemoteRequest, ErrorData>
     Ok(scoped(token(&args.scene_token)?, Operation::DefaultView))
 }
 
+fn parse_set_camera_film_back(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: SetCameraFilmBackArgs = decode(arguments)?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetCameraFilmBack(FilmBackEdit {
+            focal_mm: args.focal_length,
+            aperture_in: [args.horizontal_film_aperture, args.vertical_film_aperture],
+            film_fit: args.film_fit.map(FilmFit::from),
+            film_fit_offset_in: args.film_fit_offset,
+            film_offset_in: [args.horizontal_film_offset, args.vertical_film_offset],
+            lens_squeeze: args.lens_squeeze_ratio,
+            pre_scale: args.pre_scale,
+            post_scale: args.post_scale,
+            film_roll_degrees: args.film_roll_value,
+            overscan: args.overscan,
+            display_film_gate: args.display_film_gate,
+        }),
+    ))
+}
+
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "undo_view_change",
@@ -335,6 +410,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Set the live camera to an absolute pose: target [x, y, z], distance, yaw_degrees and pitch_degrees, the values inspect_scene reports, so a read pose restores exactly within the same projection (the pose carries no projection; use set_viewport_view to change it). Yaw wraps; pitch beyond about \u{b1}89.94 degrees is rejected. The field of view and clip planes are untouched; a distance below near_clip puts the target closer to the eye than the near plane (between the eye and the plane), so it is clipped and not pickable. Session-only; does not edit the scene",
         schema: schema::<SetCameraPoseArgs>,
         parse: parse_set_camera_pose,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "set_camera_film_back",
+        description: "Edit the live camera's film back in Maya units (camera -e): focal_length mm; horizontal_film_aperture, vertical_film_aperture, film_fit_offset, horizontal_film_offset and vertical_film_offset in inches; film_fit (fill, horizontal, vertical, overscan); lens_squeeze_ratio, overscan, pre_scale, post_scale; film_roll_value in degrees; display_film_gate. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error, code camera_error) leaves every field untouched. Reports changed or unchanged, judged numerically. Allowed in every projection but only the perspective view follows it; a vertical-field-of-view lens becomes a film back with defaults for the fields you do not name. display_film_gate does not change overscan. Session-only; does not edit the scene",
+        schema: schema::<SetCameraFilmBackArgs>,
+        parse: parse_set_camera_film_back,
         idempotent: true,
         read_only: false,
     },

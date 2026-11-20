@@ -886,10 +886,10 @@ pub enum Operation {
     /// defaults for unnamed fields. Allowed in every projection; the view follows once perspective.
     /// Unchanged is judged numerically; an empty edit is refused.
     #[cfg_attr(
-        not(test),
+        not(any(test, feature = "mcp")),
         expect(
             dead_code,
-            reason = "the MCP tool and Attribute Editor construct it next (#458)"
+            reason = "only the MCP tool constructs it until the Attribute Editor Camera tab (#458)"
         )
     )]
     SetCameraFilmBack(FilmBackEdit),
