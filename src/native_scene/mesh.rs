@@ -800,6 +800,8 @@ mod platonic;
 mod platonic_tests;
 pub(in crate::native_scene) mod primitive_uv;
 mod pyramid_prism;
+#[cfg(test)]
+mod pyramid_prism_tests;
 mod reduce;
 #[cfg(test)]
 mod reduce_region_tests;
