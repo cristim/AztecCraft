@@ -63,9 +63,9 @@
       "active_tool": "move",
       "kinds": [
         {
-          "available": false,
+          "available": true,
           "kind": "move",
-          "unavailable_reason": "Move is unavailable in Face selection; switch to Object selection"
+          "unavailable_reason": null
         },
         {
           "available": false,
@@ -92,7 +92,30 @@
         "distance": "cm",
         "factor": "unitless"
       },
-      "viewport": null
+      "viewport": {
+        "axes": [
+          {
+            "axis": "x",
+            "unavailable_reason": null,
+            "visible": true
+          },
+          {
+            "axis": "y",
+            "unavailable_reason": null,
+            "visible": true
+          },
+          {
+            "axis": "z",
+            "unavailable_reason": null,
+            "visible": true
+          }
+        ],
+        "pointer_available": false,
+        "pointer_disabled": null,
+        "pointer_hit": null,
+        "pointer_refusal": null,
+        "provenance": "last_native_viewport_capture"
+      }
     },
     "menu_set": "modeling",
     "modal": false,

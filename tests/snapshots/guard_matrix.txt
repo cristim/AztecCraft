@@ -36,7 +36,7 @@
   begin_move(multi) => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick) => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick,generation) => Ok(manipulation_started) | active_move: none -> native
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -256,7 +256,7 @@
   begin_move(multi) => Ok(manipulation_started) | active_move: none -> remote
   begin_move(vertex_pick) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   begin_move(vertex_pick,generation) => Ok(manipulation_started) | active_move: none -> remote
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
@@ -1307,7 +1307,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(vertex_pick) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(vertex_pick,generation) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1515,7 +1515,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(vertex_pick) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(vertex_pick,generation) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -2972,7 +2972,7 @@
   begin_move => Ok(manipulation_started) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; active_move: none -> native; has_draft: true -> false; can_undo: false -> true
   begin_move(vertex_pick) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_move(vertex_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Err(Move: rotateX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_rotate(world) => Err(Move: rotateX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3389,7 +3389,7 @@
   begin_move => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(vertex_pick) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(vertex_pick,generation) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_rotate(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3805,7 +3805,7 @@
   begin_move => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(vertex_pick) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(vertex_pick,generation) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_rotate(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -4221,7 +4221,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick) => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick,generation) => Ok(manipulation_started) | active_move: none -> native
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -4637,7 +4637,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick) => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick,generation) => Ok(manipulation_started) | active_move: none -> native
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -6719,7 +6719,7 @@
   begin_move => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_move(vertex_pick) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_rotate(world) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -6927,7 +6927,7 @@
   begin_move => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_move(vertex_pick) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_rotate(world) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -7136,7 +7136,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -7345,7 +7345,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(vertex_pick) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
@@ -7554,7 +7554,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -7763,7 +7763,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(vertex_pick) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
@@ -7955,7 +7955,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -7987,7 +7987,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(vertex_pick) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
@@ -8072,7 +8072,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(vertex_pick) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -8281,7 +8281,7 @@
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(vertex_pick) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   begin_move(vertex_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote

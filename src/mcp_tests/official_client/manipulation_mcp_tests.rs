@@ -531,7 +531,7 @@ async fn move_sdk_refuses_begin_in_face_mode_and_reports_it_in_inspection() {
         tool["kinds"][0]["unavailable_reason"]
             .as_str()
             .unwrap()
-            .contains("Face selection")
+            .contains("at least one selected face")
     );
     call(
         &mut editor,
@@ -1809,11 +1809,15 @@ async fn rotate_and_scale_sdk_refuse_face_mode_and_absent_leaves_with_typed_erro
     for index in 0..3 {
         let kind = &inspected["kinds"][index];
         assert_eq!(kind["available"], false);
+        // Move drags components in Face selection, so with no face picked it says that instead.
+        let want = if index == 0 {
+            "at least one selected face"
+        } else {
+            "Face selection"
+        };
         assert!(
-            kind["unavailable_reason"]
-                .as_str()
-                .unwrap()
-                .contains("Face selection")
+            kind["unavailable_reason"].as_str().unwrap().contains(want),
+            "{kind}"
         );
     }
     client.cancel().await.unwrap();

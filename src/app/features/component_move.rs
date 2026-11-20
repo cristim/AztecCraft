@@ -10,7 +10,8 @@ use azteccraft::{
     history::{ManipulationProvenance, MoveDirection},
     manipulator_handles::HandleFrame,
     native_scene::{
-        MAX_MOVED_VERTICES, ManipulatorTool, MoveSpace, TransformTarget, VertexSetTarget, WorldAxis,
+        MAX_MOVED_VERTICES, ManipulatorTool, MoveSpace, NativeError, TransformTarget,
+        VertexSetTarget, WorldAxis,
     },
 };
 use glam::DVec3;
@@ -24,14 +25,29 @@ pub(in crate::app) struct ComponentMovePlan {
 }
 
 impl Editor {
-    /// The vertex set a component Move of `target` drags: the Vertex set, owned by that instance.
+    /// Whether the Move tool drags components in the current selection mode: the vertices of the
+    /// picked vertices, edges or faces. Object and Hierarchy selection move objects.
+    pub(in crate::app) fn moves_components(&self) -> bool {
+        matches!(
+            self.selection_mode,
+            SelectionMode::Vertex | SelectionMode::Edge | SelectionMode::Face
+        )
+    }
+
+    /// The vertex set a component Move of `target` drags: the unique vertices of the current
+    /// mode's set (a shared vertex once), owned by that instance.
     fn component_move_set(
         &self,
         target: &TransformTarget,
     ) -> Result<VertexSetTarget, OperationError> {
-        let set = self.component_set(ComponentKind::Vertex);
+        let (kind, noun) = match self.selection_mode {
+            SelectionMode::Edge => (ComponentKind::Edge, "edge"),
+            SelectionMode::Face => (ComponentKind::Face, "face"),
+            _ => (ComponentKind::Vertex, "vertex"),
+        };
+        let set = self.component_set(kind);
         let owner = set.owner().ok_or_else(|| {
-            OperationError::InvalidInput("Move needs at least one selected vertex".into())
+            OperationError::InvalidInput(format!("Move needs at least one selected {noun}"))
         })?;
         let on_target = owner.transform == target.node
             && owner
@@ -39,21 +55,36 @@ impl Editor {
                 .split_last()
                 .is_some_and(|(_, parent)| parent == target.path);
         if !on_target {
-            return Err(OperationError::InvalidInput(
-                "The selected vertices belong to another object".into(),
-            ));
-        }
-        let count = set.indices().len();
-        if count > MAX_MOVED_VERTICES {
             return Err(OperationError::InvalidInput(format!(
-                "Move is limited to {MAX_MOVED_VERTICES} vertices; {count} are selected"
+                "The selected {noun}s belong to another object"
             )));
         }
+        let scene = self.history.scene();
+        let limit = |count: String| {
+            OperationError::InvalidInput(format!(
+                "Move is limited to {MAX_MOVED_VERTICES} vertices; {count} selected"
+            ))
+        };
+        let vertex_indices = match kind {
+            ComponentKind::Vertex => {
+                let count = set.indices().len();
+                if count > MAX_MOVED_VERTICES {
+                    return Err(limit(format!("{count} are")));
+                }
+                Ok(set.indices().to_vec())
+            }
+            ComponentKind::Edge => scene.vertices_of_edges(owner.shape, set.indices()),
+            ComponentKind::Face => scene.vertices_of_faces(owner.shape, set.indices()),
+        }
+        .map_err(|error| match error {
+            NativeError::ResourceLimit => limit(format!("the selected {noun}s reach more")),
+            other => OperationError::Scene(other),
+        })?;
         Ok(VertexSetTarget {
             transform: owner.transform,
             shape: owner.shape,
             path: owner.path.clone(),
-            vertex_indices: set.indices().to_vec(),
+            vertex_indices,
         })
     }
 
@@ -125,10 +156,10 @@ impl Editor {
         })
     }
 
-    /// The reason the Move tool is unavailable in the current selection mode, if it is: Vertex
-    /// selection moves its vertices, so only the other component modes refuse outright.
+    /// The reason the Move tool is unavailable in the current selection mode, if it is: the
+    /// component modes move their vertices, so none refuses outright.
     pub(in crate::app) fn move_mode_refusal(&self) -> Option<String> {
-        if self.selection_mode == SelectionMode::Vertex {
+        if self.moves_components() {
             return None;
         }
         super::manipulation_tool::mode_refusal("Move", self.selection_mode)

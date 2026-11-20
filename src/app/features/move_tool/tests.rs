@@ -9,8 +9,6 @@ use azteccraft::{
 use eframe::egui::{self, Event, Key, Modifiers, PointerButton, Pos2, Rect, Shape};
 use glam::Vec3;
 
-const FACE_MODE_REFUSAL: &str = "Move is unavailable in Face selection; switch to Object selection";
-
 pub(in crate::app) fn raw(
     size: egui::Vec2,
     origin: Pos2,
@@ -1331,62 +1329,44 @@ fn tap(editor: &mut Editor, context: &egui::Context, point: Pos2, mut events: Ve
     );
 }
 
+/// In Face and Edge selection the Move tool drags the picked components, so with none picked it
+/// reports that and a press falls through to the component click.
 #[test]
-fn face_mode_refuses_move_handles_native_and_numeric_and_keeps_face_click_working() {
-    let (mut editor, context, rect) = setup(1.0);
-    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
-    let before = editor.history.scene().clone();
-    let axis = rect.center() + egui::vec2(40.0, 0.0);
-    tap(&mut editor, &context, axis, vec![]);
-    assert!(editor.history.active_manipulation().is_none() && editor.native_move.is_none());
-    assert_eq!(editor.history.scene(), &before);
-    assert_eq!(editor.status, FACE_MODE_REFUSAL);
-    let target = editor.selected_move_target().unwrap();
-    assert!(matches!(
-        editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
-        , expected_selection_generation: None }),
-        Err(OperationError::InvalidInput(message)) if message == FACE_MODE_REFUSAL
-    ));
-    assert!(editor.history.active_manipulation().is_none());
-    let inspected = editor.inspect_manipulation().unwrap();
-    assert!(!inspected.kinds[0].available);
-    assert_eq!(
-        inspected.kinds[0].unavailable_reason.as_deref(),
-        Some(FACE_MODE_REFUSAL)
-    );
-    assert!(inspected.viewport.is_none());
-    tap(&mut editor, &context, rect.center(), vec![]);
-    assert!(editor.remembered_face().is_some(), "{}", editor.status);
-}
-
-#[test]
-fn edge_mode_refuses_move_everywhere_face_does() {
-    let refusal = "Move is unavailable in Edge selection; switch to Object selection";
-    let (mut editor, context, rect) = setup(1.0);
-    editor.selection_mode = SelectionMode::Edge;
-    let before = editor.history.scene().clone();
-    tap(
-        &mut editor,
-        &context,
-        rect.center() + egui::vec2(40.0, 0.0),
-        vec![],
-    );
-    assert!(editor.history.active_manipulation().is_none() && editor.native_move.is_none());
-    assert_eq!(editor.history.scene(), &before);
-    assert_eq!(editor.status, refusal);
-    let target = editor.selected_move_target().unwrap();
-    assert!(matches!(
-        editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
-        , expected_selection_generation: None }),
-        Err(OperationError::InvalidInput(message)) if message == refusal
-    ));
-    let inspected = editor.inspect_manipulation().unwrap();
-    assert!(!inspected.kinds[0].available);
-    assert_eq!(
-        inspected.kinds[0].unavailable_reason.as_deref(),
-        Some(refusal)
-    );
-    assert!(inspected.viewport.is_none());
+fn face_and_edge_modes_without_a_pick_report_it_and_let_the_click_through() {
+    for (mode, noun) in [(SelectionMode::Face, "face"), (SelectionMode::Edge, "edge")] {
+        let reason = format!("Move needs at least one selected {noun}");
+        let (mut editor, context, rect) = setup(1.0);
+        editor.native_operation(Operation::SetSelectionMode(mode));
+        let before = editor.history.scene().clone();
+        let axis = rect.center() + egui::vec2(40.0, 0.0);
+        tap(&mut editor, &context, axis, vec![]);
+        assert!(editor.history.active_manipulation().is_none() && editor.native_move.is_none());
+        assert_eq!(editor.history.scene(), &before);
+        assert!(!editor.error, "{}", editor.status);
+        let target = editor.selected_move_target().unwrap();
+        assert!(matches!(
+            editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
+            , expected_selection_generation: None }),
+            Err(OperationError::InvalidInput(message)) if message == reason
+        ));
+        assert!(editor.history.active_manipulation().is_none());
+        let inspected = editor.inspect_manipulation().unwrap();
+        assert!(!inspected.kinds[0].available);
+        assert!(
+            inspected.kinds[0]
+                .unavailable_reason
+                .as_deref()
+                .unwrap()
+                .contains(&reason)
+        );
+        // Rotate and Scale keep the selection-mode refusal.
+        assert!(!inspected.kinds[1].available && !inspected.kinds[2].available);
+        tap(&mut editor, &context, rect.center(), vec![]);
+        // The cube centre is a face pick; an edge needs a press on the edge itself.
+        if mode == SelectionMode::Face {
+            assert!(editor.remembered_face().is_some(), "{}", editor.status);
+        }
+    }
 }
 
 #[test]
@@ -2042,12 +2022,16 @@ fn drag_off_a_handle_selects_by_marquee_and_on_a_handle_moves() {
 }
 
 #[test]
-fn face_mode_refusal_wins_over_marquee_for_a_manipulator_drag() {
+fn a_face_mode_drag_with_no_picked_face_falls_through_to_the_marquee_refusal() {
     let (mut editor, context, rect) = setup(1.0);
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
     let from = rect.center() + egui::vec2(40.0, 0.0);
     drag(&mut editor, &context, from, from + egui::vec2(60.0, 0.0));
-    assert_eq!(editor.status, FACE_MODE_REFUSAL);
+    assert_eq!(
+        editor.status,
+        "Marquee selection in Face/Vertex/Edge mode is not implemented yet (#30)"
+    );
+    assert!(editor.history.active_manipulation().is_none());
 }
 
 fn drag_with(

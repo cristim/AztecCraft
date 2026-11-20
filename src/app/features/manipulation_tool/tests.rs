@@ -1110,13 +1110,19 @@ fn inspection_names_each_kind_in_its_selection_mode_refusal() {
     for (kind, name) in [("move", "Move"), ("rotate", "Rotate"), ("scale", "Scale")] {
         let entry = inspected.kinds.iter().find(|k| k.kind == kind).unwrap();
         assert!(!entry.available);
-        assert_eq!(
-            entry.unavailable_reason.as_deref(),
-            Some(
+        // Move drags components in Face selection, so with no face picked it says that instead.
+        let reason = entry.unavailable_reason.as_deref().unwrap();
+        if kind == "move" {
+            assert!(
+                reason.contains("Move needs at least one selected face"),
+                "{reason}"
+            );
+        } else {
+            assert_eq!(
+                reason,
                 format!("{name} is unavailable in Face selection; switch to Object selection")
-                    .as_str()
-            )
-        );
+            );
+        }
     }
 }
 

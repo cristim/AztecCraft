@@ -5,8 +5,7 @@ use super::manipulation_tool::{
 };
 use crate::app::Editor;
 use crate::editor_operations::{
-    ActiveTool, ComponentKind, ManipulationValue, MoveDistance, Operation, OperationError,
-    OperationReply, SelectionMode,
+    ActiveTool, ManipulationValue, MoveDistance, Operation, OperationError, OperationReply,
 };
 use azteccraft::snap::{GRID_LINE_SPACING_CM, snap_distance_to_grid};
 use azteccraft::{
@@ -178,7 +177,7 @@ impl Editor {
         &self,
         target: &TransformTarget,
     ) -> Result<glam::DVec3, OperationError> {
-        if self.selection_mode == SelectionMode::Vertex {
+        if self.moves_components() {
             return self.component_move_plan(target).map(|plan| plan.origin);
         }
         let covered = target.path.len() > 1
@@ -207,7 +206,7 @@ impl Editor {
         &self,
         target: &TransformTarget,
     ) -> Result<(glam::DVec3, [glam::DVec3; 3]), OperationError> {
-        if self.selection_mode == SelectionMode::Vertex {
+        if self.moves_components() {
             return self
                 .component_move_plan(target)
                 .map(|plan| (plan.origin, plan.directions));
@@ -239,7 +238,7 @@ impl Editor {
         &self,
         target: &TransformTarget,
     ) -> Result<[glam::DVec3; 3], OperationError> {
-        if self.selection_mode == SelectionMode::Vertex {
+        if self.moves_components() {
             return self.component_move_plan(target).map(|plan| plan.directions);
         }
         let space = self.manipulation.move_space();
@@ -371,8 +370,7 @@ impl Editor {
         provenance: ManipulationProvenance,
         expected_selection_generation: Option<u64>,
     ) -> Result<OperationReply, OperationError> {
-        // Vertex selection only until Edge and Face map to vertices (#41).
-        if self.selection_mode == crate::editor_operations::SelectionMode::Vertex {
+        if self.moves_components() {
             self.check_generation(expected_selection_generation)?;
             return self.begin_component_move(
                 target,
@@ -564,7 +562,7 @@ impl Editor {
         let move_refusals = match &target {
             Err(error) => Err(error.to_string()),
             // Vertex selection: one set, one reason for all three axes.
-            Ok(_) if self.selection_mode == SelectionMode::Vertex => {
+            Ok(_) if self.moves_components() => {
                 let reason = geometry.as_ref().err().cloned();
                 Ok(axis_names
                     .into_iter()
@@ -794,8 +792,7 @@ impl Editor {
             })
             .filter(|_| {
                 mode_refusal("", self.selection_mode).is_none()
-                    || (self.selection_mode == SelectionMode::Vertex
-                        && self.active_tool == ActiveTool::Move)
+                    || (self.moves_components() && self.active_tool == ActiveTool::Move)
             })
             .map(|feedback| {
                 let geometry = origin.as_ref().map_err(Clone::clone).and_then(|origin| {
@@ -1204,8 +1201,14 @@ impl Editor {
         let Ok(handles) = WorldHandles::new_in(&capture, origin, directions) else {
             return Ok(false);
         };
-        let vertex_count = (self.selection_mode == SelectionMode::Vertex)
-            .then(|| self.component_set(ComponentKind::Vertex).indices().len());
+        let vertex_count = self
+            .moves_components()
+            .then(|| {
+                self.component_move_plan(&target)
+                    .map(|plan| plan.set.vertex_indices.len())
+                    .ok()
+            })
+            .flatten();
         let pixel = capture
             .pointer_pixel(position)
             .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
@@ -1250,7 +1253,7 @@ impl Editor {
             }
             let target = self.selected_move_lead()?;
             let (origin, directions) = self.move_handle_geometry(&target)?;
-            if self.selection.len() <= 1 && self.selection_mode != SelectionMode::Vertex {
+            if self.selection.len() <= 1 && !self.moves_components() {
                 let mut refusals: Vec<_> = self
                     .single_move_refusals(&target)
                     .map_err(OperationError::Scene)?

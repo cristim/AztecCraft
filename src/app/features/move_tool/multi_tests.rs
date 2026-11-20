@@ -297,7 +297,7 @@ fn escape_and_a_tool_change_cancel_every_member() {
 }
 
 #[test]
-fn hierarchy_mode_moves_the_selection_and_face_mode_still_refuses() {
+fn hierarchy_mode_moves_the_selection_and_face_mode_needs_a_picked_face() {
     let (mut editor, _, _) = two_selected();
     remote(
         &mut editor,
@@ -322,7 +322,7 @@ fn hierarchy_mode_moves_the_selection_and_face_mode_still_refuses() {
     let scene = editor.history.scene().clone();
     assert!(matches!(
         editor.apply_operation(begin_op(lead, None)),
-        Err(OperationError::InvalidInput(m)) if m.contains("Face selection")
+        Err(OperationError::InvalidInput(m)) if m.contains("at least one selected face")
     ));
     assert_eq!(editor.history.scene(), &scene);
 }
