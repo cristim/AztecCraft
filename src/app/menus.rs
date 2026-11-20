@@ -83,7 +83,7 @@ pub(super) const POLYGON_PRIMITIVES: [(&str, Option<Primitive>); 15] = [
     ("Torus", Some(Primitive::Torus)),
     ("Plane", Some(Primitive::Plane)),
     ("Disc", None),
-    ("Platonic Solid", None),
+    ("Platonic Solid", Some(Primitive::PlatonicSolid)),
     ("Pyramid", None),
     ("Prism", None),
     ("Pipe", None),

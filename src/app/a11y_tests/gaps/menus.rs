@@ -18,7 +18,6 @@ pub(super) const GAPS: &[&str] = &[
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Gear",
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Helix",
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Pipe",
-    "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Platonic Solid",
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Prism",
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Pyramid",
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Soccer Ball",

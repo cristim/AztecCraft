@@ -53,6 +53,47 @@ pub const DEFAULT_TORUS_HEIGHT_DIVISIONS: u32 = 20;
 /// polyTorus `twist` default, in degrees (polyTorus command page, 2027).
 pub const DEFAULT_TORUS_TWIST_DEG: f64 = 0.0;
 
+/// polyPlatonicSolid `-radius` default (command page, 2027).
+pub const DEFAULT_PLATONIC_RADIUS_CM: f64 = 1.0;
+
+/// The solid a Platonic Solid primitive builds. Maya's `-solidType` lists 0 dodecahedron
+/// (default), 1 icosahedron, 2 octahedron and 3 tetrahedron; the cube is PROVISIONAL (#466): the
+/// issue lists it as a fifth solid but the command page does not.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum PlatonicSolidKind {
+    #[default]
+    Dodecahedron,
+    Icosahedron,
+    Octahedron,
+    Tetrahedron,
+    Cube,
+}
+
+impl PlatonicSolidKind {
+    pub const ALL: [Self; 5] = [
+        Self::Dodecahedron,
+        Self::Icosahedron,
+        Self::Octahedron,
+        Self::Tetrahedron,
+        Self::Cube,
+    ];
+
+    /// The name used by the option box and MCP.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Dodecahedron => "dodecahedron",
+            Self::Icosahedron => "icosahedron",
+            Self::Octahedron => "octahedron",
+            Self::Tetrahedron => "tetrahedron",
+            Self::Cube => "cube",
+        }
+    }
+
+    pub fn face_count(self) -> u64 {
+        [12, 20, 8, 4, 6][self as usize]
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Axis {
     X,
@@ -118,6 +159,13 @@ pub enum PrimitiveOptions {
         twist: f64,
         sub_axis: u32,
         sub_height: u32,
+        axis: Axis,
+    },
+    PlatonicSolid {
+        solid: PlatonicSolidKind,
+        /// Circumradius: every vertex lies at this distance from the centre. PROVISIONAL (#466):
+        /// the command page does not say how `-radius` relates to `-sideLength` (not exposed here).
+        radius: f64,
         axis: Axis,
     },
 }
@@ -226,6 +274,11 @@ impl PrimitiveOptions {
                 sub_height: DEFAULT_TORUS_HEIGHT_DIVISIONS,
                 axis,
             },
+            Primitive::PlatonicSolid => Self::PlatonicSolid {
+                solid: PlatonicSolidKind::default(),
+                radius: DEFAULT_PLATONIC_RADIUS_CM,
+                axis,
+            },
         }
     }
 
@@ -237,6 +290,7 @@ impl PrimitiveOptions {
             Self::Cylinder { .. } => Primitive::Cylinder,
             Self::Cone { .. } => Primitive::Cone,
             Self::Torus { .. } => Primitive::Torus,
+            Self::PlatonicSolid { .. } => Primitive::PlatonicSolid,
         }
     }
 
@@ -317,6 +371,7 @@ impl PrimitiveOptions {
                 sub_height,
                 ..
             } => u64::from(sub_axis).checked_mul(u64::from(sub_height)),
+            Self::PlatonicSolid { solid, .. } => Some(solid.face_count()),
         };
         counted.unwrap_or(u64::MAX)
     }
@@ -404,6 +459,7 @@ impl PrimitiveOptions {
                     ("subdivisions_height", sub_height, MIN_AXIS_DIVISIONS),
                 ],
             ),
+            Self::PlatonicSolid { radius, .. } => (vec![("radius", radius)], vec![]),
         }
     }
 }

@@ -517,6 +517,11 @@ impl NativeMesh {
                 section_radius,
                 twist,
             )),
+            PrimitiveOptions::PlatonicSolid {
+                solid,
+                radius,
+                axis,
+            } => Ok(Self::platonic_solid(solid, radius, axis)),
         }
     }
     pub(super) fn from_legacy(mesh: &Mesh) -> Self {
@@ -779,6 +784,7 @@ mod edge_index_tests;
 mod grid;
 #[cfg(test)]
 mod grid_tests;
+mod platonic;
 mod reduce;
 #[cfg(test)]
 mod reduce_region_tests;

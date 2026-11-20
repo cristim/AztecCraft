@@ -1345,6 +1345,8 @@ impl NativeScene {
             Primitive::Cylinder => "pCylinder",
             Primitive::Cone => "pCone",
             Primitive::Torus => "pTorus",
+            // PROVISIONAL (#5): Maya names the polyPlatonicSolid transform "pPlatonic"; unverified here.
+            Primitive::PlatonicSolid => "pPlatonic",
         };
         let name = self.free_name(base)?;
         let shape_name = self.free_name(&format!("{base}Shape"))?;

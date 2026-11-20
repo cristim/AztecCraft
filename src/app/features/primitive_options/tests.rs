@@ -139,6 +139,11 @@ fn focus_field(editor: &mut Editor, ctx: &egui::Context, index: usize) {
     run(editor, ctx, vec![]);
 }
 
+const NO_EXTRAS: Extras = Extras {
+    round_cap: false,
+    solid: PlatonicSolidKind::Dodecahedron,
+};
+
 #[test]
 fn drafts_round_trip_to_the_defaults_for_every_primitive() {
     for primitive in PRIMITIVES {
@@ -147,7 +152,10 @@ fn drafts_round_trip_to_the_defaults_for_every_primitive() {
             primitive,
             &texts(&options),
             axis_of(&options),
-            round_cap_of(&options),
+            Extras {
+                round_cap: round_cap_of(&options),
+                solid: solid_of(&options),
+            },
         )
         .unwrap();
         assert_eq!(rebuilt, options, "{primitive:?}");
@@ -159,27 +167,27 @@ fn assemble_names_the_bad_field_and_never_panics_on_odd_text() {
     let mut drafts = texts(&PrimitiveOptions::default_for(Primitive::Cube));
     drafts[0] = "wide".into();
     assert_eq!(
-        assemble(Primitive::Cube, &drafts, Axis::Y, false).unwrap_err(),
+        assemble(Primitive::Cube, &drafts, Axis::Y, NO_EXTRAS).unwrap_err(),
         "Width must be a number"
     );
     drafts[0] = "1".into();
     drafts[3] = "2.5".into();
     assert_eq!(
-        assemble(Primitive::Cube, &drafts, Axis::Y, false).unwrap_err(),
+        assemble(Primitive::Cube, &drafts, Axis::Y, NO_EXTRAS).unwrap_err(),
         "Subdivisions width must be a whole number"
     );
     drafts[3] = "-1".into();
-    assert!(assemble(Primitive::Cube, &drafts, Axis::Y, false).is_err());
+    assert!(assemble(Primitive::Cube, &drafts, Axis::Y, NO_EXTRAS).is_err());
     drafts[3] = "1".into();
     for bad in ["NaN", "inf", "0", "-3", "1e7", ""] {
         drafts[1] = bad.into();
         assert!(
-            assemble(Primitive::Cube, &drafts, Axis::Y, false).is_err(),
+            assemble(Primitive::Cube, &drafts, Axis::Y, NO_EXTRAS).is_err(),
             "{bad}"
         );
     }
-    assert!(assemble(Primitive::Cube, &drafts[..2], Axis::Y, false).is_err());
-    assert!(assemble(Primitive::Sphere, &drafts, Axis::Y, false).is_err());
+    assert!(assemble(Primitive::Cube, &drafts[..2], Axis::Y, NO_EXTRAS).is_err());
+    assert!(assemble(Primitive::Sphere, &drafts, Axis::Y, NO_EXTRAS).is_err());
 }
 
 #[test]
