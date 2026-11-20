@@ -427,9 +427,7 @@ pub enum Operation {
     /// Sets the Rotate tool's relative Step Snap in degrees (`None` is off, the default): an
     /// update's turn lands on a multiple of it. A step that is not finite or is below
     /// `snap::MIN_ROTATE_STEP_DEGREES` is refused. Session-only; refused during a manipulation.
-    /// Only the MCP tool `set_rotate_step` constructs it; the native Tool Box control is a
-    /// separate #35 checklist item.
-    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    /// The native Tool Box Step Snap row and the MCP tool `set_rotate_step` both construct it.
     SetRotateStep {
         degrees: Option<f64>,
     },

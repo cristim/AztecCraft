@@ -2186,12 +2186,14 @@ fn inspection_reports_no_handle_for_select_or_during_a_manipulation() {
     editor.native_operation(Operation::SetActiveTool(ActiveTool::Select));
     assert_eq!(pointer_pick(&editor), (None, None));
     // An active manipulation suppresses the pick like native hover, while the pointer stays known.
-    for (tool, point) in [
-        (Key::W, on_arrow),
-        (Key::E, view.ring(Vec3::Y, 0.0)),
-        (Key::R, view.screen(Vec3::X * view.radius() * 0.6)),
-    ] {
-        let (mut editor, context, _) = setup(tool, 1.0);
+    for tool in [Key::W, Key::E, Key::R] {
+        // The Rotate tool shows a second options row, so each tool has its own viewport.
+        let (mut editor, context, view) = setup(tool, 1.0);
+        let point = match tool {
+            Key::W => view.screen(Vec3::X * view.radius() * 0.5),
+            Key::E => view.ring(Vec3::Y, 0.0),
+            _ => view.screen(Vec3::X * view.radius() * 0.6),
+        };
         press(&mut editor, &context, 1.0, point);
         assert!(editor.history.active_manipulation().is_some(), "{tool:?}");
         let viewport = editor.inspect_manipulation().unwrap().viewport.unwrap();
@@ -3750,4 +3752,42 @@ fn a_marking_menu_opening_mid_drag_cancels_the_native_rotate() {
         editor.status,
         "Rotate cancelled: camera, viewport or native input changed"
     );
+}
+
+// A native ring drag with Step Snap 15 lands the turn on a multiple of 15 from any start angle.
+#[test]
+fn a_ring_drag_with_step_snap_lands_on_step_multiples_from_any_start() {
+    for start in [120.0, 720.0] {
+        let (mut editor, context, view) = setup(Key::E, 1.0);
+        let id = editor.selected().unwrap();
+        editor
+            .apply_operation(Operation::SetTransform {
+                id,
+                transform: crate::editor_operations::TransformInput {
+                    translation: [0.0; 3],
+                    rotation_degrees: [0.0, start, 0.0],
+                    scale: [1.0; 3],
+                },
+            })
+            .unwrap();
+        editor
+            .apply_operation(Operation::SetRotateStep {
+                degrees: Some(15.0),
+            })
+            .unwrap();
+        idle(&mut editor, &context, 1.0);
+        let before = channels(&editor)[4];
+        let ring = view.ring(Vec3::Y, 0.0);
+        press(&mut editor, &context, 1.0, ring);
+        assert!(
+            editor.history.active_manipulation().is_some(),
+            "start {start}"
+        );
+        moved(&mut editor, &context, 1.0, view.ring(Vec3::Y, 37.0));
+        release(&mut editor, &context, 1.0, view.ring(Vec3::Y, 37.0));
+        let turn = channels(&editor)[4] - before;
+        assert!(turn != 0.0, "start {start}: the drag turned nothing");
+        let multiple = turn / 15.0;
+        near(multiple, multiple.round(), 1e-6);
+    }
 }

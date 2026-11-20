@@ -45,6 +45,8 @@ pub(in crate::app) struct ManipulationOptions {
     // Relative Step Snap of the Scale tool's factor; None is off.
     scale_step: Option<f64>,
     numeric: String,
+    // The Step Snap increment field's text (see `rotate_step.rs`).
+    pub(in crate::app) rotate_step_text: String,
     // The status text last written for the handle under the pointer, and whether it is a refusal.
     hover: Option<(String, bool)>,
     // Set when the hover memory was reset (drag start, tool change): the next idle frame records
@@ -73,6 +75,7 @@ impl Default for ManipulationOptions {
             rotate_step: None,
             scale_step: None,
             numeric: String::new(),
+            rotate_step_text: String::new(),
             hover: None,
             quiet: false,
             refusal: None,
@@ -1020,12 +1023,23 @@ impl Editor {
         }
     }
 
+    /// Why the Tool Box option controls are disabled, if they are.
+    pub(in crate::app) fn manipulation_unavailable(&self) -> Option<&'static str> {
+        if self.files.is_modal() {
+            Some("a dialog is open")
+        } else if self.files.is_closing() {
+            Some("the scene is closing")
+        } else if self.history.active_manipulation().is_some() {
+            Some("a manipulation is in progress")
+        } else {
+            None
+        }
+    }
+
     // The Object/World selector, axis choice and numeric field of the active tool.
     pub(in crate::app) fn manipulation_options(&mut self, ui: &mut egui::Ui) {
         let tool = self.active_tool;
-        let enabled = !self.files.is_modal()
-            && !self.files.is_closing()
-            && self.history.active_manipulation().is_none();
+        let enabled = self.manipulation_unavailable().is_none();
         if tool == ActiveTool::Move {
             // The other Maya orientations are drawn disabled so their absence is visible.
             let current = self.manipulation.move_space();
@@ -1169,6 +1183,11 @@ impl Editor {
         }
         if apply {
             self.apply_numeric_manipulation();
+        }
+        if tool == ActiveTool::Rotate
+            && let Some(degrees) = self.rotate_step_row(ui)
+        {
+            self.native_operation(Operation::SetRotateStep { degrees });
         }
     }
 
