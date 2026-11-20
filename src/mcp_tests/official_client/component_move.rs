@@ -156,7 +156,7 @@ async fn sdk_remote_component_move_matches_a_native_drag_and_is_one_undo_step() 
     let block = &active["inspection"]["manipulation"]["active"];
     assert_eq!(
         (block["kind"].as_str(), block["axis"].as_str()),
-        (Some("move"), Some("x"))
+        (Some("move_components"), Some("x"))
     );
     assert_eq!(block["provenance"], "remote");
     let finished = call(
@@ -635,6 +635,108 @@ async fn sdk_two_edges_sharing_a_vertex_move_three_vertices_once() {
         moved.iter().all(|delta| (delta - 2.0).abs() < 1e-5),
         "{moved:?}"
     );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+/// A component drag reports kind `move_components`, its component kind and vertex count, and null
+/// channels; `move_vertices` is busy while it runs; a remote drag leaves the picks unchanged.
+#[tokio::test]
+async fn sdk_component_drag_inspection_reports_counts_per_mode_and_blocks_move_vertices() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let peer = client.peer();
+    let setup = cube_in_vertex_mode(&mut editor, &context, peer, 0).await;
+    for (mode, tool, field, count) in [
+        ("vertex", "select_vertex", "vertex_index", 1),
+        ("edge", "select_edge", "edge_index", 2),
+        ("face", "select_face", "face_index", 4),
+    ] {
+        call(
+            &mut editor,
+            &context,
+            peer,
+            "set_selection_mode",
+            json!({"scene_token":setup.token,"mode":mode}),
+        )
+        .await;
+        let mut target = setup.target.clone();
+        target.as_object_mut().unwrap().remove("vertex_index");
+        target[field] = json!(0);
+        call(
+            &mut editor,
+            &context,
+            peer,
+            tool,
+            json!({"scene_token":setup.token,"target":target}),
+        )
+        .await;
+        let picks = (
+            editor.remembered_vertex(),
+            editor.remembered_edge(),
+            editor.remembered_face(),
+        );
+        let at = generation(&mut editor, &context, peer).await;
+        let begin = call(
+            &mut editor,
+            &context,
+            peer,
+            "begin_manipulation",
+            begin_args(&setup, Some(at)),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let id = begin["manipulation_id"].as_str().unwrap().to_owned();
+        call(
+            &mut editor,
+            &context,
+            peer,
+            "update_manipulation",
+            json!({"scene_token":setup.token,"manipulation_id":id,"distance":1.5}),
+        )
+        .await;
+        let inspected = call(&mut editor, &context, peer, "inspect_scene", json!({}))
+            .await
+            .structured_content
+            .unwrap();
+        let block = &inspected["inspection"]["manipulation"]["active"];
+        assert_eq!(block["kind"], "move_components", "{mode}");
+        assert_eq!(block["component_kind"], mode);
+        assert_eq!(block["vertex_count"], count, "{mode}");
+        assert_eq!(block["member_count"], 1);
+        assert!(block["channels"].is_null(), "{mode}");
+        assert!(block["baseline_channels"].is_null() && block["current_channels"].is_null());
+        assert_eq!(block["value"], 1.5);
+        let busy = call(
+            &mut editor,
+            &context,
+            peer,
+            "move_vertices",
+            json!({"scene_token":setup.token,"node_id":setup.node,"shape_id":setup.target["shape_id"],
+                "instance_path":setup.target["instance_path"],"vertex_indices":[1],"delta":[1.0,0.0,0.0]}),
+        )
+        .await;
+        assert_eq!(code(busy), "busy_manipulation", "{mode}");
+        call(
+            &mut editor,
+            &context,
+            peer,
+            "finish_manipulation",
+            json!({"scene_token":setup.token,"manipulation_id":id,"finish":"commit"}),
+        )
+        .await;
+        assert_eq!(
+            (
+                editor.remembered_vertex(),
+                editor.remembered_edge(),
+                editor.remembered_face()
+            ),
+            picks,
+            "{mode}"
+        );
+    }
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

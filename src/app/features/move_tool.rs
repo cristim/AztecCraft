@@ -124,15 +124,15 @@ fn scale_handle_id(handle: ScaleHandle) -> &'static str {
     }
 }
 
-/// A node's channel triple; a component Move has none, so its block reports zeros.
+/// A node's channel triple; a component Move has none (null), any other kind must have them.
 #[cfg(any(test, feature = "mcp"))]
-fn component_channels(
+fn channels_of(
     channels: Option<[f64; 3]>,
     kind: azteccraft::history::ManipulationKindState,
-) -> Result<[f64; 3], OperationError> {
+) -> Result<Option<[f64; 3]>, OperationError> {
     match (channels, kind) {
-        (Some(channels), _) => Ok(channels),
-        (None, azteccraft::history::ManipulationKindState::MoveComponents { .. }) => Ok([0.0; 3]),
+        (Some(channels), _) => Ok(Some(channels)),
+        (None, azteccraft::history::ManipulationKindState::MoveComponents { .. }) => Ok(None),
         (None, _) => Err(OperationError::InvalidInput(
             "Manipulated node is unreadable".into(),
         )),
@@ -709,7 +709,7 @@ impl Editor {
                             }
                         };
                         (
-                            "move",
+                            "move_components",
                             match space {
                                 Some(MoveSpace::Object) => "object",
                                 Some(MoveSpace::World) => "world",
@@ -767,14 +767,24 @@ impl Editor {
                     value,
                     unit,
                     channels: match active.kind {
-                        ManipulationKindState::Move { .. }
-                        | ManipulationKindState::MoveComponents { .. } => "translate",
-                        ManipulationKindState::Rotate { .. } => "rotate",
-                        ManipulationKindState::Scale { .. } => "scale",
+                        ManipulationKindState::Move { .. } => Some("translate"),
+                        ManipulationKindState::MoveComponents { .. } => None,
+                        ManipulationKindState::Rotate { .. } => Some("rotate"),
+                        ManipulationKindState::Scale { .. } => Some("scale"),
                     },
-                    // A component Move edits mesh points, not channels: both read zero.
-                    baseline_channels: component_channels(active.baseline_channels, active.kind)?,
-                    current_channels: component_channels(active.current_channels, active.kind)?,
+                    baseline_channels: channels_of(active.baseline_channels, active.kind)?,
+                    current_channels: channels_of(active.current_channels, active.kind)?,
+                    component_kind: match active.kind {
+                        ManipulationKindState::MoveComponents { .. } => {
+                            Some(match self.selection_mode {
+                                crate::editor_operations::SelectionMode::Edge => "edge",
+                                crate::editor_operations::SelectionMode::Face => "face",
+                                _ => "vertex",
+                            })
+                        }
+                        _ => None,
+                    },
+                    vertex_count: active.vertex_count,
                     member_count: active.member_count(),
                     covered_count: active.covered_count(),
                 })

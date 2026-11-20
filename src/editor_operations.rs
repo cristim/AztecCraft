@@ -1290,10 +1290,17 @@ pub struct ActiveManipulationInspection {
     pub parameter: &'static str,
     pub value: f64,
     pub unit: String,
-    /// `translate`, `rotate` or `scale`: the three channels this manipulation edits.
-    pub channels: &'static str,
-    pub baseline_channels: [f64; 3],
-    pub current_channels: [f64; 3],
+    /// `translate`, `rotate` or `scale`: the three channels this manipulation edits; null for a
+    /// component Move, which edits mesh points.
+    pub channels: Option<&'static str>,
+    pub baseline_channels: Option<[f64; 3]>,
+    pub current_channels: Option<[f64; 3]>,
+    /// `vertex`, `edge` or `face` for a component Move (`kind` `move_components`); absent otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component_kind: Option<&'static str>,
+    /// Vertices a component Move drags (the union of the picked components); absent otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vertex_count: Option<usize>,
     /// Selected objects a Move acts on (1 for Rotate and Scale), covered members included.
     pub member_count: usize,
     /// Members that follow a selected ancestor instead of getting their own translation.

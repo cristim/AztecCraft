@@ -39,6 +39,10 @@ impl ComponentMove {
         self.frame.local_delta_cm(self.world * distance_cm)
     }
 
+    pub(super) fn vertex_count(&self) -> usize {
+        self.baseline.vertices().len()
+    }
+
     pub(super) fn state(&self) -> ManipulationKindState {
         match self.direction {
             MoveDirection::Axis { axis, space } => ManipulationKindState::MoveComponents {

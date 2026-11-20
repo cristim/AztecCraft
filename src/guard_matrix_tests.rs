@@ -1218,6 +1218,17 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
             Sample {
+                pre: Pre::VertexPick,
+                ..sample(
+                    "begin_move(vertex_pick,stale_generation)",
+                    Operation::BeginMove {
+                        target: t.transform_target(),
+                        axis: WorldAxis::X,
+                        expected_selection_generation: Some(t.selection_generation.wrapping_sub(1)),
+                    },
+                )
+            },
+            Sample {
                 pre: Pre::EdgePick,
                 ..sample(
                     "begin_move(edge_pick,generation)",

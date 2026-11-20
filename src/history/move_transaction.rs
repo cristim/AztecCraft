@@ -121,6 +121,8 @@ pub struct ManipulationState<'a> {
     /// The same three channels now (the live preview); `None` if there are none or the node
     /// cannot be read.
     pub current_channels: Option<[f64; 3]>,
+    /// Vertices a component Move drags; `None` for every other kind.
+    pub vertex_count: Option<usize>,
     member_count: usize,
     covered_count: usize,
 }
@@ -196,6 +198,13 @@ impl ManipulationKind {
         match self {
             Self::Move { .. } | Self::Rotate { .. } | Self::MoveComponents(_) => 0.0,
             Self::Scale { .. } => 1.0,
+        }
+    }
+
+    fn vertex_count(&self) -> Option<usize> {
+        match self {
+            Self::MoveComponents(component) => Some(component.vertex_count()),
+            _ => None,
         }
     }
 
@@ -678,6 +687,7 @@ impl History {
                     [values[first], values[first + 1], values[first + 2]]
                 })
             }),
+            vertex_count: active.kind.vertex_count(),
             member_count: active.member_count,
             covered_count: active.covered_count,
         })

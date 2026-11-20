@@ -287,23 +287,26 @@ fn a_stale_generation_is_refused_before_the_drag_starts() {
 }
 
 #[test]
-fn inspection_during_a_component_drag_names_the_move() {
+fn inspection_during_a_component_drag_names_the_component_move() {
     let mut editor = cube_with(&[0]);
     let id = begin(&mut editor);
     update(&mut editor, id, 3.0);
     let inspected = editor.inspect_manipulation().unwrap();
     let active = inspected.active.unwrap();
-    assert_eq!(active.kind, "move");
+    assert_eq!(active.kind, "move_components");
+    assert_eq!(active.component_kind, Some("vertex"));
+    assert_eq!(active.vertex_count, Some(1));
     assert_eq!(active.axis, Some("x"));
     assert_eq!(active.space, "world");
     assert_eq!(active.provenance, "native");
     assert_eq!(active.value, 3.0);
     assert_eq!(active.unit, "cm");
     assert_eq!(active.parameter, "distance");
-    assert_eq!(active.channels, "translate");
-    assert_eq!(active.baseline_channels, [0.0; 3]);
-    assert_eq!(active.current_channels, [0.0; 3]);
-    // The transaction counts the owning object, not its vertices (documented in mcp.md).
+    // A component Move edits mesh points, not channels.
+    assert_eq!(active.channels, None);
+    assert_eq!(active.baseline_channels, None);
+    assert_eq!(active.current_channels, None);
+    // `member_count` counts the owning object; the vertices are `vertex_count`.
     assert_eq!((active.member_count, active.covered_count), (1, 0));
     assert!(editor.inspect(false).is_ok());
 }
