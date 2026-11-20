@@ -7113,6 +7113,24 @@ fn edit_menu_lists_delete_by_type_rows_as_disabled_and_inert() {
 }
 
 #[test]
+fn edit_menu_repeat_row_is_disabled_until_a_delete_is_recorded() {
+    for recorded in [false, true] {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor.create(Primitive::Cube);
+        if recorded {
+            editor.apply_operation(Operation::DeleteSelection).unwrap();
+        }
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = frame(&mut editor, &ctx, vec![]);
+        let edit = face_text_position(&output, "Edit");
+        let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
+        assert_eq!(button_disabled(&output, "Repeat"), !recorded);
+    }
+}
+
+#[test]
 fn hierarchy_delete_works_on_a_flat_scene_and_select_face_is_refused() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);

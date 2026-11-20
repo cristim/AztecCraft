@@ -22,6 +22,7 @@ pub(super) const GAPS: &[&str] = &[
     "menu-edit|R3|Button|root/<Window>#0/Edit/Delete by Type",
     "menu-edit|R3|Button|root/<Window>#0/Edit/Group option box",
     "menu-edit|R3|Button|root/<Window>#0/Edit/Redo",
+    "menu-edit|R3|Button|root/<Window>#0/Edit/Repeat",
     "menu-edit|R3|Button|root/<Window>#0/Edit/Ungroup option box",
     "menu-file|R3|Button|root/<Window>#0/File/Save Scene   Ctrl/Cmd S",
     "menu-file|R3|Button|root/<Window>#0/File/☐",

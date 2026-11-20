@@ -1,6 +1,7 @@
 //! Entry-point gate for the operation pipelines.
 //!
-//! Claim: every `Operation` mutates the editor only through `apply_operation_guarded` (reached
+//! Claim: every `Operation` mutates the editor only through `apply_operation_guarded` (which delegates
+//! to `apply_operation_unrecorded`, the function the mutator call sites below sit in; reached
 //! natively via `apply_operation` and remotely via `remote_operation_guarded`), so the guard
 //! order recorded in the guard matrix cannot be bypassed.
 //!
@@ -234,6 +235,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "create_from_dialog",
             "create_joint_from_dialog",
             "menu_set_selector",
+            "menu_bar",
             "default_view",
             "file_actions",
             "frame_all",
@@ -267,7 +269,7 @@ fn tool_handle_setter_is_reached_only_through_dispatch() {
     expect(
         "tool handle setter",
         ".set_tool_handle(",
-        &["apply_operation_guarded"],
+        &["apply_operation_unrecorded"],
     );
     expect(
         "tool handle combos",
@@ -281,7 +283,7 @@ fn manipulator_size_setter_is_reached_only_through_dispatch() {
     expect(
         "manipulator size setter",
         ".set_manipulator_size(",
-        &["apply_operation_guarded"],
+        &["apply_operation_unrecorded"],
     );
 }
 
@@ -291,14 +293,14 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
     expect(
         "history execute",
         ".execute(",
-        &["apply_operation_guarded", "commit_pending"],
+        &["apply_operation_unrecorded", "commit_pending"],
     );
     // A time change writes evaluated channels with no undo entry. Dispatch re-evaluates after Undo
     // and Redo, and write_time serves set_current_time, play and the playback tick.
     expect(
         "history evaluate",
         ".apply_evaluated(",
-        &["apply_operation_guarded", "write_time"],
+        &["apply_operation_unrecorded", "write_time"],
     );
     for (what, call) in [
         ("undo queue", ".set_undo_queue("),
@@ -306,15 +308,15 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
         ("chunk open", ".open_chunk("),
         ("chunk close", ".close_chunk("),
     ] {
-        expect(what, call, &["apply_operation_guarded"]);
+        expect(what, call, &["apply_operation_unrecorded"]);
     }
     expect(
         "undo settings carry",
         ".inherit_undo_settings(",
         &["replace_scene"],
     );
-    expect("history undo", ".undo()", &["apply_operation_guarded"]);
-    expect("history redo", ".redo()", &["apply_operation_guarded"]);
+    expect("history undo", ".undo()", &["apply_operation_unrecorded"]);
+    expect("history redo", ".redo()", &["apply_operation_unrecorded"]);
     expect("single move begin", ".begin_move(", &[]);
     expect("move begin", ".begin_move_many_in(", &["begin_editor_move"]);
     expect("rotate begin", ".begin_rotate(", &["begin_editor_rotate"]);

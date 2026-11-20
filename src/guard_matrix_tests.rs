@@ -954,6 +954,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::Delete(t.node),
         Operation::DeleteSelection,
+        Operation::RepeatLast,
         Operation::Undo,
         Operation::Redo,
         Operation::SetUndoQueue(UndoQueue::Infinite),
@@ -2260,6 +2261,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
+        Operation::RepeatLast => vec![sample("repeat_last", Operation::RepeatLast)],
         Operation::Undo => vec![sample("undo", Operation::Undo)],
         Operation::Redo => vec![sample("redo", Operation::Redo)],
         Operation::SetUndoQueue(_) => vec![

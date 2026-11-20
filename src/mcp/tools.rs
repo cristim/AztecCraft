@@ -149,6 +149,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     crate::editor_operations::RecoveryFailure::Store(_) => "recovery_store",
                 },
                 OperationError::NoSelection => "no_selection",
+                OperationError::NothingToRepeat => "nothing_to_repeat",
                 OperationError::MultipleSelection => "multiple_selection",
                 OperationError::StaleSelection { .. } => "stale_selection",
                 OperationError::NothingToFrame => "nothing_to_frame",

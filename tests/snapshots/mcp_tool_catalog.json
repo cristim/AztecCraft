@@ -3163,6 +3163,29 @@
     }
   },
   {
+    "name": "repeat_last",
+    "description": "Run the last repeatable editor command again (Edit > Repeat). PROVISIONAL: only delete_selected is recorded and Maya's rules for what repeats, and after selection changes, are unverified; this is not claimed as parity. The replay re-resolves the current selection through the normal guards, so after a delete it fails with no_selection unless something is selected; with nothing recorded it fails with nothing_to_repeat",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "undo",
     "description": "Undo the last editor authoring operation",
     "inputSchema": {

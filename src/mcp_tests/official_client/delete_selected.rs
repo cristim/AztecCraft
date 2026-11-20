@@ -244,3 +244,58 @@ async fn sdk_delete_selected_names_the_refusing_object_when_several_are_selected
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_repeat_last_refuses_when_empty_then_replays_delete_selected() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    for _ in 0..2 {
+        editor.create(Primitive::Cube);
+    }
+    let all = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(vec![all[0].clone()]);
+    editor.sync_fields();
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let refused = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "repeat_last",
+        json!({"scene_token":token}),
+    )
+    .await;
+    assert_eq!(refused.is_error, Some(true));
+    assert_eq!(editor.history.scene().nodes().len(), 2);
+    let stale = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "repeat_last",
+        json!({"scene_token":"00000000-0000-0000-0000-000000000000"}),
+    )
+    .await;
+    assert_eq!(stale.is_error, Some(true));
+    assert_eq!(
+        delete_selected(&mut editor, &context, client.peer()).await["outcome"],
+        "changed"
+    );
+    editor.set_selection_members_for_test(vec![all[1].clone()]);
+    editor.sync_fields();
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let reply = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "repeat_last",
+        json!({"scene_token":token}),
+    )
+    .await;
+    assert_ne!(reply.is_error, Some(true));
+    assert_eq!(reply.structured_content.unwrap()["outcome"], "changed");
+    assert!(editor.history.scene().nodes().is_empty());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

@@ -394,6 +394,17 @@ impl std::str::FromStr for PageCursor {
     }
 }
 
+impl Operation {
+    /// A fresh copy of `self` when it may be recorded for Edit > Repeat. The allowlist is the
+    /// whole policy: only operations that re-resolve their target from the current selection.
+    pub(crate) fn repeatable(&self) -> Option<Operation> {
+        match self {
+            Self::DeleteSelection => Some(Self::DeleteSelection),
+            _ => None,
+        }
+    }
+}
+
 pub enum Operation {
     SetActiveTool(ActiveTool),
     /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool`, or
@@ -786,6 +797,10 @@ pub enum Operation {
     /// Edit > Delete on the whole object selection: every selected node is removed as one undo
     /// step, or none is. Object and Hierarchy modes only.
     DeleteSelection,
+    /// Edit > Repeat and MCP `repeat_last`: runs the last recorded repeatable operation again
+    /// through the normal guarded dispatch. PROVISIONAL: only `DeleteSelection` is repeatable
+    /// and Maya's rules for what repeats are unverified.
+    RepeatLast,
     Undo,
     Redo,
     /// `undoInfo -infinity` / `-length`: the Preferences > Undo queue. Session-only.
@@ -1580,6 +1595,8 @@ pub enum OperationError {
     /// A group, ungroup, parent or unparent the core refused; the MCP layer reports a typed code.
     Reparent(NativeError),
     NoSelection,
+    /// Edit > Repeat with no repeatable operation recorded in this session.
+    NothingToRepeat,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
     /// A caller's expected selection generation no longer matches the selection.
@@ -1731,6 +1748,7 @@ impl fmt::Display for OperationError {
             Self::Pivot(error) => error.fmt(f),
             Self::Reparent(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face first"),
+            Self::NothingToRepeat => f.write_str("No repeatable command yet"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
             Self::StaleSelection { expected, current } => write!(
                 f,

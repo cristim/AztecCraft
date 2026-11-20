@@ -168,6 +168,7 @@
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(multi_selection) => Ok(changed) | scene changed; nodes: 2 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_rest: pPlane1@1 -> -; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -371,6 +372,7 @@
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(multi_selection) => Ok(changed) | scene changed; nodes: 2 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_rest: pPlane1@1 -> -; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; status: "Scene edited" -> "Undo Create"; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; status: "Scene edited" -> "Redo Rename"; name_field: "pCube1" -> "renamed"; can_redo: true -> false
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -562,6 +564,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -753,6 +756,7 @@
   delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  repeat_last => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -944,6 +948,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1135,6 +1140,7 @@
   delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  repeat_last => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1326,6 +1332,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   set_undo_queue(infinite) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1517,6 +1524,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; status: "Scene edited" -> "Undo Create"; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; status: "Scene edited" -> "Redo Rename"; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   set_undo_queue(infinite) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1708,6 +1716,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_undo_queue(infinite) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1899,6 +1908,7 @@
   delete_selection(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_selection(vertex_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_selection(edge_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  repeat_last => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_undo_queue(infinite) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2090,6 +2100,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_undo_queue(infinite) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2281,6 +2292,7 @@
   delete_selection(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_selection(vertex_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_selection(edge_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  repeat_last => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_undo_queue(infinite) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2472,6 +2484,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   redo => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_undo_queue(infinite) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2663,6 +2676,7 @@
   delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  repeat_last => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2855,6 +2869,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> text=0.8 intent=false; can_redo: false -> true
   redo => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_undo_queue(infinite) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3047,6 +3062,7 @@
   delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  repeat_last => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3238,6 +3254,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | has_draft: true -> false; has_channel_draft: true -> false; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1
   redo => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_undo_queue(infinite) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3429,6 +3446,7 @@
   delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  repeat_last => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3620,6 +3638,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | has_draft: true -> false; has_channel_draft: true -> false
   redo => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_undo_queue(infinite) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3811,6 +3830,7 @@
   delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  repeat_last => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4002,6 +4022,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -4193,6 +4214,7 @@
   delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  repeat_last => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4384,6 +4406,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -4575,6 +4598,7 @@
   delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  repeat_last => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4768,6 +4792,7 @@
   delete_selection(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  repeat_last => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4959,6 +4984,7 @@
   delete_selection(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  repeat_last => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5150,6 +5176,7 @@
   delete_selection(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  repeat_last => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5341,6 +5368,7 @@
   delete_selection(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  repeat_last => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5532,6 +5560,7 @@
   delete_selection(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  repeat_last => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5723,6 +5752,7 @@
   delete_selection(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  repeat_last => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5914,6 +5944,7 @@
   delete_selection(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  repeat_last => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6105,6 +6136,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(unchanged) | no state change
   redo => Ok(unchanged) | no state change
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -6296,6 +6328,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(unchanged) | status: "Scene ready" -> "No change"
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -6488,6 +6521,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -6680,6 +6714,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Move"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -6872,6 +6907,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -7064,6 +7100,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Move"; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -7352,6 +7389,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -7544,6 +7582,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Move"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
   set_undo_queue(infinite) => Ok(changed) | no state change
@@ -7736,6 +7775,7 @@
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  repeat_last => Err(NothingToRepeat: No repeatable command yet) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7928,6 +7968,7 @@
   delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  repeat_last => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7966,4 +8007,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 7366
+cells: 7407

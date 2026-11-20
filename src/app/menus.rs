@@ -56,6 +56,7 @@ pub(super) const RIGGING_SET_MENUS: [&str; 5] =
 pub(super) const HELP_MENU: &str = "Help";
 
 /// Maya's Edit > Delete by Type and Delete All by Type rows; the type list is not implemented.
+pub(super) const REPEAT_REASON: &str = "No repeatable command yet";
 pub(super) const DELETE_BY_TYPE_REASON: &str =
     "Deleting by node type is not supported yet; select the object and use Delete";
 
@@ -394,6 +395,18 @@ impl Editor {
                     .clicked()
                 {
                     *delete_intent = true;
+                    ui.close();
+                }
+                // PROVISIONAL: Maya's Edit > Repeat (G) repeat rules are unverified; only Delete is
+                // recorded, and the G chord is not wired.
+                let repeat = ui
+                    .add_enabled(
+                        authoring && self.last_repeatable.is_some(),
+                        egui::Button::new("Repeat"),
+                    )
+                    .on_disabled_hover_text(read_only_reason.unwrap_or(REPEAT_REASON));
+                if repeat.clicked() {
+                    self.native_operation(Operation::RepeatLast);
                     ui.close();
                 }
                 for label in ["Delete by Type", "Delete All by Type"] {

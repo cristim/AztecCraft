@@ -156,3 +156,54 @@ fn delete_selection_in_hierarchy_mode_deletes_the_selected_roots() {
     editor.apply_operation(Operation::DeleteSelection).unwrap();
     assert!(editor.history.scene().nodes().is_empty());
 }
+
+/// PROVISIONAL (SCN-004): only Delete is recorded and replay re-resolves the current selection.
+#[test]
+fn repeat_last_refuses_until_a_delete_is_recorded_then_replays_it() {
+    let (mut editor, all) = cubes(3);
+    let before = baseline(&editor);
+    assert!(matches!(
+        editor.apply_operation(Operation::RepeatLast),
+        Err(OperationError::NothingToRepeat)
+    ));
+    assert_eq!(baseline(&editor), before);
+    editor.set_selection_members_for_test(vec![all[2].clone()]);
+    editor.apply_operation(Operation::DeleteSelection).unwrap();
+    assert_eq!(editor.history.scene().nodes().len(), 2);
+    editor.set_selection_members_for_test(vec![all[1].clone()]);
+    editor.sync_fields();
+    assert!(matches!(
+        editor.apply_operation(Operation::RepeatLast),
+        Ok(OperationReply::Changed)
+    ));
+    let left: Vec<_> = editor
+        .history
+        .scene()
+        .nodes()
+        .iter()
+        .map(|n| n.id())
+        .collect();
+    assert_eq!(left, [all[0].node]);
+    assert!(matches!(
+        editor.apply_operation(Operation::RepeatLast),
+        Err(OperationError::NoSelection)
+    ));
+}
+
+#[test]
+fn a_changing_operation_outside_the_allowlist_is_not_recorded_for_repeat() {
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::Create {
+            primitive: Primitive::Cube,
+            options: None,
+            name: None,
+        })
+        .unwrap();
+    editor.apply_operation(Operation::Undo).unwrap();
+    assert!(editor.last_repeatable.is_none());
+    assert!(matches!(
+        editor.apply_operation(Operation::RepeatLast),
+        Err(OperationError::NothingToRepeat)
+    ));
+}

@@ -69,6 +69,8 @@ pub struct Editor {
     mcp: Option<crate::mcp::UiBridge>,
     scene_token: Uuid,
     history: History,
+    /// The last repeatable operation for Edit > Repeat (PROVISIONAL scope, see `Operation::repeatable`).
+    last_repeatable: Option<Operation>,
     selection: ObjectSelection,
     selection_mode: SelectionMode,
     picks: component_picks::ComponentPicks,
@@ -140,6 +142,7 @@ impl Default for Editor {
             mcp: None,
             scene_token: Uuid::new_v4(),
             history: History::default(),
+            last_repeatable: None,
             selection: ObjectSelection::default(),
             selection_mode: SelectionMode::default(),
             picks: component_picks::ComponentPicks::default(),

@@ -485,7 +485,32 @@ impl Editor {
     ) -> Result<OperationReply, OperationError> {
         self.apply_operation_guarded(ManipulationProvenance::Native, operation, &|| true)
     }
+    /// Runs `operation` and, for Edit > Repeat, records it or replays the recorded one.
+    /// PROVISIONAL: Maya's Repeat semantics (which commands count, behaviour after selection
+    /// changes, undoability) are unverified; only Delete is recorded and replay is a fresh
+    /// guarded dispatch against the current selection.
     pub(super) fn apply_operation_guarded(
+        &mut self,
+        provenance: ManipulationProvenance,
+        operation: Operation,
+        may_install: &dyn Fn() -> bool,
+    ) -> Result<OperationReply, OperationError> {
+        let operation = if matches!(operation, Operation::RepeatLast) {
+            self.last_repeatable
+                .as_ref()
+                .and_then(Operation::repeatable)
+                .ok_or(OperationError::NothingToRepeat)?
+        } else {
+            operation
+        };
+        let record = Operation::repeatable(&operation);
+        let reply = self.apply_operation_unrecorded(provenance, operation, may_install)?;
+        if matches!(reply, OperationReply::Changed) {
+            self.last_repeatable = record;
+        }
+        Ok(reply)
+    }
+    fn apply_operation_unrecorded(
         &mut self,
         provenance: ManipulationProvenance,
         operation: Operation,
@@ -1158,6 +1183,8 @@ impl Editor {
                 name,
             }),
             Operation::Delete(id) => Command::Remove(id),
+            // Replaced by the recorded operation before dispatch; never reaches here.
+            Operation::RepeatLast => return Err(OperationError::NothingToRepeat),
             Operation::DeleteSelection => {
                 if self.selection.is_empty() {
                     return Err(OperationError::NoSelection);

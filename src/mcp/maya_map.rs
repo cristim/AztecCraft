@@ -60,6 +60,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("set_session_material_color", "`setAttr <shader>.color`", "saved to an authored .ma, refused as .mb with save_unwritable reason session_materials"),
     ("delete_node", "`delete`", "refuses hierarchies and shared descendants (#187)"),
     ("delete_selected", "`delete` with no flags", "all or nothing"),
+    ("repeat_last", "`repeatLast` (Edit > Repeat)", "PROVISIONAL: only delete_selected repeats; Maya's repeat rules are unverified (SCN-004 Partial)"),
     ("undo", "`undo`", "closes an open undo chunk first; the chunk is then the step reverted if it changed the scene"),
     ("redo", "`redo`", "closes an open undo chunk first"),
     ("set_undo_queue", "`undoInfo -infinity`, `-length`", "session-only, not a persisted preference (#178); Finite size 1 to 1000; a smaller size drops the oldest steps at once (PROVISIONAL)"),

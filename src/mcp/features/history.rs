@@ -31,6 +31,10 @@ fn parse_delete_selected(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
     mutation(arguments, Operation::DeleteSelection)
 }
 
+fn parse_repeat_last(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    mutation(arguments, Operation::RepeatLast)
+}
+
 fn parse_undo(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     mutation(arguments, Operation::Undo)
 }
@@ -141,6 +145,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Delete every selected object (Edit > Delete) as one undo step; the form of Maya's delete command with no flags, each node removed with its whole subtree (PROVISIONAL, see delete_node; that the Edit > Delete menu item runs exactly this form, not a wrapper script, is also PROVISIONAL). All or nothing: if any selected object or its subtree cannot be deleted (a shared descendant, or an opened file whose records cannot be dropped) the whole delete is refused with that object's error and nothing changes. A selected descendant of another selected object is deleted once, with it. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
         schema: schema::<MutationArgs>,
         parse: parse_delete_selected,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "repeat_last",
+        description: "Run the last repeatable editor command again (Edit > Repeat). PROVISIONAL: only delete_selected is recorded and Maya's rules for what repeats, and after selection changes, are unverified; this is not claimed as parity. The replay re-resolves the current selection through the normal guards, so after a delete it fails with no_selection unless something is selected; with nothing recorded it fails with nothing_to_repeat",
+        schema: schema::<MutationArgs>,
+        parse: parse_repeat_last,
         idempotent: false,
         read_only: false,
     },
