@@ -268,6 +268,71 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
     server.await.unwrap();
 }
 
+/// The cap subdivision maximum is 128 in the schema and in behaviour. Axis 20 keeps both builds
+/// inside the 20,000-face budget: the cylinder has 20 + 2 * 20 * 128 = 5,140 faces, the cone
+/// 20 + 20 * 128 = 2,580.
+#[tokio::test]
+async fn cap_subdivisions_accept_128_and_reject_129_matching_the_schema() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let catalog = client.peer().list_tools(None).await.unwrap();
+    let schema = serde_json::to_value(
+        catalog
+            .tools
+            .iter()
+            .find(|t| t.name == "create_primitive")
+            .unwrap(),
+    )
+    .unwrap();
+    for (primitive, definition, faces) in [
+        ("cylinder", "CylinderOptions", 5_140),
+        ("cone", "ConeOptions", 2_580),
+    ] {
+        let caps = &schema["inputSchema"]["$defs"][definition]["properties"]["subdivisions_caps"];
+        assert_eq!(
+            (&caps["minimum"], &caps["maximum"]),
+            (&json!(0), &json!(128)),
+            "{primitive}"
+        );
+        let created = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "create_primitive",
+            json!({"scene_token":token,"primitive":primitive,"options":{"subdivisions_axis":20,"subdivisions_caps":128}}),
+        )
+        .await;
+        assert_eq!(created.is_error, Some(false), "{primitive} 128");
+        let counted = counts(&inspect(&mut editor, &context, client.peer()).await);
+        assert_eq!(counted.last().unwrap()[2], faces, "{primitive} faces");
+        let scene = editor.history.scene().clone();
+        let rejected = call_response(
+            &mut editor,
+            &context,
+            client.peer(),
+            "create_primitive",
+            json!({"scene_token":token,"primitive":primitive,"options":{"subdivisions_axis":20,"subdivisions_caps":129}}),
+        )
+        .await;
+        assert!(
+            matches!(
+                rejected,
+                Err(rmcp::ServiceError::McpError(ref e)) if e.code == rmcp::model::ErrorCode::INVALID_PARAMS
+            ),
+            "{primitive} 129"
+        );
+        assert_eq!(
+            editor.history.scene(),
+            &scene,
+            "{primitive} 129 leaves the scene"
+        );
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
 #[tokio::test]
 async fn round_cap_reaches_the_mesh_only_with_cap_subdivisions() {
     let context = egui::Context::default();
