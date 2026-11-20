@@ -979,8 +979,9 @@ that preview).
 
 Rotate and Scale each keep their own Object/World selector, as Maya does. The selector,
 the axis choice and the numeric field are a row above the viewport standing in for the
-unsupported Tool Settings panel. Gimbal, Parent, Normal, Custom and Component are listed
-disabled. Move's row has only an Axis Orientation selector fixed at World: Object,
+unsupported Tool Settings panel. Rotate lists Object, World, Component, Gimbal and Custom
+(Maya's order), the last three disabled with the owning issue named. Scale lists Object, World,
+Parent, then Gimbal, Normal, Custom and Component disabled. Move's row has only an Axis Orientation selector fixed at World: Object,
 Component, Parent, Normal, Along Rotation Axis, Along Live Object Axis and Custom (the
 Maya 2026 Move Tool order) are listed disabled, and Move's other Tool Settings, axis
 choice and numeric field are absent. The MCP `update_manipulation` takes an absolute
