@@ -1,7 +1,7 @@
 use super::*;
 
 /// MCP primitive, options, then expected points, edges and faces (closed forms: Euler 2).
-const BUILDS: [(&str, &str, [u64; 3]); 11] = [
+const BUILDS: [(&str, &str, [u64; 3]); 16] = [
     (
         "cube",
         r#"{"width":2,"height":3,"depth":4,"subdivisions_width":2,"subdivisions_height":3,"subdivisions_depth":4,"axis":"x"}"#,
@@ -49,6 +49,28 @@ const BUILDS: [(&str, &str, [u64; 3]); 11] = [
         "cone",
         r#"{"round_cap":true,"subdivisions_caps":0}"#,
         [21, 40, 21],
+    ),
+    // Platonic solids: every solid, by name, with a radius and an axis.
+    (
+        "platonic_solid",
+        r#"{"solid":"dodecahedron","radius":2,"axis":"x"}"#,
+        [20, 30, 12],
+    ),
+    (
+        "platonic_solid",
+        r#"{"solid":"icosahedron","radius":0.5}"#,
+        [12, 30, 20],
+    ),
+    ("platonic_solid", r#"{"solid":"octahedron"}"#, [6, 12, 8]),
+    (
+        "platonic_solid",
+        r#"{"solid":"tetrahedron","axis":"z"}"#,
+        [4, 6, 4],
+    ),
+    (
+        "platonic_solid",
+        r#"{"solid":"cube","radius":1e6}"#,
+        [8, 12, 6],
     ),
     // An empty options object is the defaults, like omitting it.
     ("cube", "{}", [8, 12, 6]),
@@ -121,6 +143,7 @@ async fn calls_without_options_keep_the_default_meshes() {
         ("cylinder", [40, 60, 22]),
         ("cone", [21, 40, 21]),
         ("torus", [400, 800, 400]),
+        ("platonic_solid", [20, 30, 12]),
     ] {
         let reply = call(
             &mut editor,
@@ -214,6 +237,20 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
         ),
         ("cylinder", json!({"twist":45})),
         ("sphere", json!({"twist":0})),
+        ("platonic_solid", json!({"solid":"cone"})),
+        ("platonic_solid", json!({"solid":"Cube"})),
+        ("platonic_solid", json!({"solid":null})),
+        ("platonic_solid", json!({"solid":3})),
+        ("platonic_solid", json!({"radius":0})),
+        ("platonic_solid", json!({"radius":-1})),
+        ("platonic_solid", json!({"radius":1000001})),
+        ("platonic_solid", json!({"radius":"1"})),
+        ("platonic_solid", json!({"radius":null})),
+        ("platonic_solid", json!({"axis":"w"})),
+        ("platonic_solid", json!({"height":1})),
+        ("platonic_solid", json!({"subdivisions_axis":3})),
+        ("cube", json!({"solid":"cube"})),
+        ("torus", json!({"solid":"octahedron"})),
     ];
     for (primitive, options) in cases {
         let rejected = call_response(

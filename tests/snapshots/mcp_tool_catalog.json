@@ -672,7 +672,7 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder, cone or torus in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+    "description": "Create a cube, plane, sphere, cylinder, cone, torus or platonic_solid in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
     "inputSchema": {
       "$defs": {
         "ConeOptions": {
@@ -883,6 +883,41 @@
               "maximum": 1000000.0,
               "minimum": 1e-6,
               "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "PlatonicSolidOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "radius": {
+              "default": 1.0,
+              "description": "Circumradius (distance from the centre to every vertex).",
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "solid": {
+              "default": "dodecahedron",
+              "description": "Which solid to build; Maya's `-solidType` default is the dodecahedron. The cube is\nPROVISIONAL (#466): Maya's command page lists only the other four.",
+              "enum": [
+                "dodecahedron",
+                "icosahedron",
+                "octahedron",
+                "tetrahedron",
+                "cube"
+              ],
+              "type": "string"
             }
           },
           "type": "object"
@@ -1119,6 +1154,32 @@
             },
             "primitive": {
               "const": "torus",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/PlatonicSolidOptions"
+            },
+            "primitive": {
+              "const": "platonic_solid",
               "type": "string"
             },
             "scene_token": {

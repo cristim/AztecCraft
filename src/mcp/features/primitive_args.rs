@@ -5,10 +5,11 @@ use azteccraft::{
     primitive_options::{
         Axis, DEFAULT_AXIS, DEFAULT_AXIS_DIVISIONS, DEFAULT_CUBE_DIVISIONS, DEFAULT_CUBE_SIZE_CM,
         DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS, DEFAULT_HEIGHT_CM, DEFAULT_PLANE_DIVISIONS,
-        DEFAULT_PLANE_SIZE_CM, DEFAULT_RADIUS_CM, DEFAULT_ROUND_CAP, DEFAULT_SECTION_RADIUS_CM,
-        DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_SUB_CAPS, DEFAULT_TORUS_HEIGHT_DIVISIONS,
-        DEFAULT_TORUS_TWIST_DEG, MAX_DIVISIONS, MAX_SIZE_CM, MIN_AXIS_DIVISIONS, MIN_CAP_DIVISIONS,
-        MIN_DIVISIONS, MIN_SIZE_CM, MIN_SPHERE_HEIGHT_DIVISIONS, PrimitiveOptions,
+        DEFAULT_PLANE_SIZE_CM, DEFAULT_PLATONIC_RADIUS_CM, DEFAULT_RADIUS_CM, DEFAULT_ROUND_CAP,
+        DEFAULT_SECTION_RADIUS_CM, DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_SUB_CAPS,
+        DEFAULT_TORUS_HEIGHT_DIVISIONS, DEFAULT_TORUS_TWIST_DEG, MAX_DIVISIONS, MAX_SIZE_CM,
+        MIN_AXIS_DIVISIONS, MIN_CAP_DIVISIONS, MIN_DIVISIONS, MIN_SIZE_CM,
+        MIN_SPHERE_HEIGHT_DIVISIONS, PlatonicSolidKind, PrimitiveOptions,
     },
     scene::Primitive,
 };
@@ -43,6 +44,30 @@ impl From<AxisInput> for Axis {
             AxisInput::X => Axis::X,
             AxisInput::Y => Axis::Y,
             AxisInput::Z => Axis::Z,
+        }
+    }
+}
+
+/// Wire names of `PlatonicSolidKind`; the schema lists them as an enum.
+#[derive(Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "PlatonicSolidType", inline)]
+enum SolidInput {
+    Dodecahedron,
+    Icosahedron,
+    Octahedron,
+    Tetrahedron,
+    Cube,
+}
+
+impl From<SolidInput> for PlatonicSolidKind {
+    fn from(solid: SolidInput) -> Self {
+        match solid {
+            SolidInput::Dodecahedron => Self::Dodecahedron,
+            SolidInput::Icosahedron => Self::Icosahedron,
+            SolidInput::Octahedron => Self::Octahedron,
+            SolidInput::Tetrahedron => Self::Tetrahedron,
+            SolidInput::Cube => Self::Cube,
         }
     }
 }
@@ -130,6 +155,13 @@ option_structs! {
         subdivisions_axis: u32 = DEFAULT_AXIS_DIVISIONS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
         subdivisions_height: u32 = DEFAULT_TORUS_HEIGHT_DIVISIONS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
     }
+    PlatonicSolidOptions => PlatonicSolid {
+        /// Which solid to build; Maya's `-solidType` default is the dodecahedron. The cube is
+        /// PROVISIONAL (#466): Maya's command page lists only the other four.
+        solid: SolidInput = SolidInput::Dodecahedron;
+        /// Circumradius (distance from the centre to every vertex).
+        radius: f64 = DEFAULT_PLATONIC_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+    }
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -176,6 +208,13 @@ pub(super) enum CreateArgs {
         #[serde(default, deserialize_with = "present")]
         #[schemars(with = "TorusOptions")]
         options: Option<TorusOptions>,
+    },
+    PlatonicSolid {
+        scene_token: String,
+        name: Option<String>,
+        #[serde(default, deserialize_with = "present")]
+        #[schemars(with = "PlatonicSolidOptions")]
+        options: Option<PlatonicSolidOptions>,
     },
 }
 
@@ -292,6 +331,20 @@ impl CreateArgs {
                     axis: o.axis.into(),
                 }),
             ),
+            Self::PlatonicSolid {
+                scene_token,
+                name,
+                options,
+            } => (
+                scene_token,
+                name,
+                Primitive::PlatonicSolid,
+                options.map(|o| PrimitiveOptions::PlatonicSolid {
+                    solid: o.solid.into(),
+                    radius: o.radius,
+                    axis: o.axis.into(),
+                }),
+            ),
         };
         if let Some(options) = &options {
             options
@@ -386,6 +439,14 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(TorusOptions::default()),
+            },
+        );
+        check(
+            Primitive::PlatonicSolid,
+            CreateArgs::PlatonicSolid {
+                scene_token: t(),
+                name: None,
+                options: Some(PlatonicSolidOptions::default()),
             },
         );
     }
