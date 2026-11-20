@@ -610,7 +610,7 @@ fn round_cap_at_zero_caps_is_an_accepted_no_op() {
 }
 
 #[test]
-fn only_the_platonic_solids_lack_a_uv_layout() {
+fn only_the_platonic_solids_pyramid_and_prism_lack_a_uv_layout() {
     for primitive in [
         Primitive::Cube,
         Primitive::Plane,
@@ -619,10 +619,15 @@ fn only_the_platonic_solids_lack_a_uv_layout() {
         Primitive::Cone,
         Primitive::Torus,
         Primitive::PlatonicSolid,
+        Primitive::Pyramid,
+        Primitive::Prism,
     ] {
         assert_eq!(
             PrimitiveOptions::default_for(primitive).has_uv_layout(),
-            primitive != Primitive::PlatonicSolid,
+            !matches!(
+                primitive,
+                Primitive::PlatonicSolid | Primitive::Pyramid | Primitive::Prism
+            ),
             "{primitive:?}"
         );
     }

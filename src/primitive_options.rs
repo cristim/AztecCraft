@@ -318,7 +318,7 @@ impl PrimitiveOptions {
         }
     }
 
-    /// Whether `create_uvs` has a real UV layout for these options. The Platonic solids have none
+    /// Whether `create_uvs` has a real UV layout for these options. The Platonic solids, pyramid and prism have none
     /// yet (they only get a planar placeholder), so a caller that exposes `create_uvs` must refuse
     /// them or lay them out first (#453 T10).
     pub fn has_uv_layout(&self) -> bool {
@@ -329,7 +329,7 @@ impl PrimitiveOptions {
             | Self::Cylinder { .. }
             | Self::Cone { .. }
             | Self::Torus { .. } => true,
-            Self::PlatonicSolid { .. } => false,
+            Self::PlatonicSolid { .. } | Self::Pyramid { .. } | Self::Prism { .. } => false,
         }
     }
 

@@ -1703,6 +1703,60 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
             sample(
+                "create(pyramid,5 sides)",
+                Operation::Create {
+                    primitive: Primitive::Pyramid,
+                    options: Some(PrimitiveOptions::Pyramid {
+                        side_length: 2.0,
+                        sides: 5,
+                        axis: Axis::Z,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
+                "create(pyramid,invalid sides)",
+                Operation::Create {
+                    primitive: Primitive::Pyramid,
+                    options: Some(PrimitiveOptions::Pyramid {
+                        side_length: 1.0,
+                        sides: 2,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
+                "create(prism,6 sides)",
+                Operation::Create {
+                    primitive: Primitive::Prism,
+                    options: Some(PrimitiveOptions::Prism {
+                        side_length: 1.5,
+                        length: 3.0,
+                        sides: 6,
+                        axis: Axis::X,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
+                "create(prism,invalid length)",
+                Operation::Create {
+                    primitive: Primitive::Prism,
+                    options: Some(PrimitiveOptions::Prism {
+                        side_length: 1.0,
+                        length: 0.0,
+                        sides: 3,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
                 "create(cylinder,round caps)",
                 Operation::Create {
                     primitive: Primitive::Cylinder,
