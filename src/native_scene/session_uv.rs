@@ -195,6 +195,11 @@ impl SessionUvs {
         Ok(())
     }
 
+    /// Drops the sets of shapes whose native id is `first` or later (a failed import's range).
+    pub(super) fn discard_from(&mut self, first: u64) {
+        self.sets.retain(|shape, _| shape.0 < first);
+    }
+
     pub(super) fn prune(&mut self, shapes: &[NativeMeshShape]) {
         let known: HashSet<NativeId> = shapes.iter().map(|shape| shape.id).collect();
         self.sets.retain(|shape, _| known.contains(shape));

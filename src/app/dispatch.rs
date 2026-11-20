@@ -281,12 +281,14 @@ impl Editor {
                 vertices,
                 faces,
                 from_maya,
+                uv_objects,
+                uv_dropped_objects,
                 ..
             }) => {
                 let dropped = if *from_maya {
-                    ""
+                    String::new()
                 } else {
-                    " (normals, UVs and materials are not imported)"
+                    features::obj_import::obj_import_note(*uv_objects, *uv_dropped_objects)
                 };
                 self.status = format!(
                     "Imported {objects} object(s), {vertices} vertices and {faces} faces{dropped}"
@@ -1675,6 +1677,8 @@ impl Editor {
                 vertices: import_totals.vertices,
                 faces: import_totals.faces,
                 ignored_records: import_totals.ignored_records,
+                uv_objects: import_totals.uv_objects,
+                uv_dropped_objects: import_totals.uv_dropped_objects,
                 node_ids: ids.iter().map(|id| id.to_decimal()).collect(),
                 from_maya,
             },

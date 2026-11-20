@@ -331,7 +331,7 @@
   export_obj(selection) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
   export_obj(with_uvs) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
-  import_obj(valid) => Ok(imported) | scene changed; nodes: 1 -> 2; selected: pCube1 -> imported; status: "Scene edited" -> "Imported 1 object(s), 3 vertices and 1 faces (normals, UVs and materials are not imported)"; name_field: "pCube1" -> "imported"; can_redo: true -> false
+  import_obj(valid) => Ok(imported) | scene changed; nodes: 1 -> 2; selected: pCube1 -> imported; status: "Scene edited" -> "Imported 1 object(s), 3 vertices and 1 faces; no UVs imported (an object needs a vt on every corner); normals and materials are not imported"; name_field: "pCube1" -> "imported"; can_redo: true -> false
   import_obj(not_obj) => Err(InvalidInput: Import path must end in .obj) | no state change
   import_obj(missing) => Err(ObjImport: could not read the OBJ file (entity not found)) | no state change
   export_gltf(all) => Ok(gltf_exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 12 triangles to glTF"
@@ -1485,7 +1485,7 @@
   export_obj(all) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   export_obj(selection) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
-  import_obj(valid) => Ok(imported) | scene changed; nodes: 1 -> 2; selected: pCube1 -> imported; status: "Scene edited" -> "Imported 1 object(s), 3 vertices and 1 faces (normals, UVs and materials are not imported)"; name_field: "pCube1" -> "imported"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  import_obj(valid) => Ok(imported) | scene changed; nodes: 1 -> 2; selected: pCube1 -> imported; status: "Scene edited" -> "Imported 1 object(s), 3 vertices and 1 faces; no UVs imported (an object needs a vt on every corner); normals and materials are not imported"; name_field: "pCube1" -> "imported"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   import_obj(not_obj) => Err(InvalidInput: Import path must end in .obj) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   import_obj(missing) => Err(ObjImport: could not read the OBJ file (entity not found)) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   export_gltf(all) => Ok(gltf_exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 12 triangles to glTF"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0

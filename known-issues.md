@@ -25,8 +25,11 @@ parity with Maya is claimed and nothing was compared with Maya's OBJ reader (#5)
 
 - **Meshes only.** `v` and `f` records, `o` and `g` groups (one new object per group, Multiple
   Objects semantics). Normals, materials, smoothing groups and `.mtl` files are counted in
-  `ignored_records` and dropped. `vt` records are parsed and validated (up to 262,144) but the UVs are
-  not yet applied to the imported shapes, and nothing reports them. The Group and Single Object options and other import types do not
+  `ignored_records` and dropped. `vt` records are parsed and validated (up to 262,144). An object whose
+  every corner has a `vt` gets a session `map1` (values rounded to f32); an object with any corner
+  lacking one imports without UVs. The reply counts both (`uv_objects`, `uv_dropped_objects`; policy
+  PROVISIONAL). An imported UV'd object is refused by the `.mb` writer, glTF and USD export; Delete UVs
+  or an authored `.ma` Save (Unix) are the ways out. The Group and Single Object options and other import types do not
   exist; the option box beside Import... is disabled.
 - **Opened Maya files refuse it.** A scene opened from `.mb` or `.ma` cannot take structural edits,
   so Import returns the same refusal Create gives. It works in Untitled, authored and legacy

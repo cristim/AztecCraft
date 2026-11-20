@@ -54,6 +54,8 @@ impl Editor {
             vertices: plan.vertex_count(),
             faces: plan.face_count(),
             ignored_records: 0,
+            uv_objects: 0,
+            uv_dropped_objects: 0,
         };
         Ok((Command::ImportMaya(Box::new(plan)), totals))
     }

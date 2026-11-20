@@ -969,13 +969,16 @@ pub enum OperationReply {
         vertices: usize,
         faces: usize,
     },
-    /// An OBJ import added `objects` root nodes; `ignored_records` counts the normals, UVs,
-    /// materials and similar records the reader dropped.
+    /// An OBJ import added `objects` root nodes; `ignored_records` counts the normals,
+    /// materials and similar records the reader dropped. `uv_objects` got a `map1` from `vt`
+    /// records; `uv_dropped_objects` had a corner without one and imported without UVs.
     Imported {
         objects: usize,
         vertices: usize,
         faces: usize,
         ignored_records: usize,
+        uv_objects: usize,
+        uv_dropped_objects: usize,
         node_ids: Vec<String>,
         /// Selects the status wording only; Maya import drops no records.
         #[serde(skip)]

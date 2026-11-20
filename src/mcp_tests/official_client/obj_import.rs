@@ -44,6 +44,8 @@ async fn sdk_import_obj_adds_objects_in_one_undoable_step_and_keeps_the_scene_to
     assert_eq!(imported["vertices"], 6);
     assert_eq!(imported["faces"], 2);
     assert_eq!(imported["ignored_records"], 1);
+    assert_eq!(imported["uv_objects"], 0);
+    assert_eq!(imported["uv_dropped_objects"], 2);
     let ids = imported["node_ids"].as_array().unwrap();
     assert_eq!(ids.len(), 2);
     assert_eq!(editor.scene_token.to_string(), token);
@@ -339,6 +341,41 @@ async fn sdk_import_obj_after_export_and_into_an_opened_binary_scene() {
     .await;
     assert_eq!(refused["error"]["code"], "scene_error", "{refused}");
     assert_eq!(editor.history.scene(), &nodes);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_import_obj_attaches_complete_uvs_and_reports_the_counts() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let path = write(
+        &directory,
+        "uv.obj",
+        "v 0 0 0\nv 1 0 0\nv 0 1 0\nv 1 1 0\nvt 0 0\nvt 1 0\nvt 0 1\n\
+         o mapped\nf 1/1 2/2 3/3\no bare\nf 2 4 3\n",
+    );
+    let token = editor.scene_token.to_string();
+
+    let imported = import(
+        &mut editor,
+        &context,
+        &client,
+        json!({"scene_token": token, "path": path}),
+    )
+    .await;
+
+    assert_eq!(imported["objects"], 2);
+    assert_eq!(imported["ignored_records"], 0);
+    assert_eq!(imported["uv_objects"], 1);
+    assert_eq!(imported["uv_dropped_objects"], 1);
+    assert!(
+        editor
+            .status
+            .contains("UVs on 1 object(s), 1 without complete UVs")
+    );
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

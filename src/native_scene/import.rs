@@ -3,11 +3,14 @@
 //! layer runs the display predicate on the candidate scene.
 
 use super::{
-    NativeError, NativeMesh, NativeScene, NativeTransform, SceneError,
+    NativeError, NativeMesh, NativeScene, NativeTransform, SceneError, UvSet,
     authored::{self, BUILTINS, RESERVED},
     shape_name_for,
 };
-use crate::{obj::import::ParsedObj, scene::NodeId};
+use crate::{
+    obj::import::{ParsedObj, ParsedObject},
+    scene::NodeId,
+};
 use std::collections::HashSet;
 
 /// Objects ready to append: names already resolved against the scene they were planned on.
@@ -22,6 +25,8 @@ struct PlannedObject {
     shape_name: String,
     points: Vec<[f32; 3]>,
     loops: Vec<Vec<usize>>,
+    /// `map1` built against these loops; `None` when some corner of the object lacked a `vt`.
+    uvs: Option<UvSet>,
 }
 
 impl ObjImportPlan {
@@ -33,6 +38,17 @@ impl ObjImportPlan {
     }
     pub fn face_count(&self) -> usize {
         self.objects.iter().map(|object| object.loops.len()).sum()
+    }
+    /// Objects that will get a `map1`.
+    pub fn uv_object_count(&self) -> usize {
+        self.objects
+            .iter()
+            .filter(|object| object.uvs.is_some())
+            .count()
+    }
+    /// Objects imported without UVs because some corner had no `vt`.
+    pub fn uv_dropped_count(&self) -> usize {
+        self.objects.len() - self.uv_object_count()
     }
 }
 
@@ -82,11 +98,13 @@ impl NativeScene {
                         .collect::<Result<Vec<_>, _>>()
                 })
                 .collect::<Result<Vec<_>, _>>()?;
+            let uvs = planned_uvs(parsed, object, &points, &loops)?;
             objects.push(PlannedObject {
                 name,
                 shape_name,
                 points,
                 loops,
+                uvs,
             });
         }
         Ok(ObjImportPlan { objects })
@@ -108,6 +126,7 @@ impl NativeScene {
         );
         let result = self.append_planned(plan);
         if result.is_err() {
+            self.session_uvs.discard_from(before.4);
             self.nodes.truncate(before.0);
             self.shapes.truncate(before.1);
             self.dag.truncate(before.2);
@@ -144,9 +163,48 @@ impl NativeScene {
             self.next_id = next;
             ids.push(id);
         }
+        let first_new = self.shapes.len() - plan.objects.len();
+        let shape_ids: Vec<_> = self.shapes[first_new..]
+            .iter()
+            .map(|shape| shape.id)
+            .collect();
+        for (shape, object) in shape_ids.into_iter().zip(&plan.objects) {
+            if let Some(set) = &object.uvs {
+                self.attach_authored_uv_set(shape, set.clone());
+            }
+        }
         self.validate()?;
         Ok(ids)
     }
+}
+
+/// The object's `map1` against its planned loops, or `None` when any corner lacked a `vt`.
+/// Built before any scene mutation so attaching cannot fail halfway.
+fn planned_uvs(
+    parsed: &ParsedObj,
+    object: &ParsedObject,
+    points: &[[f32; 3]],
+    loops: &[Vec<usize>],
+) -> Result<Option<UvSet>, NativeError> {
+    let Some(uv_faces) = &object.uv_faces else {
+        return Ok(None);
+    };
+    let faces = uv_faces
+        .iter()
+        .map(|face| {
+            face.iter()
+                .map(|index| {
+                    usize::try_from(*index)
+                        .ok()
+                        .and_then(|index| parsed.uvs.get(index))
+                        .map(|uv| [f64::from(uv[0]), f64::from(uv[1])])
+                        .ok_or(NativeError::InvalidTopology)
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let mesh = NativeMesh::from_loops(points.to_vec(), loops.to_vec());
+    UvSet::from_corners(&mesh, faces).map(Some)
 }
 
 /// Maps every byte outside `[A-Za-z0-9_]` to `_` and guards an empty or digit-led name, then

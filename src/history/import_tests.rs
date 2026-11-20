@@ -101,3 +101,20 @@ fn view_errors_map_to_native_errors() {
         assert!(others.iter().skip(index + 1).all(|later| later != other));
     }
 }
+
+#[test]
+fn undo_removes_imported_uvs_with_the_shapes_and_redo_restores_them() {
+    let mut history = History::new(NativeScene::default());
+    let before = history.scene().clone();
+    let command = plan(
+        history.scene(),
+        "v 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 0 1\no t\nf 1/1 2/2 3/3\n",
+    );
+    history.execute(command).unwrap();
+    let imported = history.scene().clone();
+    assert_ne!(imported, before);
+    assert!(history.undo());
+    assert_eq!(history.scene(), &before);
+    assert!(history.redo());
+    assert_eq!(history.scene(), &imported);
+}

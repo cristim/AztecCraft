@@ -18,6 +18,21 @@ pub(in crate::app) struct ImportTotals {
     pub vertices: usize,
     pub faces: usize,
     pub ignored_records: usize,
+    pub uv_objects: usize,
+    pub uv_dropped_objects: usize,
+}
+
+/// The status-line tail for an OBJ import: what happened to UVs, and that normals and materials
+/// are dropped.
+pub(in crate::app) fn obj_import_note(uv_objects: usize, uv_dropped_objects: usize) -> String {
+    let uvs = match (uv_objects, uv_dropped_objects) {
+        (0, _) => "no UVs imported (an object needs a vt on every corner)".to_owned(),
+        (applied, 0) => format!("UVs on {applied} object(s)"),
+        (applied, dropped) => {
+            format!("UVs on {applied} object(s), {dropped} without complete UVs")
+        }
+    };
+    format!("; {uvs}; normals and materials are not imported")
 }
 
 impl Editor {
@@ -37,6 +52,8 @@ impl Editor {
             vertices: plan.vertex_count(),
             faces: plan.face_count(),
             ignored_records: parsed.ignored_records,
+            uv_objects: plan.uv_object_count(),
+            uv_dropped_objects: plan.uv_dropped_count(),
         };
         Ok((Command::ImportObjects(Box::new(plan)), totals))
     }

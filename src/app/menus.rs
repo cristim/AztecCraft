@@ -311,7 +311,8 @@ impl Editor {
                     ui.add_enabled(false, egui::Button::new("\u{2610}"))
                         .on_disabled_hover_text(
                             "Import options are not implemented: OBJ only, Multiple Objects, \
-                             no Group, normals, UVs or materials",
+                             no Group, normals or materials; UVs are imported when every corner \
+                             has one",
                         );
                 });
                 for (label, selection_only) in

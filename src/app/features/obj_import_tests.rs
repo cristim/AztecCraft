@@ -28,6 +28,8 @@ fn an_import_adds_the_objects_selects_them_with_the_last_as_lead_and_is_one_undo
         vertices,
         faces,
         ignored_records,
+        uv_objects,
+        uv_dropped_objects,
         node_ids,
         ..
     } = reply
@@ -35,6 +37,7 @@ fn an_import_adds_the_objects_selects_them_with_the_last_as_lead_and_is_one_undo
         panic!("{reply:?}");
     };
     assert_eq!((objects, vertices, faces, ignored_records), (2, 6, 2, 1));
+    assert_eq!((uv_objects, uv_dropped_objects), (0, 2));
     assert_eq!(node_ids.len(), 2);
     let members: Vec<String> = editor
         .selection
@@ -152,4 +155,51 @@ fn an_import_while_a_dialog_is_open_is_refused_and_changes_nothing() {
         Err(OperationError::BusyEditing)
     ));
     assert_eq!(editor.history.scene(), &before);
+}
+
+const MIXED_UVS: &str = "v 0 0 0\nv 1 0 0\nv 0 1 0\nv 1 1 0\nvt 0 0\nvt 1 0\nvt 0 1\n\
+                         o withuv\nf 1/1 2/2 3/3\no plain\nf 2 4 3\no bare\nf 1 4 3\n";
+
+#[test]
+fn the_reply_and_status_say_how_many_objects_got_uvs() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut editor = Editor::default();
+    let path = write(&directory, "mixed.obj", MIXED_UVS);
+    let reply = editor
+        .apply_operation(Operation::ImportObj { path })
+        .unwrap();
+    let OperationReply::Imported {
+        uv_objects,
+        uv_dropped_objects,
+        ..
+    } = reply
+    else {
+        panic!("{reply:?}");
+    };
+    assert_eq!((uv_objects, uv_dropped_objects), (1, 2));
+    assert_eq!(editor.history.scene().nodes().len(), 3);
+    editor.native_operation(Operation::ImportObj {
+        path: write(&directory, "mixed2.obj", MIXED_UVS),
+    });
+    assert_eq!(
+        editor.status,
+        "Imported 3 object(s), 9 vertices and 3 faces; UVs on 1 object(s), 2 without \
+         complete UVs; normals and materials are not imported"
+    );
+}
+
+#[test]
+fn status_wording_covers_none_all_and_some_uvs() {
+    assert_eq!(
+        obj_import_note(0, 2),
+        "; no UVs imported (an object needs a vt on every corner); normals and materials are not imported"
+    );
+    assert_eq!(
+        obj_import_note(3, 0),
+        "; UVs on 3 object(s); normals and materials are not imported"
+    );
+    assert_eq!(
+        obj_import_note(1, 2),
+        "; UVs on 1 object(s), 2 without complete UVs; normals and materials are not imported"
+    );
 }

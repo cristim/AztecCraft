@@ -89,7 +89,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("save_scene", "`file -save`", "Maya binary, or authored Maya ASCII with its session UVs"),
     ("save_scene_as", "`file -rename`, then `file -save -type`", "never overwrites; an authored .ma carries session UVs, an .mb refuses them"),
     ("export_obj", "`file -exportAll` / `-exportSelected -type \"OBJexport\"`", "faces and session UVs, centimeters, never overwrites (PROVISIONAL: OBJexport options)"),
-    ("import_obj", "`file -import -type \"OBJ\"`", "meshes only, one undo step, new roots selected; normals, UVs and materials dropped (PROVISIONAL: OBJ import options)"),
+    ("import_obj", "`file -import -type \"OBJ\"`", "meshes only, one undo step, new roots selected; UVs kept when every corner has a vt; normals and materials dropped (PROVISIONAL: OBJ import options)"),
     ("export_gltf", "none (Maya has no native glTF export; an AztecCraft extension, see #436)", "meters, +Y up, no normals/UVs/materials, never overwrites (PROVISIONAL)"),
     ("export_usd", "none (Maya ships USD through the separate maya-usd plug-in; an AztecCraft slice of #438)", "centimeters with metersPerUnit 0.01, +Y up, mesh points and topology only, never overwrites (PROVISIONAL)"),
     ("import_maya_scene", "`file -import -type \"mayaAscii\"` / `\"mayaBinary\"` with `-namespace`", "meshes only, one undo step, new roots selected; only files an authored save reproduces exactly (PROVISIONAL: Group, Preserve References and time range not implemented)"),

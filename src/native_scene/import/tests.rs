@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    native_scene::{Points, test_fixtures::cube},
+    native_scene::{NativeId, Points, test_fixtures::cube},
     obj::import::parse,
     scene::Primitive,
 };
@@ -235,6 +235,7 @@ fn a_failure_after_the_first_object_was_appended_restores_the_scene_exactly() {
     let mut scene = NativeScene::default();
     scene.create(Primitive::Cube, "pCube1").unwrap();
     let good = |name: &str| PlannedObject {
+        uvs: None,
         name: name.into(),
         shape_name: shape_name_for(name),
         points: vec![[0.0; 3], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
@@ -294,4 +295,77 @@ fn a_parented_mesh_exports_in_world_space_and_imports_as_one_flat_root() {
         "{points:?}"
     );
     authored::check_scene(&target).unwrap();
+}
+
+const UV_TWO_OBJECTS: &str = "v 9 9 9\nv 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nvt 0.25 0.5\nvt 1 0\n\
+                              vt 1 1\nvt 0 1\no uv\nf 2/1 3/2 4/3 5/4\no plain\nf 2 3 4\n";
+
+fn shape_id(scene: &NativeScene, id: NodeId) -> NativeId {
+    authored::shape_of(scene, scene.node(id).unwrap())
+        .unwrap()
+        .id
+}
+
+#[test]
+fn complete_vt_becomes_the_shape_map1_and_an_incomplete_object_counts_as_dropped() {
+    let mut scene = NativeScene::default();
+    let plan = scene.plan_obj_import(&parsed(UV_TWO_OBJECTS)).unwrap();
+    assert_eq!((plan.uv_object_count(), plan.uv_dropped_count()), (1, 1));
+    let ids = scene.import_polygon_objects(&plan).unwrap();
+    let set = scene.uv_set(shape_id(&scene, ids[0])).unwrap();
+    // The unused leading vertex is dropped; face and corner order are kept.
+    assert_eq!(
+        set.faces(),
+        [vec![[0.25, 0.5], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
+    );
+    assert!(scene.uv_set(shape_id(&scene, ids[1])).is_none());
+    scene.validate().unwrap();
+}
+
+#[test]
+fn imported_vt_values_are_the_f32_values_of_the_file() {
+    let mut scene = NativeScene::default();
+    let ids = import(
+        &mut scene,
+        "v 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0.1 0.7\nvt 0.3\nvt -2 5.5\nf 1/1 2/2 3/3\n",
+    );
+    let set = scene.uv_set(shape_id(&scene, ids[0])).unwrap();
+    assert_eq!(set.faces()[0][0][0].to_bits(), f64::from(0.1_f32).to_bits());
+    assert_eq!(set.faces()[0][0][1].to_bits(), f64::from(0.7_f32).to_bits());
+    assert_eq!(set.faces()[0][1], [f64::from(0.3_f32), 0.0]);
+    assert_eq!(set.faces()[0][2], [-2.0, 5.5]);
+}
+
+#[test]
+fn a_failed_import_drops_the_uv_sets_of_the_ids_it_reserved() {
+    let mut scene = NativeScene::default();
+    let mut plan = scene.plan_obj_import(&parsed(UV_TWO_OBJECTS)).unwrap();
+    // The quad's set on the triangle makes the final `validate` fail after the attach.
+    plan.objects[1].uvs = plan.objects[0].uvs.clone();
+    let before = scene.clone();
+    assert!(matches!(
+        scene.import_polygon_objects(&plan),
+        Err(NativeError::InvalidSessionUvs)
+    ));
+    assert_eq!(scene, before);
+    assert!(scene.uv_set(NativeId(2)).is_none());
+    // A clean import afterwards reuses the ids and inherits nothing.
+    let plan = scene.plan_obj_import(&parsed(UV_TWO_OBJECTS)).unwrap();
+    let ids = scene.import_polygon_objects(&plan).unwrap();
+    assert!(scene.uv_set(shape_id(&scene, ids[1])).is_none());
+}
+
+#[test]
+fn only_the_imported_shapes_get_uvs_not_the_shapes_already_in_the_scene() {
+    let (mut scene, existing) = cube();
+    let existing_shape = shape_id(&scene, existing);
+    let ids = import(&mut scene, UV_TWO_OBJECTS);
+    assert!(scene.uv_set(existing_shape).is_none());
+    let mapped = scene.uv_set(shape_id(&scene, ids[0])).unwrap();
+    assert_eq!(
+        mapped.faces(),
+        [vec![[0.25, 0.5], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
+    );
+    assert!(scene.uv_set(shape_id(&scene, ids[1])).is_none());
+    scene.validate().unwrap();
 }
