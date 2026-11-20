@@ -143,7 +143,13 @@ fn focus_field(editor: &mut Editor, ctx: &egui::Context, index: usize) {
 fn drafts_round_trip_to_the_defaults_for_every_primitive() {
     for primitive in PRIMITIVES {
         let options = PrimitiveOptions::default_for(primitive);
-        let rebuilt = assemble(primitive, &texts(&options), axis_of(&options)).unwrap();
+        let rebuilt = assemble(
+            primitive,
+            &texts(&options),
+            axis_of(&options),
+            round_cap_of(&options),
+        )
+        .unwrap();
         assert_eq!(rebuilt, options, "{primitive:?}");
     }
 }
@@ -153,27 +159,27 @@ fn assemble_names_the_bad_field_and_never_panics_on_odd_text() {
     let mut drafts = texts(&PrimitiveOptions::default_for(Primitive::Cube));
     drafts[0] = "wide".into();
     assert_eq!(
-        assemble(Primitive::Cube, &drafts, Axis::Y).unwrap_err(),
+        assemble(Primitive::Cube, &drafts, Axis::Y, false).unwrap_err(),
         "Width must be a number"
     );
     drafts[0] = "1".into();
     drafts[3] = "2.5".into();
     assert_eq!(
-        assemble(Primitive::Cube, &drafts, Axis::Y).unwrap_err(),
+        assemble(Primitive::Cube, &drafts, Axis::Y, false).unwrap_err(),
         "Subdivisions width must be a whole number"
     );
     drafts[3] = "-1".into();
-    assert!(assemble(Primitive::Cube, &drafts, Axis::Y).is_err());
+    assert!(assemble(Primitive::Cube, &drafts, Axis::Y, false).is_err());
     drafts[3] = "1".into();
     for bad in ["NaN", "inf", "0", "-3", "1e7", ""] {
         drafts[1] = bad.into();
         assert!(
-            assemble(Primitive::Cube, &drafts, Axis::Y).is_err(),
+            assemble(Primitive::Cube, &drafts, Axis::Y, false).is_err(),
             "{bad}"
         );
     }
-    assert!(assemble(Primitive::Cube, &drafts[..2], Axis::Y).is_err());
-    assert!(assemble(Primitive::Sphere, &drafts, Axis::Y).is_err());
+    assert!(assemble(Primitive::Cube, &drafts[..2], Axis::Y, false).is_err());
+    assert!(assemble(Primitive::Sphere, &drafts, Axis::Y, false).is_err());
 }
 
 #[test]
@@ -303,8 +309,6 @@ fn unfinished_controls_are_disabled_with_a_reason() {
         "Interactive creation",
         "Create UVs",
         "Exit on completion",
-        "Subdivisions caps",
-        "Round cap",
     ] {
         let control = find(&output, label).unwrap_or_else(|| panic!("{label}"));
         assert!(control.disabled, "{label}");
@@ -312,6 +316,148 @@ fn unfinished_controls_are_disabled_with_a_reason() {
     open_dialog(&mut editor, &ctx, Primitive::Sphere);
     let output = run(&mut editor, &ctx, vec![]);
     assert!(find(&output, "Round cap").is_none());
+    assert!(find(&output, "Subdivisions caps").is_none());
+}
+
+fn description_of(output: &egui::FullOutput, label: &str) -> Option<String> {
+    let update = output.platform_output.accesskit_update.as_ref().unwrap();
+    update
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some(label))
+        .and_then(|(_, node)| node.description().map(str::to_owned))
+}
+
+#[test]
+fn round_cap_is_offered_only_from_one_cap_subdivision_and_says_why() {
+    for primitive in [Primitive::Cylinder, Primitive::Cone] {
+        let unavailable = format!(
+            "Unavailable: Round cap needs {} of 1 or more",
+            if primitive == Primitive::Cone {
+                "Subdivisions cap"
+            } else {
+                "Subdivisions caps"
+            }
+        );
+        let (mut editor, ctx) = setup();
+        open_dialog(&mut editor, &ctx, primitive);
+        let output = run(&mut editor, &ctx, vec![]);
+        assert!(
+            find(&output, "Round cap").expect("round cap").disabled,
+            "{primitive:?} caps 0"
+        );
+        assert_eq!(
+            description_of(&output, "Round cap").as_deref(),
+            Some(unavailable.as_str())
+        );
+        set_field(&mut editor, &ctx, 4, "2");
+        let output = run(&mut editor, &ctx, vec![]);
+        assert!(
+            !find(&output, "Round cap").unwrap().disabled,
+            "{primitive:?} caps 2"
+        );
+        assert_eq!(description_of(&output, "Round cap"), None);
+        // Anything that is not a number from 1 up keeps the control disabled with the same reason.
+        for text in ["0", "x", "abc", "-1", ""] {
+            set_field(&mut editor, &ctx, 4, text);
+            let output = run(&mut editor, &ctx, vec![]);
+            assert!(find(&output, "Round cap").unwrap().disabled, "{text:?}");
+            assert_eq!(
+                description_of(&output, "Round cap").as_deref(),
+                Some(unavailable.as_str()),
+                "{primitive:?} {text:?} keeps the reason"
+            );
+        }
+    }
+}
+
+#[test]
+fn native_create_with_caps_matches_the_same_typed_operation_and_round_cap_at_zero_is_a_no_op() {
+    for primitive in [Primitive::Cylinder, Primitive::Cone] {
+        let (mut editor, ctx) = setup();
+        open_dialog(&mut editor, &ctx, primitive);
+        set_field(&mut editor, &ctx, 4, "2");
+        let output = run(&mut editor, &ctx, vec![]);
+        click(
+            &mut editor,
+            &ctx,
+            find(&output, "Round cap").unwrap().rect.center(),
+        );
+        press(&mut editor, &ctx, "Create");
+        assert_eq!(node_count(&editor), 1, "{primitive:?}");
+        let options = editor.remembered_options(primitive);
+        assert!(
+            matches!(
+                options,
+                PrimitiveOptions::Cylinder {
+                    sub_caps: 2,
+                    round_cap: true,
+                    ..
+                } | PrimitiveOptions::Cone {
+                    sub_caps: 2,
+                    round_cap: true,
+                    ..
+                }
+            ),
+            "{primitive:?} remembers the caps"
+        );
+        editor.native_operation(Operation::Create {
+            primitive,
+            options: Some(options),
+            name: None,
+        });
+        let shapes = editor.history.scene().shapes();
+        assert!(
+            shapes[0].mesh() == shapes[1].mesh(),
+            "{primitive:?} dialog equals the operation"
+        );
+        let faces = if primitive == Primitive::Cylinder {
+            100
+        } else {
+            60
+        };
+        assert_eq!(shapes[0].mesh().faces().len(), faces);
+
+        // Round cap left checked while caps go back to 0 is accepted and builds the flat mesh.
+        set_field(&mut editor, &ctx, 4, "0");
+        press(&mut editor, &ctx, "Create");
+        let shapes = editor.history.scene().shapes();
+        assert_eq!(shapes.len(), 3, "{primitive:?}");
+        assert_eq!(
+            shapes[2].mesh().faces().len(),
+            if primitive == Primitive::Cylinder {
+                22
+            } else {
+                21
+            }
+        );
+    }
+}
+
+#[test]
+fn bad_caps_text_names_the_field_and_creates_nothing() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Cylinder);
+    for (text, message) in [
+        ("two", "Subdivisions caps must be a whole number"),
+        ("-1", "Subdivisions caps must be a whole number"),
+        (
+            "129",
+            "subdivisions_caps must be a whole number from 0 to 128",
+        ),
+    ] {
+        set_field(&mut editor, &ctx, 4, text);
+        press(&mut editor, &ctx, "Create");
+        assert_eq!(node_count(&editor), 0, "{text}");
+        let shown = editor
+            .primitive_options
+            .dialog
+            .as_ref()
+            .unwrap()
+            .message
+            .clone();
+        assert_eq!(shown.as_deref(), Some(message), "{text}");
+    }
 }
 
 #[test]

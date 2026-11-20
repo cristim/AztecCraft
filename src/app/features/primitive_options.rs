@@ -8,7 +8,7 @@
 //! click uses; here Create keeps it open and a plain click uses the remembered options.
 
 use crate::app::*;
-use azteccraft::primitive_options::{Axis, DEFAULT_ROUND_CAP, DEFAULT_SUB_CAPS, PrimitiveOptions};
+use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 
 /// Cube has the most numeric fields: three sizes and three subdivision counts.
 const MAX_FIELDS: usize = 6;
@@ -71,9 +71,22 @@ fn labels(primitive: Primitive) -> (&'static [&'static str], &'static [&'static 
             &["Subdivisions width", "Subdivisions height"],
         ),
         Primitive::Sphere => (&["Radius"], &["Subdivisions axis", "Subdivisions height"]),
-        Primitive::Cylinder | Primitive::Cone => (
+        Primitive::Cylinder => (
             &["Radius", "Height"],
-            &["Subdivisions axis", "Subdivisions height"],
+            &[
+                "Subdivisions axis",
+                "Subdivisions height",
+                "Subdivisions caps",
+            ],
+        ),
+        // The cone has one cap, so its field is singular like Maya's `-subdivisionsCap`.
+        Primitive::Cone => (
+            &["Radius", "Height"],
+            &[
+                "Subdivisions axis",
+                "Subdivisions height",
+                "Subdivisions cap",
+            ],
         ),
         Primitive::Torus => (
             &["Radius", "Section radius", "Twist"],
@@ -114,6 +127,7 @@ fn texts(options: &PrimitiveOptions) -> Vec<String> {
             height,
             sub_axis,
             sub_height,
+            sub_caps,
             ..
         }
         | PrimitiveOptions::Cone {
@@ -121,8 +135,9 @@ fn texts(options: &PrimitiveOptions) -> Vec<String> {
             height,
             sub_axis,
             sub_height,
+            sub_caps,
             ..
-        } => (vec![radius, height], vec![sub_axis, sub_height]),
+        } => (vec![radius, height], vec![sub_axis, sub_height, sub_caps]),
         PrimitiveOptions::Torus {
             radius,
             section_radius,
@@ -142,6 +157,19 @@ fn texts(options: &PrimitiveOptions) -> Vec<String> {
         .collect()
 }
 
+fn round_cap_of(options: &PrimitiveOptions) -> bool {
+    matches!(
+        *options,
+        PrimitiveOptions::Cylinder {
+            round_cap: true,
+            ..
+        } | PrimitiveOptions::Cone {
+            round_cap: true,
+            ..
+        }
+    )
+}
+
 fn axis_of(options: &PrimitiveOptions) -> Axis {
     match *options {
         PrimitiveOptions::Cube { axis, .. }
@@ -158,6 +186,7 @@ fn assemble(
     primitive: Primitive,
     texts: &[String],
     axis: Axis,
+    round_cap: bool,
 ) -> Result<PrimitiveOptions, String> {
     let (size_labels, division_labels) = labels(primitive);
     if texts.len() != size_labels.len() + division_labels.len() {
@@ -205,26 +234,28 @@ fn assemble(
             sub_height,
             axis,
         },
-        (Primitive::Cylinder, &[radius, height], &[sub_axis, sub_height]) => {
+        (Primitive::Cylinder, &[radius, height], &[sub_axis, sub_height, sub_caps]) => {
             PrimitiveOptions::Cylinder {
                 radius,
                 height,
                 sub_axis,
                 sub_height,
-                sub_caps: DEFAULT_SUB_CAPS,
-                round_cap: DEFAULT_ROUND_CAP,
+                sub_caps,
+                round_cap,
                 axis,
             }
         }
-        (Primitive::Cone, &[radius, height], &[sub_axis, sub_height]) => PrimitiveOptions::Cone {
-            radius,
-            height,
-            sub_axis,
-            sub_height,
-            sub_caps: DEFAULT_SUB_CAPS,
-            round_cap: DEFAULT_ROUND_CAP,
-            axis,
-        },
+        (Primitive::Cone, &[radius, height], &[sub_axis, sub_height, sub_caps]) => {
+            PrimitiveOptions::Cone {
+                radius,
+                height,
+                sub_axis,
+                sub_height,
+                sub_caps,
+                round_cap,
+                axis,
+            }
+        }
         (Primitive::Torus, &[radius, section_radius, twist], &[sub_axis, sub_height]) => {
             PrimitiveOptions::Torus {
                 radius,
@@ -241,10 +272,20 @@ fn assemble(
     Ok(options)
 }
 
+/// Gives a disabled control the AccessKit description `Unavailable: <reason>` the accessibility
+/// gate (#465) requires; egui's hover text alone is not exposed to screen readers.
+fn describe_unavailable(ctx: &egui::Context, id: egui::Id, reason: &str) {
+    ctx.accesskit_node_builder(id, |node| {
+        node.set_description(format!("Unavailable: {reason}"))
+    });
+}
+
 struct Dialog {
     primitive: Primitive,
     texts: Vec<String>,
     axis: Axis,
+    /// Cylinder and cone only; kept while the caps field is 0, where the core ignores it.
+    round_cap: bool,
     message: Option<String>,
 }
 
@@ -331,6 +372,7 @@ impl Editor {
             primitive,
             texts: texts(&options),
             axis: axis_of(&options),
+            round_cap: round_cap_of(&options),
             message: None,
         });
     }
@@ -390,7 +432,12 @@ impl Editor {
     }
 
     fn create_from_dialog(&mut self, dialog: &mut Dialog) {
-        match assemble(dialog.primitive, &dialog.texts, dialog.axis) {
+        match assemble(
+            dialog.primitive,
+            &dialog.texts,
+            dialog.axis,
+            dialog.round_cap,
+        ) {
             Err(message) => dialog.message = Some(message),
             Ok(options) => {
                 self.native_operation(Operation::Create {
@@ -461,12 +508,25 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, read_only: Option<&str>) 
             .on_disabled_hover_text(reason);
     }
     if matches!(dialog.primitive, Primitive::Cylinder | Primitive::Cone) {
-        for (label, reason) in [
-            ("Subdivisions caps", "Cap divisions are not implemented"),
-            ("Round cap", "Round caps are not implemented"),
-        ] {
-            ui.add_enabled(false, egui::Checkbox::new(&mut false, label))
-                .on_disabled_hover_text(reason);
+        // The core accepts round_cap at 0 caps as a no-op; the box only offers it when it matters.
+        let caps_on = dialog
+            .texts
+            .last()
+            .and_then(|t| t.trim().parse::<u32>().ok())
+            .is_some_and(|n| n >= 1);
+        let response = ui.add_enabled(
+            caps_on,
+            egui::Checkbox::new(&mut dialog.round_cap, "Round cap"),
+        );
+        if !caps_on {
+            let caps_label = labels(dialog.primitive)
+                .1
+                .last()
+                .copied()
+                .unwrap_or_default();
+            let reason = format!("Round cap needs {caps_label} of 1 or more");
+            describe_unavailable(ui.ctx(), response.id, &reason);
+            response.on_disabled_hover_text(reason);
         }
     }
     if let Some(message) = &dialog.message {
