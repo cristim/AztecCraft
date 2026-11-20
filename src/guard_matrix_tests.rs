@@ -1003,6 +1003,13 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             world_units: [1.0, 0.0],
         },
         Operation::Dolly { factor: 1.1 },
+        Operation::BoxDolly {
+            rect: azteccraft::viewport::NdcRect::new(
+                glam::Vec2::splat(-0.5),
+                glam::Vec2::splat(0.5),
+            )
+            .unwrap(),
+        },
         pivots(t, true),
         Operation::ResetPivots {
             mode: PivotReset::Zero,
@@ -2424,6 +2431,16 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "pan",
             Operation::Pan {
                 world_units: [1.0, 0.0],
+            },
+        )],
+        Operation::BoxDolly { .. } => vec![sample(
+            "box_dolly",
+            Operation::BoxDolly {
+                rect: azteccraft::viewport::NdcRect::new(
+                    glam::Vec2::splat(-0.5),
+                    glam::Vec2::splat(0.5),
+                )
+                .unwrap(),
             },
         )],
         Operation::Dolly { .. } => vec![sample("dolly", Operation::Dolly { factor: 1.1 })],

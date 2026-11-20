@@ -205,6 +205,7 @@ impl Editor {
             Operation::Orbit { .. }
             | Operation::Pan { .. }
             | Operation::Dolly { .. }
+            | Operation::BoxDolly { .. }
             | Operation::SetCameraPose { .. }
             | Operation::CreateCameraBookmark { .. }
             | Operation::RenameCameraBookmark { .. }
@@ -433,6 +434,7 @@ impl Editor {
             || focused
             || self.has_draft()
             || self.native_input_pending
+            || self.native_camera_drag
         {
             return Err(OperationError::BusyEditing);
         }
@@ -556,7 +558,8 @@ impl Editor {
         }
         if matches!(
             operation,
-            Operation::SetGridVisible { .. }
+            Operation::BoxDolly { .. }
+                | Operation::SetGridVisible { .. }
                 | Operation::SetSnapToGrid { .. }
                 | Operation::SetShadingMode(_)
                 | Operation::SetView(_)
@@ -1548,6 +1551,17 @@ impl Editor {
                 let original = self.begin_fit(fit_factor)?;
                 let result = self.frame_everything();
                 return self.end_fit(original, result);
+            }
+            Operation::BoxDolly { rect } => {
+                let before = self.camera.clone();
+                self.camera
+                    .box_dolly(rect, self.aspect)
+                    .map_err(OperationError::Camera)?;
+                return Ok(if self.camera == before {
+                    OperationReply::Unchanged
+                } else {
+                    OperationReply::Changed
+                });
             }
             Operation::Orbit { .. } if self.camera.projection() == Projection::Orthographic => {
                 return Err(OperationError::InvalidInput(

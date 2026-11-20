@@ -78,6 +78,7 @@ pub struct Editor {
     /// outside `ComponentPicks` so replacing that struct cannot reset it; see `selection_generation`.
     pick_epoch: u64,
     camera: Camera,
+    native_camera_drag: bool,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     /// Off unless the host enables it; recovery files never replace the scene file.
@@ -148,6 +149,7 @@ impl Default for Editor {
             picks: component_picks::ComponentPicks::default(),
             pick_epoch: 0,
             camera: Camera::default(),
+            native_camera_drag: false,
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
             recovery: None,
@@ -318,6 +320,7 @@ impl eframe::App for Editor {
                 self.set_error_status(&error);
                 self.error = true;
             }
+            self.native_camera_drag = false;
             self.handle_close(ctx);
             #[cfg(feature = "mcp")]
             self.process_mcp(ctx);
