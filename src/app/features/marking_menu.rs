@@ -297,3 +297,5 @@ impl Editor {
 
 #[cfg(test)]
 mod layout_tests;
+#[cfg(test)]
+mod pass_tests;
