@@ -158,6 +158,12 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   manipulation and, remotely, need the token and refuse drafts, text focus, modal and closing. `ListCameraBookmarks` is a read like `InspectKeys`: it returns
   before the token and draft guards, so a client with an old token can read the current document's bookmarks. Matrix cells: `create_camera_bookmark(v)`,
   `rename_camera_bookmark(missing)`, `delete_camera_bookmark(missing)`, `apply_camera_bookmark(missing)`, `list_camera_bookmarks`.
+- `AssignSessionMaterial` is shared by MCP `assign_session_material` and the native Lighting/Shading rows
+  (`src/app/features/session_material.rs`, `assign_material_to_selection`, which calls `native_operation_result`).
+  Native and remote take the same guards: modal and closing are `BusyEditing` (`apply_operation_guarded`), a
+  manipulation is `BusyManipulation`, and the core refuses a retained source (`UnsupportedEdit`, `ReadOnlyFormat`).
+  The native entry point first resolves one object with one direct shape and refuses otherwise before dispatch
+  (status line only, no operation). Matrix cells are the existing `assign_session_material(...)` ones.
 - `AutosaveNow` writes a recovery file of the committed scene when the host enabled recovery (`--recovery-dir`; otherwise `Recovery(Disabled)`). It is not undoable, never dirties, keeps the scene token, never touches `files` or `history` and never commits a draft (native or remote). Native and remote refuse a native modal and closing with `BusyEditing` and an active manipulation with `BusyManipulation`; remotely it also needs the token and refuses drafts and text focus. A scene Save cannot encode returns `Recovery(Encode)`. `RecoveryStatus` is a read like `ListCameraBookmarks`: it returns before the token and draft guards. Matrix cells: `autosave_now(enabled)`, `autosave_now(disabled)` (file-writing section: an authored scene has no recovery encoder on Windows, so there the enabled cell reads `recovery_unsupported` and binary-sourced states succeed), `recovery_status`, `recovery_status(enabled)`; the matrix observes `recovery_files`.
 - `SetSidebarPanelVisible` follows Grid: remote refuses a stale token, a Move (`BusyManipulation`), a
   draft of any kind (valid or not; `src/mcp_tests/official_client/attribute_editor.rs "Human draft: any draft is busy_editing, valid or not."`), text focus, modal and closing (`BusyEditing`); native refuses closing and modal

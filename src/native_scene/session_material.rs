@@ -17,8 +17,6 @@ pub const MAX_SESSION_MATERIALS: usize = 512;
 
 /// Colour of a newly created lambert: Maya's lambert `color` default (0.5 grey, 2027 node
 /// reference). Exactly representable in f32, so it passes `quantize_color` unchanged.
-// Caller: the native Assign New Material row (#467 T2a).
-#[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
 pub const DEFAULT_LAMBERT_COLOR: [f64; 3] = [0.5; 3];
 
 /// An index into the current table. It is valid only at the current history position: undoing a
@@ -258,8 +256,6 @@ impl NativeScene {
     /// that `structural_edit` runs, so a UI can ask every frame. `None` means an edit may be
     /// attempted; the edit itself still validates and can fail. Same refusal as the edits give:
     /// read-only source first, then any retained source.
-    // Caller: menu and Attribute Editor disabled reasons (#467 T2a, T5a).
-    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     pub fn session_material_edit_refusal(&self) -> Option<NativeError> {
         self.authoring_read_only_reason().or_else(|| {
             self.source

@@ -685,6 +685,7 @@ impl Editor {
                     | Operation::ResetPivots { .. }
                     | Operation::Group { .. }
                     | Operation::Ungroup { .. }
+                    | Operation::AssignSessionMaterial { .. }
             )
         {
             return Err(OperationError::BusyEditing);
@@ -699,7 +700,6 @@ impl Editor {
                     | Operation::Reparent { .. }
                     | Operation::SetMaterialDiffuse { .. }
                     | Operation::CreateSessionMaterial { .. }
-                    | Operation::AssignSessionMaterial { .. }
                     | Operation::SetSessionMaterialColor { .. }
             )
         {
@@ -901,7 +901,6 @@ impl Editor {
             }
             #[cfg(any(test, feature = "mcp"))]
             Operation::CreateSessionMaterial { color } => Command::CreateSessionMaterial { color },
-            #[cfg(any(test, feature = "mcp"))]
             Operation::AssignSessionMaterial { shape, material } => {
                 Command::AssignSessionMaterial { shape, material }
             }
@@ -1646,13 +1645,11 @@ impl Editor {
             {
                 return OperationError::Reparent(error);
             }
-            #[cfg(any(test, feature = "mcp"))]
             if session_material_command
                 && error != azteccraft::native_scene::NativeError::BusyManipulation
             {
                 return OperationError::SessionMaterial(error);
             }
-            let _ = session_material_command;
             OperationError::from_history(error)
         })?;
         match &outcome {
@@ -1688,12 +1685,9 @@ impl Editor {
             EditOutcome::CreatedJoint(target) => OperationReply::Created {
                 node_id: target.node.to_decimal(),
             },
-            #[cfg(any(test, feature = "mcp"))]
             EditOutcome::SessionMaterial(material) => OperationReply::SessionMaterial {
                 material_id: material.index().to_string(),
             },
-            #[cfg(not(any(test, feature = "mcp")))]
-            EditOutcome::SessionMaterial(_) => OperationReply::Changed,
             EditOutcome::Changed => OperationReply::Changed,
             EditOutcome::Unchanged => OperationReply::Unchanged,
         })

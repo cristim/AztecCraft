@@ -1,10 +1,19 @@
-//! Recorded violations: menus.
+//! Recorded violations: menus. The Lighting/Shading rows are disabled unsupported rows (#467);
+//! they gain the `Unavailable: ` description when `describe_disabled` lands.
 
 /// Recorded on Windows only, see `gaps::WINDOWS`.
 pub(super) const WINDOWS_GAPS: &[&str] =
     &["menu-file|R3|Button|root/<Window>#0/File/Save Scene As   Ctrl/Cmd Shift S"];
 
 pub(super) const GAPS: &[&str] = &[
+    "menu-assign-existing-material|R3|Button|root/<Window>#0/Lighting/Shading/Assign Favorite Material",
+    "menu-assign-existing-material|R3|Button|root/<Window>#0/Lighting/Shading/Material Attributes",
+    "menu-assign-new-material|R3|Button|root/<Window>#0/Lighting/Shading/Assign Favorite Material",
+    "menu-assign-new-material|R3|Button|root/<Window>#0/Lighting/Shading/Assign New Material/Blinn",
+    "menu-assign-new-material|R3|Button|root/<Window>#0/Lighting/Shading/Assign New Material/Phong",
+    "menu-assign-new-material|R3|Button|root/<Window>#0/Lighting/Shading/Assign New Material/Phong E",
+    "menu-assign-new-material|R3|Button|root/<Window>#0/Lighting/Shading/Assign New Material/Standard Surface",
+    "menu-assign-new-material|R3|Button|root/<Window>#0/Lighting/Shading/Material Attributes",
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Disc",
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Gear",
     "menu-create-polygon|R3|Button|root/<Window>#0/Create/Polygon Primitives/Helix",
@@ -31,6 +40,8 @@ pub(super) const GAPS: &[&str] = &[
     "menu-file|R5|Button|root/<Window>#0/File/☐",
     "menu-file|R5|Button|root/<Window>#0/File/☐~1",
     "menu-file|R5|Button|root/<Window>#0/File/☐~2",
+    "menu-lighting-shading|R3|Button|root/<Window>#0/Lighting/Shading/Assign Favorite Material",
+    "menu-lighting-shading|R3|Button|root/<Window>#0/Lighting/Shading/Material Attributes",
     "menu-modify|R3|Button|root/<Window>#0/Modify/Not implemented yet",
     "menu-select-components|R3|Button|root/<Window>#0/Select/All by Type",
     "menu-select-components|R3|Button|root/<Window>#0/Select/Components/UVs",

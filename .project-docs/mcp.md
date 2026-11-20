@@ -638,7 +638,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Animation | Euler filter on rotation keys (one undo step; whole-turn unroll and equivalent-triple flip, PROVISIONAL) | supported | `euler_filter` | `timeline.key_count` | No Graph Editor or Channel Box control (#52) |
 | Animation | Pre/post infinity per curve (constant, linear, cycle, cycle_relative, oscillate; one undo step, session-only, formulas PROVISIONAL) | supported | `set_infinity`, `inspect_keys` | `timeline.key_count` | Settings are `pre_infinity` and `post_infinity` on each `inspect_keys` key. No Graph Editor or Channel Box control (#52); no `.ma`/`.mb` round trip because keys are not saved (#461, #62) |
 | Animation | Playback range, play and stop | supported | `set_playback_range`, `play_timeline`, `stop_timeline` | `timeline` | |
-| Materials | Session materials (create, assign, colour; MCP and `inspect_scene` only, no native UI) | supported | `create_session_material`, `assign_session_material`, `set_session_material_color` | `session_materials` | |
+| Materials | Session materials (create, assign, colour; native UI only for Assign New and Assign Existing under Rendering > Lighting/Shading, one object per assignment; colour editing is MCP only) | supported | `create_session_material`, `assign_session_material`, `set_session_material_color` | `session_materials` | |
 | Materials | Material rendering, shading networks, textures | unsupported | | | |
 | Viewport | Grid visibility | supported | `set_grid_visibility` | `grid_visible` | |
 | Viewport | Shading mode (Wireframe, Smooth Shade All) | supported | `set_shading_mode` | `shading` | |

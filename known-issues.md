@@ -1033,13 +1033,12 @@ front-on (grid test over the neighbourhood of the tint plus a 52-step colour gri
 legibility rule, not a Maya selection colour, and it does not cover colour management or future
 lighting models.
 
-## Session materials are a first, MCP-only slice (#51)
+## Session materials: native assignment, MCP colour editing (#51, #467)
 
 `create_session_material`, `assign_session_material` and `set_session_material_color` edit a
 lambert table. A new scene saves it to an authored `.ma` (reopened as an authored document; the statement layout is PROVISIONAL and unchecked against Maya, #5) and refuses `.mb` with `save_unwritable` reason `session_materials` (undo the material to save a `.mb`), sourced binary scenes
 refuse it with `unsupported_edit` and Maya ASCII scenes with `read_only_format`; it stays separate
-from the saved Phong `set_material_diffuse`. There is no native UI until the Attribute Editor
-branch lands. Assignment is whole-shape only: per-face assignment and instance-specific groups
+from the saved Phong `set_material_diffuse`. Native UI is limited to Rendering > Lighting/Shading (F6), Assign New Material > Lambert and Assign Existing Material, on one object with exactly one direct mesh shape (the same `AssignSessionMaterial` operation as MCP); native colour editing and the Attribute Editor section are later #467 slices. Assignment is whole-shape only: per-face assignment and instance-specific groups
 are follow-ups. Ids are table indices reused after undo, so clients must not cache them. The
 table holds at most 512 materials, far inside the `inspect_scene` budget (tested); creating past it returns `session_material_limit`. Names follow Maya 2025.1 (#177): the
 initial shading group's shader is `standardSurface1`, and a new material is `lambert<N>` with

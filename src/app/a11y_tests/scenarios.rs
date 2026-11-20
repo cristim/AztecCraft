@@ -179,7 +179,7 @@ fn newly_disabled_controls(captured: &Captured) -> impl Iterator<Item = super::E
 /// labels and its popup).
 const MIN_NEW_NODES: usize = 2;
 /// Scenarios in `all`; adding one means raising this, so a dropped line is noticed.
-const SCENARIOS: usize = 25;
+const SCENARIOS: usize = 28;
 
 fn plain(rig: &Rig, base: Option<TreeUpdate>) -> Captured {
     Captured {
@@ -270,6 +270,24 @@ pub(super) fn all() -> Vec<Scenario> {
             "Remove Joints",
         ),
         ("menu-help", modeling, &["Help"], "Local editor prototype"),
+        (
+            "menu-lighting-shading",
+            MenuSet::Rendering,
+            &["Lighting/Shading"],
+            "Assign Favorite Material",
+        ),
+        (
+            "menu-assign-new-material",
+            MenuSet::Rendering,
+            &["Lighting/Shading", "Assign New Material"],
+            "Lambert",
+        ),
+        (
+            "menu-assign-existing-material",
+            MenuSet::Rendering,
+            &["Lighting/Shading", "Assign Existing Material"],
+            "standardSurface1",
+        ),
     ] {
         all.push(menu_scenario(name, set, path, row));
     }

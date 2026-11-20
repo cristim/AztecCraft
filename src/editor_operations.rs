@@ -476,7 +476,7 @@ pub enum Operation {
     CreateSessionMaterial {
         color: [f64; 3],
     },
-    #[cfg(any(test, feature = "mcp"))]
+    /// Native: Lighting/Shading > Assign New Material and Assign Existing Material.
     AssignSessionMaterial {
         shape: NativeId,
         material: azteccraft::native_scene::MaterialChoice,
@@ -929,7 +929,6 @@ pub enum OperationReply {
         manipulation_id: String,
     },
     /// Created or assigned session material; the id is valid only at this history position.
-    #[cfg(any(test, feature = "mcp"))]
     SessionMaterial {
         material_id: String,
     },
@@ -1589,7 +1588,6 @@ pub enum OperationError {
     #[cfg(any(test, feature = "mcp"))]
     TooLarge,
     /// A session-material operation failed in the core; the MCP layer reports a typed code.
-    #[cfg(any(test, feature = "mcp"))]
     SessionMaterial(NativeError),
     /// A key command refused because the scene is read-only (Maya ASCII) or the edit is unsupported
     /// (an opened .mb, or a node with edit restrictions); the MCP layer reports a typed code.
@@ -1746,7 +1744,6 @@ impl fmt::Display for OperationError {
             Self::StaleScene => f.write_str("Scene token is stale; inspect the current document"),
             #[cfg(any(test, feature = "mcp"))]
             Self::TooLarge => f.write_str("The reply exceeds the prototype response limit"),
-            #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
             Self::Keys(refusal) => refusal.native().fmt(f),
             Self::Pivot(error) => error.fmt(f),

@@ -570,7 +570,11 @@ impl Editor {
                 }
                 MenuSet::Rendering => {
                     for label in RENDERING_SET_MENUS {
-                        placeholder_menu(ui, label);
+                        if label == "Lighting/Shading" {
+                            self.lighting_shading_menu(ui);
+                        } else {
+                            placeholder_menu(ui, label);
+                        }
                     }
                 }
             }
