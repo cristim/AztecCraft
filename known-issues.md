@@ -854,6 +854,16 @@ Edges are hard, there are no UVs or normals, and persistence follows the sphere.
 Polygon Primitives > Torus row and its option box (with a Twist field) are enabled; the in-app
 check is still pending.
 
+## Poly Platonic Solid is provisional (#466)
+
+`create_primitive` with `platonic_solid` builds a radius-1 dodecahedron by default (20 points, 30 edges, 12 pentagons); `solid` also
+takes icosahedron, octahedron, tetrahedron and cube. Radius, solid type and axis are in core, MCP and the Create > Polygon Primitives >
+Platonic Solid option box. From the polyPlatonicSolid command page (2027): `-radius` default 1 and `-solidType` 0 to 3 with the
+dodecahedron the default. PROVISIONAL: the cube (the page lists four solids), radius read as the circumradius (the page does not relate
+`-radius` to `-sideLength`, which is not exposed), the `pPlatonic` node name, vertex and face order, winding (outward, not compared
+with Maya) and hard edges. Create UVs are not built for this primitive and stay off; Maya's `-createUVs` default is 4. The in-app
+check is still pending.
+
 ## Cylinder and cone caps are provisional (#453)
 
 `subdivisions_caps` (0 to 128, default 0) and `round_cap` (default false) are implemented in core,

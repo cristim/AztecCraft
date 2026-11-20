@@ -785,6 +785,8 @@ mod grid;
 #[cfg(test)]
 mod grid_tests;
 mod platonic;
+#[cfg(test)]
+mod platonic_tests;
 mod reduce;
 #[cfg(test)]
 mod reduce_region_tests;
