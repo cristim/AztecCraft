@@ -9,6 +9,8 @@ fn cone(size: [f64; 2], n: [u32; 2], axis: Axis) -> NativeMesh {
         height: size[1],
         sub_axis: n[0],
         sub_height: n[1],
+        sub_caps: 0,
+        round_cap: false,
         axis,
     })
     .unwrap()
@@ -82,4 +84,23 @@ fn cone_rings_are_evenly_spaced_and_shrink_linearly_to_the_apex() {
         assert_eq!(first[0], 0.5 * ring as f32);
         assert_eq!(first[1], 2.0 - ring as f32);
     }
+}
+
+#[test]
+fn round_cap_at_zero_cap_divisions_builds_the_same_mesh() {
+    let build = |round_cap| {
+        NativeMesh::with_options(&PrimitiveOptions::Cone {
+            radius: 1.0,
+            height: 2.0,
+            sub_axis: 20,
+            sub_height: 1,
+            sub_caps: 0,
+            round_cap,
+            axis: Axis::Y,
+        })
+        .unwrap()
+    };
+    let (flat, round) = (build(false), build(true));
+    assert_eq!(bits(&flat), bits(&round));
+    assert!(flat.faces == round.faces);
 }

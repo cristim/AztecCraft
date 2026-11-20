@@ -15,6 +15,8 @@ pub const MIN_DIVISIONS: u32 = 1;
 pub const MIN_AXIS_DIVISIONS: u32 = 3;
 pub const MIN_SPHERE_HEIGHT_DIVISIONS: u32 = 2;
 pub const MAX_DIVISIONS: u32 = 128;
+/// Cap subdivisions may be 0 (a single n-gon cap).
+pub const MIN_CAP_DIVISIONS: u32 = 0;
 /// A 128x128 grid builds in about 40 ms unoptimised; 20,000 leaves headroom for per-edit
 /// revalidation and display. It must stay below the 128^3 cube's 98,304 faces or the budget
 /// can never reject anything.
@@ -40,6 +42,11 @@ pub const DEFAULT_HEIGHT_CM: f64 = 2.0;
 pub const DEFAULT_AXIS_DIVISIONS: u32 = 20;
 pub const DEFAULT_SPHERE_HEIGHT_DIVISIONS: u32 = 20;
 pub const DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS: u32 = 1;
+/// Default of polyCylinder `-subdivisionsCaps` and polyCone `-subdivisionsCap` (singular; "Subdivisions
+/// on the bottom cap"), command pages, 2027.
+pub const DEFAULT_SUB_CAPS: u32 = 0;
+/// polyCylinder `-roundCap` default (command page, 2027).
+pub const DEFAULT_ROUND_CAP: bool = false;
 /// polyTorus node page (sectionRadius 0.5, 20x20); PROVISIONAL, Maya 2026 is unverified.
 pub const DEFAULT_SECTION_RADIUS_CM: f64 = 0.5;
 pub const DEFAULT_TORUS_HEIGHT_DIVISIONS: u32 = 20;
@@ -83,6 +90,12 @@ pub enum PrimitiveOptions {
         height: f64,
         sub_axis: u32,
         sub_height: u32,
+        /// Subdivisions on the cap(s); 0 keeps a single n-gon cap. PROVISIONAL (#453): the options page calls
+        /// it "the number of subdivisions around the origin of the primitive caps"; ring spacing is not stated.
+        sub_caps: u32,
+        /// Domed caps. Accepted and ignored while `sub_caps` is 0: the Maya options page says the
+        /// value must be one or greater to see the round cap effect. Dome shape is PROVISIONAL (#453).
+        round_cap: bool,
         axis: Axis,
     },
     Cone {
@@ -90,6 +103,12 @@ pub enum PrimitiveOptions {
         height: f64,
         sub_axis: u32,
         sub_height: u32,
+        /// Subdivisions on the cap(s); 0 keeps a single n-gon cap. PROVISIONAL (#453): the options page calls
+        /// it "the number of subdivisions around the origin of the primitive caps"; ring spacing is not stated.
+        sub_caps: u32,
+        /// Domed caps. Accepted and ignored while `sub_caps` is 0: the Maya options page says the
+        /// value must be one or greater to see the round cap effect. Dome shape is PROVISIONAL (#453).
+        round_cap: bool,
         axis: Axis,
     },
     Torus {
@@ -186,6 +205,8 @@ impl PrimitiveOptions {
                 height: DEFAULT_HEIGHT_CM,
                 sub_axis: DEFAULT_AXIS_DIVISIONS,
                 sub_height: DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS,
+                sub_caps: DEFAULT_SUB_CAPS,
+                round_cap: DEFAULT_ROUND_CAP,
                 axis,
             },
             Primitive::Cone => Self::Cone {
@@ -193,6 +214,8 @@ impl PrimitiveOptions {
                 height: DEFAULT_HEIGHT_CM,
                 sub_axis: DEFAULT_AXIS_DIVISIONS,
                 sub_height: DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS,
+                sub_caps: DEFAULT_SUB_CAPS,
+                round_cap: DEFAULT_ROUND_CAP,
                 axis,
             },
             Primitive::Torus => Self::Torus {
@@ -280,17 +303,15 @@ impl PrimitiveOptions {
             Self::Cylinder {
                 sub_axis,
                 sub_height,
+                sub_caps,
                 ..
-            } => u64::from(sub_axis)
-                .checked_mul(u64::from(sub_height))
-                .and_then(|n| n.checked_add(2)),
+            } => side_and_caps(sub_axis, sub_height, sub_caps, 2),
             Self::Cone {
                 sub_axis,
                 sub_height,
+                sub_caps,
                 ..
-            } => u64::from(sub_axis)
-                .checked_mul(u64::from(sub_height))
-                .and_then(|n| n.checked_add(1)),
+            } => side_and_caps(sub_axis, sub_height, sub_caps, 1),
             Self::Torus {
                 sub_axis,
                 sub_height,
@@ -352,6 +373,7 @@ impl PrimitiveOptions {
                 height,
                 sub_axis,
                 sub_height,
+                sub_caps,
                 ..
             }
             | Self::Cone {
@@ -359,12 +381,14 @@ impl PrimitiveOptions {
                 height,
                 sub_axis,
                 sub_height,
+                sub_caps,
                 ..
             } => (
                 vec![("radius", radius), ("height", height)],
                 vec![
                     ("subdivisions_axis", sub_axis, MIN_AXIS_DIVISIONS),
                     ("subdivisions_height", sub_height, MIN_DIVISIONS),
+                    ("subdivisions_caps", sub_caps, MIN_CAP_DIVISIONS),
                 ],
             ),
             Self::Torus {
@@ -382,6 +406,19 @@ impl PrimitiveOptions {
             ),
         }
     }
+}
+
+/// Side faces plus `caps` caps: a cap is one n-gon at 0 cap subdivisions, else `axis * sub_caps`
+/// faces (a triangle fan and quad bands).
+fn side_and_caps(sub_axis: u32, sub_height: u32, sub_caps: u32, caps: u64) -> Option<u64> {
+    let axis = u64::from(sub_axis);
+    let per_cap = if sub_caps == 0 {
+        1
+    } else {
+        axis.checked_mul(u64::from(sub_caps))?
+    };
+    axis.checked_mul(u64::from(sub_height))?
+        .checked_add(per_cap.checked_mul(caps)?)
 }
 
 /// Field name and value.

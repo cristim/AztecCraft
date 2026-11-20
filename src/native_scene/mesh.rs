@@ -479,6 +479,7 @@ impl NativeMesh {
                 sub_axis,
                 sub_height,
                 axis,
+                ..
             } => Ok(Self::polygon_cylinder(
                 &revolve(radius, sub_axis, sub_height, axis),
                 height,
@@ -489,6 +490,7 @@ impl NativeMesh {
                 sub_axis,
                 sub_height,
                 axis,
+                ..
             } => Ok(Self::polygon_cone(
                 &revolve(radius, sub_axis, sub_height, axis),
                 height,

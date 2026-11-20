@@ -81,6 +81,8 @@ fn defaults_match_the_documented_table() {
             height: 2.0,
             sub_axis: 20,
             sub_height: 1,
+            sub_caps: 0,
+            round_cap: false,
             axis: Axis::Y
         }
     );
@@ -92,6 +94,8 @@ fn defaults_match_the_documented_table() {
             height: 2.0,
             sub_axis: 20,
             sub_height: 1,
+            sub_caps: 0,
+            round_cap: false,
             axis: Axis::Y
         }
     );
@@ -396,6 +400,8 @@ fn round(primitive: Primitive, sub_axis: u32, sub_height: u32) -> PrimitiveOptio
         PrimitiveOptions::Cylinder {
             radius,
             height,
+            sub_caps,
+            round_cap,
             axis,
             ..
         } => PrimitiveOptions::Cylinder {
@@ -403,11 +409,15 @@ fn round(primitive: Primitive, sub_axis: u32, sub_height: u32) -> PrimitiveOptio
             height,
             sub_axis,
             sub_height,
+            sub_caps,
+            round_cap,
             axis,
         },
         PrimitiveOptions::Cone {
             radius,
             height,
+            sub_caps,
+            round_cap,
             axis,
             ..
         } => PrimitiveOptions::Cone {
@@ -415,6 +425,8 @@ fn round(primitive: Primitive, sub_axis: u32, sub_height: u32) -> PrimitiveOptio
             height,
             sub_axis,
             sub_height,
+            sub_caps,
+            round_cap,
             axis,
         },
         other => other,
@@ -495,4 +507,99 @@ fn twist_accepts_any_finite_angle_and_rejects_the_rest() {
         PrimitiveOptions::default_for(Primitive::Torus),
         PrimitiveOptions::Torus { twist, .. } if twist == 0.0
     ));
+}
+
+fn with_caps(
+    primitive: Primitive,
+    sub_axis: u32,
+    sub_caps: u32,
+    round_cap: bool,
+) -> PrimitiveOptions {
+    let mut o = round(primitive, sub_axis, 1);
+    if let PrimitiveOptions::Cylinder {
+        sub_caps: sc,
+        round_cap: rc,
+        ..
+    }
+    | PrimitiveOptions::Cone {
+        sub_caps: sc,
+        round_cap: rc,
+        ..
+    } = &mut o
+    {
+        *sc = sub_caps;
+        *rc = round_cap;
+    }
+    o
+}
+
+#[test]
+fn cap_defaults_are_zero_and_flat() {
+    for primitive in [Primitive::Cylinder, Primitive::Cone] {
+        assert_eq!(
+            PrimitiveOptions::default_for(primitive),
+            with_caps(primitive, DEFAULT_AXIS_DIVISIONS, 0, false)
+        );
+    }
+}
+
+#[test]
+fn cap_faces_are_one_ngon_at_zero_and_axis_times_rings_otherwise() {
+    // Cylinder: 20 side faces; cone: 20 side faces.
+    for (sc, cyl, cone) in [(0, 22, 21), (1, 60, 40), (2, 100, 60), (128, 5140, 2580)] {
+        assert_eq!(
+            with_caps(Primitive::Cylinder, 20, sc, false).face_count(),
+            cyl
+        );
+        assert_eq!(with_caps(Primitive::Cone, 20, sc, false).face_count(), cone);
+    }
+}
+
+#[test]
+fn cap_divisions_are_bounded_and_the_budget_counts_caps() {
+    for primitive in [Primitive::Cylinder, Primitive::Cone] {
+        assert_eq!(
+            with_caps(primitive, 20, 128, false).validate(primitive),
+            Ok(())
+        );
+        assert_eq!(
+            with_caps(primitive, 20, 129, false).validate(primitive),
+            Err(PrimitiveOptionsError::DivisionsOutOfRange {
+                field: "subdivisions_caps",
+                min: 0,
+                max: MAX_DIVISIONS
+            })
+        );
+    }
+    // 128 axis x 128 caps: 2 caps of 16,384 faces plus 128 side faces (cone: one cap).
+    assert_eq!(
+        with_caps(Primitive::Cylinder, 128, 128, false).validate(Primitive::Cylinder),
+        Err(PrimitiveOptionsError::TooManyFaces {
+            faces: 32_896,
+            budget: MAX_FACES
+        })
+    );
+    assert_eq!(
+        with_caps(Primitive::Cone, 128, 128, false).validate(Primitive::Cone),
+        Ok(())
+    );
+    // 128 + 2 * 128 * sc: sc 77 is 19,840 (accepted), sc 78 is 20,096 (over the budget).
+    assert!(matches!(
+        with_caps(Primitive::Cylinder, 128, 78, false).validate(Primitive::Cylinder),
+        Err(PrimitiveOptionsError::TooManyFaces { .. })
+    ));
+    assert_eq!(
+        with_caps(Primitive::Cylinder, 128, 77, false).validate(Primitive::Cylinder),
+        Ok(())
+    );
+}
+
+#[test]
+fn round_cap_at_zero_caps_is_an_accepted_no_op() {
+    for primitive in [Primitive::Cylinder, Primitive::Cone] {
+        let flat = with_caps(primitive, 20, 0, false);
+        let round = with_caps(primitive, 20, 0, true);
+        assert_eq!(round.validate(primitive), Ok(()));
+        assert_eq!(round.face_count(), flat.face_count());
+    }
 }

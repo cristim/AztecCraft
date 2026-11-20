@@ -9,6 +9,8 @@ fn cylinder(size: [f64; 2], n: [u32; 2], axis: Axis) -> NativeMesh {
         height: size[1],
         sub_axis: n[0],
         sub_height: n[1],
+        sub_caps: 0,
+        round_cap: false,
         axis,
     })
     .unwrap()
@@ -95,4 +97,23 @@ fn cylinder_height_rings_are_evenly_spaced_from_the_top_down() {
     };
     let ys: Vec<f32> = (0..5).map(|r| p[r * 4][1]).collect();
     assert_eq!(ys, [2.0, 1.0, 0.0, -1.0, -2.0]);
+}
+
+#[test]
+fn round_cap_at_zero_cap_divisions_builds_the_same_mesh() {
+    let build = |round_cap| {
+        NativeMesh::with_options(&PrimitiveOptions::Cylinder {
+            radius: 1.0,
+            height: 2.0,
+            sub_axis: 20,
+            sub_height: 1,
+            sub_caps: 0,
+            round_cap,
+            axis: Axis::Y,
+        })
+        .unwrap()
+    };
+    let (flat, round) = (build(false), build(true));
+    assert_eq!(bits(&flat), bits(&round));
+    assert!(flat.faces == round.faces);
 }
