@@ -206,6 +206,9 @@ impl Editor {
             | Operation::Pan { .. }
             | Operation::Dolly { .. }
             | Operation::BoxDolly { .. }
+            | Operation::UndoView
+            | Operation::RedoView
+            | Operation::DefaultView
             | Operation::SetCameraPose { .. }
             | Operation::CreateCameraBookmark { .. }
             | Operation::RenameCameraBookmark { .. }
@@ -520,6 +523,32 @@ impl Editor {
         operation: Operation,
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
+        let before = features::camera::changes_camera(&operation).then(|| self.camera.clone());
+        let grouped = provenance == ManipulationProvenance::Native
+            && self.native_camera_drag
+            && matches!(
+                operation,
+                Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. }
+            );
+        let result = self.dispatch_operation_guarded(provenance, operation, may_install);
+        if result.is_ok()
+            && let Some(before) = before
+        {
+            if self.camera != before {
+                self.view_history.record(before, grouped);
+            } else if !grouped {
+                self.view_history.end_gesture();
+            }
+        }
+        result
+    }
+
+    fn dispatch_operation_guarded(
+        &mut self,
+        provenance: ManipulationProvenance,
+        operation: Operation,
+        may_install: &dyn Fn() -> bool,
+    ) -> Result<OperationReply, OperationError> {
         self.refusal_after_change = None;
         if features::timeline::stops_playback(&operation) {
             self.stop_playback();
@@ -558,7 +587,10 @@ impl Editor {
         }
         if matches!(
             operation,
-            Operation::BoxDolly { .. }
+            Operation::UndoView
+                | Operation::RedoView
+                | Operation::DefaultView
+                | Operation::BoxDolly { .. }
                 | Operation::SetGridVisible { .. }
                 | Operation::SetSnapToGrid { .. }
                 | Operation::SetShadingMode(_)
@@ -1551,6 +1583,27 @@ impl Editor {
                 let original = self.begin_fit(fit_factor)?;
                 let result = self.frame_everything();
                 return self.end_fit(original, result);
+            }
+            Operation::UndoView => return Ok(self.view_history.step(&mut self.camera, false)),
+            Operation::RedoView => return Ok(self.view_history.step(&mut self.camera, true)),
+            Operation::DefaultView => {
+                let default = Camera::default();
+                let mut next = self.camera.clone();
+                next.show_perspective();
+                next.set_pose(
+                    default.target(),
+                    default.distance(),
+                    default.yaw(),
+                    default.pitch(),
+                )
+                .map_err(OperationError::CameraPose)?;
+                let changed = self.camera != next;
+                self.camera = next;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
             }
             Operation::BoxDolly { rect } => {
                 let before = self.camera.clone();

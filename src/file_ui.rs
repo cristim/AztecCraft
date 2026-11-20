@@ -447,6 +447,8 @@ impl Editor {
         self.material_draft = None;
         self.attribute_editor_tab = None;
         self.camera = camera;
+        self.view_history = Default::default();
+        self.native_camera_drag = false;
         self.bookmarks.clear();
         self.status = "Scene ready".into();
         self.error = false;

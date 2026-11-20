@@ -1003,6 +1003,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             world_units: [1.0, 0.0],
         },
         Operation::Dolly { factor: 1.1 },
+        Operation::UndoView,
+        Operation::RedoView,
+        Operation::DefaultView,
         Operation::BoxDolly {
             rect: azteccraft::viewport::NdcRect::new(
                 glam::Vec2::splat(-0.5),
@@ -2433,6 +2436,9 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 world_units: [1.0, 0.0],
             },
         )],
+        Operation::UndoView => vec![sample("undo_view", Operation::UndoView)],
+        Operation::RedoView => vec![sample("redo_view", Operation::RedoView)],
+        Operation::DefaultView => vec![sample("default_view", Operation::DefaultView)],
         Operation::BoxDolly { .. } => vec![sample(
             "box_dolly",
             Operation::BoxDolly {

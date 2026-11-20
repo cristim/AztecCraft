@@ -79,6 +79,7 @@ pub struct Editor {
     pick_epoch: u64,
     camera: Camera,
     native_camera_drag: bool,
+    view_history: features::camera::ViewHistory,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     /// Off unless the host enables it; recovery files never replace the scene file.
@@ -150,6 +151,7 @@ impl Default for Editor {
             pick_epoch: 0,
             camera: Camera::default(),
             native_camera_drag: false,
+            view_history: Default::default(),
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
             recovery: None,
@@ -321,6 +323,7 @@ impl eframe::App for Editor {
                 self.error = true;
             }
             self.native_camera_drag = false;
+            self.view_history.end_gesture();
             self.handle_close(ctx);
             #[cfg(feature = "mcp")]
             self.process_mcp(ctx);

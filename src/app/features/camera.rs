@@ -65,20 +65,7 @@ impl Editor {
     }
 
     pub(in crate::app) fn default_view(&mut self) {
-        let default = Camera::default();
-        if self.camera.projection() == Projection::Orthographic {
-            self.native_operation(Operation::SetView(ViewPreset::Persp));
-            // A refused switch (a modal is pending) must not move the pose either.
-            if self.camera.projection() == Projection::Orthographic {
-                return;
-            }
-        }
-        self.native_operation(Operation::SetCameraPose {
-            target: default.target().to_array(),
-            distance: default.distance(),
-            yaw: default.yaw(),
-            pitch: default.pitch(),
-        });
+        self.native_operation(Operation::DefaultView);
     }
 
     /// Whether F, Ctrl+F and their menu rows can act: a selection, or Object and Hierarchy modes,
@@ -146,4 +133,65 @@ impl Editor {
     pub(in crate::app) fn frame_all(&mut self) {
         self.native_operation(Operation::FrameAll { fit_factor: None });
     }
+}
+
+/// Session viewport history, separate from scene authoring Undo.
+#[derive(Default)]
+pub(in crate::app) struct ViewHistory {
+    pub undo: std::collections::VecDeque<Camera>,
+    pub redo: std::collections::VecDeque<Camera>,
+    grouped: bool,
+}
+
+impl ViewHistory {
+    // ponytail: fixed 50 session views; add a preference only when its UI is implemented.
+    const LIMIT: usize = 50;
+
+    pub fn end_gesture(&mut self) {
+        self.grouped = false;
+    }
+
+    pub fn record(&mut self, before: Camera, grouped: bool) {
+        if !grouped || !self.grouped {
+            if self.undo.len() == Self::LIMIT {
+                self.undo.pop_front();
+            }
+            self.undo.push_back(before);
+        }
+        self.redo.clear();
+        self.grouped = grouped;
+    }
+
+    pub fn step(&mut self, camera: &mut Camera, redo: bool) -> OperationReply {
+        let (from, to) = if redo {
+            (&mut self.redo, &mut self.undo)
+        } else {
+            (&mut self.undo, &mut self.redo)
+        };
+        let Some(previous) = from.pop_back() else {
+            return OperationReply::Unchanged;
+        };
+        if to.len() == Self::LIMIT {
+            to.pop_front();
+        }
+        to.push_back(std::mem::replace(camera, previous));
+        self.end_gesture();
+        OperationReply::Changed
+    }
+}
+
+pub(in crate::app) fn changes_camera(operation: &Operation) -> bool {
+    matches!(
+        operation,
+        Operation::Orbit { .. }
+            | Operation::Pan { .. }
+            | Operation::Dolly { .. }
+            | Operation::BoxDolly { .. }
+            | Operation::SetCameraPose { .. }
+            | Operation::SetView(_)
+            | Operation::FrameSelected { .. }
+            | Operation::FrameAll { .. }
+            | Operation::ApplyCameraBookmark { .. }
+            | Operation::DefaultView
+    )
 }

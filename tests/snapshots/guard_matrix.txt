@@ -200,6 +200,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(unchanged) | no state change
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Ok(changed) | scene changed; can_redo: true -> false
   set_pivots(raw) => Ok(changed) | scene changed; can_redo: true -> false
@@ -405,6 +408,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(unchanged) | no state change
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Ok(changed) | scene changed; can_redo: true -> false
   set_pivots(raw) => Ok(changed) | scene changed; can_redo: true -> false
@@ -598,6 +604,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -791,6 +800,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -984,6 +996,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1177,6 +1192,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1370,6 +1388,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(unchanged) | no state change
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   set_pivots(raw) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1563,6 +1584,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(unchanged) | no state change
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   set_pivots(raw) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1756,6 +1780,9 @@
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  undo_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  redo_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  default_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   box_dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_pivots(preserve) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_pivots(raw) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1949,6 +1976,9 @@
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  undo_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  redo_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  default_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   box_dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_pivots(preserve) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_pivots(raw) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2142,6 +2172,9 @@
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  undo_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  redo_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  default_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   box_dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_pivots(preserve) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_pivots(raw) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2335,6 +2368,9 @@
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  undo_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  redo_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  default_view => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   box_dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_pivots(preserve) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_pivots(raw) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2528,6 +2564,9 @@
   orbit => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   pan => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   dolly => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  undo_view => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  redo_view => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  default_view => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   box_dolly => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_pivots(preserve) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_pivots(raw) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2721,6 +2760,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2915,6 +2957,9 @@
   orbit => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   pan => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   dolly => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  undo_view => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  redo_view => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  default_view => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   box_dolly => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_pivots(preserve) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_pivots(raw) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3109,6 +3154,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3302,6 +3350,9 @@
   orbit => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   pan => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   dolly => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  undo_view => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  redo_view => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  default_view => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   box_dolly => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_pivots(preserve) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_pivots(raw) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3495,6 +3546,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3688,6 +3742,9 @@
   orbit => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   pan => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   dolly => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  undo_view => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  redo_view => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  default_view => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   box_dolly => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_pivots(preserve) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_pivots(raw) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3881,6 +3938,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4074,6 +4134,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(unchanged) | no state change
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Ok(changed) | scene changed; can_redo: true -> false
   set_pivots(raw) => Ok(changed) | scene changed; can_redo: true -> false
@@ -4267,6 +4330,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4460,6 +4526,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(unchanged) | no state change
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Ok(changed) | scene changed; can_redo: true -> false
   set_pivots(raw) => Ok(changed) | scene changed; can_redo: true -> false
@@ -4653,6 +4722,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4848,6 +4920,9 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  undo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  redo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  default_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   box_dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(preserve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(raw) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5041,6 +5116,9 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  undo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  redo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  default_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   box_dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(preserve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(raw) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5234,6 +5312,9 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  undo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  redo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  default_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   box_dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(preserve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(raw) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5427,6 +5508,9 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  undo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  redo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  default_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   box_dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(preserve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(raw) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5620,6 +5704,9 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  undo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  redo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  default_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   box_dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(preserve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(raw) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5813,6 +5900,9 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  undo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  redo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  default_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   box_dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(preserve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(raw) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6006,6 +6096,9 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  undo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  redo_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  default_view => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   box_dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(preserve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_pivots(raw) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6199,6 +6292,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(changed) | camera changed
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   set_pivots(raw) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
@@ -6392,6 +6488,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(changed) | camera changed
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   set_pivots(raw) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
@@ -6586,6 +6685,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(changed) | camera changed
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   set_pivots(raw) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
@@ -6780,6 +6882,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(changed) | camera changed
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   set_pivots(raw) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
@@ -6974,6 +7079,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(changed) | camera changed
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   set_pivots(raw) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
@@ -7168,6 +7276,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(changed) | camera changed
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   set_pivots(raw) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
@@ -7458,6 +7569,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(changed) | camera changed
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   set_pivots(raw) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
@@ -7652,6 +7766,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Ok(unchanged) | no state change
+  redo_view => Ok(unchanged) | no state change
+  default_view => Ok(changed) | camera changed
   box_dolly => Ok(changed) | camera changed
   set_pivots(preserve) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   set_pivots(raw) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
@@ -7846,6 +7963,9 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -8040,6 +8160,9 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  default_view => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   box_dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -8048,4 +8171,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 7448
+cells: 7571

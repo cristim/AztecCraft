@@ -1,5 +1,5 @@
 pub(in crate::app) mod attribute_editor;
-mod camera;
+pub(super) mod camera;
 mod camera_bookmarks;
 mod export_common;
 pub(in crate::app) mod extrude_options;
