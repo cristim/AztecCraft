@@ -1,6 +1,7 @@
 //! Rotate and Scale: Tool Box state, Object/World selector, numeric entry, handle hover, pick and
 //! paint. The drag samples, guards and history entry are shared with Move (`move_tool.rs`).
 
+use crate::app::features::rotate_step::StepKind;
 use crate::app::{Editor, NOT_IMPLEMENTED_YET};
 use crate::editor_operations::{
     ActiveTool, ManipulationSpace, ManipulationValue, NO_ROTATE_PARENT, Operation, OperationError,
@@ -47,6 +48,7 @@ pub(in crate::app) struct ManipulationOptions {
     numeric: String,
     // The Step Snap increment field's text (see `rotate_step.rs`).
     pub(in crate::app) rotate_step_text: String,
+    pub(in crate::app) scale_step_text: String,
     // The status text last written for the handle under the pointer, and whether it is a refusal.
     hover: Option<(String, bool)>,
     // Set when the hover memory was reset (drag start, tool change): the next idle frame records
@@ -76,6 +78,7 @@ impl Default for ManipulationOptions {
             scale_step: None,
             numeric: String::new(),
             rotate_step_text: String::new(),
+            scale_step_text: String::new(),
             hover: None,
             quiet: false,
             refusal: None,
@@ -117,6 +120,13 @@ impl ManipulationOptions {
 
     pub(in crate::app) fn manipulator_size(&self) -> ManipulatorSize {
         self.manipulator_size
+    }
+
+    pub(in crate::app) fn step_text_mut(&mut self, kind: StepKind) -> &mut String {
+        match kind {
+            StepKind::Rotate => &mut self.rotate_step_text,
+            StepKind::Scale => &mut self.scale_step_text,
+        }
     }
 }
 
@@ -1184,10 +1194,18 @@ impl Editor {
         if apply {
             self.apply_numeric_manipulation();
         }
-        if tool == ActiveTool::Rotate
-            && let Some(degrees) = self.rotate_step_row(ui)
-        {
-            self.native_operation(Operation::SetRotateStep { degrees });
+        match tool {
+            ActiveTool::Rotate => {
+                if let Some(degrees) = self.step_row(ui, StepKind::Rotate) {
+                    self.native_operation(Operation::SetRotateStep { degrees });
+                }
+            }
+            ActiveTool::Scale => {
+                if let Some(step) = self.step_row(ui, StepKind::Scale) {
+                    self.native_operation(Operation::SetScaleStep { step });
+                }
+            }
+            ActiveTool::Select | ActiveTool::Move => {}
         }
     }
 

@@ -1,44 +1,103 @@
-//! The Rotate tool's Step Snap row in the Tool Box: an Off/Relative combo and the increment in
-//! degrees. It dispatches `Operation::SetRotateStep`, the operation `set_rotate_step` uses, so
-//! the editor state is the one MCP reads and writes. Maya names: `manipRotateContext -snap`,
-//! `-snapRelative` and `-snapValue`; the 15 degree default is PROVISIONAL (not stated by the docs).
+//! The Rotate and Scale tools' Step Snap rows in the Tool Box: an Off/Relative combo and the
+//! increment (degrees, or the scale factor). They dispatch `Operation::SetRotateStep` and
+//! `Operation::SetScaleStep`, the operations `set_rotate_step` and `set_scale_step` use, so the
+//! editor state is the one MCP reads and writes. Maya names: `manipRotateContext` and
+//! `manipScaleContext` `-snap`, `-snapRelative` and `-snapValue`; the 15 degree and 0.25 factor
+//! defaults are PROVISIONAL (not stated by the docs).
 
 use crate::app::Editor;
 use crate::app::features::primitive_options::describe_unavailable;
 use crate::editor_operations::OperationError;
 use eframe::egui;
 
-const DEFAULT_INCREMENT: &str = "15";
 pub(in crate::app) const STEP_COMBO_LABEL: &str = "Step Snap";
 pub(in crate::app) const STEP_FIELD_LABEL: &str = "Step Snap increment (degrees)";
+pub(in crate::app) const SCALE_STEP_COMBO_LABEL: &str = "Scale Step Snap";
+pub(in crate::app) const SCALE_STEP_FIELD_LABEL: &str = "Scale Step Snap increment (factor)";
 const OFF_REASON: &str = "Step Snap is Off";
 
 pub(in crate::app) fn step_field_id() -> egui::Id {
     egui::Id::unique("rotate_step_increment")
 }
 
+pub(in crate::app) fn scale_step_field_id() -> egui::Id {
+    egui::Id::unique("scale_step_increment")
+}
+
+/// Which tool's row is drawn.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::app) enum StepKind {
+    Rotate,
+    Scale,
+}
+
+impl StepKind {
+    fn combo_label(self) -> &'static str {
+        match self {
+            Self::Rotate => STEP_COMBO_LABEL,
+            Self::Scale => SCALE_STEP_COMBO_LABEL,
+        }
+    }
+
+    fn field_label(self) -> &'static str {
+        match self {
+            Self::Rotate => STEP_FIELD_LABEL,
+            Self::Scale => SCALE_STEP_FIELD_LABEL,
+        }
+    }
+
+    fn mode_salt(self) -> &'static str {
+        match self {
+            Self::Rotate => "rotate_step_mode",
+            Self::Scale => "scale_step_mode",
+        }
+    }
+
+    fn default_increment(self) -> &'static str {
+        match self {
+            Self::Rotate => "15",
+            Self::Scale => "0.25",
+        }
+    }
+
+    fn field_id(self) -> egui::Id {
+        match self {
+            Self::Rotate => step_field_id(),
+            Self::Scale => scale_step_field_id(),
+        }
+    }
+}
+
 impl Editor {
     /// Draws the row; returns the step the user asked for (`Some(None)` is Off) for the caller to
     /// dispatch, like the other Tool Box selectors.
-    pub(in crate::app) fn rotate_step_row(&mut self, ui: &mut egui::Ui) -> Option<Option<f64>> {
+    pub(in crate::app) fn step_row(
+        &mut self,
+        ui: &mut egui::Ui,
+        kind: StepKind,
+    ) -> Option<Option<f64>> {
         let unavailable = self.manipulation_unavailable();
-        let step = self.manipulation.rotate_step();
-        let typing = ui.ctx().memory(|memory| memory.has_focus(step_field_id()));
+        let step = match kind {
+            StepKind::Rotate => self.manipulation.rotate_step(),
+            StepKind::Scale => self.manipulation.scale_step(),
+        };
+        let typing = ui.ctx().memory(|memory| memory.has_focus(kind.field_id()));
+        let text = self.manipulation.step_text_mut(kind);
         if !typing {
-            if let Some(degrees) = step {
-                self.manipulation.rotate_step_text = degrees.to_string();
-            } else if self.manipulation.rotate_step_text.is_empty() {
-                self.manipulation.rotate_step_text = DEFAULT_INCREMENT.into();
+            if let Some(value) = step {
+                *text = value.to_string();
+            } else if text.is_empty() {
+                *text = kind.default_increment().into();
             }
         }
         let mut turn_on = None;
         let mut commit = false;
         ui.horizontal(|ui| {
-            ui.label(STEP_COMBO_LABEL);
+            ui.label(kind.combo_label());
             let selected = if step.is_some() { "Relative" } else { "Off" };
             let combo = ui
                 .add_enabled_ui(unavailable.is_none(), |ui| {
-                    egui::ComboBox::from_id_salt("rotate_step_mode")
+                    egui::ComboBox::from_id_salt(kind.mode_salt())
                         .selected_text(selected)
                         .show_ui(ui, |ui| {
                             if ui.selectable_label(step.is_none(), "Off").clicked() {
@@ -51,7 +110,7 @@ impl Editor {
                 })
                 .inner
                 .response;
-            name_control(&combo, egui::Role::ComboBox, STEP_COMBO_LABEL, selected);
+            name_control(&combo, egui::Role::ComboBox, kind.combo_label(), selected);
             if let Some(reason) = unavailable {
                 describe_unavailable(ui.ctx(), combo.id, reason);
             }
@@ -59,14 +118,14 @@ impl Editor {
             let response = ui
                 .add_enabled_ui(field_reason.is_none(), |ui| {
                     ui.add(
-                        egui::TextEdit::singleline(&mut self.manipulation.rotate_step_text)
-                            .id(step_field_id())
+                        egui::TextEdit::singleline(self.manipulation.step_text_mut(kind))
+                            .id(kind.field_id())
                             .desired_width(60.0),
                     )
                 })
                 .inner;
-            let text = self.manipulation.rotate_step_text.clone();
-            name_control(&response, egui::Role::TextInput, STEP_FIELD_LABEL, &text);
+            let text = self.manipulation.step_text_mut(kind).clone();
+            name_control(&response, egui::Role::TextInput, kind.field_label(), &text);
             if let Some(reason) = field_reason {
                 describe_unavailable(ui.ctx(), response.id, reason);
             }
@@ -75,9 +134,9 @@ impl Editor {
         match (turn_on, commit) {
             (Some(false), _) => Some(None),
             (Some(true), _) | (None, true) => {
-                let text = std::mem::take(&mut self.manipulation.rotate_step_text);
+                let text = std::mem::take(self.manipulation.step_text_mut(kind));
                 match text.trim().parse::<f64>() {
-                    Ok(degrees) => Some(Some(degrees)),
+                    Ok(value) => Some(Some(value)),
                     Err(_) => {
                         self.set_error_status(&OperationError::InvalidInput(
                             "Enter a number for the Step Snap increment".into(),

@@ -383,6 +383,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
         material_edit_id(),
         features::manipulation_tool::manipulation_value_id(),
         features::rotate_step::step_field_id(),
+        features::rotate_step::scale_step_field_id(),
     ]
     .into_iter()
     .chain((0..9).map(channel_edit_id))

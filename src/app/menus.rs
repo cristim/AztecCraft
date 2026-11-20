@@ -104,9 +104,24 @@ fn placeholder_menu(ui: &mut egui::Ui, label: &str) {
             // Maya's Display > Grid option box: size, spacing, divisions and colours (#160).
             ui.add_enabled(false, egui::Button::new("Grid Options"))
                 .on_disabled_hover_text(GRID_OPTIONS_REASON);
+            // The Status Line snap kinds that are not built; no tool and no MCP tool exist for them.
+            for label in UNBUILT_SNAP_KINDS {
+                let row = ui
+                    .add_enabled(false, egui::Button::new(label))
+                    .on_disabled_hover_text(UNBUILT_SNAP_REASON);
+                crate::app::features::primitive_options::describe_unavailable(
+                    ui.ctx(),
+                    row.id,
+                    UNBUILT_SNAP_REASON,
+                );
+            }
         }
     });
 }
+
+pub(super) const UNBUILT_SNAP_KINDS: [&str; 3] =
+    ["Snap to Curves", "Snap to Points", "Snap to Surface"];
+pub(super) const UNBUILT_SNAP_REASON: &str = "Not implemented yet; see #454";
 
 pub(super) const GRID_OPTIONS_REASON: &str = "Not implemented: the grid uses Maya 2025.1's defaults, +/-12 units (PROVISIONAL) with lines every 5 and 5 divisions";
 
