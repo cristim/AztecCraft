@@ -117,11 +117,110 @@ fn nav_keys_map_to_the_documented_set() {
 }
 
 #[test]
-fn an_rmb_click_opens_a_sticky_menu_and_a_remote_mutation_is_refused() {
+fn an_rmb_click_opens_a_sticky_menu_at_the_press_point() {
     let (mut editor, ctx, view) = setup();
     assert!(!editor.marking_menu.holds_overlay());
-    open_sticky(&mut editor, &ctx, nowhere(&view));
+    let origin = nowhere(&view);
+    open_sticky(&mut editor, &ctx, origin);
+    assert_eq!(editor.marking_menu.origin(), Some([origin.x, origin.y]));
     assert!(editor.overlay_open(&ctx));
+}
+
+#[test]
+fn focus_loss_and_the_pointer_leaving_dismiss_a_held_or_sticky_menu() {
+    for lost in [Event::PointerGone, Event::WindowFocused(false)] {
+        let (mut editor, ctx, view) = setup();
+        let origin = nowhere(&view);
+        at(&mut editor, &ctx, 1.0, rmb(origin, true));
+        assert!(editor.marking_menu.is_active());
+        at(&mut editor, &ctx, 1.1, vec![lost.clone()]);
+        assert!(!editor.marking_menu.is_active(), "held, {lost:?}");
+        let (mut editor, ctx, view) = setup();
+        open_sticky(&mut editor, &ctx, nowhere(&view));
+        at(&mut editor, &ctx, 2.0, vec![lost.clone()]);
+        assert!(!editor.marking_menu.holds_overlay(), "sticky, {lost:?}");
+    }
+}
+
+/// A primary drag from `a` to `b` in four frames.
+fn drag(editor: &mut Editor, ctx: &egui::Context, start: f64, a: Pos2, b: Pos2) {
+    at(editor, ctx, start, lmb(a, true));
+    at(
+        editor,
+        ctx,
+        start + 0.1,
+        vec![Event::PointerMoved(a.lerp(b, 0.5))],
+    );
+    at(editor, ctx, start + 0.2, vec![Event::PointerMoved(b)]);
+    at(editor, ctx, start + 0.3, lmb(b, false));
+}
+
+#[test]
+fn a_release_the_menu_took_raises_no_component_marquee_refusal() {
+    let refusal = crate::viewport_ui::SelectionRefusal::ComponentMarquee.message();
+    let (mut control, ctx, view) = setup();
+    control.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+    let a = view.rect.left_top() + egui::vec2(100.0, 100.0);
+    drag(&mut control, &ctx, 1.0, a, a + egui::vec2(200.0, 150.0));
+    assert_eq!(
+        control.status, refusal,
+        "control: the drag is refused with no menu"
+    );
+    let (mut editor, ctx, view) = setup();
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+    open_sticky(&mut editor, &ctx, nowhere(&view));
+    // A press outside the dial dismisses it; the drag that follows belongs to the menu's swallow.
+    drag(&mut editor, &ctx, 2.0, a, a + egui::vec2(200.0, 150.0));
+    assert_ne!(
+        editor.status, refusal,
+        "the taken release must not report a marquee"
+    );
+}
+
+#[test]
+fn keys_the_open_menu_takes_never_reach_a_focused_widget() {
+    // Focus the File button with Tab, then press Enter: with no menu it opens the File menu.
+    let focus_file = |editor: &mut Editor, ctx: &egui::Context| {
+        for step in 0..60 {
+            let output = at(
+                editor,
+                ctx,
+                0.1 * f64::from(step),
+                key(Key::Tab, Modifiers::NONE),
+            );
+            let update = output.platform_output.accesskit_update.unwrap();
+            let label = update
+                .nodes
+                .iter()
+                .find(|(id, _)| *id == update.focus)
+                .and_then(|(_, node)| node.label().map(str::to_owned));
+            if label.as_deref() == Some("File") {
+                return;
+            }
+        }
+        panic!("Tab never reached File");
+    };
+    let (mut control, ctx, _) = setup();
+    focus_file(&mut control, &ctx);
+    at(&mut control, &ctx, 10.0, key(Key::Enter, Modifiers::NONE));
+    assert!(
+        egui::Popup::is_any_open(&ctx),
+        "control: Enter opens the File menu"
+    );
+
+    let (mut editor, ctx, _) = setup();
+    focus_file(&mut editor, &ctx);
+    at(&mut editor, &ctx, 10.0, key(Key::F10, Modifiers::SHIFT));
+    assert!(editor.marking_menu.is_active());
+    at(&mut editor, &ctx, 10.1, key(Key::Enter, Modifiers::NONE));
+    assert!(
+        !egui::Popup::is_any_open(&ctx),
+        "Enter belonged to the menu"
+    );
+    assert!(
+        editor.marking_menu.is_active(),
+        "and chose nothing: no entry was focused"
+    );
 }
 
 #[test]

@@ -130,8 +130,8 @@ fn number_focuses_by_visible_position_including_disabled() {
     }
     assert_eq!(
         i.focused(),
-        None,
-        "activation cleared focus and out of range keeps it so"
+        Some(N),
+        "a rejected activation and an out-of-range number keep focus"
     );
 }
 
@@ -159,7 +159,7 @@ fn activate_of_an_entry_that_became_disabled_is_rejected_and_stays_open() {
     nav(&mut i, NavKey::Number(2), &m, 1.0);
     assert_eq!(i.key_activate(2.0, &|_| false), Outcome::Rejected(E));
     assert!(i.is_active());
-    assert_eq!(i.focused(), None);
+    assert_eq!(i.focused(), Some(E), "a rejected entry keeps the focus");
 }
 
 #[test]

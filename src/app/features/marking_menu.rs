@@ -16,7 +16,7 @@ mod paint;
 
 use crate::app::{Editor, SelectionModeIntent};
 use azteccraft::marking_menu::{Button, FrameInput, MarkingMenu, NavKey, Outcome, Target};
-use eframe::egui::{self, Event, Key, Modifiers, PointerButton, Pos2, Rect};
+use eframe::egui::{self, Event, Key, Modifiers, PointerButton, Pos2, Rect, accesskit};
 use layout::{MeshAction, hit, mesh_menu};
 
 /// The keyboard opener: no Maya key is documented (PROVISIONAL), Shift+F10 is the platform's
@@ -42,6 +42,7 @@ fn human_event(event: &Event) -> bool {
         Event::PointerButton { .. }
             | Event::PointerMoved(_)
             | Event::MouseWheel { .. }
+            | Event::AccessKitActionRequest(_)
             | Event::Key { .. }
     )
 }
@@ -96,22 +97,29 @@ impl Editor {
     /// Nothing is scheduled or allocated while the menu is Closed and no opening input arrives.
     pub(in crate::app) fn marking_menu_pass(&mut self, ui: &egui::Ui, viewport: Rect) -> MenuFrame {
         let mut frame = MenuFrame::default();
-        let events = ui.input(|input| input.events.clone());
+        let stashed = std::mem::take(&mut self.marking_menu_keys);
         let now = ui.input(|input| input.time);
-        let opening = events.iter().any(|event| {
-            matches!(
-                event,
-                Event::PointerButton {
-                    button: PointerButton::Secondary,
-                    pressed: true,
-                    ..
-                }
-            ) || matches!(event, Event::Key { key, pressed: true, modifiers, .. }
-                if (*modifiers, *key) == KEY_OPEN)
-        });
-        if !self.marking_menu.holds_overlay() && !opening {
+        // Scanned in place: a Closed menu with no opening input clones and allocates nothing.
+        let wanted = self.marking_menu.holds_overlay()
+            || ui.input(|input| {
+                input.events.iter().any(|event| {
+                    matches!(
+                        event,
+                        Event::PointerButton {
+                            button: PointerButton::Secondary,
+                            pressed: true,
+                            ..
+                        }
+                    ) || matches!(event, Event::Key { key, pressed: true, modifiers, .. }
+                        if (*modifiers, *key) == KEY_OPEN)
+                })
+            });
+        if !wanted {
+            self.restore_menu_help();
             return frame;
         }
+        let mut events = ui.input(|input| input.events.clone());
+        events.extend(stashed);
         let menu = self.marking_menu_for_mode();
         let enabled = |target: Target| menu.is_enabled(target);
         let mut outcomes = Vec::new();
@@ -173,6 +181,24 @@ impl Editor {
                     }
                 }
                 Event::PointerMoved(pos) => self.marking_menu.moved(point(*pos), now),
+                Event::AccessKitActionRequest(request) if self.marking_menu.is_active() => {
+                    let order = menu.nav_order();
+                    let at = order
+                        .iter()
+                        .position(|t| paint::entry_id(*t).accesskit_id() == request.target_node);
+                    match (request.action, at) {
+                        (accesskit::Action::Focus, Some(at)) => {
+                            self.marking_menu
+                                .key_nav(NavKey::Number(at + 1), &order, now);
+                        }
+                        (accesskit::Action::Click, Some(at)) => {
+                            self.marking_menu
+                                .key_nav(NavKey::Number(at + 1), &order, now);
+                            outcomes.push(self.marking_menu.key_activate(now, &enabled));
+                        }
+                        _ => {}
+                    }
+                }
                 Event::PointerGone | Event::WindowFocused(false) => {
                     outcomes.push(self.marking_menu.focus_lost());
                 }
@@ -226,23 +252,6 @@ impl Editor {
         for outcome in outcomes {
             self.apply_menu_outcome(&menu, outcome, &mut frame);
         }
-        // Keys that moved menu focus must not also move egui's own focus or fire shortcuts.
-        if self.marking_menu.is_active() {
-            ui.input_mut(|input| {
-                for key in [
-                    Key::ArrowLeft,
-                    Key::ArrowRight,
-                    Key::ArrowUp,
-                    Key::ArrowDown,
-                    Key::Tab,
-                    Key::Enter,
-                    Key::Space,
-                ] {
-                    input.consume_key(Modifiers::NONE, key);
-                }
-                input.consume_key(Modifiers::SHIFT, Key::Tab);
-            });
-        }
         if let Some(wait) = self.marking_menu.repaint_after(now) {
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_secs_f64(wait));
@@ -250,6 +259,8 @@ impl Editor {
         if self.marking_menu.is_drawn() {
             self.marking_menu_help(ui, &menu);
             paint::paint(ui, &self.marking_menu, &menu);
+        } else {
+            self.restore_menu_help();
         }
         frame
     }
@@ -269,31 +280,84 @@ impl Editor {
                     }
                 }
             }
-            Outcome::Rejected(target) => self.set_menu_help(menu, target),
+            Outcome::Rejected(target) => {
+                // A rejection is feedback for a choice, so it stays after the menu closes.
+                self.marking_menu_help = None;
+                self.set_menu_help(menu, target);
+            }
             Outcome::None | Outcome::Dismissed => {}
         }
     }
 
     /// The Help Line text for an entry that cannot be chosen: its label and reason.
+    fn menu_help_text(menu: &MarkingMenu<MeshAction>, target: Target) -> Option<String> {
+        let entry = menu.entry(target)?;
+        let reason = entry.disabled_reason()?;
+        Some(format!("{}: {reason}", entry.label))
+    }
+
     fn set_menu_help(&mut self, menu: &MarkingMenu<MeshAction>, target: Target) {
-        if let Some(entry) = menu.entry(target)
-            && let Some(reason) = entry.disabled_reason()
-        {
-            self.status = format!("{}: {reason}", entry.label);
+        if let Some(text) = Self::menu_help_text(menu, target) {
+            self.status = text;
             self.error = false;
         }
     }
 
     /// While the dial is drawn, the entry under the pointer or the keyboard focus that cannot be
-    /// chosen shows its reason in the Help Line.
+    /// chosen shows its reason in the Help Line. The text is transient: the status it replaced
+    /// comes back when the pointer leaves the entry or the menu closes, and an error message is
+    /// never overwritten.
     fn marking_menu_help(&mut self, ui: &egui::Ui, menu: &MarkingMenu<MeshAction>) {
         let under_pointer = self.marking_menu.origin().and_then(|origin| {
             let pos = ui.input(|input| input.pointer.latest_pos())?;
             hit(menu, origin, point(pos))
         });
-        if let Some(target) = self.marking_menu.focused().or(under_pointer) {
-            self.set_menu_help(menu, target);
+        let text = self
+            .marking_menu
+            .focused()
+            .or(under_pointer)
+            .and_then(|target| Self::menu_help_text(menu, target));
+        let Some(text) = text else {
+            return self.restore_menu_help();
+        };
+        if self.status == text || (self.error && self.marking_menu_help.is_none()) {
+            return;
         }
+        let previous = match self.marking_menu_help.take() {
+            Some((shown, previous)) if self.status == shown => previous,
+            _ => self.status.clone(),
+        };
+        self.status = text.clone();
+        self.marking_menu_help = Some((text, previous));
+    }
+
+    /// Puts back the status a transient hover reason replaced, unless something else has
+    /// written the Help Line since.
+    fn restore_menu_help(&mut self) {
+        if let Some((shown, previous)) = self.marking_menu_help.take()
+            && self.status == shown
+        {
+            self.status = previous;
+        }
+    }
+
+    /// Called from `raw_input_hook`, before egui reads the frame: while the menu is sticky-open
+    /// its navigation keys are taken out of the raw input, so egui's own focus traversal and a
+    /// focused widget's Enter or Space activation never see them; the pass handles them instead.
+    pub(in crate::app) fn take_marking_menu_keys(&mut self, input: &mut egui::RawInput) {
+        self.marking_menu_keys.clear();
+        if !self.marking_menu.is_active() {
+            return;
+        }
+        let taken = |event: &Event| {
+            matches!(event, Event::Key { key, pressed: true, modifiers, .. }
+                if (modifiers.is_none() || *modifiers == Modifiers::SHIFT)
+                    && (nav_key(*key, *modifiers).is_some()
+                        || matches!(key, Key::Enter | Key::Space)))
+        };
+        let (keys, rest): (Vec<_>, Vec<_>) = input.events.drain(..).partition(taken);
+        input.events = rest;
+        self.marking_menu_keys = keys;
     }
 }
 

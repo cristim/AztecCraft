@@ -78,6 +78,19 @@ pub(super) fn paint(ui: &egui::Ui, interaction: &Interaction, menu: &MarkingMenu
             .layer_id(layer)
             .max_rect(ctx.content_rect()),
     );
+    // The dial is a menu node, with the entries as its children.
+    let dial = Rect::from_center_size(origin, Vec2::splat(2.0 * DIAL_RADIUS));
+    let menu_id = Id::unique("marking_menu_container");
+    let container = layer_ui.interact(dial, menu_id, Sense::hover());
+    container.widget_info(|| WidgetInfo::labeled(Role::Menu, true, "Marking menu"));
+    let layer_ui = egui::Ui::new(
+        ctx.clone(),
+        Id::unique("marking_menu_entries"),
+        egui::UiBuilder::new()
+            .layer_id(layer)
+            .max_rect(ctx.content_rect())
+            .accessibility_parent(menu_id),
+    );
     for zone in Zone::ALL {
         let target = Target::Zone(zone);
         let Some(entry) = menu.entry(target) else {
@@ -120,11 +133,14 @@ pub(super) fn paint(ui: &egui::Ui, interaction: &Interaction, menu: &MarkingMenu
         let name = accessible_label(zone, &entry.label, entry.checked);
         response
             .widget_info(|| WidgetInfo::selected(Role::MenuItem, enabled, entry.checked, &name));
-        if let Some(reason) = entry.disabled_reason() {
-            ctx.accesskit_node_builder(id, |node| {
-                node.set_description(format!("Unavailable: {reason}"))
-            });
-        }
+        // The default action reaches `Interaction` through the pass, like Enter; egui itself
+        // handles a screen reader's Focus request, and the pass mirrors it into the menu.
+        ctx.accesskit_node_builder(id, |node| {
+            node.add_action(egui::accesskit::Action::Click);
+            if let Some(reason) = entry.disabled_reason() {
+                node.set_description(format!("Unavailable: {reason}"));
+            }
+        });
         if focused == Some(target) && ctx.memory(|memory| memory.focused()) != Some(id) {
             ctx.memory_mut(|memory| memory.request_focus(id));
         }

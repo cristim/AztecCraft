@@ -125,6 +125,10 @@ pub struct Editor {
     /// The marking menu's interaction. Closed until the native wiring lands; the overlay gate
     /// and the remote guard already read it.
     marking_menu: azteccraft::marking_menu::Interaction,
+    /// Navigation keys `raw_input_hook` took out of the frame for the open menu.
+    marking_menu_keys: Vec<egui::Event>,
+    /// A transient hover reason in the Help Line and the status it replaced.
+    marking_menu_help: Option<(String, String)>,
     status: String,
     /// Exact `status` text produced from an error whose text can carry a local path. The native
     /// status line shows it; the inspection withholds it. Matching on the text keeps it from going
@@ -192,6 +196,8 @@ impl Default for Editor {
             uv: Default::default(),
             native_input_pending: false,
             marking_menu: Default::default(),
+            marking_menu_keys: Vec::new(),
+            marking_menu_help: None,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,
             refusal_after_change: None,
@@ -319,6 +325,7 @@ impl eframe::App for Editor {
             | egui::Event::MouseWheel { .. }
             | egui::Event::AccessKitActionRequest(_) => true,
         });
+        self.take_marking_menu_keys(input);
     }
 
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {

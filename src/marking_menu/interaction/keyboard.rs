@@ -82,7 +82,7 @@ impl Interaction {
     }
 
     /// Enter or Space: chooses the focused entry through the same rules as a pointer release.
-    /// An entry that became disabled is `Rejected`, the menu stays open and focus clears.
+    /// An entry that cannot be chosen is `Rejected`; the menu stays open and focus stays on it.
     pub fn key_activate(&mut self, now: f64, enabled: &dyn Fn(Target) -> bool) -> Outcome {
         if !now.is_finite() {
             return Outcome::None;
@@ -96,7 +96,8 @@ impl Interaction {
         };
         self.touch(now);
         self.set_armed(None);
-        self.set_focus(None);
+        // Focus stays: a rejected entry keeps it (the reason is read from it), and a dispatch
+        // closes the menu.
         self.choose(target, enabled, true)
     }
 

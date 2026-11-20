@@ -485,6 +485,12 @@ impl Editor {
             let clickable = input
                 .click_ndc()
                 .filter(|_| can_select && !consumed && !menu_frame.primary_release_taken);
+            if menu_frame.intent.is_some() && !can_select {
+                // The menu is already closed; say why the choice did nothing instead of dropping
+                // it silently (a modal, a stale document or a focused text field).
+                self.status = "Marking menu choice ignored: the editor is busy".into();
+                self.error = false;
+            }
             let selection_intent = selection_intent.filter(|_| can_select);
             // A mode change on the release frame leaves the drag belonging to the old mode: drop it.
             // An intent that keeps the mode leaves the release as if no intent were present.
