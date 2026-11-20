@@ -173,7 +173,7 @@ fn imported_shape_names_match_the_ones_create_makes() {
     let mut created = NativeScene::default();
     let options = crate::primitive_options::PrimitiveOptions::default_for(Primitive::Cube);
     let id = created
-        .create_default_named(Primitive::Cube, &options)
+        .create_default_named(Primitive::Cube, &options, false)
         .unwrap();
     let expected = names(&created, &[id]);
     let mut scene = NativeScene::default();

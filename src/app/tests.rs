@@ -2034,6 +2034,7 @@ fn remote_successes_report_on_the_status_line_like_native_ones() {
             primitive: Primitive::Cube,
             name: None,
             options: None,
+            create_uvs: false,
         },
         |editor| Operation::Rename {
             id: editor.selected().unwrap(),
@@ -3008,6 +3009,7 @@ fn remote_operations_share_native_scene_selection_history_and_camera() {
             primitive: Primitive::Cube,
             options: None,
             name: Some("remote_cube".into()),
+            create_uvs: false,
         },
     )
     .unwrap() else {
@@ -6488,6 +6490,7 @@ fn cylinder_and_cone_names_count_up_and_skip_collisions() {
                         primitive: Primitive::Cube,
                         options: None,
                         name: Some(taken),
+                        create_uvs: false,
                     })
                     .unwrap();
             }
@@ -9657,6 +9660,7 @@ mod primitive_options_create {
                 primitive,
                 options,
                 name: None,
+                create_uvs: false,
             },
         )
     }
@@ -12112,6 +12116,7 @@ fn native_scene_edits_are_refused_while_a_modal_is_open() {
             primitive: Primitive::Cube,
             options: None,
             name: None,
+            create_uvs: false,
         },
         Operation::Delete(id),
         Operation::DeleteSelection,
@@ -12277,6 +12282,7 @@ fn native_move_vertices_caps_the_index_count_before_touching_the_scene() {
             axis: Axis::Y,
         }),
         name: None,
+        create_uvs: false,
     });
     let id = editor.single_target().unwrap().0;
     let shape = editor.history.scene().shapes()[0].id();

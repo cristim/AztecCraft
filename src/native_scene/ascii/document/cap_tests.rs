@@ -24,7 +24,9 @@ fn capped(primitive: Primitive, round_cap: bool) -> NativeScene {
         *round = round_cap;
     }
     let mut scene = NativeScene::default();
-    scene.create_with_options(primitive, &options, "c").unwrap();
+    scene
+        .create_with_options(primitive, &options, "c", false)
+        .unwrap();
     scene
 }
 

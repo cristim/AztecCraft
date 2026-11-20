@@ -129,6 +129,7 @@ fn a_stale_face_and_an_all_face_extrusion_are_refused_with_the_baseline_kept() {
         primitive: Primitive::Plane,
         options: Some(azteccraft::primitive_options::SINGLE_QUAD_PLANE),
         name: None,
+        create_uvs: false,
     });
     let (mut plane, _) = pick_face_zero(single);
     let baseline = plane.history.scene().clone();
@@ -217,6 +218,7 @@ fn a_core_refusal_from_the_window_shows_its_message_and_the_function_returns_it(
         primitive: Primitive::Plane,
         options: Some(azteccraft::primitive_options::SINGLE_QUAD_PLANE),
         name: None,
+        create_uvs: false,
     });
     let (mut editor, _) = pick_face_zero(single);
     editor.open_extrude_options();

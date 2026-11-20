@@ -227,6 +227,7 @@ fn undo_redo_restores_the_exact_mesh_and_move_edit_stays_valid() {
             primitive: Primitive::Sphere,
             options: None,
             name: "pSphere1".into(),
+            create_uvs: false,
         })
         .unwrap();
     let EditOutcome::Created(id) = outcome else {
@@ -293,7 +294,7 @@ fn sphere_is_independent_of_cube_and_plane_builders() {
     let cube = scene.create(Primitive::Cube, "c").unwrap();
     // The single-quad plane: the default plane is 10x10 since #176.
     let plane = scene
-        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "p")
+        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "p", false)
         .unwrap();
     let cube_mesh = mesh_of(&scene, cube);
     assert_eq!(

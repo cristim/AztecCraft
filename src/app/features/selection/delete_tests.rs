@@ -198,6 +198,7 @@ fn a_changing_operation_outside_the_allowlist_is_not_recorded_for_repeat() {
             primitive: Primitive::Cube,
             options: None,
             name: None,
+            create_uvs: false,
         })
         .unwrap();
     editor.apply_operation(Operation::Undo).unwrap();

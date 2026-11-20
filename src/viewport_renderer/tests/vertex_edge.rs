@@ -866,6 +866,7 @@ fn budget_scene(extrusions: usize, planes: usize) -> Scene {
                 Primitive::Plane,
                 &SINGLE_QUAD_PLANE,
                 &format!("plane{index}"),
+                false,
             )
             .unwrap();
     }

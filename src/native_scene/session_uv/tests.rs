@@ -166,7 +166,7 @@ fn a_plane_projected_along_its_normal_is_counter_clockwise() {
             axis: plane_axis,
         };
         scene
-            .create_with_options(Primitive::Plane, &options, "plane")
+            .create_with_options(Primitive::Plane, &options, "plane", false)
             .unwrap();
         let shape = scene.shapes()[0].id();
         scene.project_uv_planar(shape, project).unwrap();
@@ -193,7 +193,7 @@ fn uv_directions_follow_the_side_top_and_front_views() {
     for (project, axis, right, up) in views {
         let mut scene = NativeScene::default();
         scene
-            .create_with_options(Primitive::Cube, &box_options(Axis::Y), "box")
+            .create_with_options(Primitive::Cube, &box_options(Axis::Y), "box", false)
             .unwrap();
         let shape = scene.shapes()[0].id();
         scene.project_uv_planar(shape, project).unwrap();
@@ -457,7 +457,7 @@ fn planar_values_are_exactly_f32() {
             axis: plane_axis,
         };
         scene
-            .create_with_options(Primitive::Plane, &options, "p")
+            .create_with_options(Primitive::Plane, &options, "p", false)
             .unwrap();
         let shape = scene.shapes()[0].id();
         scene.project_uv_planar(shape, axis).unwrap();
@@ -494,6 +494,7 @@ fn planar_projection_of_irrational_extent_is_quantised_and_valid() {
                 axis: Axis::Y,
             },
             "p",
+            false,
         )
         .unwrap();
     let plane = scene.shapes()[1].id();
@@ -577,4 +578,28 @@ fn from_corners_refuses_a_face_with_a_hole() {
         UvSet::from_corners(&mesh, vec![vec![[0.0, 0.0]; 4]]),
         Err(NativeError::UnsupportedUvTopology)
     );
+}
+
+#[test]
+fn create_with_uvs_builds_the_set_before_adding_anything() {
+    let options = PrimitiveOptions::Plane {
+        width: 1.0,
+        height: 1.0,
+        sub_width: 1,
+        sub_height: 1,
+        axis: Axis::X,
+    };
+    let mut scene = NativeScene::default();
+    scene.create(Primitive::Cube, "keep").unwrap();
+    let before = scene.clone();
+    // The Y projection of an X-facing plane has no width, so the UV build fails.
+    assert_eq!(
+        scene.create_with_options(Primitive::Plane, &options, "p", true),
+        Err(NativeError::DegenerateUvProjection)
+    );
+    assert!(scene == before, "no node, shape, id or UV set was added");
+    scene
+        .create_with_options(Primitive::Plane, &options, "p", false)
+        .unwrap();
+    assert!(scene.uv_set(scene.shapes()[1].id()).is_none());
 }

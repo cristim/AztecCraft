@@ -1742,10 +1742,10 @@ fn headless_gpu_intersecting_native_planes_change_front_surface_across_the_image
     for selected_first in [false, true] {
         let mut scene = NativeScene::default();
         let first = scene
-            .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "first")
+            .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "first", false)
             .unwrap();
         let second = scene
-            .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "second")
+            .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "second", false)
             .unwrap();
         let (selected, other) = if selected_first {
             (first, second)
@@ -1812,7 +1812,7 @@ fn headless_gpu_single_planes_remain_visible_from_back_and_reflected_and_across_
     ] {
         let mut scene = NativeScene::default();
         let node = scene
-            .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "plane")
+            .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "plane", false)
             .unwrap();
         scene
             .set_transform(
@@ -1831,7 +1831,7 @@ fn headless_gpu_single_planes_remain_visible_from_back_and_reflected_and_across_
     }
     let mut scene = NativeScene::default();
     let node = scene
-        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "far_crossing")
+        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "far_crossing", false)
         .unwrap();
     scene
         .set_transform(

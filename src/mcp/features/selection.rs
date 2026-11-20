@@ -180,6 +180,7 @@ fn parse_create_primitive(arguments: JsonObject) -> Result<RemoteRequest, ErrorD
             primitive: parsed.primitive,
             options: parsed.options,
             name: parsed.name,
+            create_uvs: false,
         },
     ))
 }

@@ -1308,18 +1308,25 @@ impl NativeScene {
     }
 
     pub fn create(&mut self, primitive: Primitive, name: &str) -> Result<NodeId, NativeError> {
-        self.create_with_options(primitive, &PrimitiveOptions::default_for(primitive), name)
+        self.create_with_options(
+            primitive,
+            &PrimitiveOptions::default_for(primitive),
+            name,
+            false,
+        )
     }
 
     /// Validates `options` against `primitive` before any mutation. An explicit name gives the
-    /// shape `<name>Shape`, as Maya's `polyCube -n` does.
+    /// shape `<name>Shape`, as Maya's `polyCube -n` does. `create_uvs` also gives the shape a
+    /// session UV set, built before anything is added so a failure leaves the scene untouched.
     pub fn create_with_options(
         &mut self,
         primitive: Primitive,
         options: &PrimitiveOptions,
         name: &str,
+        create_uvs: bool,
     ) -> Result<NodeId, NativeError> {
-        self.create_named(primitive, options, name, format!("{name}Shape"))
+        self.create_named(primitive, options, name, format!("{name}Shape"), create_uvs)
     }
 
     /// Creates with Maya's default names: the transform takes the lowest free `pCube<N>` and
@@ -1329,6 +1336,7 @@ impl NativeScene {
         &mut self,
         primitive: Primitive,
         options: &PrimitiveOptions,
+        create_uvs: bool,
     ) -> Result<NodeId, NativeError> {
         let base = match primitive {
             Primitive::Cube => "pCube",
@@ -1340,7 +1348,7 @@ impl NativeScene {
         };
         let name = self.free_name(base)?;
         let shape_name = self.free_name(&format!("{base}Shape"))?;
-        self.create_named(primitive, options, &name, shape_name)
+        self.create_named(primitive, options, &name, shape_name, create_uvs)
     }
 
     /// The lowest `<prefix><N>` that no transform or shape holds, because authored saves need
@@ -1360,6 +1368,7 @@ impl NativeScene {
         options: &PrimitiveOptions,
         name: &str,
         shape_name: String,
+        create_uvs: bool,
     ) -> Result<NodeId, NativeError> {
         self.structural_edit()?;
         // The primitive/options pairing is the one check NativeMesh::with_options does not repeat.
@@ -1372,13 +1381,14 @@ impl NativeScene {
             .checked_add(1)
             .ok_or(SceneError::IdsExhausted)?;
         let id = NodeId::new(self.next_id);
-        self.append(
-            id,
-            name,
-            shape_name,
-            NativeMesh::with_options(options)?,
-            NativeTransform::default(),
-        )?;
+        let mesh = NativeMesh::with_options(options)?;
+        let uvs = create_uvs
+            .then(|| session_uv::new_primitive_uvs(&mesh))
+            .transpose()?;
+        let shape = self.append(id, name, shape_name, mesh, NativeTransform::default())?;
+        if let Some(set) = uvs {
+            self.attach_authored_uv_set(shape, set);
+        }
         self.next_id = next;
         Ok(id)
     }
@@ -1390,7 +1400,7 @@ impl NativeScene {
         shape_name: String,
         mesh: NativeMesh,
         transform: NativeTransform,
-    ) -> Result<(), NativeError> {
+    ) -> Result<NativeId, NativeError> {
         let next = self
             .next_native_id
             .checked_add(2)
@@ -1429,7 +1439,7 @@ impl NativeScene {
             },
         ]);
         self.next_native_id = next;
-        Ok(())
+        Ok(shape_id)
     }
 
     fn editable(&self, id: NodeId) -> Result<usize, NativeError> {

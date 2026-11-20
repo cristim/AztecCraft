@@ -176,7 +176,7 @@ fn failures_preserve_contents_and_allocator_before_next_real_create() {
         Err(NativeError::InvalidName)
     );
     let id = native
-        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "pPlane1")
+        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "pPlane1", false)
         .unwrap();
     let shape_id = shape(&native, id).id();
     assert_eq!(id.to_decimal(), "1");

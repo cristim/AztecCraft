@@ -19,7 +19,7 @@ fn shape_of(scene: &NativeScene, id: NodeId) -> &str {
 
 fn default_named(scene: &mut NativeScene, primitive: Primitive) -> NodeId {
     scene
-        .create_default_named(primitive, &PrimitiveOptions::default_for(primitive))
+        .create_default_named(primitive, &PrimitiveOptions::default_for(primitive), false)
         .unwrap()
 }
 

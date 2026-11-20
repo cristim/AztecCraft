@@ -225,6 +225,7 @@ fn active_move_blocks_every_history_mutation_before_state_or_stack_changes() {
             primitive: Primitive::Cube,
             options: None,
             name: "cube".into(),
+            create_uvs: false,
         })
         .unwrap()
     else {
@@ -251,6 +252,7 @@ fn active_move_blocks_every_history_mutation_before_state_or_stack_changes() {
             primitive: Primitive::Plane,
             options: None,
             name: "blocked".into(),
+            create_uvs: false,
         },
         Command::Remove(node),
         Command::Rename {

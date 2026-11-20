@@ -92,6 +92,7 @@ fn create_request(editor: &Editor) -> RemoteRequest {
             primitive: Primitive::Cube,
             options: None,
             name: None,
+            create_uvs: false,
         },
     }
 }

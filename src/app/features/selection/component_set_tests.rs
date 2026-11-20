@@ -381,6 +381,7 @@ fn a_huge_set_inspects_inside_the_result_limit_and_says_it_is_truncated() {
                 axis: azteccraft::primitive_options::Axis::Y,
             }),
             name: None,
+            create_uvs: false,
         })
         .unwrap();
     mode(&mut editor, SelectionMode::Face);

@@ -405,6 +405,7 @@ fn native_create_with_caps_matches_the_same_typed_operation_and_round_cap_at_zer
             primitive,
             options: Some(options),
             name: None,
+            create_uvs: false,
         });
         let shapes = editor.history.scene().shapes();
         assert!(
@@ -590,6 +591,7 @@ fn remote_create_succeeds_while_the_window_is_open_and_busy_only_while_typing() 
         primitive: Primitive::Cube,
         options: None,
         name: None,
+        create_uvs: false,
     };
     let reply = remote(&mut editor, create()).unwrap();
     assert!(matches!(reply, OperationReply::Created { .. }));
@@ -1100,6 +1102,7 @@ fn torus_window_from_the_menu_creates_a_twisted_torus_and_remembers_it() {
                 primitive: Primitive::Torus,
                 options: Some(torus(twist)),
                 name: None,
+                create_uvs: false,
             })
             .unwrap();
     }

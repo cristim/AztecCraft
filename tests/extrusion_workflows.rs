@@ -144,7 +144,7 @@ fn failed_extrusions_preserve_scene_and_pending_redo() {
     let id = scene.create(Primitive::Cube, "cube").unwrap();
     let cube_shape = scene.shapes()[0].id();
     scene
-        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "plane")
+        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "plane", false)
         .unwrap();
     let plane_shape = scene.shapes()[1].id();
     let removed = scene.create(Primitive::Cube, "removed").unwrap();

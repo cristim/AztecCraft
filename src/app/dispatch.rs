@@ -1081,13 +1081,19 @@ impl Editor {
                 primitive,
                 options,
                 name,
+                create_uvs,
             } => match name {
                 Some(name) => Command::Create {
                     primitive,
                     options,
                     name,
+                    create_uvs,
                 },
-                None => Command::CreateDefaultNamed { primitive, options },
+                None => Command::CreateDefaultNamed {
+                    primitive,
+                    options,
+                    create_uvs,
+                },
             },
             #[cfg(any(test, feature = "mcp"))]
             Operation::Rename { id, name } => Command::Rename { id, name },

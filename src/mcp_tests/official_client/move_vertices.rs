@@ -274,6 +274,7 @@ async fn inspect_vertices_pages_with_a_revision_bound_cursor() {
             axis: Axis::Y,
         }),
         name: None,
+        create_uvs: false,
     });
     let ids = ids(&editor);
     let total = editor.history.scene().shapes()[0].mesh().point_count();

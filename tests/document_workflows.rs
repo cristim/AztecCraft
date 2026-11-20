@@ -78,7 +78,8 @@ fn exhausted_loaded_allocator_preserves_scene_history_and_saved_reservations() {
         history.execute(Command::Create {
             primitive: Primitive::Cube,
             options: None,
-            name: "new".into()
+            name: "new".into(),
+            create_uvs: false,
         }),
         Err(azteccraft::native_scene::NativeError::Legacy(
             azteccraft::scene::SceneError::IdsExhausted

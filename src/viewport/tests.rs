@@ -1598,6 +1598,7 @@ mod joints {
                     axis: crate::primitive_options::Axis::Y,
                 },
                 "dense",
+                false,
             )
             .unwrap();
         let view = view_of(&scene);

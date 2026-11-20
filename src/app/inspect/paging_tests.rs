@@ -162,6 +162,7 @@ fn every_scene_change_makes_a_cursor_stale_and_other_changes_do_not() {
                 primitive: Primitive::Cube,
                 name: None,
                 options: None,
+                create_uvs: false,
             })
             .unwrap();
         }),

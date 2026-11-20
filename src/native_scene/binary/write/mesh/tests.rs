@@ -183,7 +183,7 @@ fn bit31_is_set_on_boundary_edges_and_clear_on_interior_edges() {
     let scene_mesh = |options: PrimitiveOptions| {
         let mut scene = NativeScene::default();
         scene
-            .create_with_options(options.primitive(), &options, "m")
+            .create_with_options(options.primitive(), &options, "m", false)
             .unwrap();
         scene.shapes()[0].mesh().clone()
     };

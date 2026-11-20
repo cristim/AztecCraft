@@ -8,6 +8,7 @@ fn create(history: &mut History, name: &str) -> NodeId {
             primitive: Primitive::Cube,
             options: None,
             name: name.into(),
+            create_uvs: false,
         })
         .unwrap()
     {
@@ -27,6 +28,7 @@ fn undo_and_redo_restore_every_authoring_state_in_order() {
             primitive: Primitive::Plane,
             options: None,
             name: "ground".into(),
+            create_uvs: false,
         })
         .unwrap()
     {
@@ -86,6 +88,7 @@ fn failed_commands_preserve_scene_and_both_history_stacks() {
             primitive: Primitive::Cube,
             options: None,
             name: "".into(),
+            create_uvs: false,
         },
         Command::Rename {
             id: cube,
@@ -452,6 +455,7 @@ mod primitive_options {
             primitive,
             options,
             name: "made".into(),
+            create_uvs: false,
         })
     }
 

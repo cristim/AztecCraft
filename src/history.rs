@@ -23,11 +23,13 @@ pub enum Command {
         primitive: Primitive,
         options: Option<PrimitiveOptions>,
         name: String,
+        create_uvs: bool,
     },
     /// Create with Maya's default names, such as `pCube1` with shape `pCubeShape1`.
     CreateDefaultNamed {
         primitive: Primitive,
         options: Option<PrimitiveOptions>,
+        create_uvs: bool,
     },
     Remove(NodeId),
     /// Removes several nodes as one undo step; any refusal leaves the scene and history untouched.
@@ -601,13 +603,22 @@ impl History {
                 primitive,
                 options,
                 name,
-            } => EditOutcome::Created(match options {
-                Some(options) => candidate.create_with_options(primitive, &options, &name)?,
-                None => candidate.create(primitive, &name)?,
-            }),
-            Command::CreateDefaultNamed { primitive, options } => {
+                create_uvs,
+            } => {
                 let options = options.unwrap_or_else(|| PrimitiveOptions::default_for(primitive));
-                EditOutcome::Created(candidate.create_default_named(primitive, &options)?)
+                EditOutcome::Created(
+                    candidate.create_with_options(primitive, &options, &name, create_uvs)?,
+                )
+            }
+            Command::CreateDefaultNamed {
+                primitive,
+                options,
+                create_uvs,
+            } => {
+                let options = options.unwrap_or_else(|| PrimitiveOptions::default_for(primitive));
+                EditOutcome::Created(
+                    candidate.create_default_named(primitive, &options, create_uvs)?,
+                )
             }
             Command::Remove(id) => {
                 candidate.remove(id)?;
@@ -883,6 +894,7 @@ mod tests {
                     primitive: crate::scene::Primitive::Cube,
                     options: None,
                     name: name.into(),
+                    create_uvs: false,
                 })
                 .unwrap()
             {
@@ -908,6 +920,7 @@ mod tests {
                 primitive: crate::scene::Primitive::Cube,
                 options: None,
                 name: "a".into(),
+                create_uvs: false,
             })
             .unwrap()
         else {
@@ -1268,6 +1281,7 @@ mod tests {
                 primitive: crate::scene::Primitive::Cube,
                 options: None,
                 name: "cube".into(),
+                create_uvs: false,
             })
             .unwrap()
         {

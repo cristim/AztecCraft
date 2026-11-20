@@ -173,6 +173,7 @@ async fn extrusion_refuses_mismatched_current_targets_planes_and_imported_struct
         primitive: Primitive::Plane,
         options: Some(SINGLE_QUAD_PLANE),
         name: None,
+        create_uvs: false,
     });
     let other = editor.selected().unwrap();
     let other_shape = editor.history.scene().shapes()[1].id();

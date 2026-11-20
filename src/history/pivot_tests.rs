@@ -64,6 +64,7 @@ fn pivoted_history() -> (History, NodeId, NodeId) {
             primitive: Primitive::Cube,
             options: None,
             name: "b".into(),
+            create_uvs: false,
         })
         .unwrap()
     else {

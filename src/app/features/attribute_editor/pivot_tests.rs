@@ -264,6 +264,7 @@ fn a_pivot_only_draft_refuses_a_remote_operation_like_a_channel_draft() {
         primitive: Primitive::Cube,
         options: None,
         name: None,
+        create_uvs: false,
     };
     let (mut editor, _) = rotated_cube();
     let before = editor.history.scene().clone();

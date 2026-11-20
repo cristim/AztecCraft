@@ -138,6 +138,13 @@ fn planar(mesh: &NativeMesh, axis: UvProjectAxis) -> Result<UvSet, NativeError> 
     Ok(UvSet { faces })
 }
 
+/// The UVs a freshly created primitive gets with `create_uvs`.
+/// PROVISIONAL placeholder: the existing planar projection along Y. The per-primitive layouts of
+/// #453 T8b replace this; nothing exposes `create_uvs` before then.
+pub(super) fn new_primitive_uvs(mesh: &NativeMesh) -> Result<UvSet, NativeError> {
+    planar(mesh, UvProjectAxis::Y)
+}
+
 #[cfg(test)]
 thread_local! {
     /// Shapes `SessionUvs::validate` looks at, so a test can pin one pass without a wall clock.

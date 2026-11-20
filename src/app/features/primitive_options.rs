@@ -444,6 +444,7 @@ impl Editor {
                     primitive: dialog.primitive,
                     options: Some(options),
                     name: None,
+                    create_uvs: false,
                 });
                 // native_operation sets `error` on every Create outcome.
                 if !self.error {
@@ -546,3 +547,6 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, read_only: Option<&str>) 
 #[cfg(test)]
 #[path = "primitive_options/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "primitive_options/uv_tests.rs"]
+mod uv_tests;

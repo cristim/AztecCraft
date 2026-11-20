@@ -855,6 +855,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             primitive: Primitive::Plane,
             options: None,
             name: None,
+            create_uvs: false,
         },
         Operation::Select {
             node: Some(t.node),
@@ -1480,6 +1481,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     primitive: Primitive::Plane,
                     options: None,
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1488,6 +1490,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     primitive: Primitive::Sphere,
                     options: None,
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1496,6 +1499,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     primitive: Primitive::Cylinder,
                     options: None,
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1504,6 +1508,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     primitive: Primitive::Cone,
                     options: None,
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1520,6 +1525,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         axis: Axis::Z,
                     }),
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1535,6 +1541,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         axis: Axis::X,
                     }),
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1550,6 +1557,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         axis: Axis::Y,
                     }),
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1566,6 +1574,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         axis: Axis::Y,
                     }),
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1582,6 +1591,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         axis: Axis::Y,
                     }),
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1598,6 +1608,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         axis: Axis::Y,
                     }),
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1611,6 +1622,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         axis: Axis::Y,
                     }),
                     name: None,
+                    create_uvs: false,
                 },
             ),
             sample(
@@ -1619,6 +1631,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     primitive: Primitive::Cone,
                     options: Some(PrimitiveOptions::default_for(Primitive::Cube)),
                     name: None,
+                    create_uvs: false,
                 },
             ),
         ],
@@ -2773,6 +2786,7 @@ fn add_second_node(editor: &mut Editor) {
             primitive: Primitive::Plane,
             options: None,
             name: None,
+            create_uvs: false,
         })
         .unwrap();
     let plane = editor.selected().unwrap();

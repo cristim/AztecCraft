@@ -607,6 +607,8 @@ pub enum Operation {
         primitive: Primitive,
         options: Option<azteccraft::primitive_options::PrimitiveOptions>,
         name: Option<String>,
+        /// Also give the new shape a session UV set; false builds none (#453).
+        create_uvs: bool,
     },
     Select {
         node: Option<NodeId>,

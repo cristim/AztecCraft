@@ -8,6 +8,7 @@ fn create(history: &mut History, name: &str) -> NodeId {
             primitive: Primitive::Cube,
             options: None,
             name: name.into(),
+            create_uvs: false,
         })
         .unwrap()
     {
