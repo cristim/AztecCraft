@@ -318,7 +318,7 @@ impl PrimitiveOptions {
         }
     }
 
-    /// Whether `create_uvs` has a real UV layout for these options. The Platonic solids have none,
+    /// Whether `create_uvs` has a real UV layout for these options. The Platonic solids, pyramid and prism have none,
     /// so the create path refuses `create_uvs` on them with `UnsupportedUvPrimitive` (#453 T10);
     /// a caller that offers the option (the native checkbox, T11) must not offer it for them.
     pub fn has_uv_layout(&self) -> bool {
@@ -329,7 +329,7 @@ impl PrimitiveOptions {
             | Self::Cylinder { .. }
             | Self::Cone { .. }
             | Self::Torus { .. } => true,
-            Self::PlatonicSolid { .. } => false,
+            Self::PlatonicSolid { .. } | Self::Pyramid { .. } | Self::Prism { .. } => false,
         }
     }
 
