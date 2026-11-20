@@ -306,7 +306,7 @@
   },
   {
     "name": "set_rotate_step",
-    "description": "Set the Rotate tool's relative Step Snap in degrees (at least 1e-6) or turn it off with null (the default); `degrees` is required. While set, every update_manipulation angle of a rotate, and the native numeric entry, is rounded to the nearest multiple of the step (a half-way turn rounds away from zero) before it is applied; the step snaps the turn, not the object's resulting angle, and the result is not read back as the requested angle. Move, Scale and the Snap to grids setting are unaffected. A step that is not finite or is below 1e-6 is invalid_params. Session-only and idempotent: it never dirties the scene or enters undo history, and there is no inspect_scene field for it yet. Refused with busy_manipulation during any manipulation and busy_editing during a draft, modal or close. Does not change the active tool",
+    "description": "Set the Rotate tool's relative Step Snap in degrees (at least 1e-6) or turn it off with null (the default); `degrees` is required. While set, every update_manipulation angle of a rotate, and the native numeric entry, is rounded to the nearest multiple of the step (a half-way turn rounds away from zero) before it is applied; the step snaps the turn, not the object's resulting angle, and the result is not read back as the requested angle. Move, Scale and the Snap to grids setting are unaffected. A step that is not finite or is below 1e-6 is invalid_params. Session-only and idempotent: it never dirties the scene or enters undo history, inspect_scene manipulation.rotate_step_degrees reports it. Refused with busy_manipulation during any manipulation and busy_editing during a draft, modal or close. Does not change the active tool",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -327,6 +327,37 @@
         "degrees"
       ],
       "title": "RotateStepArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "set_scale_step",
+    "description": "Set the Scale tool's relative Step Snap on the scale factor (at least 1e-6) or turn it off with null (the default); `step` is required. While set, every update_manipulation factor of a scale is rounded to the nearest multiple of the step (a half-way factor rounds away from zero; a factor that would round to zero keeps one step with its own sign) before it is applied, and the result is not read back as the requested factor. Move, Rotate and the Snap to grids setting are unaffected. A step that is not finite or is below 1e-6 is invalid_params. Session-only and idempotent: it never dirties the scene or enters undo history; inspect_scene manipulation.scale_step reports it. Refused with busy_manipulation during any manipulation and busy_editing during a draft, modal or close. Does not change the active tool. PROVISIONAL: the Maya Scale tool snap settings are not mapped one to one, and whether Maya snaps the factor or the resulting scale is unconfirmed",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "Sets the Scale tool's relative Step Snap.",
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        },
+        "step": {
+          "description": "The step on the scale factor, at least 1e-6; null turns the step off. Required: an\nomitted field is a protocol error, not \"off\".",
+          "format": "double",
+          "minimum": 1e-6,
+          "type": "number"
+        }
+      },
+      "required": [
+        "scene_token",
+        "step"
+      ],
+      "title": "ScaleStepArgs",
       "type": "object"
     },
     "annotations": {

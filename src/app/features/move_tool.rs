@@ -775,6 +775,8 @@ impl Editor {
             scale_space: self.manipulation.space(ActiveTool::Scale),
             rotate_axis: rotate_axis_id(self.manipulation.rotate_axis()),
             manipulator_size: self.manipulation.manipulator_size().get(),
+            rotate_step_degrees: self.manipulation.rotate_step(),
+            scale_step: self.manipulation.scale_step(),
             scale_handle: scale_handle_id(self.manipulation.scale_handle()),
             units: ManipulationUnits {
                 distance: linear_unit_name(&units.linear).to_owned(),
