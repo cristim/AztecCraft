@@ -999,7 +999,7 @@ impl Editor {
                 || pointer.gone
                 || (!pointer.down && !pointer.released)
                 || self.files.is_modal()
-                || eframe::egui::Popup::is_any_open(input.painter().ctx())
+                || self.overlay_open(input.painter().ctx())
                 || self.files.is_closing()
                 || self
                     .renderer
@@ -1069,7 +1069,7 @@ impl Editor {
             && frame_token == self.scene_token
             && pointer.focused
             && !pointer.gone
-            && !eframe::egui::Popup::is_any_open(input.painter().ctx())
+            && !self.overlay_open(input.painter().ctx())
             && !self
                 .renderer
                 .as_ref()
@@ -1092,7 +1092,7 @@ impl Editor {
             || pointer.modified
             || !pointer.focused
             || self.files.is_modal()
-            || eframe::egui::Popup::is_any_open(input.painter().ctx())
+            || self.overlay_open(input.painter().ctx())
             || self.files.is_closing()
             || frame_token != self.scene_token
             || self

@@ -637,7 +637,7 @@ impl Editor {
             },
             dirty: self.is_dirty(),
             has_draft: self.has_draft(),
-            native_input_pending: self.native_input_pending,
+            native_input_pending: self.native_input_pending || self.marking_menu.is_active(),
             text_focused,
             modal: self.files.is_modal(),
             status_message: self.status_message(),

@@ -12,7 +12,7 @@ pub(super) fn unsupported_shading_reason(name: &str) -> String {
 impl Editor {
     pub(super) fn shortcuts(&mut self, ctx: &egui::Context) -> Option<ActiveTool> {
         if ctx.egui_wants_keyboard_input()
-            || egui::Popup::is_any_open(ctx)
+            || self.overlay_open(ctx)
             || self.files.is_modal()
             || self.files.is_closing()
         {

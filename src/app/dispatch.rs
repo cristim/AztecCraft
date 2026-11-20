@@ -440,6 +440,7 @@ impl Editor {
             || focused
             || self.has_draft()
             || self.native_input_pending
+            || self.marking_menu.is_active()
             || self.native_camera_drag
         {
             return Err(OperationError::BusyEditing);

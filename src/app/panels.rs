@@ -62,7 +62,7 @@ impl Editor {
         self.sidebar_panel_request = None;
         self.attribute_editor_tab_request = None;
         let frame_admitted = !self.files.is_modal() && !self.files.is_closing();
-        let keyboard_admitted = frame_admitted && !egui::Popup::is_any_open(ui.ctx());
+        let keyboard_admitted = frame_admitted && !self.overlay_open(ui.ctx());
         self.blur_commit_skip_frames = self.blur_commit_skip_frames.saturating_sub(1);
         if keyboard_admitted {
             self.focus_pressed_text_field(ui.ctx());
@@ -103,7 +103,7 @@ impl Editor {
         // Same gate as shortcuts(): Escape that closes a menu must not also cancel an edit. The
         // popup is still open here; egui closes it later in this pass, when the menus are shown.
         if !self.files.is_modal()
-            && !egui::Popup::is_any_open(ui.ctx())
+            && !self.overlay_open(ui.ctx())
             && !self.escape_stops_playback(ui.ctx())
             && !self.escape_closes_frontmost_options_window(ui.ctx())
             && !self.escape_closes_extrude_options(ui.ctx())
@@ -446,7 +446,7 @@ impl Editor {
             && !self.files.is_modal()
             && !self.files.is_closing()
             && !ui.ctx().egui_wants_keyboard_input()
-            && !egui::Popup::is_any_open(ui.ctx())
+            && !self.overlay_open(ui.ctx())
         {
             self.native_operation(Operation::SetActiveTool(tool));
         }
@@ -466,7 +466,7 @@ impl Editor {
                 && !self.files.is_modal()
                 && !self.files.is_closing()
                 && !text_edit_focused(ui.ctx())
-                && !egui::Popup::is_any_open(ui.ctx());
+                && !self.overlay_open(ui.ctx());
             let clickable = input.click_ndc().filter(|_| can_select && !consumed);
             let selection_intent = selection_intent.filter(|_| can_select);
             // A mode change on the release frame leaves the drag belonging to the old mode: drop it.

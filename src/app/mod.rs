@@ -122,6 +122,9 @@ pub struct Editor {
     timeline: features::timeline::Timeline,
     uv: features::uv::UvUi,
     native_input_pending: bool,
+    /// The marking menu's interaction. Closed until the native wiring lands; the overlay gate
+    /// and the remote guard already read it.
+    marking_menu: azteccraft::marking_menu::Interaction,
     status: String,
     /// Exact `status` text produced from an error whose text can carry a local path. The native
     /// status line shows it; the inspection withholds it. Matching on the text keeps it from going
@@ -188,6 +191,7 @@ impl Default for Editor {
             timeline: Default::default(),
             uv: Default::default(),
             native_input_pending: false,
+            marking_menu: Default::default(),
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,
             refusal_after_change: None,
@@ -201,6 +205,13 @@ impl Default for Editor {
 }
 
 impl Editor {
+    /// Something owns the pointer and keyboard above the viewport: an open egui popup or a
+    /// marking menu in any phase (a Swallow keeps it shut until the dismissing button releases).
+    /// Picks, marquee, hover picks, shortcuts and manipulation starts all read this one gate.
+    pub(super) fn overlay_open(&self, ctx: &egui::Context) -> bool {
+        egui::Popup::is_any_open(ctx) || self.marking_menu.holds_overlay()
+    }
+
     /// The single place an `OperationError` becomes status text.
     fn set_error_status(&mut self, error: &OperationError) {
         self.set_error_text(error.to_string(), error);
@@ -449,6 +460,9 @@ fn material_edit_id() -> egui::Id {
 
 #[cfg(test)]
 mod film_back_tests;
+
+#[cfg(test)]
+pub(in crate::app) mod overlay_gate_tests;
 
 #[cfg(test)]
 mod tests;

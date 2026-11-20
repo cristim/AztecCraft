@@ -3713,3 +3713,40 @@ fn rotate_step_is_refused_during_a_manipulation() {
     ));
     assert_eq!(editor.manipulation.rotate_step, None);
 }
+
+// Pinned: a held marking menu gates the hover status text like an open popup does.
+#[test]
+fn a_held_marking_menu_suppresses_hover_status_but_inspection_still_picks() {
+    let (mut editor, context, at) = hovering_the_y_ring();
+    crate::app::overlay_gate_tests::hold_menu(&mut editor);
+    moved(&mut editor, &context, 1.0, at);
+    assert_eq!(editor.status, editor.tool_help());
+    assert_eq!(pointer_pick(&editor), (Some("y"), None));
+}
+
+// Pinned: a held marking menu keeps a press on the ring from beginning a rotate.
+#[test]
+fn a_held_marking_menu_blocks_a_press_on_the_ring() {
+    let (mut editor, context, at) = hovering_the_y_ring();
+    crate::app::overlay_gate_tests::hold_menu(&mut editor);
+    press(&mut editor, &context, 1.0, at);
+    assert!(editor.marking_menu.is_active());
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(editor.status, editor.tool_help());
+    assert!(!editor.error);
+}
+
+// Pinned: a menu opening mid-drag cancels the native drag, like a popup.
+#[test]
+fn a_marking_menu_opening_mid_drag_cancels_the_native_rotate() {
+    let (mut editor, context, at) = hovering_the_y_ring();
+    press(&mut editor, &context, 1.0, at);
+    assert!(editor.history.active_manipulation().is_some());
+    crate::app::overlay_gate_tests::hold_menu(&mut editor);
+    frame(&mut editor, &context, raw(SIZE, Pos2::ZERO, 1.0, vec![]));
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(
+        editor.status,
+        "Rotate cancelled: camera, viewport or native input changed"
+    );
+}
