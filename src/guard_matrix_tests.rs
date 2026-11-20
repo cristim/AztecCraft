@@ -23,7 +23,7 @@ use azteccraft::native_scene::{
     SessionMaterialId, TransformTarget, UngroupOptions, UvProjectAxis, VertexSetTarget,
     VertexTarget, WorldAxis,
 };
-use azteccraft::primitive_options::{Axis, PrimitiveOptions};
+use azteccraft::primitive_options::{Axis, PlatonicSolidKind, PrimitiveOptions};
 use azteccraft::viewport::FilmBackEdit;
 use std::fmt::Write as _;
 
@@ -1579,6 +1579,32 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         twist: f64::NAN,
                         sub_axis: 20,
                         sub_height: 20,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
+                "create(platonic,icosahedron)",
+                Operation::Create {
+                    primitive: Primitive::PlatonicSolid,
+                    options: Some(PrimitiveOptions::PlatonicSolid {
+                        solid: PlatonicSolidKind::Icosahedron,
+                        radius: 2.0,
+                        axis: Axis::Z,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
+                "create(platonic,invalid radius)",
+                Operation::Create {
+                    primitive: Primitive::PlatonicSolid,
+                    options: Some(PrimitiveOptions::PlatonicSolid {
+                        solid: PlatonicSolidKind::Cube,
+                        radius: 0.0,
                         axis: Axis::Y,
                     }),
                     name: None,
