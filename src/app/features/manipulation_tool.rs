@@ -249,8 +249,24 @@ fn scale_handle_name(handle: ScaleHandle) -> &'static str {
     }
 }
 
-// Maya's other modes for these tools. Each is drawn disabled in the selector.
-const UNSUPPORTED_SPACES: [&str; 5] = ["Gimbal", "Parent", "Normal", "Custom", "Component"];
+/// Scale's modes Maya lists beyond the implemented ones, drawn disabled after Parent.
+const SCALE_UNSUPPORTED_SPACES: [&str; 4] = ["Gimbal", "Normal", "Custom", "Component"];
+const COMPONENT_ORIENTATION_REASON: &str =
+    "Component orientation is not implemented yet (tracked in #41)";
+const GIMBAL_ORIENTATION_REASON: &str =
+    "Gimbal orientation is not implemented yet (tracked in #38)";
+const CUSTOM_ORIENTATION_REASON: &str =
+    "Custom orientation is not implemented yet (tracked in #38)";
+/// Maya 2027 Rotate Tool Axis Orientation entries in documented order. `Ok` entries are
+/// selectable; `Err` carries the hover text of a disabled entry. Parent and Normal are not Rotate
+/// entries in Maya.
+const ROTATE_ORIENTATIONS: [(&str, Result<ManipulationSpace, &str>); 5] = [
+    ("Object", Ok(ManipulationSpace::Object)),
+    ("World", Ok(ManipulationSpace::World)),
+    ("Component", Err(COMPONENT_ORIENTATION_REASON)),
+    ("Gimbal", Err(GIMBAL_ORIENTATION_REASON)),
+    ("Custom", Err(CUSTOM_ORIENTATION_REASON)),
+];
 /// Maya 2026 Move Tool Axis Orientation entries in documented order; Object, World and Parent are
 /// implemented.
 const MOVE_ORIENTATIONS: [&str; 8] = [
@@ -1009,7 +1025,31 @@ impl Editor {
                 egui::ComboBox::from_id_salt("manipulation_space")
                     .selected_text(space_name(self.manipulation.space(tool)))
                     .show_ui(ui, |ui| {
-                        for space in [ManipulationSpace::Object, ManipulationSpace::World] {
+                        if tool == ActiveTool::Rotate {
+                            for (name, entry) in ROTATE_ORIENTATIONS {
+                                match entry {
+                                    Ok(space) => {
+                                        let current = self.manipulation.space(tool);
+                                        if ui.selectable_label(current == space, name).clicked() {
+                                            chosen = Some(space);
+                                        }
+                                    }
+                                    Err(reason) => {
+                                        ui.add_enabled(
+                                            false,
+                                            egui::Button::selectable(false, name),
+                                        )
+                                        .on_disabled_hover_text(reason);
+                                    }
+                                }
+                            }
+                            return;
+                        }
+                        for space in [
+                            ManipulationSpace::Object,
+                            ManipulationSpace::World,
+                            ManipulationSpace::Parent,
+                        ] {
                             let current = self.manipulation.space(tool);
                             if ui
                                 .selectable_label(current == space, space_name(space))
@@ -1018,22 +1058,7 @@ impl Editor {
                                 chosen = Some(space);
                             }
                         }
-                        if tool == ActiveTool::Scale {
-                            let space = ManipulationSpace::Parent;
-                            if ui
-                                .selectable_label(
-                                    self.manipulation.space(tool) == space,
-                                    space_name(space),
-                                )
-                                .clicked()
-                            {
-                                chosen = Some(space);
-                            }
-                        }
-                        for name in UNSUPPORTED_SPACES
-                            .into_iter()
-                            .filter(|name| tool != ActiveTool::Scale || *name != "Parent")
-                        {
+                        for name in SCALE_UNSUPPORTED_SPACES {
                             ui.add_enabled(false, egui::Button::selectable(false, name))
                                 .on_disabled_hover_text(NOT_IMPLEMENTED_YET);
                         }

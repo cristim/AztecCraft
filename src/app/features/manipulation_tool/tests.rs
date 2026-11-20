@@ -756,11 +756,11 @@ fn numeric_entry_through_the_text_field_commits_on_enter_and_blocks_remote_edits
     assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
 }
 
-#[test]
-fn unsupported_spaces_are_listed_disabled_with_the_reason() {
-    let (mut editor, context, _) = setup(Key::E, 1.0);
+/// Opens the space selector (showing `current`) and returns its entries top to bottom as
+/// `(label, disabled)`.
+fn space_entries(tool_key: Key, current: &str) -> Vec<(String, bool)> {
+    let (mut editor, context, _) = setup(tool_key, 1.0);
     context.enable_accesskit();
-    // Open the selector's popup and read the entries.
     let output = idle(&mut editor, &context, 1.0);
     let combo = output
         .platform_output
@@ -770,7 +770,7 @@ fn unsupported_spaces_are_listed_disabled_with_the_reason() {
         .nodes
         .iter()
         .find_map(|(_, node)| {
-            (node.role() == egui::accesskit::Role::ComboBox && node.value() == Some("Object"))
+            (node.role() == egui::accesskit::Role::ComboBox && node.value() == Some(current))
                 .then(|| node.bounds().unwrap())
         })
         .expect("the space selector");
@@ -795,17 +795,85 @@ fn unsupported_spaces_are_listed_disabled_with_the_reason() {
         .as_ref()
         .unwrap()
         .nodes;
-    for name in UNSUPPORTED_SPACES {
-        let disabled = nodes
+    let mut entries: Vec<_> = nodes
+        .iter()
+        .filter(|(_, node)| node.role() == egui::accesskit::Role::Button)
+        .filter_map(|(_, node)| {
+            Some((
+                node.bounds()?.y0,
+                node.label()?.to_string(),
+                node.is_disabled(),
+            ))
+        })
+        .filter(|(_, label, _)| {
+            [
+                "Object",
+                "World",
+                "Parent",
+                "Gimbal",
+                "Normal",
+                "Custom",
+                "Component",
+            ]
+            .contains(&label.as_str())
+        })
+        .collect();
+    entries.sort_by(|a, b| a.0.total_cmp(&b.0));
+    entries.into_iter().map(|(_, l, d)| (l, d)).collect()
+}
+
+#[test]
+fn rotate_axis_orientation_lists_mayas_entries_in_order_with_only_object_and_world_enabled() {
+    let expected = [
+        ("Object", false),
+        ("World", false),
+        ("Component", true),
+        ("Gimbal", true),
+        ("Custom", true),
+    ];
+    let expected: Vec<(String, bool)> = expected
+        .into_iter()
+        .map(|(n, d)| (n.to_string(), d))
+        .collect();
+    assert_eq!(space_entries(Key::E, "Object"), expected);
+}
+
+#[test]
+fn rotate_orientation_table_has_mayas_order_and_specific_reasons() {
+    let names: Vec<_> = ROTATE_ORIENTATIONS.iter().map(|(n, _)| *n).collect();
+    assert_eq!(names, ["Object", "World", "Component", "Gimbal", "Custom"]);
+    assert_eq!(ROTATE_ORIENTATIONS[0].1, Ok(ManipulationSpace::Object));
+    assert_eq!(ROTATE_ORIENTATIONS[1].1, Ok(ManipulationSpace::World));
+    for (name, issue) in [("Component", "#41"), ("Gimbal", "#38"), ("Custom", "#38")] {
+        let entry = ROTATE_ORIENTATIONS
             .iter()
-            .any(|(_, node)| node.label() == Some(name) && node.is_disabled());
-        assert!(disabled, "{name} must be listed and disabled");
+            .find(|(n, _)| *n == name)
+            .unwrap();
+        let reason = entry.1.unwrap_err();
+        assert!(reason.contains(name), "{reason}");
+        assert!(reason.contains(issue), "{reason}");
+        assert_ne!(reason, NOT_IMPLEMENTED_YET);
     }
-    for name in ["Object", "World"] {
-        assert!(
-            nodes
-                .iter()
-                .any(|(_, node)| node.label() == Some(name) && !node.is_disabled())
+}
+
+#[test]
+fn scale_axis_orientation_list_is_unchanged() {
+    let expected = [
+        "Object",
+        "World",
+        "Parent",
+        "Gimbal",
+        "Normal",
+        "Custom",
+        "Component",
+    ];
+    let entries = space_entries(Key::R, "World");
+    let names: Vec<_> = entries.iter().map(|(n, _)| n.as_str()).collect();
+    assert_eq!(names, expected);
+    for (name, disabled) in entries {
+        assert_eq!(
+            disabled,
+            !["Object", "World", "Parent"].contains(&name.as_str())
         );
     }
 }

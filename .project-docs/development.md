@@ -806,10 +806,13 @@ current-parent publication is claimed by this paragraph.
 ## Rotate and Scale tools (native UI)
 
 E and R select the Rotate and Scale tools, and their Tool Box icons are live. While
-either is active, a row above the viewport holds the Object/World selector, an axis
-choice and a numeric field with Apply (Enter also applies). Gimbal, Parent, Normal,
-Custom and Component are listed disabled with the hover text "unsupported". The row
-stands in for the unsupported Tool Settings panel.
+either is active, a row above the viewport holds the Axis Orientation selector, an axis
+choice and a numeric field with Apply (Enter also applies). The Rotate list follows Maya
+2027 (Object, World, Component, Gimbal, Custom): Object and World are selectable;
+Component (#41), Gimbal (#38) and Custom (#38) are disabled with a hover text naming the
+owning issue. Parent and Normal are not Rotate entries. The Scale list is Object, World
+and Parent, then Gimbal, Normal, Custom and Component disabled with the hover text "Not
+implemented yet". The row stands in for the unsupported Tool Settings panel.
 
 A ring or box drag begins `BeginRotate` or `BeginScale` and previews through
 `UpdateManipulation` (degrees or a unitless factor), then commits through `FinishMove`.
