@@ -142,6 +142,11 @@ fn without_a_picked_vertex_the_arrows_are_unavailable_and_a_press_falls_through(
     );
     assert!(editor.native_move.is_none() && editor.history.active_manipulation().is_none());
     assert_eq!(editor.history.scene(), &before);
+    // The press was not consumed by the Move tool and is no refusal: it reached selection.
+    assert!(!editor.error, "{}", editor.status);
+    assert!(!editor.move_consumed_frame && !editor.move_suppress_primary);
+    let target = editor.selected_move_lead().unwrap();
+    assert!(editor.move_handle_origin(&target).is_err());
     let inspected = editor.inspect_manipulation().unwrap();
     assert!(!inspected.kinds[0].available);
     assert!(
@@ -186,4 +191,52 @@ fn a_single_vertex_puts_the_arrows_at_that_vertex() {
         (origin - glam::DVec3::from_array(point)).length() < 1e-9,
         "{origin:?} {point:?}"
     );
+}
+
+/// An own scale too extreme for the world frame to invert accurately: begin refuses, so the plan,
+/// the handles and inspection must refuse with the same reason instead of offering arrows.
+#[test]
+fn an_ill_conditioned_frame_is_refused_by_the_plan_the_handles_inspection_and_begin_alike() {
+    let (mut editor, _context, _rect) = setup(1.0);
+    let node = editor.selected_move_lead().unwrap().node;
+    editor
+        .apply_operation(Operation::EditNode {
+            id: node,
+            name: None,
+            translation: [None; 3],
+            rotation_degrees: [None; 3],
+            scale: [Some(1e8), Some(1e-8), Some(1.0)],
+        })
+        .unwrap();
+    editor
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Vertex))
+        .unwrap();
+    pick(&mut editor, &[0, 1]);
+    let target = editor.selected_move_lead().unwrap();
+    let scene = editor.history.scene().clone();
+    let plan = editor
+        .component_move_plan(&target)
+        .err()
+        .map(|e| e.to_string());
+    let reason = plan.expect("the plan refuses an ill-conditioned frame");
+    assert!(editor.move_handle_origin(&target).is_err());
+    assert!(editor.move_handle_directions(&target).is_err());
+    let inspected = editor.inspect_manipulation().unwrap();
+    assert!(!inspected.kinds[0].available);
+    assert!(
+        inspected.kinds[0]
+            .unavailable_reason
+            .as_deref()
+            .unwrap()
+            .contains(&reason),
+        "{reason}"
+    );
+    let begin = editor.apply_operation(Operation::BeginMove {
+        target,
+        axis: azteccraft::native_scene::WorldAxis::X,
+        expected_selection_generation: None,
+    });
+    assert!(begin.is_err());
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(editor.history.scene(), &scene);
 }

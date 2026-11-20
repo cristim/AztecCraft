@@ -15,6 +15,14 @@ use azteccraft::{
 };
 use glam::DVec3;
 
+/// A component Move's vertex set, axis orientation and arrow placement.
+pub(in crate::app) struct ComponentMovePlan {
+    pub(in crate::app) set: VertexSetTarget,
+    pub(in crate::app) space: MoveSpace,
+    pub(in crate::app) origin: DVec3,
+    pub(in crate::app) directions: [DVec3; 3],
+}
+
 impl Editor {
     /// The vertex set a component Move of `target` drags: the Vertex set, owned by that instance.
     fn component_move_set(
@@ -49,13 +57,13 @@ impl Editor {
         })
     }
 
-    /// Every refusal a component Move of `target` meets before it starts, without changing
-    /// anything: the one place begin, the handles and inspection decide availability. Returns the
-    /// vertex set and the Move Axis Orientation (World or Object).
-    pub(in crate::app) fn component_move_checks(
+    /// Everything a component Move of `target` needs, computed once and without changing anything:
+    /// the one place begin, the handles, paint and inspection decide availability, so they cannot
+    /// disagree (the world frame's conditioning and a non-finite bounding box refuse here too).
+    pub(in crate::app) fn component_move_plan(
         &self,
         target: &TransformTarget,
-    ) -> Result<(VertexSetTarget, MoveSpace), OperationError> {
+    ) -> Result<ComponentMovePlan, OperationError> {
         self.check_single_instance_target("Move", target)?;
         let set = self.component_move_set(target)?;
         let scene = self.history.scene();
@@ -85,31 +93,22 @@ impl Editor {
                 "Snap to grids is not available for component Move yet".into(),
             ));
         }
-        Ok((set, space))
-    }
-
-    /// Where the Move arrows sit (the world bounding-box centre of the moved vertices, PROVISIONAL:
-    /// Maya says only "centre") and their unit world directions, for a component Move of `target`.
-    pub(in crate::app) fn component_move_handles(
-        &self,
-        target: &TransformTarget,
-    ) -> Result<(DVec3, [DVec3; 3]), OperationError> {
-        let (set, space) = self.component_move_checks(target)?;
-        let scene = self.history.scene();
-        let frame = scene
+        // The arrows sit at the world bounding-box centre of the moved vertices (PROVISIONAL:
+        // Maya says only "centre").
+        let world = scene
             .component_move_frame(target)
             .map_err(OperationError::Scene)?;
-        let mesh = scene
-            .shape(set.shape)
-            .map_err(OperationError::Scene)?
-            .mesh();
         let points = set
             .vertex_indices
             .iter()
-            .map(|index| mesh.effective_point_cm(*index))
+            .map(|index| {
+                scene
+                    .shape(set.shape)
+                    .and_then(|shape| shape.mesh().effective_point_cm(*index))
+            })
             .collect::<Result<Vec<_>, _>>()
             .map_err(OperationError::Scene)?;
-        let origin = frame
+        let origin = world
             .bbox_center_world_cm(&points)
             .map_err(OperationError::Scene)?;
         let directions = match space {
@@ -118,7 +117,12 @@ impl Editor {
                 .map_err(OperationError::Scene)?,
             _ => [DVec3::X, DVec3::Y, DVec3::Z],
         };
-        Ok((origin, directions))
+        Ok(ComponentMovePlan {
+            set,
+            space,
+            origin,
+            directions,
+        })
     }
 
     /// The reason the Move tool is unavailable in the current selection mode, if it is: Vertex
@@ -146,7 +150,7 @@ impl Editor {
                     .into(),
             ));
         }
-        let (set, space) = self.component_move_checks(target)?;
+        let ComponentMovePlan { set, space, .. } = self.component_move_plan(target)?;
         let id = self
             .history
             .begin_move_components(

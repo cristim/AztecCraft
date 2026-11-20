@@ -9,6 +9,9 @@
 - A component drag's `inspect_manipulation` block reports `baseline_channels` and `current_channels` as
   `[0, 0, 0]` and `member_count` 1 (the owning object), because the schema has no null channels and no
   vertex count. T6 extends the block.
+- The Move arrows in Vertex selection are pointer-only. There is no keyboard route to drag or nudge picked
+  vertices yet (the numeric route is MCP `begin_manipulation` or `move_vertices`); a keyboard nudge of
+  component Move is not designed. Owed under the accessibility rule (#465).
 
 ## Huge coordinates save but cannot be reopened (pre-existing)
 

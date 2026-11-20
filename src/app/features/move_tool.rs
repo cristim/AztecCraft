@@ -179,9 +179,7 @@ impl Editor {
         target: &TransformTarget,
     ) -> Result<glam::DVec3, OperationError> {
         if self.selection_mode == SelectionMode::Vertex {
-            return self
-                .component_move_handles(target)
-                .map(|(origin, _)| origin);
+            return self.component_move_plan(target).map(|plan| plan.origin);
         }
         let covered = target.path.len() > 1
             && azteccraft::history::is_covered(
@@ -201,6 +199,23 @@ impl Editor {
                 .map(|frame| frame.origin_cm())
                 .map_err(OperationError::Scene)
         }
+    }
+
+    /// The Move arrows' origin and unit directions in one computation: a component Move's plan in
+    /// Vertex selection, the object frame otherwise.
+    fn move_handle_geometry(
+        &self,
+        target: &TransformTarget,
+    ) -> Result<(glam::DVec3, [glam::DVec3; 3]), OperationError> {
+        if self.selection_mode == SelectionMode::Vertex {
+            return self
+                .component_move_plan(target)
+                .map(|plan| (plan.origin, plan.directions));
+        }
+        Ok((
+            self.move_handle_origin(target)?,
+            self.move_handle_directions(target)?,
+        ))
     }
 
     /// The refusal a Move of the single object `target` would meet on each of X, Y and Z in the
@@ -225,9 +240,7 @@ impl Editor {
         target: &TransformTarget,
     ) -> Result<[glam::DVec3; 3], OperationError> {
         if self.selection_mode == SelectionMode::Vertex {
-            return self
-                .component_move_handles(target)
-                .map(|(_, directions)| directions);
+            return self.component_move_plan(target).map(|plan| plan.directions);
         }
         let space = self.manipulation.move_space();
         if space == MoveSpace::World {
@@ -515,20 +528,15 @@ impl Editor {
             Some(refusal) => Err(OperationError::InvalidInput(refusal)),
             None => self.selected_move_lead(),
         };
-        let origin = target
+        let geometry = target
             .as_ref()
             .map_err(ToString::to_string)
             .and_then(|target| {
-                self.move_handle_origin(target)
+                self.move_handle_geometry(target)
                     .map_err(|error| error.to_string())
             });
-        let directions = target
-            .as_ref()
-            .map_err(ToString::to_string)
-            .and_then(|target| {
-                self.move_handle_directions(target)
-                    .map_err(|error| error.to_string())
-            });
+        let origin = geometry.clone().map(|(origin, _)| origin);
+        let directions = geometry.clone().map(|(_, directions)| directions);
         // A kind is available when any of its handles could begin; otherwise the reasons are joined.
         let availability = |kind, refusals: Result<Vec<(&str, Option<String>)>, String>| {
             let (available, unavailable_reason) = match refusals {
@@ -556,11 +564,8 @@ impl Editor {
         let move_refusals = match &target {
             Err(error) => Err(error.to_string()),
             // Vertex selection: one set, one reason for all three axes.
-            Ok(target) if self.selection_mode == SelectionMode::Vertex => {
-                let reason = self
-                    .component_move_checks(target)
-                    .err()
-                    .map(|error| error.to_string());
+            Ok(_) if self.selection_mode == SelectionMode::Vertex => {
+                let reason = geometry.as_ref().err().cloned();
                 Ok(axis_names
                     .into_iter()
                     .map(|name| (name, reason.clone()))
@@ -1193,10 +1198,7 @@ impl Editor {
         let Ok(target) = self.selected_move_lead() else {
             return Ok(false);
         };
-        let Ok(origin) = self.move_handle_origin(&target) else {
-            return Ok(false);
-        };
-        let Ok(directions) = self.move_handle_directions(&target) else {
+        let Ok((origin, directions)) = self.move_handle_geometry(&target) else {
             return Ok(false);
         };
         let Ok(handles) = WorldHandles::new_in(&capture, origin, directions) else {
@@ -1247,7 +1249,7 @@ impl Editor {
                 return Err(OperationError::InvalidInput(refusal));
             }
             let target = self.selected_move_lead()?;
-            let origin = self.move_handle_origin(&target)?;
+            let (origin, directions) = self.move_handle_geometry(&target)?;
             if self.selection.len() <= 1 && self.selection_mode != SelectionMode::Vertex {
                 let mut refusals: Vec<_> = self
                     .single_move_refusals(&target)
@@ -1262,9 +1264,8 @@ impl Editor {
             let capture = input
                 .move_capture(&self.camera, self.manipulation.manipulator_size())
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
-            let handles =
-                WorldHandles::new_in(&capture, origin, self.move_handle_directions(&target)?)
-                    .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+            let handles = WorldHandles::new_in(&capture, origin, directions)
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
             Ok::<_, OperationError>((capture, handles))
         })();
         let painter = input.painter().with_clip_rect(input.rect());
