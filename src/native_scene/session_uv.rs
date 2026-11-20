@@ -141,8 +141,8 @@ fn planar(mesh: &NativeMesh, axis: UvProjectAxis) -> Result<UvSet, NativeError> 
 
 /// The UVs a freshly created primitive gets with `create_uvs` (#453).
 /// PROVISIONAL layouts: the sphere, cylinder, cone and torus use `mesh::primitive_uv`; the plane is
-/// projected along its own normal; the cube has its own atlas layout; the Platonic solids have none and are
-/// refused with `UnsupportedUvPrimitive` (#453 T10).
+/// projected along its own normal; the cube has its own atlas layout; the Platonic solids, the pyramid and the prism have none
+/// and are refused with `UnsupportedUvPrimitive` (#453 T10).
 pub(super) fn new_primitive_uvs(
     mesh: &NativeMesh,
     options: &PrimitiveOptions,
@@ -160,10 +160,13 @@ pub(super) fn new_primitive_uvs(
                 Axis::Z => UvProjectAxis::Z,
             },
         ),
-        // Refused by design (#453 T10): no UV layout is designed for the Platonic solids.
-        PrimitiveOptions::PlatonicSolid { .. } => Err(NativeError::UnsupportedUvPrimitive(
-            crate::scene::Primitive::PlatonicSolid,
-        )),
+        // Refused by design (#453 T10): no UV layout is designed for the Platonic solids, the
+        // pyramid or the prism.
+        PrimitiveOptions::PlatonicSolid { .. }
+        | PrimitiveOptions::Pyramid { .. }
+        | PrimitiveOptions::Prism { .. } => {
+            Err(NativeError::UnsupportedUvPrimitive(options.primitive()))
+        }
         PrimitiveOptions::Cube { .. }
         | PrimitiveOptions::Sphere { .. }
         | PrimitiveOptions::Cylinder { .. }
