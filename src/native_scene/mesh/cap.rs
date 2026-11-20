@@ -33,6 +33,26 @@ pub(super) struct Cap {
     pub options: CapOptions,
 }
 
+/// Vertex `column` of `columns` on the circle of radius `radius` at local height `y`, turned onto
+/// `axis`. Shared by the side rings and the cap rings.
+pub(super) fn ring_point(
+    axis: Axis,
+    radius: f64,
+    y: f64,
+    column: usize,
+    columns: usize,
+) -> [f32; 3] {
+    let azimuth = 2.0 * PI * column as f64 / columns as f64;
+    orient(
+        axis,
+        [
+            (radius * azimuth.cos()) as f32,
+            y as f32,
+            (radius * azimuth.sin()) as f32,
+        ],
+    )
+}
+
 impl Cap {
     /// Radius and height beyond the rim plane of ring `k` (`1..=sub_caps`).
     fn ring(&self, k: usize) -> (f64, f64) {
@@ -64,14 +84,8 @@ impl Cap {
         let base = points.len();
         for k in 1..n {
             let (r, h) = self.ring(k);
-            let y = (self.rim_y + self.facing * h) as f32;
-            for column in 0..columns {
-                let azimuth = 2.0 * PI * column as f64 / columns as f64;
-                points.push(orient(
-                    self.axis,
-                    [(r * azimuth.cos()) as f32, y, (r * azimuth.sin()) as f32],
-                ));
-            }
+            let y = self.rim_y + self.facing * h;
+            points.extend((0..columns).map(|c| ring_point(self.axis, r, y, c, columns)));
         }
         let (_, centre_h) = self.ring(n);
         let centre_y = (self.rim_y + self.facing * centre_h) as f32;

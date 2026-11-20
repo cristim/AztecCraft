@@ -1,10 +1,9 @@
 use super::{
     NativeMesh,
     axis::orient,
-    cap::{Cap, CapOptions},
+    cap::{Cap, CapOptions, ring_point},
     grid::RevolveGrid,
 };
-use std::f64::consts::PI;
 
 impl NativeMesh {
     /// Cone along `axis`: the apex (vertex 0) on top, `height_divisions` rings of
@@ -22,18 +21,8 @@ impl NativeMesh {
         for ring in 1..=bands {
             let fraction = ring as f64 / bands as f64;
             let y = (0.5 - fraction) * height;
-            for column in 0..columns {
-                let azimuth = 2.0 * PI * column as f64 / columns as f64;
-                let ring_radius = radius * fraction;
-                points.push(orient(
-                    axis,
-                    [
-                        (ring_radius * azimuth.cos()) as f32,
-                        y as f32,
-                        (ring_radius * azimuth.sin()) as f32,
-                    ],
-                ));
-            }
+            let ring_radius = radius * fraction;
+            points.extend((0..columns).map(|c| ring_point(axis, ring_radius, y, c, columns)));
         }
         let vertex = |ring: usize, column: usize| 1 + (ring - 1) * columns + column % columns;
         let mut loops: Vec<Vec<usize>> = Vec::new();
