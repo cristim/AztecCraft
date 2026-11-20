@@ -390,3 +390,33 @@ fn a_flat_plane_and_the_unsupported_primitives_are_handled_at_the_entry() {
         }
     }
 }
+
+#[test]
+fn pole_and_apex_corners_sit_at_the_middle_of_their_column() {
+    for options in all_options() {
+        let (columns, apex_faces, bottom_pole) = match options {
+            PrimitiveOptions::Sphere { sub_axis, .. } => {
+                (sub_axis as usize, 0..sub_axis as usize, true)
+            }
+            PrimitiveOptions::Cone { sub_axis, .. } => {
+                (sub_axis as usize, 0..sub_axis as usize, false)
+            }
+            _ => continue,
+        };
+        let faces = corners(&built(&options));
+        let middle = |column: usize| (columns as f64 - column as f64 - 0.5) / columns as f64;
+        for column in apex_faces {
+            let u = faces[column][0].1[0];
+            assert!((u - middle(column)).abs() < 1e-6, "{options:?}: top u {u}");
+        }
+        if bottom_pole {
+            for column in 0..columns {
+                let u = faces[faces.len() - columns + column][0].1[0];
+                assert!(
+                    (u - middle(column)).abs() < 1e-6,
+                    "{options:?}: bottom u {u}"
+                );
+            }
+        }
+    }
+}
