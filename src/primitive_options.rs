@@ -282,6 +282,21 @@ impl PrimitiveOptions {
         }
     }
 
+    /// Whether `create_uvs` has a real UV layout for these options. The Platonic solids have none
+    /// yet (they only get a planar placeholder), so a caller that exposes `create_uvs` must refuse
+    /// them or lay them out first (#453 T10).
+    pub fn has_uv_layout(&self) -> bool {
+        match self {
+            Self::Cube { .. }
+            | Self::Plane { .. }
+            | Self::Sphere { .. }
+            | Self::Cylinder { .. }
+            | Self::Cone { .. }
+            | Self::Torus { .. } => true,
+            Self::PlatonicSolid { .. } => false,
+        }
+    }
+
     pub fn primitive(&self) -> Primitive {
         match self {
             Self::Cube { .. } => Primitive::Cube,

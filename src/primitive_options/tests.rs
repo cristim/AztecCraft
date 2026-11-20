@@ -605,3 +605,22 @@ fn round_cap_at_zero_caps_is_an_accepted_no_op() {
         assert_eq!(round.face_count(), flat.face_count());
     }
 }
+
+#[test]
+fn only_the_platonic_solids_lack_a_uv_layout() {
+    for primitive in [
+        Primitive::Cube,
+        Primitive::Plane,
+        Primitive::Sphere,
+        Primitive::Cylinder,
+        Primitive::Cone,
+        Primitive::Torus,
+        Primitive::PlatonicSolid,
+    ] {
+        assert_eq!(
+            PrimitiveOptions::default_for(primitive).has_uv_layout(),
+            primitive != Primitive::PlatonicSolid,
+            "{primitive:?}"
+        );
+    }
+}

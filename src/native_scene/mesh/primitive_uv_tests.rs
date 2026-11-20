@@ -370,10 +370,10 @@ fn the_torus_wraps_v_to_exactly_one_without_a_wide_face() {
 
 #[test]
 fn a_flat_plane_and_the_unsupported_primitives_are_handled_at_the_entry() {
-    let mesh = NativeMesh::primitive(Primitive::Cube).unwrap();
-    let cube = PrimitiveOptions::default_for(Primitive::Cube);
+    let mesh = NativeMesh::primitive(Primitive::PlatonicSolid).unwrap();
+    let platonic = PrimitiveOptions::default_for(Primitive::PlatonicSolid);
     assert_eq!(
-        layout(&mesh, &cube).err(),
+        layout(&mesh, &platonic).err(),
         Some(NativeError::UnsupportedUvTopology)
     );
     for axis in AXES {
