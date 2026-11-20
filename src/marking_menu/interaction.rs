@@ -48,6 +48,9 @@ enum Phase {
     Open {
         origin: [f32; 2],
         armed: Option<Target>,
+        /// A Primary press inside the menu has not released yet. Kept apart from `armed`, which
+        /// the keyboard clears, so Escape can still swallow the pending release.
+        primary_down: bool,
         /// Keyboard focus; see `keyboard.rs`.
         focus: Option<Target>,
     },
@@ -129,6 +132,12 @@ impl Interaction {
         }
     }
 
+    fn set_primary_down(&mut self, to: bool) {
+        if let Phase::Open { primary_down, .. } = &mut self.phase {
+            *primary_down = to;
+        }
+    }
+
     fn set_armed(&mut self, to: Option<Target>) {
         if let Phase::Open { armed, .. } = &mut self.phase {
             *armed = to;
@@ -181,9 +190,13 @@ impl Interaction {
                 match target {
                     Some(t) if enabled(t) => {
                         self.set_armed(Some(t));
+                        self.set_primary_down(true);
                         Outcome::None
                     }
-                    Some(t) => Outcome::Rejected(t),
+                    Some(t) => {
+                        self.set_primary_down(true);
+                        Outcome::Rejected(t)
+                    }
                     None => {
                         self.phase = Phase::Swallow {
                             button: Button::Primary,
@@ -262,6 +275,7 @@ impl Interaction {
                         self.phase = Phase::Open {
                             origin,
                             armed: None,
+                            primary_down: false,
                             focus: None,
                         };
                         Outcome::None
@@ -271,6 +285,7 @@ impl Interaction {
             (Phase::Open { armed, .. }, Button::Primary) => {
                 self.touch(now);
                 self.set_armed(None);
+                self.set_primary_down(false);
                 match (armed, target) {
                     (Some(a), Some(t)) if a == t => self.choose(t, enabled, true),
                     _ => Outcome::None,
@@ -322,7 +337,9 @@ impl Interaction {
         let swallow = match self.phase {
             Phase::Swallow { .. } => return Outcome::None,
             Phase::Held { .. } => Some(Button::Secondary),
-            Phase::Open { armed: Some(_), .. } => Some(Button::Primary),
+            Phase::Open {
+                primary_down: true, ..
+            } => Some(Button::Primary),
             _ => None,
         };
         match swallow {
@@ -372,6 +389,10 @@ impl Interaction {
                 if !down {
                     self.phase = Phase::Closed;
                 }
+            }
+            // A release the window never saw (focus lost mid-press) must not keep it down.
+            Phase::Open { primary_down, .. } if *primary_down && !input.primary_down => {
+                *primary_down = false;
             }
             _ => {}
         }

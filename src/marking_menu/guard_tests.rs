@@ -246,3 +246,35 @@ fn a_swallow_closed_by_idle_is_not_reported_twice() {
     assert_eq!(i.tick(40.0, input(false, true)), Outcome::None);
     assert!(!i.holds_overlay());
 }
+
+#[test]
+fn escape_after_a_keyboard_disarm_still_swallows_the_pending_primary_release() {
+    let m = |t: Target| t == Target::List(0);
+    let mut i = sticky();
+    i.press(Button::Primary, O, Some(Target::List(0)), 1.0, &m);
+    // A key clears `armed` while the Primary button is still down.
+    i.key_nav(NavKey::Number(1), &[Target::List(0)], 1.1);
+    assert_eq!(i.armed(), None);
+    assert_eq!(i.escape(), Outcome::Dismissed);
+    assert!(i.holds_overlay(), "the pending release is swallowed");
+    i.release(Button::Primary, O, Some(Target::List(0)), 1.2, &m);
+    assert!(!i.holds_overlay());
+}
+
+#[test]
+fn a_released_primary_no_longer_counts_as_down_for_escape() {
+    let m = |t: Target| t == Target::List(0);
+    let mut i = sticky();
+    i.press(Button::Primary, O, Some(Target::List(0)), 1.0, &m);
+    i.release(Button::Primary, O, None, 1.1, &m);
+    assert_eq!(i.escape(), Outcome::Dismissed);
+    assert!(!i.holds_overlay(), "nothing left to swallow");
+    let mut lost = sticky();
+    lost.press(Button::Primary, O, Some(Target::List(0)), 1.0, &m);
+    lost.tick(1.1, input(true, false));
+    assert_eq!(lost.escape(), Outcome::Dismissed);
+    assert!(
+        !lost.holds_overlay(),
+        "a release the window missed is cleared by tick"
+    );
+}

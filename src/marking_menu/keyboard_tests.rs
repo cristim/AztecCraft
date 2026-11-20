@@ -29,7 +29,7 @@ const NW: Target = Target::Zone(Zone::NW);
 const ROW: Target = Target::List(0);
 
 fn nav(i: &mut Interaction, key: NavKey, m: &MarkingMenu<Act>, t: f64) -> Outcome {
-    i.key_nav(key, &m.nav_order(), t, &|x| m.is_enabled(x))
+    i.key_nav(key, &m.nav_order(), t)
 }
 
 #[test]
@@ -65,18 +65,18 @@ fn key_open_opens_a_sticky_menu_with_nothing_focused_and_only_from_closed() {
 }
 
 #[test]
-fn next_and_prev_skip_disabled_entries_and_wrap() {
+fn next_and_prev_visit_disabled_entries_and_wrap() {
     let m = menu();
     let mut i = opened();
     let mut seen = vec![];
-    for k in 0..4 {
+    for k in 0..6 {
         nav(&mut i, NavKey::Next, &m, f64::from(k));
         seen.push(i.focused().unwrap());
     }
     assert_eq!(
         seen,
-        vec![E, NW, ROW, E],
-        "N and S are skipped; ROW wraps to E"
+        vec![N, E, S, NW, ROW, N],
+        "disabled N and unsupported S take focus; ROW wraps to N"
     );
     let mut j = opened();
     nav(&mut j, NavKey::Prev, &m, 1.0);
@@ -87,35 +87,40 @@ fn next_and_prev_skip_disabled_entries_and_wrap() {
     );
     nav(&mut j, NavKey::Prev, &m, 2.0);
     assert_eq!(j.focused(), Some(NW));
-    nav(&mut j, NavKey::Prev, &m, 3.0);
-    nav(&mut j, NavKey::Prev, &m, 4.0);
-    assert_eq!(j.focused(), Some(ROW), "Prev wraps from E to ROW");
+    for t in 3..8 {
+        nav(&mut j, NavKey::Prev, &m, f64::from(t));
+    }
+    assert_eq!(j.focused(), Some(NW), "five more steps wrap a full turn");
 }
 
 #[test]
-fn nav_with_no_enabled_entry_leaves_focus_empty() {
+fn nav_over_only_unsupported_entries_still_focuses_them_and_an_empty_menu_does_not() {
     let mut m = MarkingMenu::<Act>::default();
-    m.zones[Zone::W.index()] = Some(Entry::unsupported("UV", "No UV mode yet"));
     let mut i = opened();
     assert_eq!(nav(&mut i, NavKey::Next, &m, 1.0), Outcome::None);
-    assert_eq!(i.focused(), None);
+    assert_eq!(i.focused(), None, "nothing to focus");
+    m.zones[Zone::W.index()] = Some(Entry::unsupported("UV", "No UV mode yet"));
+    assert_eq!(nav(&mut i, NavKey::Next, &m, 2.0), Outcome::None);
+    assert_eq!(i.focused(), Some(Target::Zone(Zone::W)));
+    assert_eq!(
+        i.key_activate(3.0, &|x| m.is_enabled(x)),
+        Outcome::Rejected(Target::Zone(Zone::W)),
+        "focusing is not choosing"
+    );
 }
 
 #[test]
-fn number_focuses_by_visible_position_and_rejects_disabled() {
+fn number_focuses_by_visible_position_including_disabled() {
     let m = menu();
     let mut i = opened();
     assert_eq!(nav(&mut i, NavKey::Number(2), &m, 1.0), Outcome::None);
     assert_eq!(i.focused(), Some(E));
+    assert_eq!(nav(&mut i, NavKey::Number(1), &m, 2.0), Outcome::None);
+    assert_eq!(i.focused(), Some(N), "the disabled entry takes focus");
     assert_eq!(
-        nav(&mut i, NavKey::Number(1), &m, 2.0),
+        i.key_activate(2.5, &|x| m.is_enabled(x)),
         Outcome::Rejected(N),
-        "the disabled entry reports its reason"
-    );
-    assert_eq!(i.focused(), Some(E), "focus stays where it was");
-    assert_eq!(
-        nav(&mut i, NavKey::Number(3), &m, 3.0),
-        Outcome::Rejected(S)
+        "and activating it reports the reason"
     );
     for out_of_range in [0, 6, usize::MAX] {
         assert_eq!(
@@ -123,7 +128,11 @@ fn number_focuses_by_visible_position_and_rejects_disabled() {
             Outcome::None
         );
     }
-    assert_eq!(i.focused(), Some(E));
+    assert_eq!(
+        i.focused(),
+        None,
+        "activation cleared focus and out of range keeps it so"
+    );
 }
 
 #[test]
@@ -185,7 +194,7 @@ fn keys_count_as_human_input_for_idle() {
         Outcome::None,
         "navigation touched idle"
     );
-    assert_eq!(i.key_activate(58.0, &|_| false), Outcome::Rejected(E));
+    assert_eq!(i.key_activate(58.0, &|_| false), Outcome::Rejected(N));
     assert_eq!(
         i.tick(59.0, quiet),
         Outcome::None,

@@ -9,12 +9,12 @@ use super::{Interaction, Outcome, Phase, Target, finite};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NavKey {
-    /// Focus the next enabled entry in navigation order, wrapping around.
+    /// Focus the next entry in navigation order, wrapping around.
     Next,
-    /// Focus the previous enabled entry, wrapping around.
+    /// Focus the previous entry, wrapping around.
     Prev,
     /// Focus the entry at this 1-based place in navigation order (disabled entries count, so
-    /// the number matches what the user sees); a disabled one is rejected and focus stays.
+    /// the number matches what the user sees).
     Number(usize),
 }
 
@@ -29,6 +29,7 @@ impl Interaction {
         self.phase = Phase::Open {
             origin,
             armed: None,
+            primary_down: false,
             focus: None,
         };
         self.touch(now);
@@ -43,15 +44,11 @@ impl Interaction {
         }
     }
 
-    /// Moves focus. `order` is `MarkingMenu::nav_order()`; `enabled` says which targets can be
-    /// chosen. Only a sticky menu reacts.
-    pub fn key_nav(
-        &mut self,
-        key: NavKey,
-        order: &[Target],
-        now: f64,
-        enabled: &dyn Fn(Target) -> bool,
-    ) -> Outcome {
+    /// Moves focus. `order` is `MarkingMenu::nav_order()`. Disabled and unsupported entries take
+    /// focus too, so a screen reader can read their reasons; choosing one is still rejected
+    /// (`key_activate`). PROVISIONAL: the Maya help names no menu keyboard behaviour. Only a
+    /// sticky menu reacts.
+    pub fn key_nav(&mut self, key: NavKey, order: &[Target], now: f64) -> Outcome {
         if !now.is_finite() {
             return Outcome::None;
         }
@@ -65,23 +62,19 @@ impl Interaction {
                 let Some(target) = n.checked_sub(1).and_then(|i| order.get(i)).copied() else {
                     return Outcome::None;
                 };
-                if !enabled(target) {
-                    return Outcome::Rejected(target);
-                }
                 target
             }
             NavKey::Next | NavKey::Prev => {
-                let choices: Vec<Target> = order.iter().copied().filter(|t| enabled(*t)).collect();
-                let at = focus.and_then(|f| choices.iter().position(|c| *c == f));
-                let last = choices.len().saturating_sub(1);
+                let at = focus.and_then(|f| order.iter().position(|c| *c == f));
+                let last = order.len().saturating_sub(1);
                 let index = match (key, at) {
-                    (_, _) if choices.is_empty() => return Outcome::None,
+                    _ if order.is_empty() => return Outcome::None,
                     (NavKey::Next, None) => 0,
-                    (NavKey::Next, Some(i)) => (i + 1) % choices.len(),
+                    (NavKey::Next, Some(i)) => (i + 1) % order.len(),
                     (_, None) => last,
-                    (_, Some(i)) => (i + last) % choices.len(),
+                    (_, Some(i)) => (i + last) % order.len(),
                 };
-                choices[index]
+                order[index]
             }
         };
         self.set_focus(Some(next_focus));
