@@ -433,6 +433,14 @@ pub enum Operation {
     SetRotateStep {
         degrees: Option<f64>,
     },
+    /// Sets the Scale tool's relative Step Snap (`None` is off, the default): an update's factor
+    /// lands on a multiple of it, never zero. A step that is not finite or is below
+    /// `snap::MIN_SCALE_STEP` is refused. Session-only; refused during a manipulation.
+    /// PROVISIONAL: the Maya Scale tool snap settings are not mapped one to one.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetScaleStep {
+        step: Option<f64>,
+    },
     /// Begins a Move of the selected objects with `target` as the lead. With several objects
     /// selected a remote caller must pass the `selection_generation` it inspected; a native caller
     /// moves the current selection.
@@ -1239,6 +1247,10 @@ pub struct ManipulationInspection {
     pub scale_handle: &'static str,
     /// The global manipulator size, as set.
     pub manipulator_size: f64,
+    /// The Rotate tool's relative Step Snap in degrees, or null when off.
+    pub rotate_step_degrees: Option<f64>,
+    /// The Scale tool's relative Step Snap on the factor, or null when off (PROVISIONAL).
+    pub scale_step: Option<f64>,
     /// What each parameter of `update_manipulation` is measured in.
     pub units: ManipulationUnits,
     /// Whether a numeric manipulation of each kind could begin on the selection now.
@@ -1932,7 +1944,7 @@ pub(crate) const MIN_COMPONENT_SET: &str = concat!(
 pub(crate) const MIN_FIXED: &str = concat!(
     r#"{"scene_token":"00000000-0000-0000-0000-000000000000","#,
     r#""manipulation":{"active_tool":"","move_space":"","rotate_space":"","scale_space":"","rotate_axis":"","#,
-    r#""scale_handle":"","manipulator_size":0.0,"units":{"distance":"","angle":"","factor":""},"#,
+    r#""scale_handle":"","manipulator_size":0.0,"rotate_step_degrees":null,"scale_step":null,"units":{"distance":"","angle":"","factor":""},"#,
     r#""kinds":[],"active":null,"refusal":null,"viewport":null},"#,
     r#""nodes":[],"shapes":[],"session_materials":[],"curves":[],"references":[],"#,
     r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
