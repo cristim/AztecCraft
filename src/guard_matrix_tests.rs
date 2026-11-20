@@ -216,6 +216,10 @@ enum Pre {
     VertexMode,
     /// Vertex mode with vertex 0 picked: a Move then drags that vertex.
     VertexPick,
+    /// Edge mode with edge 0 picked.
+    EdgePick,
+    /// Face mode with face 0 picked.
+    FacePick,
     EdgeMode,
     /// Adds a second node with different channels, reselects the first and enters Face mode.
     SecondNodeFaceMode,
@@ -1206,6 +1210,28 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 pre: Pre::VertexPick,
                 ..sample(
                     "begin_move(vertex_pick,generation)",
+                    Operation::BeginMove {
+                        target: t.transform_target(),
+                        axis: WorldAxis::X,
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
+            Sample {
+                pre: Pre::EdgePick,
+                ..sample(
+                    "begin_move(edge_pick,generation)",
+                    Operation::BeginMove {
+                        target: t.transform_target(),
+                        axis: WorldAxis::X,
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
+            Sample {
+                pre: Pre::FacePick,
+                ..sample(
+                    "begin_move(face_pick,generation)",
                     Operation::BeginMove {
                         target: t.transform_target(),
                         axis: WorldAxis::X,
@@ -2918,6 +2944,16 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
             .enable_recovery(rig.directory.path().join("recovery"))
             .unwrap(),
         Pre::VertexMode => rig.editor.selection_mode = SelectionMode::Vertex,
+        Pre::EdgePick => {
+            let edge = targets(&rig).edge();
+            rig.editor.set_selection_mode_field(SelectionMode::Edge);
+            rig.editor.set_remembered_edge(Some(edge));
+        }
+        Pre::FacePick => {
+            let face = targets(&rig).face();
+            rig.editor.set_selection_mode_field(SelectionMode::Face);
+            rig.editor.set_remembered_face(Some(face));
+        }
         Pre::VertexPick => {
             let vertex = targets(&rig).vertex();
             rig.editor.set_selection_mode_field(SelectionMode::Vertex);

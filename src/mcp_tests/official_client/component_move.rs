@@ -485,3 +485,84 @@ async fn sdk_component_move_distances_that_cannot_move_leave_the_baseline_alone(
     drop(editor);
     server.await.unwrap();
 }
+
+/// Edge and Face selection drive the same remote lifecycle: the moved set is the unique vertices
+/// of the picked component, and begin needs the inspected generation.
+#[tokio::test]
+async fn sdk_remote_edge_and_face_moves_move_the_union_of_their_vertices() {
+    for (mode, tool, field, count) in [
+        ("edge", "select_edge", "edge_index", 2),
+        ("face", "select_face", "face_index", 4),
+    ] {
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        let peer = client.peer();
+        let setup = cube_in_vertex_mode(&mut editor, &context, peer, 0).await;
+        call(
+            &mut editor,
+            &context,
+            peer,
+            "set_selection_mode",
+            json!({"scene_token":setup.token,"mode":mode}),
+        )
+        .await;
+        let mut target = setup.target.clone();
+        target.as_object_mut().unwrap().remove("vertex_index");
+        target[field] = json!(0);
+        let picked = call(
+            &mut editor,
+            &context,
+            peer,
+            tool,
+            json!({"scene_token":setup.token,"target":target}),
+        )
+        .await;
+        assert_eq!(picked.is_error, Some(false), "{mode}");
+        let before: Vec<f64> = (0..8).map(|v| vertex_x(&editor, v)).collect();
+        let missing = call(
+            &mut editor,
+            &context,
+            peer,
+            "begin_manipulation",
+            begin_args(&setup, None),
+        )
+        .await;
+        assert_eq!(code(missing), "invalid_input", "{mode}");
+        let at = generation(&mut editor, &context, peer).await;
+        let begin = call(
+            &mut editor,
+            &context,
+            peer,
+            "begin_manipulation",
+            begin_args(&setup, Some(at)),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let id = begin["manipulation_id"].as_str().unwrap().to_owned();
+        for (name, args) in [
+            (
+                "update_manipulation",
+                json!({"scene_token":setup.token,"manipulation_id":id,"distance":2.0}),
+            ),
+            (
+                "finish_manipulation",
+                json!({"scene_token":setup.token,"manipulation_id":id,"finish":"commit"}),
+            ),
+        ] {
+            let result = call(&mut editor, &context, peer, name, args).await;
+            assert_eq!(result.is_error, Some(false), "{mode} {name}");
+        }
+        let moved = (0..8)
+            .filter(|&v| (vertex_x(&editor, v) - before[v] - 2.0).abs() < 1e-5)
+            .count();
+        assert_eq!(moved, count, "{mode}");
+        let unmoved = (0..8)
+            .filter(|&v| (vertex_x(&editor, v) - before[v]).abs() < 1e-9)
+            .count();
+        assert_eq!(unmoved, 8 - count, "{mode}");
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+}
