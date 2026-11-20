@@ -872,3 +872,21 @@ if Alt goes up first; motion with just one remaining button does nothing. The
 Maya 2027 Camera Tools and View hotkeys pages state the chord, but no gain,
 button-order, release or mixed-button rule. The chord is native input mapping;
 no additional remote operation is needed.
+
+### #452 box dolly policy (PROVISIONAL)
+
+Ctrl+Alt+left drag draws a viewport rectangle and applies `Operation::BoxDolly`.
+Normalized corners have x right/y up in [-1,1]; native endpoints outside the
+viewport are clamped. Both extents must be positive. At the current target depth,
+pan to the rectangle center then multiply distance by half the larger NDC extent;
+orthographic width scales identically. Stage and validate camera/projection before
+install, retaining orientation, lens and clip range. A full rectangle is unchanged.
+These are application choices, not measured Maya fit behaviour. An extremely
+small/overflowing fit is refused rather than clamped.
+
+Capture owns the scene token, full camera, viewport rectangle and DPI. Escape,
+focus/pointer loss, modifier drop, another button or a changed capture cancels;
+the primary release stays consumed. Held camera navigation blocks remote mutations
+through stationary frames (`camera.native_gesture_active`), then releases on the
+all-up frame; hiding the window cancels the guard. Tests cover actual native egui
+pointer input and actual SDK dispatch; desktop visual comparison remains pending.

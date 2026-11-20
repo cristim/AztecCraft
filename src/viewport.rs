@@ -15,6 +15,7 @@ pub use lens::{
     FilmBack, FilmFit, InvalidFilmBack, Lens, MAX_FILM_SCALE, MAX_OFFSET_TAN, MAX_OVERSCAN,
     MAX_TAN_HALF, MIN_FILM_SCALE, MIN_TAN_HALF, film_gate_ndc,
 };
+mod box_dolly;
 mod rect_pick;
 pub use rect_pick::{InvalidRect, NdcRect};
 

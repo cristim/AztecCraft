@@ -1682,3 +1682,11 @@ are uncounted too); fixing it needs the History in the bound.
 ## Sandboxed scripting is not implemented (#57)
 
 Decision and design: `.project-docs/scripting-adr.md`. Nothing executes user scripts yet; scene-embedded scripts, expressions and bundled MEL stay inert data. When slice 1 lands its known limits are: each Run starts a fresh interpreter, so Maya's persistent Script Editor namespace is missing (PROVISIONAL, Maya does not document it on the pages read); only self-contained scripts run (no `site-packages`, C extensions, threads, files or network) and only a handful of `maya.cmds` commands exist; Python 3 only, Python 2 semantics for compatibility versions 2011 to 2021 are not emulated; installer growth up to about 80 MB (helper, python.wasm, notices); wasmtime or Cranelift advisories can weaken the WASM layer (pinned LTS, monthly update task) and an escaped helper could still read user files (reads are not scoped); a human can approve a malicious MCP-requested script, and an agent with desktop control can synthesise the click and the opt-in (Q-UIAuto open); the approval Run button ignores assistive-technology press actions, so screen-reader users must use the keyboard (conflict with #465); the Script Editor shares the missing live-region announcement gap (#465, G5); there are no MEL tab, Command Line Python mode or file calls.
+
+## #452 viewport navigation candidate
+
+Box dolly uses a provisional target-plane fit, not a depth-picked object fit.
+Ctrl+Alt+left and Alt+left+middle have native event tests, but desktop visual
+comparison against Maya remains pending. The session viewport lens/centre-of-interest
+reads do not inspect imported Maya camera nodes. View history remains pending on
+this candidate until its independent review/test gate passes.
