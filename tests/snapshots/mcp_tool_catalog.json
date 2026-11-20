@@ -672,7 +672,7 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder, cone, torus or platonic_solid in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+    "description": "Create a cube, plane, sphere, cylinder, cone, torus, platonic_solid, pyramid or prism in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the pyramid and prism side_length and number_of_sides (3 to 128) and the prism length, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
     "inputSchema": {
       "$defs": {
         "ConeOptions": {
@@ -918,6 +918,76 @@
                 "cube"
               ],
               "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "PrismOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "length": {
+              "default": 2.0,
+              "description": "Extent along the axis (Maya `-length`, default 2); centring is PROVISIONAL.",
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "number_of_sides": {
+              "default": 3,
+              "description": "Cap sides (Maya `-numberOfSides`, default 3). The 3 to 128 range is a PROVISIONAL\nAztecCraft safety bound (#5).",
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            },
+            "side_length": {
+              "default": 2.0,
+              "description": "Edge of the cap polygons (Maya `-sideLength`, default 2).",
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "PyramidOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "number_of_sides": {
+              "default": 4,
+              "description": "Base sides (Maya `-numberOfSides`, default 4). The 3 to 128 range is a PROVISIONAL\nAztecCraft safety bound (#5). The pyramid height (equal to `side_length`) and its\ncentring on the origin are PROVISIONAL: the command page documents neither.",
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            },
+            "side_length": {
+              "default": 1.0,
+              "description": "Edge of the base polygon (Maya `-sideLength`, default 1).",
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
             }
           },
           "type": "object"
@@ -1180,6 +1250,58 @@
             },
             "primitive": {
               "const": "platonic_solid",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/PyramidOptions"
+            },
+            "primitive": {
+              "const": "pyramid",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/PrismOptions"
+            },
+            "primitive": {
+              "const": "prism",
               "type": "string"
             },
             "scene_token": {
