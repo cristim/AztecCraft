@@ -1385,7 +1385,7 @@ impl NativeScene {
         let id = NodeId::new(self.next_id);
         let mesh = NativeMesh::with_options(options)?;
         let uvs = create_uvs
-            .then(|| session_uv::new_primitive_uvs(&mesh))
+            .then(|| session_uv::new_primitive_uvs(&mesh, options))
             .transpose()?;
         let shape = self.append(id, name, shape_name, mesh, NativeTransform::default())?;
         if let Some(set) = uvs {

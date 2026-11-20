@@ -787,6 +787,7 @@ mod grid_tests;
 mod platonic;
 #[cfg(test)]
 mod platonic_tests;
+pub(in crate::native_scene) mod primitive_uv;
 mod reduce;
 #[cfg(test)]
 mod reduce_region_tests;

@@ -582,24 +582,36 @@ fn from_corners_refuses_a_face_with_a_hole() {
 
 #[test]
 fn create_with_uvs_builds_the_set_before_adding_anything() {
-    let options = PrimitiveOptions::Plane {
-        width: 1.0,
-        height: 1.0,
-        sub_width: 1,
-        sub_height: 1,
-        axis: Axis::X,
-    };
     let mut scene = NativeScene::default();
     scene.create(Primitive::Cube, "keep").unwrap();
     let before = scene.clone();
-    // The Y projection of an X-facing plane has no width, so the UV build fails.
-    assert_eq!(
-        scene.create_with_options(Primitive::Plane, &options, "p", true),
-        Err(NativeError::DegenerateUvProjection)
+    FAIL_PRIMITIVE_UV_BUILD.with(|f| f.set(true));
+    let refused = scene.create_with_options(
+        Primitive::Sphere,
+        &PrimitiveOptions::default_for(Primitive::Sphere),
+        "p",
+        true,
     );
-    assert!(scene == before, "no node, shape, id or UV set was added");
-    scene
-        .create_with_options(Primitive::Plane, &options, "p", false)
-        .unwrap();
+    // Without UVs the injected failure is never reached.
+    let plain = scene.create_with_options(
+        Primitive::Sphere,
+        &PrimitiveOptions::default_for(Primitive::Sphere),
+        "q",
+        false,
+    );
+    FAIL_PRIMITIVE_UV_BUILD.with(|f| f.set(false));
+    assert_eq!(refused, Err(NativeError::DegenerateUvProjection));
+    plain.unwrap();
     assert!(scene.uv_set(scene.shapes()[1].id()).is_none());
+    let mut scene = before.clone();
+    FAIL_PRIMITIVE_UV_BUILD.with(|f| f.set(true));
+    let refused = scene.create_with_options(
+        Primitive::Torus,
+        &PrimitiveOptions::default_for(Primitive::Torus),
+        "t",
+        true,
+    );
+    FAIL_PRIMITIVE_UV_BUILD.with(|f| f.set(false));
+    assert!(refused.is_err());
+    assert!(scene == before, "no node, shape, id or UV set was added");
 }

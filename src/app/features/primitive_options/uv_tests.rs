@@ -52,33 +52,6 @@ fn create_uvs_false_builds_none_and_true_builds_a_matching_valid_set() {
 }
 
 #[test]
-fn a_failing_uv_build_rejects_before_any_mutation() {
-    // A plane facing X has no extent along the Y-projection's width, so the placeholder layout
-    // refuses it; the build runs before the node is added.
-    let options = PrimitiveOptions::Plane {
-        width: 1.0,
-        height: 1.0,
-        sub_width: 1,
-        sub_height: 1,
-        axis: Axis::X,
-    };
-    let mut editor = Editor::default();
-    create(&mut editor, Primitive::Cube, None, false).unwrap();
-    let before = editor.history.scene().clone();
-    let (undo, redo) = (editor.history.undo_len(), editor.history.redo_len());
-    let selected = editor.selected();
-    assert!(create(&mut editor, Primitive::Plane, Some(options), true).is_err());
-    assert_eq!(editor.history.scene(), &before);
-    assert_eq!(
-        (editor.history.undo_len(), editor.history.redo_len()),
-        (undo, redo)
-    );
-    assert_eq!(editor.selected(), selected);
-    // The same options without UVs still create: the refusal is the UV build's alone.
-    create(&mut editor, Primitive::Plane, Some(options), false).unwrap();
-}
-
-#[test]
 fn undo_removes_the_uv_set_and_redo_restores_it() {
     let mut editor = Editor::default();
     create(&mut editor, Primitive::Cube, None, true).unwrap();

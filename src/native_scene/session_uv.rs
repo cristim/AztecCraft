@@ -8,6 +8,7 @@
 //! Sourced scenes refuse the edit like every other structural edit.
 
 use super::{NativeError, NativeId, NativeMesh, NativeMeshShape, NativeScene};
+use crate::primitive_options::{Axis, PrimitiveOptions};
 use std::collections::{BTreeMap, HashSet};
 
 /// The default UV set name in Maya; other sets are not supported.
@@ -138,15 +139,43 @@ fn planar(mesh: &NativeMesh, axis: UvProjectAxis) -> Result<UvSet, NativeError> 
     Ok(UvSet { faces })
 }
 
-/// The UVs a freshly created primitive gets with `create_uvs`.
-/// PROVISIONAL placeholder: the existing planar projection along Y. The per-primitive layouts of
-/// #453 T8b replace this; nothing exposes `create_uvs` before then.
-pub(super) fn new_primitive_uvs(mesh: &NativeMesh) -> Result<UvSet, NativeError> {
-    planar(mesh, UvProjectAxis::Y)
+/// The UVs a freshly created primitive gets with `create_uvs` (#453).
+/// PROVISIONAL layouts: the sphere, cylinder, cone and torus use `mesh::primitive_uv`; the plane is
+/// projected along its own normal; the cube and the Platonic solids keep the Y planar placeholder
+/// (not done: the cube's side faces collapse) until their layouts are decided (#453 T9).
+pub(super) fn new_primitive_uvs(
+    mesh: &NativeMesh,
+    options: &PrimitiveOptions,
+) -> Result<UvSet, NativeError> {
+    #[cfg(test)]
+    if FAIL_PRIMITIVE_UV_BUILD.with(std::cell::Cell::get) {
+        return Err(NativeError::DegenerateUvProjection);
+    }
+    match *options {
+        PrimitiveOptions::Plane { axis, .. } => planar(
+            mesh,
+            match axis {
+                Axis::X => UvProjectAxis::X,
+                Axis::Y => UvProjectAxis::Y,
+                Axis::Z => UvProjectAxis::Z,
+            },
+        ),
+        // NOT DONE: no layout designed yet for these two; the Y planar placeholder keeps the
+        // set valid (the cube's side faces collapse). The cube's is #453 T9; the Platonic
+        // solids' is a separate decision.
+        PrimitiveOptions::Cube { .. } | PrimitiveOptions::PlatonicSolid { .. } => {
+            planar(mesh, UvProjectAxis::Y)
+        }
+        _ => super::mesh::primitive_uv::layout(mesh, options),
+    }
 }
 
 #[cfg(test)]
 thread_local! {
+    /// While set, every primitive UV build fails (the flag stays set until a test resets it), so a
+    /// test can prove a failed build changes nothing: every real layout is total, so no input
+    /// reaches that failure.
+    pub(super) static FAIL_PRIMITIVE_UV_BUILD: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// Shapes `SessionUvs::validate` looks at, so a test can pin one pass without a wall clock.
     static SHAPE_VISITS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
