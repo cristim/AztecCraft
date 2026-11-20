@@ -212,6 +212,7 @@ impl Editor {
             | Operation::RedoView
             | Operation::DefaultView
             | Operation::SetCameraPose { .. }
+            | Operation::SetCameraFilmBack(_)
             | Operation::CreateCameraBookmark { .. }
             | Operation::RenameCameraBookmark { .. }
             | Operation::DeleteCameraBookmark { .. }
@@ -1601,6 +1602,17 @@ impl Editor {
                     OperationReply::Unchanged
                 } else {
                     OperationReply::Changed
+                });
+            }
+            Operation::SetCameraFilmBack(edit) => {
+                let changed = self
+                    .camera
+                    .edit_film_back(edit)
+                    .map_err(OperationError::FilmBack)?;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
                 });
             }
             Operation::FrameAll { fit_factor } => {

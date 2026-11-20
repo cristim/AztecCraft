@@ -12,8 +12,8 @@ use std::fmt;
 
 mod lens;
 pub use lens::{
-    FilmBack, FilmFit, InvalidFilmBack, Lens, MAX_FILM_SCALE, MAX_OFFSET_TAN, MAX_OVERSCAN,
-    MAX_TAN_HALF, MIN_FILM_SCALE, MIN_TAN_HALF, film_gate_ndc,
+    FilmBack, FilmBackEdit, FilmFit, InvalidFilmBack, Lens, MAX_FILM_SCALE, MAX_OFFSET_TAN,
+    MAX_OVERSCAN, MAX_TAN_HALF, MIN_FILM_SCALE, MIN_TAN_HALF, film_gate_ndc,
 };
 mod box_dolly;
 mod rect_pick;
@@ -491,6 +491,28 @@ impl Camera {
         next.validate()?;
         *self = next;
         Ok(())
+    }
+
+    /// Applies a partial film back to the lens; a `VerticalFov` lens becomes `Film` with the
+    /// defaults for unnamed fields (the fov is dropped). Returns whether the lens changed: that is
+    /// numeric, so -0.0 over 0.0 changes nothing and the stored bits stay. An empty edit, an
+    /// invalid result and an unrepresentable camera are refused with the camera untouched.
+    pub fn edit_film_back(&mut self, edit: FilmBackEdit) -> Result<bool, InvalidFilmBack> {
+        if edit.is_empty() {
+            return Err(InvalidFilmBack("no_fields"));
+        }
+        let base = match self.lens {
+            Lens::Film(film) => film,
+            Lens::VerticalFov(_) => FilmBack::DEFAULT,
+        };
+        let next = edit.applied_to(base);
+        next.validate()?;
+        let lens = Lens::Film(next);
+        if lens == self.lens {
+            return Ok(false);
+        }
+        self.lens = lens;
+        Ok(true)
     }
 
     /// Restores an absolute view. Yaw wraps like `orbit`; a pitch beyond orbit's limit is

@@ -209,7 +209,9 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::ImportUndisplayable(_)) => "import_invalid",
                 OperationError::Scene(NativeError::ImportResourceLimit) => "import_limit",
                 OperationError::Scene(_) => "scene_error",
-                OperationError::Camera(_) | OperationError::CameraPose(_) => "camera_error",
+                OperationError::Camera(_)
+                | OperationError::CameraPose(_)
+                | OperationError::FilmBack(_) => "camera_error",
                 OperationError::File(_) => "file_error",
                 OperationError::View(_) => "view_error",
                 OperationError::NativeSave(error) => match error {

@@ -448,6 +448,9 @@ fn material_edit_id() -> egui::Id {
 }
 
 #[cfg(test)]
+mod film_back_tests;
+
+#[cfg(test)]
 mod tests;
 
 #[cfg(test)]

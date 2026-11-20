@@ -224,6 +224,57 @@ impl FilmBack {
     }
 }
 
+/// A partial film back: only the `Some` fields change. All-or-nothing once validated.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct FilmBackEdit {
+    pub focal_mm: Option<f64>,
+    pub aperture_in: [Option<f64>; 2],
+    pub film_fit: Option<FilmFit>,
+    pub film_fit_offset_in: Option<f64>,
+    pub film_offset_in: [Option<f64>; 2],
+    pub lens_squeeze: Option<f64>,
+    pub pre_scale: Option<f64>,
+    pub post_scale: Option<f64>,
+    pub film_roll_degrees: Option<f64>,
+    pub overscan: Option<f64>,
+    pub display_film_gate: Option<bool>,
+}
+
+impl FilmBackEdit {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    /// The film back after the edit, not yet validated. A plain attribute edit: the Film Gate menu
+    /// item (not `camera -e -displayFilmGate`) is what sets Overscan 1.5, so it sends both fields.
+    pub fn applied_to(&self, base: FilmBack) -> FilmBack {
+        let mut film = base;
+        let set = |slot: &mut f64, value: Option<f64>| {
+            if let Some(value) = value {
+                *slot = value;
+            }
+        };
+        set(&mut film.focal_mm, self.focal_mm);
+        set(&mut film.aperture_in[0], self.aperture_in[0]);
+        set(&mut film.aperture_in[1], self.aperture_in[1]);
+        set(&mut film.film_fit_offset_in, self.film_fit_offset_in);
+        set(&mut film.film_offset_in[0], self.film_offset_in[0]);
+        set(&mut film.film_offset_in[1], self.film_offset_in[1]);
+        set(&mut film.lens_squeeze, self.lens_squeeze);
+        set(&mut film.pre_scale, self.pre_scale);
+        set(&mut film.post_scale, self.post_scale);
+        set(&mut film.film_roll_degrees, self.film_roll_degrees);
+        set(&mut film.overscan, self.overscan);
+        if let Some(fit) = self.film_fit {
+            film.film_fit = fit;
+        }
+        if let Some(on) = self.display_film_gate {
+            film.display_film_gate = on;
+        }
+        film
+    }
+}
+
 impl Default for FilmBack {
     fn default() -> Self {
         Self::DEFAULT
