@@ -479,11 +479,15 @@ impl Editor {
             let delete_intent = delete_intent && can_select;
             // Mirrors the press-time mode refusal in move_tool.rs, which is more specific.
             let mode_refused = features::manipulation_tool::is_manipulation_tool(self.active_tool)
-                && features::manipulation_tool::mode_refusal(
-                    features::manipulation_tool::tool_name(self.active_tool),
-                    self.selection_mode,
-                )
-                .is_some();
+                && if self.active_tool == crate::editor_operations::ActiveTool::Move {
+                    self.move_mode_refusal().is_some()
+                } else {
+                    features::manipulation_tool::mode_refusal(
+                        features::manipulation_tool::tool_name(self.active_tool),
+                        self.selection_mode,
+                    )
+                    .is_some()
+                };
             let object_mode = matches!(
                 self.selection_mode,
                 SelectionMode::Object | SelectionMode::Hierarchy

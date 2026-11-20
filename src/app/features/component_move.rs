@@ -3,7 +3,9 @@
 
 use super::manipulation_tool::{begin_error, tool_name};
 use crate::app::Editor;
-use crate::editor_operations::{ActiveTool, ComponentKind, OperationError, OperationReply};
+use crate::editor_operations::{
+    ActiveTool, ComponentKind, OperationError, OperationReply, SelectionMode,
+};
 use azteccraft::{
     history::{ManipulationProvenance, MoveDirection},
     manipulator_handles::HandleFrame,
@@ -47,22 +49,13 @@ impl Editor {
         })
     }
 
-    /// Begins a native drag of the selected vertices along `axis` of the Move Axis Orientation.
-    pub(in crate::app) fn begin_component_move(
-        &mut self,
+    /// Every refusal a component Move of `target` meets before it starts, without changing
+    /// anything: the one place begin, the handles and inspection decide availability. Returns the
+    /// vertex set and the Move Axis Orientation (World or Object).
+    pub(in crate::app) fn component_move_checks(
+        &self,
         target: &TransformTarget,
-        axis: WorldAxis,
-        provenance: ManipulationProvenance,
-        expected_generation: Option<u64>,
-    ) -> Result<OperationReply, OperationError> {
-        // A remote caller moves the set it inspected: the generation (checked by the caller of
-        // this method, so a stale one is `StaleSelection`) is mandatory, as for several objects.
-        if provenance == ManipulationProvenance::Remote && expected_generation.is_none() {
-            return Err(OperationError::InvalidInput(
-                "A remote component Move needs expected_selection_generation from inspect_scene"
-                    .into(),
-            ));
-        }
+    ) -> Result<(VertexSetTarget, MoveSpace), OperationError> {
         self.check_single_instance_target("Move", target)?;
         let set = self.component_move_set(target)?;
         let scene = self.history.scene();
@@ -92,6 +85,68 @@ impl Editor {
                 "Snap to grids is not available for component Move yet".into(),
             ));
         }
+        Ok((set, space))
+    }
+
+    /// Where the Move arrows sit (the world bounding-box centre of the moved vertices, PROVISIONAL:
+    /// Maya says only "centre") and their unit world directions, for a component Move of `target`.
+    pub(in crate::app) fn component_move_handles(
+        &self,
+        target: &TransformTarget,
+    ) -> Result<(DVec3, [DVec3; 3]), OperationError> {
+        let (set, space) = self.component_move_checks(target)?;
+        let scene = self.history.scene();
+        let frame = scene
+            .component_move_frame(target)
+            .map_err(OperationError::Scene)?;
+        let mesh = scene
+            .shape(set.shape)
+            .map_err(OperationError::Scene)?
+            .mesh();
+        let points = set
+            .vertex_indices
+            .iter()
+            .map(|index| mesh.effective_point_cm(*index))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(OperationError::Scene)?;
+        let origin = frame
+            .bbox_center_world_cm(&points)
+            .map_err(OperationError::Scene)?;
+        let directions = match space {
+            MoveSpace::Object => scene
+                .component_move_object_axes(target)
+                .map_err(OperationError::Scene)?,
+            _ => [DVec3::X, DVec3::Y, DVec3::Z],
+        };
+        Ok((origin, directions))
+    }
+
+    /// The reason the Move tool is unavailable in the current selection mode, if it is: Vertex
+    /// selection moves its vertices, so only the other component modes refuse outright.
+    pub(in crate::app) fn move_mode_refusal(&self) -> Option<String> {
+        if self.selection_mode == SelectionMode::Vertex {
+            return None;
+        }
+        super::manipulation_tool::mode_refusal("Move", self.selection_mode)
+    }
+
+    /// Begins a native drag of the selected vertices along `axis` of the Move Axis Orientation.
+    pub(in crate::app) fn begin_component_move(
+        &mut self,
+        target: &TransformTarget,
+        axis: WorldAxis,
+        provenance: ManipulationProvenance,
+        expected_generation: Option<u64>,
+    ) -> Result<OperationReply, OperationError> {
+        // A remote caller moves the set it inspected: the generation (checked by the caller of
+        // this method, so a stale one is `StaleSelection`) is mandatory, as for several objects.
+        if provenance == ManipulationProvenance::Remote && expected_generation.is_none() {
+            return Err(OperationError::InvalidInput(
+                "A remote component Move needs expected_selection_generation from inspect_scene"
+                    .into(),
+            ));
+        }
+        let (set, space) = self.component_move_checks(target)?;
         let id = self
             .history
             .begin_move_components(
@@ -115,3 +170,5 @@ impl Editor {
 mod remote_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod ui_tests;

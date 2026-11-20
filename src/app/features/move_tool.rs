@@ -5,7 +5,8 @@ use super::manipulation_tool::{
 };
 use crate::app::Editor;
 use crate::editor_operations::{
-    ActiveTool, ManipulationValue, MoveDistance, Operation, OperationError, OperationReply,
+    ActiveTool, ComponentKind, ManipulationValue, MoveDistance, Operation, OperationError,
+    OperationReply, SelectionMode,
 };
 use azteccraft::snap::{GRID_LINE_SPACING_CM, snap_distance_to_grid};
 use azteccraft::{
@@ -177,6 +178,11 @@ impl Editor {
         &self,
         target: &TransformTarget,
     ) -> Result<glam::DVec3, OperationError> {
+        if self.selection_mode == SelectionMode::Vertex {
+            return self
+                .component_move_handles(target)
+                .map(|(origin, _)| origin);
+        }
         let covered = target.path.len() > 1
             && azteccraft::history::is_covered(
                 &azteccraft::history::selected_transform_ids(self.selection.members()),
@@ -218,6 +224,11 @@ impl Editor {
         &self,
         target: &TransformTarget,
     ) -> Result<[glam::DVec3; 3], OperationError> {
+        if self.selection_mode == SelectionMode::Vertex {
+            return self
+                .component_move_handles(target)
+                .map(|(_, directions)| directions);
+        }
         let space = self.manipulation.move_space();
         if space == MoveSpace::World {
             return Ok([glam::DVec3::X, glam::DVec3::Y, glam::DVec3::Z]);
@@ -494,7 +505,7 @@ impl Editor {
                 self.selected_move_target()
             }
         };
-        let target = match mode_refusal("Move", self.selection_mode) {
+        let target = match self.move_mode_refusal() {
             Some(refusal) => Err(OperationError::InvalidInput(refusal)),
             None => self.selected_move_lead(),
         };
@@ -544,6 +555,17 @@ impl Editor {
         let axis_names = ["X axis", "Y axis", "Z axis"];
         let move_refusals = match &target {
             Err(error) => Err(error.to_string()),
+            // Vertex selection: one set, one reason for all three axes.
+            Ok(target) if self.selection_mode == SelectionMode::Vertex => {
+                let reason = self
+                    .component_move_checks(target)
+                    .err()
+                    .map(|error| error.to_string());
+                Ok(axis_names
+                    .into_iter()
+                    .map(|name| (name, reason.clone()))
+                    .collect())
+            }
             // One object: its own frame decides, as before.
             Ok(target) if self.selection.len() <= 1 => self
                 .single_move_refusals(target)
@@ -765,7 +787,11 @@ impl Editor {
                         .as_ref()
                         .is_some_and(|renderer| renderer.terminal_error().is_some())
             })
-            .filter(|_| mode_refusal("", self.selection_mode).is_none())
+            .filter(|_| {
+                mode_refusal("", self.selection_mode).is_none()
+                    || (self.selection_mode == SelectionMode::Vertex
+                        && self.active_tool == ActiveTool::Move)
+            })
             .map(|feedback| {
                 let geometry = origin.as_ref().map_err(Clone::clone).and_then(|origin| {
                     let directions = directions.clone()?;
@@ -1126,7 +1152,12 @@ impl Editor {
                 .position
                 .filter(|point| point.is_finite() && hovering),
         );
-        if let Some(refusal) = mode_refusal(tool_name(self.active_tool), self.selection_mode) {
+        let refusal = if self.active_tool == ActiveTool::Move {
+            self.move_mode_refusal()
+        } else {
+            mode_refusal(tool_name(self.active_tool), self.selection_mode)
+        };
+        if let Some(refusal) = refusal {
             if is_manipulation_tool(self.active_tool) && pointer.pressed {
                 self.status = refusal;
                 self.error = false;
@@ -1171,6 +1202,8 @@ impl Editor {
         let Ok(handles) = WorldHandles::new_in(&capture, origin, directions) else {
             return Ok(false);
         };
+        let vertex_count = (self.selection_mode == SelectionMode::Vertex)
+            .then(|| self.component_set(ComponentKind::Vertex).indices().len());
         let pixel = capture
             .pointer_pixel(position)
             .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
@@ -1188,8 +1221,11 @@ impl Editor {
             return Err(error);
         }
         self.start_native_drag(NativeDrag::Move(drag), pointer.released)?;
+        let noun = vertex_count.map_or(String::new(), |count| {
+            format!(" ({count} vertice{})", if count == 1 { "" } else { "s" })
+        });
         self.status = format!(
-            "{} {} Move",
+            "{} {} Move{noun}",
             move_space_name(self.manipulation.move_space()),
             axis_name(axis).to_uppercase()
         );
@@ -1207,12 +1243,12 @@ impl Editor {
             return;
         }
         let geometry = (|| {
-            if let Some(refusal) = mode_refusal("Move", self.selection_mode) {
+            if let Some(refusal) = self.move_mode_refusal() {
                 return Err(OperationError::InvalidInput(refusal));
             }
             let target = self.selected_move_lead()?;
             let origin = self.move_handle_origin(&target)?;
-            if self.selection.len() <= 1 {
+            if self.selection.len() <= 1 && self.selection_mode != SelectionMode::Vertex {
                 let mut refusals: Vec<_> = self
                     .single_move_refusals(&target)
                     .map_err(OperationError::Scene)?

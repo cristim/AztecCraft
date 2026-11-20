@@ -1360,45 +1360,33 @@ fn face_mode_refuses_move_handles_native_and_numeric_and_keeps_face_click_workin
 }
 
 #[test]
-fn vertex_and_edge_modes_refuse_move_everywhere_face_does() {
-    for (mode, noun) in [
-        (SelectionMode::Vertex, "Vertex"),
-        (SelectionMode::Edge, "Edge"),
-    ] {
-        let refusal =
-            format!("Move is unavailable in {noun} selection; switch to Object selection");
-        let (mut editor, context, rect) = setup(1.0);
-        editor.selection_mode = mode;
-        let before = editor.history.scene().clone();
-        tap(
-            &mut editor,
-            &context,
-            rect.center() + egui::vec2(40.0, 0.0),
-            vec![],
-        );
-        assert!(editor.history.active_manipulation().is_none() && editor.native_move.is_none());
-        assert_eq!(editor.history.scene(), &before);
-        assert_eq!(editor.status, refusal);
-        let target = editor.selected_move_target().unwrap();
-        // Vertex selection begins a component Move; with no vertex picked it says so.
-        let begin_refusal = if mode == SelectionMode::Vertex {
-            "Move needs at least one selected vertex"
-        } else {
-            refusal.as_str()
-        };
-        assert!(matches!(
-            editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
-            , expected_selection_generation: None }),
-            Err(OperationError::InvalidInput(message)) if message == begin_refusal
-        ));
-        let inspected = editor.inspect_manipulation().unwrap();
-        assert!(!inspected.kinds[0].available);
-        assert_eq!(
-            inspected.kinds[0].unavailable_reason.as_deref(),
-            Some(refusal.as_str())
-        );
-        assert!(inspected.viewport.is_none());
-    }
+fn edge_mode_refuses_move_everywhere_face_does() {
+    let refusal = "Move is unavailable in Edge selection; switch to Object selection";
+    let (mut editor, context, rect) = setup(1.0);
+    editor.selection_mode = SelectionMode::Edge;
+    let before = editor.history.scene().clone();
+    tap(
+        &mut editor,
+        &context,
+        rect.center() + egui::vec2(40.0, 0.0),
+        vec![],
+    );
+    assert!(editor.history.active_manipulation().is_none() && editor.native_move.is_none());
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.status, refusal);
+    let target = editor.selected_move_target().unwrap();
+    assert!(matches!(
+        editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
+        , expected_selection_generation: None }),
+        Err(OperationError::InvalidInput(message)) if message == refusal
+    ));
+    let inspected = editor.inspect_manipulation().unwrap();
+    assert!(!inspected.kinds[0].available);
+    assert_eq!(
+        inspected.kinds[0].unavailable_reason.as_deref(),
+        Some(refusal)
+    );
+    assert!(inspected.viewport.is_none());
 }
 
 #[test]
