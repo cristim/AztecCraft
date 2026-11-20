@@ -1,7 +1,7 @@
 use super::*;
 
 /// MCP primitive, options, then expected points, edges and faces (closed forms: Euler 2).
-const BUILDS: [(&str, &str, [u64; 3]); 16] = [
+const BUILDS: [(&str, &str, [u64; 3]); 21] = [
     (
         "cube",
         r#"{"width":2,"height":3,"depth":4,"subdivisions_width":2,"subdivisions_height":3,"subdivisions_depth":4,"axis":"x"}"#,
@@ -71,6 +71,24 @@ const BUILDS: [(&str, &str, [u64; 3]); 16] = [
         "platonic_solid",
         r#"{"solid":"cube","radius":1e6}"#,
         [8, 12, 6],
+    ),
+    // Pyramid (n+1 points, 2n edges, n+1 faces) and prism (2n, 3n, n+2).
+    (
+        "pyramid",
+        r#"{"side_length":2,"number_of_sides":5,"axis":"x"}"#,
+        [6, 10, 6],
+    ),
+    ("pyramid", r#"{"number_of_sides":3}"#, [4, 6, 4]),
+    ("pyramid", r#"{"number_of_sides":128}"#, [129, 256, 129]),
+    (
+        "prism",
+        r#"{"side_length":1,"length":4,"number_of_sides":6,"axis":"z"}"#,
+        [12, 18, 8],
+    ),
+    (
+        "prism",
+        r#"{"number_of_sides":128,"length":1e6}"#,
+        [256, 384, 130],
     ),
     // An empty options object is the defaults, like omitting it.
     ("cube", "{}", [8, 12, 6]),
@@ -144,6 +162,8 @@ async fn calls_without_options_keep_the_default_meshes() {
         ("cone", [21, 40, 21]),
         ("torus", [400, 800, 400]),
         ("platonic_solid", [20, 30, 12]),
+        ("pyramid", [5, 8, 5]),
+        ("prism", [6, 9, 5]),
     ] {
         let reply = call(
             &mut editor,
@@ -249,6 +269,24 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
         ("platonic_solid", json!({"axis":"w"})),
         ("platonic_solid", json!({"height":1})),
         ("platonic_solid", json!({"subdivisions_axis":3})),
+        ("pyramid", json!({"number_of_sides":2})),
+        ("pyramid", json!({"number_of_sides":129})),
+        ("pyramid", json!({"number_of_sides":4.0})),
+        ("pyramid", json!({"number_of_sides":null})),
+        ("pyramid", json!({"number_of_sides":"4"})),
+        ("pyramid", json!({"side_length":0})),
+        ("pyramid", json!({"side_length":1000001})),
+        ("pyramid", json!({"side_length":null})),
+        ("pyramid", json!({"length":1})),
+        ("pyramid", json!({"radius":1})),
+        ("prism", json!({"number_of_sides":2})),
+        ("prism", json!({"number_of_sides":129})),
+        ("prism", json!({"length":0})),
+        ("prism", json!({"length":-1})),
+        ("prism", json!({"side_length":-1})),
+        ("prism", json!({"axis":"w"})),
+        ("prism", json!({"subdivisions_axis":3})),
+        ("cube", json!({"number_of_sides":4})),
         ("cube", json!({"solid":"cube"})),
         ("torus", json!({"solid":"octahedron"})),
     ];

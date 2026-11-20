@@ -164,6 +164,7 @@ mod official_client {
     mod pivot_edit_guards;
     mod pivots;
     mod platonic;
+    mod pyramid_prism;
     mod reduce;
     mod rotate_step;
     mod scale_step;
