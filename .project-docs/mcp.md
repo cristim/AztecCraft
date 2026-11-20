@@ -563,6 +563,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | --- | --- | --- | --- | --- | --- |
 | Inspection | Read committed editor state, outliner hierarchy, drafts and modal state | supported | `inspect_scene` | `nodes`, `dirty`, `has_draft`, `native_input_pending`, `text_focused`, `modal` | |
 | Inspection | Page a large scene by node (`node_limit`, `cursor`; the `page` block appears only on paged replies) | supported | `inspect_scene` | `page` | |
+| Marking menus (#32, RMB mesh menu, UI widget) | No tool of its own by design: entry to tool table: Vertex, Edge, Face and Object Mode entries to `set_selection_mode`; Extrude to `extrude_face` (the menu only opens the Extrude Options window; the tool extrudes). Unsupported or disabled entries (UV, Multi, Paint, Inputs, Merge, Delete) need no tool. A Held or sticky Open menu is human input: remote mutations return `busy_editing`, `inspect_scene` reports it through `native_input_pending`, and the menu dismisses itself after 30 s without human input. A menu closing under a Swallow (dismissed by a press, release pending) does not block remote calls | supported | `set_selection_mode`, `extrude_face` | `native_input_pending` | |
 | Files | New Scene (File, Status Line) | supported | `new_scene`, `resolve_file_action` | `pending_action` | |
 | Files | Open `.mb`, read-only static `.ma`, legacy `.aztec` | supported | `open_scene` | `document_origin`, `read_only_reason` | |
 | Files | Save | supported | `save_scene` | `save_available`, `save_reconciliation_required` | |

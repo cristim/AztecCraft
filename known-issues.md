@@ -1725,3 +1725,11 @@ or SDK test runs a Move drag in a non-centimetre scene: `NativeScene` units are 
 public route builds an editable mesh scene in another unit (a metre-declared `.ma` reopens only
 source-bound). The `native_scene` component Move tests pin only the `move_vertices` conversion.
 Object Move has the same gap. Closing it needs a test-only unit hook on `NativeScene`.
+
+## Marking menus are a first slice (#32)
+
+Only the RMB mesh menu exists: eight dial zones (Vertex, Edge, Face, Object Mode, Extrude and unsupported or disabled UV, Multi, Paint, Inputs, Merge and Delete). The layout is original and PROVISIONAL (the Maya 2027 Marking Menus page gives gestures and modifier variants but not the polygon menu's positions or entries) and it has not been compared with Maya. It acts on the current selection mode only. There is no Select overflow list, no submenus, no hold-key or Shift and Ctrl variants (Shift, Ctrl or Alt with RMB open nothing), no Hotbox, no Marking Menu Editor and no custom hotkeys. Native evidence is by synthetic frame tests with explicit times; no real-window run has checked the look, the hold timing or the press-drag-release gesture (#32 T6).
+
+- Keyboard (PROVISIONAL, Maya documents none): Shift+F10 opens the menu; Right, Down and Tab move to the next entry, Left, Up and Shift+Tab to the previous, 1 to 9 pick by position, Enter and Space choose, Escape closes. Disabled and unsupported entries take keyboard focus so a screen reader can read their reasons (an `Unavailable:` description); choosing one is rejected and the reason goes to the Help Line.
+- A menu dismissed by a press stays in a Swallow state until that button releases; a Swallow does not block remote calls (only a Held or sticky Open menu does).
+- The dial is not clamped to the viewport: near an edge its labels can be cut off (#32 T2b2).

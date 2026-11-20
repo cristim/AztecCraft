@@ -147,6 +147,7 @@ mod official_client {
     mod limits;
     mod manipulation_mcp_tests;
     mod manipulator_size;
+    mod marking_menu;
     mod marquee;
     mod material;
     mod maya_import;
