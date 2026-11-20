@@ -74,6 +74,8 @@ impl Editor {
         let frame = scene
             .manipulator_frame(target)
             .map_err(OperationError::Scene)?;
+        // PROVISIONAL: a mirrored or skewed frame refuses as for Rotate and Scale; Maya's Move
+        // pages do not document this case.
         let axes = match space {
             MoveSpace::Object => frame.object_axes,
             _ => [DVec3::X, DVec3::Y, DVec3::Z],

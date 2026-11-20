@@ -1,5 +1,19 @@
 # Known limitations
 
+## Component Move in Vertex selection: inspection and availability lag the begin (#41)
+
+**Severity:** low
+**Area:** manipulation, MCP
+**Issue:** #41
+
+- `inspect_manipulation` `kinds` and the viewport and hover paths still use the selection-mode refusal
+  ("Move is unavailable in Vertex selection"), while a native `BeginMove` of a vertex set works. T4c
+  (handles, hover, status) and T6 (MCP lifecycle and inspection) remove the mismatch.
+- A component drag's `inspect_manipulation` block reports `baseline_channels` and `current_channels` as
+  `[0, 0, 0]` and `member_count` 1 (the owning object), because the schema has no null channels and no
+  vertex count. T6 extends the block.
+- The remote `begin_manipulation` `move` in Vertex selection is refused until T4b2.
+
 ## Huge coordinates save but cannot be reopened (pre-existing)
 
 **Severity:** low

@@ -7,11 +7,13 @@ use crate::editor_operations::{
 };
 use azteccraft::{
     history::{ManipulationFinish, ManipulationId},
-    native_scene::NativeError,
     scene::Primitive,
     selection::ComponentOwner,
     view_scene::ViewScene,
 };
+// Only the unix-only source-bound test names it.
+#[cfg(unix)]
+use azteccraft::native_scene::NativeError;
 
 fn owner_at(editor: &Editor, instance: usize) -> ComponentOwner {
     let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
@@ -203,7 +205,8 @@ fn begin_refuses_with_the_scene_untouched() {
         })
         .unwrap();
     refused_with(&mut editor, "World and Object axis orientations only");
-    // A mirrored ancestor makes the Object frame left-handed.
+    // A mirrored ancestor makes the Object frame left-handed. Refusing it is PROVISIONAL: it
+    // follows the Rotate and Scale handle rule, and no Maya page documents it for Move.
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     editor.native_group();
@@ -253,7 +256,11 @@ fn begin_refuses_with_the_scene_untouched() {
         op,
         &|| true,
     );
-    assert!(matches!(remote, Err(OperationError::InvalidInput(_))));
+    assert!(matches!(
+        remote,
+        Err(OperationError::InvalidInput(ref message))
+            if message == "Component Move is not available to remote callers yet (tracked in #41)"
+    ));
     assert_eq!(editor.history.scene(), &before);
 }
 
@@ -290,8 +297,41 @@ fn inspection_during_a_component_drag_names_the_move() {
     assert_eq!(active.axis, Some("x"));
     assert_eq!(active.space, "world");
     assert_eq!(active.provenance, "native");
-    assert!(active.value != 0.0);
+    assert_eq!(active.value, 3.0);
+    assert_eq!(active.unit, "cm");
+    assert_eq!(active.parameter, "distance");
+    assert_eq!(active.channels, "translate");
+    assert_eq!(active.baseline_channels, [0.0; 3]);
+    assert_eq!(active.current_channels, [0.0; 3]);
+    // The transaction counts the owning object, not its vertices (documented in mcp.md).
+    assert_eq!((active.member_count, active.covered_count), (1, 0));
     assert!(editor.inspect(false).is_ok());
+}
+
+#[test]
+fn inspecting_a_free_direction_drag_fails_loud_instead_of_reporting_world() {
+    let mut editor = cube_with(&[0]);
+    let owner = owner_at(&editor, 0);
+    let set = azteccraft::native_scene::VertexSetTarget {
+        transform: owner.transform,
+        shape: owner.shape,
+        path: owner.path,
+        vertex_indices: vec![0],
+    };
+    editor
+        .history
+        .begin_move_components(
+            &set,
+            azteccraft::history::MoveDirection::Direction(glam::DVec3::X),
+            editor.scene_token,
+            azteccraft::history::ManipulationProvenance::Native,
+            1 << 20,
+        )
+        .unwrap();
+    assert!(matches!(
+        editor.inspect_manipulation(),
+        Err(OperationError::InvalidInput(ref message)) if message.contains("World and Object")
+    ));
 }
 
 #[cfg(unix)]

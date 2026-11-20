@@ -682,7 +682,13 @@ impl Editor {
                             "move",
                             match space {
                                 Some(MoveSpace::Object) => "object",
-                                _ => "world",
+                                Some(MoveSpace::World) => "world",
+                                _ => {
+                                    return Err(OperationError::InvalidInput(
+                                        "A component Move reports only the World and Object axis orientations"
+                                            .into(),
+                                    ));
+                                }
                             },
                             axis.map(axis_name),
                             None,
