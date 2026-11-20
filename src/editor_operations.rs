@@ -864,7 +864,6 @@ pub enum Operation {
         factor: f32,
     },
     /// Ctrl+Alt+left viewport rectangle, x right/y up, normalized to [-1, 1].
-    #[allow(dead_code)]
     BoxDolly {
         rect: NdcRect,
     },

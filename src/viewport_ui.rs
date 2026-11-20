@@ -11,6 +11,7 @@ use eframe::egui::{self, Color32, Painter, PointerButton, Rect};
 use glam::Vec2;
 
 mod axis_lock;
+mod box_dolly;
 use axis_lock::AxisLock;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -107,11 +108,13 @@ pub struct ViewportInput {
     /// The rubber band of a primary drag still in progress, in points inside the viewport.
     marquee_preview: Option<Rect>,
     navigation: Vec<Operation>,
+    navigation_active: bool,
 }
 
 pub fn capture(
     ui: &mut egui::Ui,
     camera: &Camera,
+    scene_token: uuid::Uuid,
 ) -> Result<Option<ViewportInput>, InvalidCameraInput> {
     let (response, painter) =
         ui.allocate_painter(ui.available_size(), egui::Sense::click_and_drag());
@@ -144,6 +147,7 @@ pub fn capture(
     );
     let (delta, modifiers, scroll) =
         ui.input(|i| (i.pointer.delta(), i.modifiers, i.smooth_scroll_delta.y));
+    let box_input = box_dolly::capture(ui, &response, rect, camera, scale, scene_token);
     let alt = modifiers.alt;
     let chord_key = response.id.with("dolly_chord");
     let (primary_down, middle_down) = ui.input(|i| {
@@ -212,7 +216,7 @@ pub fn capture(
         ui.data_mut(|data| data.insert_temp(key, lock));
         delta
     };
-    if dolly_chord {
+    if dolly_chord && !box_input.active {
         ui.data_mut(|data| data.insert_temp(orbit_in_drag, true));
         if alt
             && primary_down
@@ -226,7 +230,7 @@ pub fn capture(
             });
         }
     }
-    if response.dragged_by(PointerButton::Primary) && alt && !dolly_chord {
+    if response.dragged_by(PointerButton::Primary) && alt && !dolly_chord && !box_input.active {
         ui.data_mut(|data| data.insert_temp(orbit_in_drag, true));
         let delta = constrained(ui, PointerButton::Primary, Vec2::new(delta.x, delta.y));
         // Tumble is refused in orthographic views (PROVISIONAL: Maya's docs state no behaviour
@@ -237,21 +241,24 @@ pub fn capture(
             });
         }
     }
-    if response.dragged_by(PointerButton::Middle) && alt && !dolly_chord {
+    if response.dragged_by(PointerButton::Middle) && alt && !dolly_chord && !box_input.active {
         let delta = constrained(ui, PointerButton::Middle, Vec2::new(delta.x, delta.y));
         navigation.push(Operation::Pan {
             world_units: (Vec2::new(-delta.x, delta.y) * camera.distance() * 0.002).to_array(),
         });
     }
-    if response.dragged_by(PointerButton::Secondary) && alt && !dolly_chord {
+    if response.dragged_by(PointerButton::Secondary) && alt && !dolly_chord && !box_input.active {
         navigation.push(Operation::Dolly {
             factor: (-delta.y * 0.01).exp(),
         });
     }
-    if response.hovered() && scroll != 0.0 {
+    if response.hovered() && scroll != 0.0 && !box_input.active {
         navigation.push(Operation::Dolly {
             factor: (-scroll * 0.002).exp(),
         });
+    }
+    if let Some(operation) = box_input.operation {
+        navigation.push(operation);
     }
     let mut click_ndc = None;
     let mut click_points = None;
@@ -280,6 +287,7 @@ pub fn capture(
         && let Some((point, modifiers)) = released
         && !modifiers.alt
         && !dolly_chord
+        && !box_input.active
         && rect.contains(point)
     {
         let p = (point - rect.min) / rect.size();
@@ -332,6 +340,7 @@ pub fn capture(
         && let Some((end, modifiers)) = released
         && !modifiers.alt
         && !orbiting
+        && !box_input.active
     {
         unsupported_selection = Some(SelectionRefusal::ComponentMarquee);
         if let Some(origin) = origin {
@@ -340,12 +349,15 @@ pub fn capture(
             marquee = Some((rect, modifiers));
         }
     }
-    let marquee_preview =
+    let marquee_preview = if box_input.active {
+        box_input.preview
+    } else {
         (response.dragged_by(PointerButton::Primary) && !alt && !orbiting && !cancelled)
             .then_some(origin)
             .flatten()
             .zip(ui.input(|input| input.pointer.latest_pos()))
-            .map(|(origin, now)| Rect::from_two_pos(rect.clamp(origin), rect.clamp(now)));
+            .map(|(origin, now)| Rect::from_two_pos(rect.clamp(origin), rect.clamp(now)))
+    };
     let move_pointer = ui.input(|input| MovePointer {
         position: input
             .pointer
@@ -355,7 +367,8 @@ pub fn capture(
             && input.pointer.button_pressed(PointerButton::Primary),
         released: input.pointer.button_released(PointerButton::Primary),
         down: input.pointer.button_down(PointerButton::Primary),
-        modified: dolly_chord
+        modified: box_input.active
+            || dolly_chord
             || !input.modifiers.is_none()
             || input.events.iter().any(|event| match event {
                 egui::Event::ModifiersChanged(modifiers)
@@ -384,10 +397,19 @@ pub fn capture(
         marquee,
         marquee_preview,
         navigation,
+        navigation_active: (box_input.active || dolly_chord || alt)
+            && ui.input(|i| {
+                i.pointer.button_down(PointerButton::Primary)
+                    || i.pointer.button_down(PointerButton::Middle)
+                    || i.pointer.button_down(PointerButton::Secondary)
+            }),
     }))
 }
 
 impl ViewportInput {
+    pub fn navigation_active(&self) -> bool {
+        self.navigation_active
+    }
     pub fn aspect(&self) -> f32 {
         self.physical_size[0] as f32 / self.physical_size[1] as f32
     }

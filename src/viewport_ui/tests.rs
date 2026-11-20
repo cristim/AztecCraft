@@ -15,6 +15,13 @@ mod maya_binary {
     ));
 }
 
+fn capture(
+    ui: &mut egui::Ui,
+    camera: &Camera,
+) -> Result<Option<ViewportInput>, InvalidCameraInput> {
+    super::capture(ui, camera, uuid::Uuid::nil())
+}
+
 fn camera() -> Camera {
     Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap()
 }
@@ -1724,5 +1731,131 @@ fn alt_left_middle_dolly_consumes_the_chord_and_release_tails() {
         assert!(input.click_ndc().is_none());
         assert!(input.marquee().is_none());
         assert!(input.move_pointer().modified);
+    }
+}
+
+#[test]
+fn box_dolly_rubber_band_dispatches_without_orbit_selection_or_move_tails() {
+    for cancel in [
+        "none",
+        "escape",
+        "focus",
+        "modifiers",
+        "camera",
+        "token",
+        "pointer",
+        "resize",
+        "modifier_flicker",
+        "after_release",
+        "duplicate_release",
+        "repress",
+    ] {
+        let ctx = egui::Context::default();
+        let mut camera = camera();
+        let chord = Modifiers {
+            ctrl: true,
+            alt: true,
+            ..Modifiers::NONE
+        };
+        let origin = egui::pos2(25.0, 25.0);
+        let end = egui::pos2(85.0, 65.0);
+        let button = |pos, pressed, modifiers| Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers,
+        };
+        capture_frame(
+            &ctx,
+            &camera,
+            raw(0.0, chord, vec![Event::PointerMoved(origin)]),
+            Rect::EVERYTHING,
+        );
+        capture_frame(
+            &ctx,
+            &camera,
+            raw(0.1, chord, vec![button(origin, true, chord)]),
+            Rect::EVERYTHING,
+        );
+        let (mut input, _) = capture_frame(
+            &ctx,
+            &camera,
+            raw(0.2, chord, vec![Event::PointerMoved(end)]),
+            Rect::EVERYTHING,
+        );
+        assert!(input.marquee_preview().is_some(), "{cancel}");
+        assert!(input.take_navigation().is_empty());
+        let mut events = vec![];
+        let modifiers = if cancel == "modifiers" {
+            Modifiers::NONE
+        } else {
+            chord
+        };
+        match cancel {
+            "escape" => events.push(Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: chord,
+            }),
+            "focus" => events.push(Event::WindowFocused(false)),
+            "camera" => camera.dolly(0.8).unwrap(),
+            "pointer" => events.push(Event::PointerGone),
+            "modifier_flicker" => {
+                events.push(Event::ModifiersChanged(Modifiers::NONE));
+                events.push(Event::ModifiersChanged(chord));
+            }
+            _ => {}
+        }
+        let mut captured = None;
+        let token = if cancel == "token" {
+            uuid::Uuid::new_v4()
+        } else {
+            uuid::Uuid::nil()
+        };
+        events.push(button(end, false, modifiers));
+        if cancel == "duplicate_release" {
+            events.push(button(end, false, modifiers));
+        }
+        if cancel == "repress" {
+            events.push(button(end, true, modifiers));
+        }
+        if cancel == "after_release" {
+            events.push(Event::ModifiersChanged(Modifiers::NONE));
+        }
+        let mut release_input = raw(0.3, modifiers, events);
+        if cancel == "resize" {
+            release_input.screen_rect.as_mut().unwrap().max.x += 20.0;
+        }
+        let _ = ctx.run_ui(release_input, |ui| {
+            captured = super::capture(ui, &camera, token).unwrap();
+        });
+        let mut input = captured.unwrap();
+        let operations = input.take_navigation();
+        if cancel == "none" || cancel == "after_release" {
+            assert!(matches!(
+                operations.as_slice(),
+                [Operation::BoxDolly { .. }]
+            ));
+        } else {
+            assert!(operations.is_empty(), "{cancel}");
+        }
+        assert!(input.marquee().is_none(), "{cancel}");
+        assert!(input.click_ndc().is_none(), "{cancel}");
+        assert!(input.move_pointer().modified, "{cancel}");
+        if cancel == "repress" {
+            for (time, events) in [
+                (0.4, vec![Event::PointerMoved(end + egui::vec2(10.0, 10.0))]),
+                (0.5, vec![button(end, false, chord)]),
+            ] {
+                let (mut input, _) =
+                    capture_frame(&ctx, &camera, raw(time, chord, events), Rect::EVERYTHING);
+                assert!(input.take_navigation().is_empty());
+                assert!(input.marquee().is_none());
+                assert!(input.click_ndc().is_none());
+                assert!(input.move_pointer().modified);
+            }
+        }
     }
 }
