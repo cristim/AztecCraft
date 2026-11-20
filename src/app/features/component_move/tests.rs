@@ -393,3 +393,23 @@ fn an_opened_source_bound_scene_refuses_a_component_move_with_the_scene_reason()
     assert!(editor.history.active_manipulation().is_none());
     assert_eq!(editor.history.scene(), &before);
 }
+
+/// The prose of a kind mismatch names a component drag as a "move" (it is a Move); only the
+/// inspection `kind` says `move_components`. Pinned so the two cannot drift apart unnoticed.
+#[test]
+fn a_kind_mismatch_on_a_component_drag_says_move_while_inspection_says_move_components() {
+    let mut editor = cube_with(&[0]);
+    let id = begin(&mut editor);
+    let error = editor
+        .apply_operation(Operation::UpdateManipulation {
+            id,
+            value: crate::editor_operations::ManipulationValue::Degrees(5.0),
+        })
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "An angle does not apply to the active move manipulation"
+    );
+    let inspected = editor.inspect_manipulation().unwrap();
+    assert_eq!(inspected.active.unwrap().kind, "move_components");
+}

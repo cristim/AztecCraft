@@ -216,6 +216,11 @@ enum Pre {
     VertexMode,
     /// Vertex mode with vertex 0 picked: a Move then drags that vertex.
     VertexPick,
+    /// Vertex 0 picked and a native component Move of it begun, so update and finish act on a live
+    /// component drag. Idle and stale-token cells only: other states refuse the begin itself.
+    NativeVertexDrag,
+    /// The same drag begun with remote provenance (naming the current generation).
+    RemoteVertexDrag,
     /// Edge mode with edge 0 picked.
     EdgePick,
     /// Face mode with face 0 picked.
@@ -1262,13 +1267,32 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
-        Operation::UpdateMove { .. } => vec![sample(
-            "update_move",
-            Operation::UpdateMove {
-                id: t.move_id,
-                distance: MoveDistance::Centimeters(1.0),
-            },
-        )],
+        Operation::UpdateMove { .. } => {
+            let mut cells = vec![sample(
+                "update_move",
+                Operation::UpdateMove {
+                    id: t.move_id,
+                    distance: MoveDistance::Centimeters(1.0),
+                },
+            )];
+            for (pre, label) in [
+                (Pre::NativeVertexDrag, "update_move(native_vertex_drag)"),
+                (Pre::RemoteVertexDrag, "update_move(remote_vertex_drag)"),
+            ] {
+                cells.push(Sample {
+                    pre,
+                    only: Some(&[State::Idle, State::StaleToken]),
+                    ..sample(
+                        label,
+                        Operation::UpdateMove {
+                            id: t.move_id,
+                            distance: MoveDistance::Centimeters(1.0),
+                        },
+                    )
+                });
+            }
+            cells
+        }
         Operation::BeginRotate { .. } => vec![
             sample(
                 "begin_rotate(object)",
@@ -1359,13 +1383,32 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
         ],
-        Operation::FinishMove { .. } => vec![sample(
-            "finish_move(commit)",
-            Operation::FinishMove {
-                id: t.move_id,
-                finish: ManipulationFinish::Commit,
-            },
-        )],
+        Operation::FinishMove { .. } => {
+            let mut cells = vec![sample(
+                "finish_move(commit)",
+                Operation::FinishMove {
+                    id: t.move_id,
+                    finish: ManipulationFinish::Commit,
+                },
+            )];
+            for (pre, label) in [
+                (Pre::NativeVertexDrag, "finish_move(native_vertex_drag)"),
+                (Pre::RemoteVertexDrag, "finish_move(remote_vertex_drag)"),
+            ] {
+                cells.push(Sample {
+                    pre,
+                    only: Some(&[State::Idle, State::StaleToken]),
+                    ..sample(
+                        label,
+                        Operation::FinishMove {
+                            id: t.move_id,
+                            finish: ManipulationFinish::Commit,
+                        },
+                    )
+                });
+            }
+            cells
+        }
         Operation::SetMaterialDiffuse { .. } => vec![sample(
             "set_material_diffuse",
             Operation::SetMaterialDiffuse {
@@ -2955,6 +2998,26 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
             .enable_recovery(rig.directory.path().join("recovery"))
             .unwrap(),
         Pre::VertexMode => rig.editor.selection_mode = SelectionMode::Vertex,
+        Pre::NativeVertexDrag | Pre::RemoteVertexDrag => {
+            let vertex = targets(&rig).vertex();
+            rig.editor.set_selection_mode_field(SelectionMode::Vertex);
+            rig.editor.set_remembered_vertex(Some(vertex));
+            let remote = matches!(pre, Pre::RemoteVertexDrag);
+            let generation = rig.editor.selection_generation();
+            let operation = Operation::BeginMove {
+                target: targets(&rig).transform_target(),
+                axis: WorldAxis::X,
+                expected_selection_generation: remote.then_some(generation),
+            };
+            let provenance = if remote {
+                ManipulationProvenance::Remote
+            } else {
+                ManipulationProvenance::Native
+            };
+            rig.editor
+                .apply_operation_guarded(provenance, operation, &|| true)
+                .unwrap();
+        }
         Pre::EdgePick => {
             let edge = targets(&rig).edge();
             rig.editor.set_selection_mode_field(SelectionMode::Edge);

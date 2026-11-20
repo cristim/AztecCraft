@@ -737,10 +737,10 @@ world rotation of a node with non-positive scale, reports the refused handles.
 Inspection reports availability for the tool's current space, while
 `begin_manipulation` takes an explicit `space`, so a caller passing a different
 space can get a different result); the `active` manipulation
-with `manipulation_id`, `kind`, node and instance path, `space`, `axis` or
+(a component Move in Vertex, Edge or Face selection is the exception to the channel fields below: its `kind` is `move_components` with `component_kind` and `vertex_count`, and `channels`, `baseline_channels` and `current_channels` are null; its error texts still say "move") with `manipulation_id`, `kind`, node and instance path, `space`, `axis` or
 `handle`, `provenance`, the `parameter` name, its `value` and `unit` (after a remote update, `value` is the requested number exactly as given, in scene units; after a native drag it is derived from the internal parameter), `channels`
-(`translate`, `rotate` or `scale`) with the stored `baseline_channels` at begin
-and the live `current_channels` (the lead's own channels; all three are null for a component Move, whose `kind` is `move_components` with `component_kind` and `vertex_count`), plus `member_count` and `covered_count` (the selected objects a Move or Scale acts on, and the members that follow a selected ancestor; both are 1 and 0 for Rotate); and `refusal`, the reason the scene refused the
+(`translate`, `rotate` or `scale` for the other kinds) with the stored `baseline_channels` at begin
+and the live `current_channels` (the lead's own channels), plus `member_count` and `covered_count` (the selected objects a Move or Scale acts on, and the members that follow a selected ancestor; both are 1 and 0 for Rotate); and `refusal`, the reason the scene refused the
 last update of the active manipulation (the preview is unchanged), cleared by the
 next accepted update. Its optional `viewport` is explicitly labelled
 `last_native_viewport_capture` and is absent without a current capture or in
