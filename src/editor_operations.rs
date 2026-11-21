@@ -3,6 +3,7 @@ use azteccraft::native_scene::{NativeTransform, ReparentKeep, TransformAttribute
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
+    image_plane::{model::ImagePlaneEdit, ops::ImagePlaneOpError},
     move_handles::ManipulatorSize,
     native_scene::{
         EdgeTarget, FaceTarget, GroupOptions, MoveSpace, NativeError, NativeId, RotateAxis,
@@ -949,6 +950,16 @@ pub enum Operation {
         )
     )]
     SetCameraFilmBack(FilmBackEdit),
+    /// Creates the camera image plane (`image_name` required) or edits it, all or nothing. View
+    /// state like the pose: no undo, not saved, cleared by New and Open. A new `image_name`
+    /// reads the first frame's header (at most 1 MiB); PROVISIONAL: the same name again is
+    /// Unchanged and does not reload the file (remove the plane or change the name to reload).
+    /// Unchanged is judged numerically; an empty edit is refused.
+    #[cfg_attr(not(test), allow(dead_code))] // P6a (the MCP tool) is the first non-test caller
+    SetImagePlane(ImagePlaneEdit),
+    /// Removes the image plane; Unchanged when there is none.
+    #[cfg_attr(not(test), allow(dead_code))] // P6a (the MCP tool) is the first non-test caller
+    RemoveImagePlane,
 }
 
 #[derive(Debug, Serialize)]
@@ -1805,6 +1816,8 @@ pub enum OperationError {
     CameraPose(InvalidCameraPose),
     /// A refused film back edit; names the field.
     FilmBack(InvalidFilmBack),
+    /// A refused image plane edit or first-frame probe; its text never carries a path.
+    ImagePlane(ImagePlaneOpError),
     CameraBookmark(BookmarkError),
     #[cfg(any(test, feature = "mcp"))]
     Recovery(RecoveryFailure),
@@ -1950,6 +1963,7 @@ impl fmt::Display for OperationError {
             Self::Camera(error) => error.fmt(f),
             Self::CameraPose(error) => error.fmt(f),
             Self::FilmBack(error) => error.fmt(f),
+            Self::ImagePlane(error) => error.fmt(f),
             Self::CameraBookmark(error) => error.fmt(f),
 #[cfg(any(test, feature = "mcp"))]
             Self::Recovery(error) => error.fmt(f),

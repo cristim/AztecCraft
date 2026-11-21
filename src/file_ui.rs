@@ -453,6 +453,7 @@ impl Editor {
         self.view_history = Default::default();
         self.native_camera_drag = false;
         self.bookmarks.clear();
+        self.image_plane = None;
         self.status = "Scene ready".into();
         self.error = false;
     }
