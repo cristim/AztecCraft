@@ -23,7 +23,7 @@ use azteccraft::{
     viewport::Lens,
 };
 
-use crate::{app::Editor, viewport_renderer::PlateDraw};
+use crate::{app::Editor, editor_operations::Operation, viewport_renderer::PlateDraw};
 
 /// What the editor last learned about the frame the current time resolves to.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -254,5 +254,40 @@ impl Editor {
             mode: plane.display_mode,
             alpha_gain: plane.alpha_gain,
         })
+    }
+}
+
+/// Why the View > Image Plane > Remove row is disabled, when it is.
+pub(in crate::app) const NO_PLANE_REASON: &str = "There is no image plane to remove";
+/// Why the View > Image Plane > Image Plane Attributes row is disabled until the tab lands.
+pub(in crate::app) const NO_ATTRIBUTES_TAB_REASON: &str =
+    "No Attribute Editor tab yet: the Image Plane tab is not built";
+
+impl Editor {
+    /// View > Image Plane > Import Image: asks for a PNG or JPEG and sets it as the plane's
+    /// image (creating the plane if there is none). The dialog is the only untested part; the
+    /// path then goes through [`Self::run_import_image`].
+    pub(in crate::app) fn import_image_dialog(&mut self) {
+        if self.files.is_modal() {
+            return;
+        }
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title("Import Image")
+            .add_filter("Image", &azteccraft::image_plane::ops::ALLOWED_EXTENSIONS)
+            .pick_file()
+        {
+            self.run_import_image(path);
+        }
+    }
+
+    /// The same typed operation the MCP `set_image_plane` dispatches, so the human guards, the
+    /// pending-draft commit and the refusals are shared; a refusal shows as the status error.
+    pub(in crate::app) fn run_import_image(&mut self, path: std::path::PathBuf) {
+        self.native_operation(Operation::SetImagePlane(
+            azteccraft::image_plane::model::ImagePlaneEdit {
+                image_name: Some(path),
+                ..Default::default()
+            },
+        ));
     }
 }

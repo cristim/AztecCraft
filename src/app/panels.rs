@@ -261,6 +261,8 @@ impl Editor {
         let mut view_requested = None;
         let mut frame_all_requested = false;
         let mut frame_selection_requested = None;
+        let mut import_image_requested = false;
+        let mut remove_image_requested = false;
         ui.horizontal(|ui| {
             ui.label(self.view_name());
             ui.label(match self.selection_mode {
@@ -338,6 +340,38 @@ impl Editor {
                             ui.close();
                         }
                     }
+                    ui.separator();
+                    // View > Image Plane in the Maya panel menu (2022 and 2026 pages; PROVISIONAL
+                    // for 2027). The only camera is the live one, so there is no "no camera" state.
+                    ui.menu_button("Image Plane", |ui| {
+                        if ui.button("Import Image").clicked() {
+                            import_image_requested = true;
+                            ui.close();
+                        }
+                        let tab = ui
+                            .add_enabled(false, egui::Button::new("Image Plane Attributes"))
+                            .on_disabled_hover_text(features::image_plane::NO_ATTRIBUTES_TAB_REASON);
+                        features::primitive_options::describe_unavailable(
+                            ui.ctx(),
+                            tab.id,
+                            features::image_plane::NO_ATTRIBUTES_TAB_REASON,
+                        );
+                        let has_plane = self.image_plane.is_some();
+                        let remove = ui
+                            .add_enabled(has_plane, egui::Button::new("Remove Image Plane"))
+                            .on_disabled_hover_text(features::image_plane::NO_PLANE_REASON);
+                        if !has_plane {
+                            features::primitive_options::describe_unavailable(
+                                ui.ctx(),
+                                remove.id,
+                                features::image_plane::NO_PLANE_REASON,
+                            );
+                        }
+                        if remove.clicked() {
+                            remove_image_requested = true;
+                            ui.close();
+                        }
+                    });
                 });
                 ui.menu_button("Shading", |ui| {
                     for (mode, label) in [
@@ -450,6 +484,12 @@ impl Editor {
             && self.scene_token == frame_token
         {
             self.frame_selected(with_children);
+        }
+        if import_image_requested && self.scene_token == frame_token {
+            self.import_image_dialog();
+        }
+        if remove_image_requested && self.scene_token == frame_token {
+            self.native_operation(Operation::RemoveImagePlane);
         }
         if let Some(mode) = shading_requested
             && self.scene_token == frame_token
