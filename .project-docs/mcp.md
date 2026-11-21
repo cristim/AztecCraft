@@ -591,7 +591,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Modeling | Mesh > Reduce (one undo step; core and MCP only, whole shape or a `faces` region, no Mesh menu item or option box; algorithm PROVISIONAL) | supported | `reduce_mesh` | `shapes` | #462 |
 | Modeling | Extrude face (shelf button and Extrude Options window for one picked face; operation exposed) | supported | `extrude_face` | `shapes` | |
 | Modeling | Construction history and Inputs | unsupported | | | |
-| Nodes | Rename (Channel Box name) | supported | `rename_node` | `nodes` | |
+| Nodes | Rename (Channel Box name and Outliner inline name) | supported | `rename_node` | `nodes` | |
 | Nodes | Parent and Unparent (Edit > Parent, Unparent; Outliner drag) | supported | `parent_node` | `nodes`, `instance_paths`, `selection`, `can_undo`, `undo_label` | core and MCP only: Edit menu and Outliner drag stay unwired until the display is available (#42); keep world and keep local, one undo step, refusals typed |
 | Nodes | Group (Edit > Group, Ctrl/Cmd+G) | supported | `group_selection` | `nodes`, `instance_paths`, `selection`, `can_undo`, `undo_label` | native menu row and chord and MCP dispatch the same `Operation::Group`; options Under Parent or World, Center or Origin pivot and Preserve Position through MCP, defaults only natively; one undo step; Undo leaves the selection empty (PROVISIONAL); authored scenes with a hierarchy cannot be saved or recovered yet (known-issues.md) |
 | Nodes | Ungroup (Edit > Ungroup) | supported | `ungroup_selection` | `nodes`, `instance_paths`, `selection`, `can_undo`, `undo_label` | same operation path; plain groups only; Hierarchy mode and nested groups covered (`src/mcp_tests/official_client/group.rs`) |
