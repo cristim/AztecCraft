@@ -436,6 +436,7 @@ pub(super) fn violations(
     found
 }
 
+mod camera_tab;
 mod gaps;
 mod image_plane_tab;
 mod image_plane_tab_input;
