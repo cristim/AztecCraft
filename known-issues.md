@@ -1998,5 +1998,8 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
   clicked.
 - The Windows > Playblast menu item stays enabled while a job runs: the window opens to show progress and Cancel, and
   the "already running" reason appears on Start.
-- The official-client protocol tests use the fake renderer; only the lib-level `headless_gpu` tests exercise a real
-  adapter.
+- The official-client protocol tests use the fake renderer; only the `headless_gpu` tests exercise a real adapter.
+- The end-to-end `headless_gpu_playblast_*` Editor tests (real `WgpuFrameRenderer`, PNGs read back) do not cover the
+  native window or its surface and colour management, frames larger than 128 x 128 (sizes 64 x 48, 100 x 60 and
+  128 x 128 only), a second adapter family (exact equality is asserted only between renders on one adapter, analytic
+  checks use +-2), or the camera image plane, which is not drawn into playblasts yet. Esc and the menu are unchecked.

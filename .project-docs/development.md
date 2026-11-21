@@ -655,7 +655,10 @@ actual empty-frame and visibility proof explicitly with `cargo test --locked
 --bin azteccraft --features mcp-test-client
 viewport_renderer::tests::headless_gpu_grid_callback_clears_cold_and_warm_empty_frames_and_restores_pixels
 -- --ignored --exact --test-threads=1`. The SDK camera/selection/grid callback
-suite remains part of the explicit `headless_gpu` command above. Native clicks,
+suite remains part of the explicit `headless_gpu` command above. The playblast
+proofs are `headless_gpu_playblast_*` (frame renderer, readback padding, and
+`app::features::playblast::gpu_tests` for the Editor running a real job and a
+mid-job cancel); the same `headless_gpu` command and CI job pick them up. Native clicks,
 window resize, file retention and the eventual Face integration need their own
 exact-build evidence; a passing adapter test does not supply it.
 
