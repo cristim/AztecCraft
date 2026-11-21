@@ -421,7 +421,7 @@ fn the_image_plane_menu_rows_follow_the_plane_state_with_their_reasons() {
     );
     let (disabled, reason) = row(&none, "Image Plane Attributes");
     assert!(
-        disabled && reason.starts_with("Unavailable: No Attribute Editor tab yet"),
+        disabled && reason == "Unavailable: There is no image plane: use Import Image first",
         "{reason}"
     );
 
@@ -431,6 +431,14 @@ fn the_image_plane_menu_rows_follow_the_plane_state_with_their_reasons() {
     some.settle();
     open(&mut some);
     assert_eq!(row(&some, "Remove Image Plane"), (false, String::new()));
-    // The Attributes row stays disabled until the tab lands (P9b-1 switches it on).
-    assert!(row(&some, "Image Plane Attributes").0);
+    assert_eq!(row(&some, "Image Plane Attributes"), (false, String::new()));
+    // Both rows follow the stored plane, not what is drawn: with an orthographic camera nothing
+    // is drawn, and they stay enabled.
+    some.editor.native_operation(Operation::SetView(
+        crate::editor_operations::ViewPreset::Top,
+    ));
+    some.settle();
+    assert!(some.editor.plate_draw().is_none());
+    assert_eq!(row(&some, "Remove Image Plane"), (false, String::new()));
+    assert_eq!(row(&some, "Image Plane Attributes"), (false, String::new()));
 }

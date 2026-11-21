@@ -75,6 +75,8 @@ enum TabKind {
     Transform,
     Shape,
     Material,
+    /// The live camera's image plane (#459): takes no `id`; refused when there is no plane.
+    ImagePlane,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -82,7 +84,8 @@ enum TabKind {
 struct TabInput {
     kind: TabKind,
     /// Decimal id: the selected node for `transform`, a direct shape for `shape` and `material`.
-    id: String,
+    /// Required for those three, and not allowed for `image_plane`.
+    id: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -94,10 +97,23 @@ struct AttributeEditorTabArgs {
 
 fn parse_select_attribute_editor_tab(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let args: AttributeEditorTabArgs = decode(arguments)?;
+    let id = |id: &Option<String>| {
+        id.clone()
+            .ok_or_else(|| ErrorData::invalid_params("tab.id is required for this tab kind", None))
+    };
     let tab = match args.tab.kind {
-        TabKind::Transform => AttributeEditorTab::Transform(node_id(&args.tab.id)?),
-        TabKind::Shape => AttributeEditorTab::Shape(native_id(&args.tab.id)?),
-        TabKind::Material => AttributeEditorTab::Material(native_id(&args.tab.id)?),
+        TabKind::Transform => AttributeEditorTab::Transform(node_id(&id(&args.tab.id)?)?),
+        TabKind::Shape => AttributeEditorTab::Shape(native_id(&id(&args.tab.id)?)?),
+        TabKind::Material => AttributeEditorTab::Material(native_id(&id(&args.tab.id)?)?),
+        TabKind::ImagePlane => {
+            if args.tab.id.is_some() {
+                return Err(ErrorData::invalid_params(
+                    "tab.id is not allowed for the image_plane tab",
+                    None,
+                ));
+            }
+            AttributeEditorTab::ImagePlane
+        }
     };
     Ok(scoped(
         token(&args.scene_token)?,
@@ -148,7 +164,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "select_attribute_editor_tab",
-        description: "Select the Attribute Editor tab for the selected node: transform, a direct shape, or the material of a direct shape; only the first 16 direct shapes have tabs. Session-only and idempotent; does not edit the scene. Refused unless attribute_editor is the active sidebar panel, and refused when the tab does not resolve for the current selection or names a shape beyond the 16th",
+        description: "Select the Attribute Editor tab for the selected node: transform, a direct shape, or the material of a direct shape; only the first 16 direct shapes have tabs. The image_plane tab (kind image_plane, no id) belongs to the camera's image plane and needs no selection, only a plane (set_image_plane); it is refused without one. Session-only and idempotent; does not edit the scene. Refused unless attribute_editor is the active sidebar panel, and refused when the tab does not resolve for the current selection or names a shape beyond the 16th",
         schema: schema::<AttributeEditorTabArgs>,
         parse: parse_select_attribute_editor_tab,
         idempotent: true,

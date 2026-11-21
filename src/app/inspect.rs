@@ -560,15 +560,19 @@ impl Editor {
                 .map(|tab| match tab {
                     AttributeEditorTab::Transform(id) => AttributeEditorTabInspection {
                         kind: "transform",
-                        id: id.to_decimal(),
+                        id: Some(id.to_decimal()),
                     },
                     AttributeEditorTab::Shape(id) => AttributeEditorTabInspection {
                         kind: "shape",
-                        id: id.to_decimal(),
+                        id: Some(id.to_decimal()),
                     },
                     AttributeEditorTab::Material(id) => AttributeEditorTabInspection {
                         kind: "material",
-                        id: id.to_decimal(),
+                        id: Some(id.to_decimal()),
+                    },
+                    AttributeEditorTab::ImagePlane => AttributeEditorTabInspection {
+                        kind: "image_plane",
+                        id: None,
                     },
                 }),
             depth_complete: gpu_healthy,

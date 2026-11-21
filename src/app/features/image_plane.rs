@@ -259,9 +259,14 @@ impl Editor {
 
 /// Why the View > Image Plane > Remove row is disabled, when it is.
 pub(in crate::app) const NO_PLANE_REASON: &str = "There is no image plane to remove";
-/// Why the View > Image Plane > Image Plane Attributes row is disabled until the tab lands.
-pub(in crate::app) const NO_ATTRIBUTES_TAB_REASON: &str =
-    "No Attribute Editor tab yet: the Image Plane tab is not built";
+/// The control and menu names the Import hint points at; the UI builds its widgets from these.
+pub(in crate::app) const MENU_PATH: &str = "View > Image Plane";
+pub(in crate::app) const ATTRIBUTES_ROW_LABEL: &str = "Image Plane Attributes";
+pub(in crate::app) const RESET_COVERAGE_LABEL: &str = "Reset Coverage";
+
+/// Why the View > Image Plane > Image Plane Attributes row is disabled without a plane.
+pub(in crate::app) const NO_PLANE_FOR_TAB_REASON: &str =
+    "There is no image plane: use Import Image first";
 
 impl Editor {
     /// View > Image Plane > Import Image: asks for a PNG or JPEG and sets it as the plane's
@@ -283,11 +288,21 @@ impl Editor {
     /// The same typed operation the MCP `set_image_plane` dispatches, so the human guards, the
     /// pending-draft commit and the refusals are shared; a refusal shows as the status error.
     pub(in crate::app) fn run_import_image(&mut self, path: std::path::PathBuf) {
-        self.native_operation(Operation::SetImagePlane(
+        use azteccraft::image_plane::{model::ImagePlaneError, ops::ImagePlaneOpError};
+        let result = self.native_operation_result(Operation::SetImagePlane(
             azteccraft::image_plane::model::ImagePlaneEdit {
                 image_name: Some(path),
                 ..Default::default()
             },
         ));
+        // The stored coverage no longer fits the new image: say what the UI can do about it.
+        if let Err(crate::editor_operations::OperationError::ImagePlane(
+            ImagePlaneOpError::Model(ImagePlaneError::CoverageOutsideImage { .. }),
+        )) = result
+        {
+            self.status.push_str(&format!(
+                " Use {RESET_COVERAGE_LABEL} in {MENU_PATH} > {ATTRIBUTES_ROW_LABEL}, then import again."
+            ));
+        }
     }
 }

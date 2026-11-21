@@ -40,12 +40,14 @@ pub enum MenuSet {
 }
 
 /// An Attribute Editor tab. Each variant names its owner: the selected transform, or a direct
-/// mesh shape (its own tab, or the material connected to it).
+/// mesh shape (its own tab, or the material connected to it). `ImagePlane` belongs to the live
+/// camera's session image plane (#459), so it needs a plane, not a selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AttributeEditorTab {
     Transform(NodeId),
     Shape(NativeId),
     Material(NativeId),
+    ImagePlane,
 }
 
 /// Which objects `Operation::SelectByRule` selects, after Maya's Select menu rows. All selects
@@ -1481,7 +1483,8 @@ pub struct SidebarPanelsInspection {
 #[cfg(any(test, feature = "mcp"))]
 pub struct AttributeEditorTabInspection {
     pub kind: &'static str,
-    pub id: String,
+    /// The node or shape id; null for the image plane tab, which has no owner id.
+    pub id: Option<String>,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]

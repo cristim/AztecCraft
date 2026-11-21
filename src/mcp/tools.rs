@@ -1865,10 +1865,27 @@ mod tests {
                     AttributeEditorTab::Transform(_) => 0,
                     AttributeEditorTab::Shape(_) => 1,
                     AttributeEditorTab::Material(_) => 2,
+                    AttributeEditorTab::ImagePlane => 3,
                 }
             );
         }
+        // The image plane tab takes no id.
+        let plane = parse_request(
+            "select_attribute_editor_tab",
+            json!({"scene_token": token, "tab": {"kind": "image_plane"}})
+                .as_object()
+                .unwrap()
+                .clone(),
+        )
+        .unwrap();
+        assert!(matches!(
+            plane.operation,
+            Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::ImagePlane
+            }
+        ));
         for arguments in [
+            json!({"scene_token": token, "tab": {"kind": "image_plane", "id": "7"}}),
             json!({"tab": {"kind": "shape", "id": "7"}}),
             json!({"scene_token": token}),
             json!({"scene_token": token, "tab": null}),

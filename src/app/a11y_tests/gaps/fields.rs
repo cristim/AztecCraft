@@ -1,7 +1,6 @@
 //! Recorded violations: fields.
 
 pub(super) const GAPS: &[&str] = &[
-    "attribute-editor-shape|R3|Button|root/<Window>#0/Pin Tab",
     "attribute-editor-transform|R1|ScrollBar|root/<Window>#0/<ScrollBar>#0",
     "attribute-editor-transform|R1|TextInput|channel_edit[0]",
     "attribute-editor-transform|R1|TextInput|channel_edit[1]",
@@ -13,7 +12,6 @@ pub(super) const GAPS: &[&str] = &[
     "attribute-editor-transform|R1|TextInput|channel_edit[7]",
     "attribute-editor-transform|R1|TextInput|channel_edit[8]",
     "attribute-editor-transform|R1|TextInput|name_edit",
-    "attribute-editor-transform|R3|Button|root/<Window>#0/Pin Tab",
     "attribute-editor-transform|R3|Button|root/<Window>#0/on",
     "channel-box-face|R1|ScrollBar|root/<Window>#0/<ScrollBar>#0",
     "channel-box-face|R1|TextInput|channel_edit[0]",

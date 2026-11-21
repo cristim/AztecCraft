@@ -263,6 +263,7 @@ impl Editor {
         let mut frame_selection_requested = None;
         let mut import_image_requested = false;
         let mut remove_image_requested = false;
+        let mut attributes_requested = false;
         ui.horizontal(|ui| {
             ui.label(self.view_name());
             ui.label(match self.selection_mode {
@@ -348,15 +349,21 @@ impl Editor {
                             import_image_requested = true;
                             ui.close();
                         }
-                        let tab = ui
-                            .add_enabled(false, egui::Button::new("Image Plane Attributes"))
-                            .on_disabled_hover_text(features::image_plane::NO_ATTRIBUTES_TAB_REASON);
-                        features::primitive_options::describe_unavailable(
-                            ui.ctx(),
-                            tab.id,
-                            features::image_plane::NO_ATTRIBUTES_TAB_REASON,
-                        );
                         let has_plane = self.image_plane.is_some();
+                        let tab = ui
+                            .add_enabled(has_plane, egui::Button::new(features::image_plane::ATTRIBUTES_ROW_LABEL))
+                            .on_disabled_hover_text(features::image_plane::NO_PLANE_FOR_TAB_REASON);
+                        if !has_plane {
+                            features::primitive_options::describe_unavailable(
+                                ui.ctx(),
+                                tab.id,
+                                features::image_plane::NO_PLANE_FOR_TAB_REASON,
+                            );
+                        }
+                        if tab.clicked() {
+                            attributes_requested = true;
+                            ui.close();
+                        }
                         let remove = ui
                             .add_enabled(has_plane, egui::Button::new("Remove Image Plane"))
                             .on_disabled_hover_text(features::image_plane::NO_PLANE_REASON);
@@ -490,6 +497,15 @@ impl Editor {
         }
         if remove_image_requested && self.scene_token == frame_token {
             self.native_operation(Operation::RemoveImagePlane);
+        }
+        if attributes_requested && self.scene_token == frame_token {
+            self.native_operation(Operation::SetSidebarPanelVisible {
+                panel: SidebarPanel::AttributeEditor,
+                visible: true,
+            });
+            self.native_operation(Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::ImagePlane,
+            });
         }
         if let Some(mode) = shading_requested
             && self.scene_token == frame_token

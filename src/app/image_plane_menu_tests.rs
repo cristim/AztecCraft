@@ -1,9 +1,9 @@
 //! #459 P9a: View > Image Plane > Import Image and Remove Image Plane through the real Editor.
 //! The file dialog is the only untested step (`import_image_dialog`); everything after it is
 //! `run_import_image`, which dispatches the same typed operation as the MCP `set_image_plane`.
-use super::features::image_plane::{NO_ATTRIBUTES_TAB_REASON, NO_PLANE_REASON};
+use super::features::image_plane::{NO_PLANE_FOR_TAB_REASON, NO_PLANE_REASON};
 use super::*;
-use azteccraft::image_plane::model::ImagePlaneEdit;
+use azteccraft::image_plane::model::{ImagePlaneEdit, PlateDisplayMode, PlateFit};
 use azteccraft::scene::Primitive;
 use std::path::{Path, PathBuf};
 
@@ -120,6 +120,11 @@ fn importing_again_replaces_the_image_and_keeps_the_other_settings() {
     editor
         .apply_operation(Operation::SetImagePlane(ImagePlaneEdit {
             depth: Some(250.0),
+            fit: Some(PlateFit::Fill),
+            display_mode: Some(PlateDisplayMode::Luminance),
+            alpha_gain: Some(0.5),
+            frame_offset: Some(3),
+            use_frame_extension: Some(true),
             ..ImagePlaneEdit::default()
         }))
         .unwrap();
@@ -128,6 +133,12 @@ fn importing_again_replaces_the_image_and_keeps_the_other_settings() {
     assert_eq!(state.plane.image_name, second);
     assert_eq!(state.plane.depth, 250.0);
     assert_eq!(state.image_size, (8, 2));
+    // Every other setting survives the new image.
+    assert_eq!(state.plane.fit, PlateFit::Fill);
+    assert_eq!(state.plane.display_mode, PlateDisplayMode::Luminance);
+    assert_eq!(state.plane.alpha_gain, 0.5);
+    assert_eq!(state.plane.frame_offset, 3);
+    assert!(state.plane.use_frame_extension);
 }
 
 #[test]
@@ -148,8 +159,39 @@ fn remove_works_through_the_menu_operation_and_reports_unchanged_without_a_plane
 
 #[test]
 fn the_disabled_rows_carry_path_free_reasons() {
-    for reason in [NO_PLANE_REASON, NO_ATTRIBUTES_TAB_REASON] {
+    for reason in [NO_PLANE_REASON, NO_PLANE_FOR_TAB_REASON] {
         assert!(!reason.is_empty() && !reason.contains('/'), "{reason}");
     }
-    assert!(NO_ATTRIBUTES_TAB_REASON.contains("Attribute Editor"));
+    assert!(NO_PLANE_FOR_TAB_REASON.contains("Import Image"));
+}
+
+#[test]
+fn a_smaller_image_refused_by_the_stored_coverage_names_the_reset_step_the_ui_has() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut editor = Editor::default();
+    editor.run_import_image(png(dir.path(), "big.png", 8, 8));
+    editor
+        .apply_operation(Operation::SetImagePlane(ImagePlaneEdit {
+            coverage: Some(Some(azteccraft::image_plane::model::Coverage {
+                origin_x: 2,
+                origin_y: 2,
+                width: 6,
+                height: 6,
+            })),
+            ..ImagePlaneEdit::default()
+        }))
+        .unwrap();
+    editor.run_import_image(png(dir.path(), "small.png", 4, 4));
+    assert!(editor.error);
+    assert!(
+        editor.status.contains("Reset Coverage"),
+        "{}",
+        editor.status
+    );
+    assert!(
+        editor.status.contains("Image Plane Attributes"),
+        "{}",
+        editor.status
+    );
+    assert_eq!(editor.image_plane.as_ref().unwrap().image_size, (8, 8));
 }
