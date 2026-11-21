@@ -1,11 +1,12 @@
 //! The Select overflow list: rows, availability and dispatch through the Select menu's callers.
 
-use super::layout::mesh_menu;
+use super::layout::{DIAL_RADIUS, LIST_ROW, LIST_WIDTH, dial_centre, list_rect, mesh_menu, pick};
 use super::pass_tests::*;
 use super::*;
+use crate::app::features::move_tool::tests::View;
 use crate::app::menus::SELECT_RULE_COMPONENT_REASON;
 use crate::editor_operations::{Operation, SelectRule, SelectionMode};
-use azteccraft::marking_menu::{Resolved, Target};
+use azteccraft::marking_menu::{Resolved, Target, Zone};
 use azteccraft::scene::Primitive;
 use eframe::egui::{Event, accesskit};
 
@@ -163,4 +164,162 @@ fn unsupported_rows_do_nothing_and_name_themselves() {
             format!("{label}: {label} is not implemented yet")
         );
     }
+}
+
+fn list_center(origin: Pos2, view: &View, row: usize) -> Pos2 {
+    let menu = mesh_menu(SelectionMode::Object, None);
+    let centre = dial_centre([origin.x, origin.y], view.rect);
+    let rect = list_rect(centre, menu.list.len(), view.rect);
+    rect.min + egui::vec2(rect.width() / 2.0, LIST_ROW * (row as f32 + 0.5))
+}
+
+#[test]
+fn the_list_sits_right_of_the_dial_flips_left_near_the_edge_and_stays_in_the_viewport() {
+    let viewport = Rect::from_min_size(Pos2::new(10.0, 20.0), egui::vec2(1000.0, 600.0));
+    let right = list_rect([400.0, 300.0], 8, viewport);
+    assert_eq!(right.min.x, 400.0 + DIAL_RADIUS + 12.0);
+    assert_eq!(right.size(), egui::vec2(LIST_WIDTH, 8.0 * LIST_ROW));
+    assert!(viewport.contains_rect(right));
+    let flipped = list_rect([900.0, 300.0], 8, viewport);
+    assert_eq!(
+        flipped.max.x,
+        900.0 - DIAL_RADIUS - 12.0,
+        "flips to the left"
+    );
+    let high = list_rect([400.0, 21.0], 8, viewport);
+    assert_eq!(high.min.y, 20.0, "shifted down into the viewport");
+    let low = list_rect([400.0, 619.0], 8, viewport);
+    assert_eq!(low.max.y, 620.0, "shifted up into the viewport");
+    let tall = list_rect([400.0, 300.0], 100, viewport);
+    assert_eq!(
+        tall.min.y, 20.0,
+        "a list taller than the viewport starts at its top"
+    );
+    let unbounded = list_rect([5.0, 5.0], 8, Rect::NOTHING);
+    assert_eq!(
+        unbounded.min.x,
+        5.0 + DIAL_RADIUS + 12.0,
+        "no viewport: no clamp"
+    );
+}
+
+#[test]
+fn pick_finds_list_rows_only_for_a_sticky_menu_and_dial_zones_elsewhere() {
+    let (mut editor, ctx, view) = setup();
+    let origin = nowhere(&view);
+    let menu = mesh_menu(SelectionMode::Object, None);
+    at(&mut editor, &ctx, 1.0, rmb(origin, true));
+    let row0 = list_center(origin, &view, 0);
+    let held = pick(&menu, &editor.marking_menu, view.rect, [row0.x, row0.y]);
+    assert_eq!(held, None, "a held menu has no list");
+    at(&mut editor, &ctx, 1.05, rmb(origin, false));
+    assert!(editor.marking_menu.is_sticky());
+    for row in 0..8 {
+        let p = list_center(origin, &view, row);
+        assert_eq!(
+            pick(&menu, &editor.marking_menu, view.rect, [p.x, p.y]),
+            Some(Target::List(row))
+        );
+    }
+    let below = list_center(origin, &view, 8) + egui::vec2(0.0, 1.0);
+    assert_eq!(
+        pick(&menu, &editor.marking_menu, view.rect, [below.x, below.y]),
+        None
+    );
+    let n = origin + offset(Zone::N, 60.0);
+    assert_eq!(
+        pick(&menu, &editor.marking_menu, view.rect, [n.x, n.y]),
+        Some(Target::Zone(Zone::N))
+    );
+    assert_eq!(
+        pick(&menu, &editor.marking_menu, view.rect, [f32::NAN, 0.0]),
+        None
+    );
+}
+
+fn click(editor: &mut Editor, ctx: &egui::Context, at_pos: Pos2, time: f64) {
+    at(editor, ctx, time, lmb(at_pos, true));
+    at(editor, ctx, time + 0.1, lmb(at_pos, false));
+}
+
+#[test]
+fn clicking_a_list_row_runs_it_and_a_disabled_row_keeps_the_menu_open() {
+    let (mut editor, ctx, view) = setup();
+    editor.create(Primitive::Cube);
+    editor.select(None);
+    let first = editor.history.scene().nodes()[0].id();
+    editor.select(Some(first));
+    let origin = nowhere(&view);
+    open_sticky(&mut editor, &ctx, origin);
+    click(&mut editor, &ctx, list_center(origin, &view, 4), 2.0);
+    assert!(
+        editor.marking_menu.is_active(),
+        "Select Similar is unsupported"
+    );
+    assert_eq!(editor.selection.members().len(), 1);
+    assert_eq!(
+        editor.status,
+        "Select Similar: Select Similar is not implemented yet"
+    );
+    click(&mut editor, &ctx, list_center(origin, &view, 0), 3.0);
+    assert_eq!(editor.selection.members().len(), 2, "Select All");
+    assert!(!editor.marking_menu.holds_overlay());
+    // The release that chose the row picked nothing under the list.
+    assert_eq!(editor.selection.members().len(), 2);
+}
+
+#[test]
+fn the_drawn_list_exposes_its_rows_under_the_menu_node() {
+    let (mut editor, ctx, view) = setup();
+    open_sticky(&mut editor, &ctx, nowhere(&view));
+    let output = at(&mut editor, &ctx, 1.1, vec![]);
+    let update = output.platform_output.accesskit_update.unwrap();
+    let by_id: std::collections::HashMap<_, _> = update.nodes.iter().cloned().collect();
+    let (_, menu) = update
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some("Marking menu"))
+        .unwrap();
+    let mut stack = menu.children().to_vec();
+    let mut rows = Vec::new();
+    while let Some(id) = stack.pop() {
+        let node = &by_id[&id];
+        if node.role() == accesskit::Role::MenuItem {
+            rows.push((
+                node.label().unwrap_or_default().to_string(),
+                node.is_disabled(),
+                node.description().map(str::to_string),
+            ));
+        }
+        stack.extend(node.children().iter().copied());
+    }
+    let row = |label: &str| {
+        rows.iter()
+            .find(|r| r.0 == label)
+            .unwrap_or_else(|| panic!("{label}"))
+    };
+    assert_eq!(rows.len(), 7 + 8, "seven dial entries and eight rows");
+    assert!(!row("Select All").1 && row("Select All").2.is_none());
+    assert!(row("Select Similar").1);
+    assert_eq!(
+        row("Select Similar").2.as_deref(),
+        Some("Unavailable: Select Similar is not implemented yet")
+    );
+}
+
+#[test]
+fn hovering_a_disabled_row_shows_its_reason_in_the_help_line() {
+    let (mut editor, ctx, view) = setup();
+    let origin = nowhere(&view);
+    editor.status = "Ready".into();
+    open_sticky(&mut editor, &ctx, origin);
+    at(
+        &mut editor,
+        &ctx,
+        1.2,
+        vec![Event::PointerMoved(list_center(origin, &view, 5))],
+    );
+    assert_eq!(editor.status, "Make Live: Make Live is not implemented yet");
+    at(&mut editor, &ctx, 1.3, vec![Event::PointerMoved(origin)]);
+    assert_eq!(editor.status, "Ready");
 }

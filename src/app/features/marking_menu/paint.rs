@@ -1,9 +1,9 @@
 //! Paint and AccessKit nodes of the drawn dial. The geometry is the hit test's: wedges are the
 //! 45 degree sectors of `zone_at` out to `DIAL_RADIUS`. Original look, no image assets.
 
-use super::layout::{DIAL_RADIUS, MeshAction, hit, hit_origin};
+use super::layout::{DIAL_RADIUS, LIST_ROW, MeshAction, hit_origin, list_rect, pick};
 use super::point;
-use azteccraft::marking_menu::{DEAD_ZONE, Interaction, MarkingMenu, Target, Zone};
+use azteccraft::marking_menu::{DEAD_ZONE, Entry, Interaction, MarkingMenu, Target, Zone};
 use eframe::egui::{
     self, Align2, Color32, FontId, Id, LayerId, Order, Pos2, Rect, Role, Sense, Shape, Stroke,
     Vec2, WidgetInfo,
@@ -69,7 +69,7 @@ pub(super) fn paint(
     let visuals = ctx.global_style().visuals.clone();
     let hovered = ui
         .input(|input| input.pointer.latest_pos())
-        .and_then(|pos| hit(menu, gesture, point(pos)));
+        .and_then(|pos| pick(menu, interaction, viewport, point(pos)));
     let focused = interaction.focused();
     painter.circle_filled(origin, DIAL_RADIUS, Color32::from_black_alpha(215));
     painter.circle_stroke(
@@ -133,23 +133,93 @@ pub(super) fn paint(
             FontId::proportional(13.0),
             colour,
         );
-        // The entries are focusable, non-interactive widgets: the pointer and keys are handled by
-        // `Interaction`, these only give screen readers a name, role, state and reason.
-        let id = entry_id(target);
-        let response = layer_ui.interact(rect, id, Sense::focusable_noninteractive());
         let name = accessible_label(zone, &entry.label, entry.checked);
-        response
-            .widget_info(|| WidgetInfo::selected(Role::MenuItem, enabled, entry.checked, &name));
-        // The default action reaches `Interaction` through the pass, like Enter; egui itself
-        // handles a screen reader's Focus request, and the pass mirrors it into the menu.
-        ctx.accesskit_node_builder(id, |node| {
-            node.add_action(egui::accesskit::Action::Click);
-            if let Some(reason) = entry.disabled_reason() {
-                node.set_description(format!("Unavailable: {reason}"));
-            }
-        });
-        if focused == Some(target) && ctx.memory(|memory| memory.focused()) != Some(id) {
-            ctx.memory_mut(|memory| memory.request_focus(id));
+        expose(&layer_ui, target, rect, &name, entry, focused);
+    }
+    if interaction.is_sticky() {
+        paint_list(
+            ctx,
+            &painter,
+            &layer_ui,
+            interaction,
+            menu,
+            viewport,
+            gesture,
+            hovered,
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn paint_list(
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    layer_ui: &egui::Ui,
+    interaction: &Interaction,
+    menu: &MarkingMenu<MeshAction>,
+    viewport: Rect,
+    centre: [f32; 2],
+    hovered: Option<Target>,
+) {
+    let visuals = ctx.global_style().visuals.clone();
+    let panel = list_rect(centre, menu.list.len(), viewport);
+    painter.rect_filled(panel, 4.0, Color32::from_black_alpha(215));
+    let focused = interaction.focused();
+    for (row, entry) in menu.list.iter().enumerate() {
+        let target = Target::List(row);
+        let enabled = menu.is_enabled(target);
+        let rect = Rect::from_min_size(
+            panel.min + Vec2::new(0.0, LIST_ROW * row as f32),
+            Vec2::new(panel.width(), LIST_ROW),
+        );
+        if hovered == Some(target) || focused == Some(target) {
+            let fill = if enabled {
+                visuals.selection.bg_fill
+            } else {
+                Color32::from_white_alpha(22)
+            };
+            painter.rect_filled(rect, 2.0, fill);
         }
+        let colour = if enabled {
+            Color32::WHITE
+        } else {
+            Color32::from_gray(130)
+        };
+        painter.text(
+            rect.left_center() + Vec2::new(8.0, 0.0),
+            Align2::LEFT_CENTER,
+            &entry.label,
+            FontId::proportional(13.0),
+            colour,
+        );
+        expose(layer_ui, target, rect, &entry.label, entry, focused);
+    }
+}
+
+/// The entries are focusable, non-interactive widgets: the pointer and keys are handled by
+/// `Interaction`; these give screen readers a name, role, state and reason.
+fn expose(
+    layer_ui: &egui::Ui,
+    target: Target,
+    rect: Rect,
+    name: &str,
+    entry: &Entry<MeshAction>,
+    focused: Option<Target>,
+) {
+    let ctx = layer_ui.ctx();
+    let id = entry_id(target);
+    let enabled = entry.disabled_reason().is_none();
+    let response = layer_ui.interact(rect, id, Sense::focusable_noninteractive());
+    response.widget_info(|| WidgetInfo::selected(Role::MenuItem, enabled, entry.checked, name));
+    // The default action reaches `Interaction` through the pass, like Enter; egui itself handles
+    // a screen reader's Focus request, and the pass mirrors it into the menu.
+    ctx.accesskit_node_builder(id, |node| {
+        node.add_action(egui::accesskit::Action::Click);
+        if let Some(reason) = entry.disabled_reason() {
+            node.set_description(format!("Unavailable: {reason}"));
+        }
+    });
+    if focused == Some(target) && ctx.memory(|memory| memory.focused()) != Some(id) {
+        ctx.memory_mut(|memory| memory.request_focus(id));
     }
 }

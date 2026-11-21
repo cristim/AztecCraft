@@ -4,7 +4,7 @@ use crate::app::SelectionModeIntent;
 use crate::app::menus::SELECT_RULE_COMPONENT_REASON;
 use crate::editor_operations::{SelectRule, SelectionMode};
 use azteccraft::marking_menu::{DEAD_ZONE, Entry, Interaction, MarkingMenu, Target, Zone, zone_at};
-use eframe::egui::Rect;
+use eframe::egui::{self, Rect};
 
 /// Points from the press origin to the rim of the dial: a sticky press farther out is "elsewhere".
 pub(in crate::app) const DIAL_RADIUS: f32 = 110.0;
@@ -162,4 +162,58 @@ pub(in crate::app) fn hit_origin(interaction: &Interaction, viewport: Rect) -> O
     } else {
         origin
     })
+}
+
+/// Width and row height of the Select list, and its gap from the dial rim (PROVISIONAL).
+pub(in crate::app) const LIST_WIDTH: f32 = 150.0;
+pub(in crate::app) const LIST_ROW: f32 = 22.0;
+const LIST_GAP: f32 = 12.0;
+
+/// The Select list's rectangle for a sticky dial centred at `centre`: beside the dial on the
+/// right, or on the left when that would leave the viewport, and shifted vertically to stay
+/// inside it (a list taller than the viewport starts at its top).
+pub(in crate::app) fn list_rect(centre: [f32; 2], rows: usize, viewport: Rect) -> Rect {
+    let size = egui::vec2(LIST_WIDTH, LIST_ROW * rows as f32);
+    let mut left = centre[0] + DIAL_RADIUS + LIST_GAP;
+    let mut top = centre[1] - size.y / 2.0;
+    if viewport.is_finite() {
+        if left + size.x > viewport.max.x {
+            left = centre[0] - DIAL_RADIUS - LIST_GAP - size.x;
+        }
+        top = top.min(viewport.max.y - size.y).max(viewport.min.y);
+    }
+    Rect::from_min_size(egui::pos2(left, top), size)
+}
+
+/// The list row under `pos`, if the point is inside the list.
+fn list_row_at(
+    menu: &MarkingMenu<MeshAction>,
+    centre: [f32; 2],
+    viewport: Rect,
+    pos: [f32; 2],
+) -> Option<usize> {
+    let rect = list_rect(centre, menu.list.len(), viewport);
+    let pos = egui::pos2(pos[0], pos[1]);
+    if !pos.is_finite() || !rect.contains(pos) {
+        return None;
+    }
+    let row = ((pos.y - rect.min.y) / LIST_ROW) as usize;
+    (row < menu.list.len()).then_some(row)
+}
+
+/// The entry under `pos`: a list row or a dial zone. Only a sticky menu shows the list; the list
+/// is checked first, since it never overlaps the dial rim.
+pub(in crate::app) fn pick(
+    menu: &MarkingMenu<MeshAction>,
+    interaction: &Interaction,
+    viewport: Rect,
+    pos: [f32; 2],
+) -> Option<Target> {
+    let origin = hit_origin(interaction, viewport)?;
+    if interaction.is_sticky()
+        && let Some(row) = list_row_at(menu, origin, viewport, pos)
+    {
+        return Some(Target::List(row));
+    }
+    hit(menu, origin, pos)
 }

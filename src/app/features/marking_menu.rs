@@ -17,7 +17,7 @@ mod paint;
 use crate::app::{Editor, SelectionModeIntent};
 use azteccraft::marking_menu::{Button, FrameInput, MarkingMenu, NavKey, Outcome, Target};
 use eframe::egui::{self, Event, Key, Modifiers, PointerButton, Pos2, Rect, accesskit};
-use layout::{MeshAction, hit, hit_origin, mesh_menu};
+use layout::{MeshAction, mesh_menu, pick};
 
 /// The keyboard opener: no Maya key is documented (PROVISIONAL), Shift+F10 is the platform's
 /// context-menu chord.
@@ -127,9 +127,7 @@ impl Editor {
             outcomes.push(self.marking_menu.focus_lost());
         }
         for event in &events {
-            let target_at = |origin: Option<[f32; 2]>, pos: Pos2| {
-                origin.and_then(|origin| hit(&menu, origin, point(pos)))
-            };
+            let target_at = |pos: Pos2| pick(&menu, &self.marking_menu, viewport, point(pos));
             match event {
                 Event::PointerButton {
                     pos,
@@ -137,8 +135,7 @@ impl Editor {
                     pressed,
                     modifiers,
                 } => {
-                    let origin = hit_origin(&self.marking_menu, viewport);
-                    let target = target_at(origin, *pos);
+                    let target = target_at(*pos);
                     match (button, pressed) {
                         (PointerButton::Secondary, true)
                             if !self.marking_menu.holds_overlay()
@@ -324,10 +321,9 @@ impl Editor {
     /// comes back when the pointer leaves the entry or the menu closes, and an error message is
     /// never overwritten.
     fn marking_menu_help(&mut self, ui: &egui::Ui, menu: &MarkingMenu<MeshAction>, viewport: Rect) {
-        let under_pointer = hit_origin(&self.marking_menu, viewport).and_then(|origin| {
-            let pos = ui.input(|input| input.pointer.latest_pos())?;
-            hit(menu, origin, point(pos))
-        });
+        let under_pointer = ui
+            .input(|input| input.pointer.latest_pos())
+            .and_then(|pos| pick(menu, &self.marking_menu, viewport, point(pos)));
         let text = self
             .marking_menu
             .focused()

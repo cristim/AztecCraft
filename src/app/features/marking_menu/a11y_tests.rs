@@ -48,7 +48,11 @@ fn the_drawn_dial_exposes_named_stateful_entries_with_reasons() {
                 .unwrap()
                 .starts_with("Unavailable: Component delete")
     );
-    assert_eq!(items.len(), 8, "{items:?}");
+    assert_eq!(
+        items.len(),
+        16,
+        "eight zones and eight list rows: {items:?}"
+    );
 }
 
 #[test]
@@ -140,7 +144,10 @@ fn the_dial_is_a_menu_node_that_parents_its_entries() {
         items += usize::from(node.role() == accesskit::Role::MenuItem);
         stack.extend(node.children().iter().copied());
     }
-    assert_eq!(items, 8, "every entry is a descendant of the menu node");
+    assert_eq!(
+        items, 16,
+        "eight zones and eight rows are descendants of the menu node"
+    );
 }
 
 #[test]
