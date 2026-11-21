@@ -1582,6 +1582,14 @@ pub struct FilmBackInspection {
     /// Degrees.
     pub film_roll_value: f64,
     pub display_film_gate: bool,
+    pub camera_scale: f64,
+    /// Normalized device units (PROVISIONAL).
+    pub film_translate_h: f64,
+    pub film_translate_v: f64,
+    pub horizontal_roll_pivot: f64,
+    pub vertical_roll_pivot: f64,
+    /// `rotate_translate` or `translate_rotate`.
+    pub film_roll_order: &'static str,
 }
 
 /// The only native refusals a key command can report; any other failure has its own `OperationError`

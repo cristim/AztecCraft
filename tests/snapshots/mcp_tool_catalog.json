@@ -4032,7 +4032,7 @@
   },
   {
     "name": "set_camera_film_back",
-    "description": "Edit the live camera's film back in Maya units (camera -e): focal_length mm; horizontal_film_aperture, vertical_film_aperture, film_fit_offset, horizontal_film_offset and vertical_film_offset in inches; film_fit (fill, horizontal, vertical, overscan); lens_squeeze_ratio, overscan, pre_scale, post_scale; film_roll_value in degrees; display_film_gate. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error, code camera_error) leaves every field untouched. Reports changed or unchanged, judged numerically. Allowed in every projection but only the perspective view follows it; a vertical-field-of-view lens becomes a film back with defaults for the fields you do not name. display_film_gate does not change overscan. Session-only; does not edit the scene",
+    "description": "Edit the live camera's film back in Maya units (camera -e): focal_length mm; horizontal_film_aperture, vertical_film_aperture, film_fit_offset, horizontal_film_offset and vertical_film_offset in inches; film_fit (fill, horizontal, vertical, overscan); lens_squeeze_ratio, overscan, pre_scale, post_scale; film_roll_value in degrees; display_film_gate; camera_scale; film_translate_h and film_translate_v and horizontal_roll_pivot and vertical_roll_pivot in normalized device units; film_roll_order (rotate_translate, translate_rotate). The scale direction, NDC units and roll order are PROVISIONAL. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error, code camera_error) leaves every field untouched. Reports changed or unchanged, judged numerically. Allowed in every projection but only the perspective view follows it; a vertical-field-of-view lens becomes a film back with defaults for the fields you do not name. display_film_gate does not change overscan. Session-only; does not edit the scene",
     "inputSchema": {
       "$defs": {
         "FilmFitArg": {
@@ -4044,12 +4044,27 @@
             "overscan"
           ],
           "type": "string"
+        },
+        "FilmRollOrderArg": {
+          "enum": [
+            "rotate_translate",
+            "translate_rotate"
+          ],
+          "type": "string"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "description": "Maya `camera -e` film back attributes in Maya's units; every field is optional (omit or null\nleaves it unchanged) and at least one must be set.",
       "properties": {
+        "camera_scale": {
+          "description": "Camera scale (`cameraScale`), greater than zero; the effective focal length is\n`focal_length * camera_scale` (PROVISIONAL direction).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "display_film_gate": {
           "description": "Draw the film gate (`displayFilmGate`); never changes overscan.",
           "type": [
@@ -4076,8 +4091,35 @@
             "null"
           ]
         },
+        "film_roll_order": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FilmRollOrderArg"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`rotate_translate` or `translate_rotate` (`filmRollOrder`); the ids are PROVISIONAL."
+        },
         "film_roll_value": {
           "description": "Film roll in degrees (`filmRollValue`), exactly as stored.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "film_translate_h": {
+          "description": "Horizontal film translate (`filmTranslateH`), normalized device units (PROVISIONAL unit).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "film_translate_v": {
+          "description": "Vertical film translate (`filmTranslateV`), normalized device units (PROVISIONAL unit).",
           "format": "double",
           "type": [
             "number",
@@ -4102,6 +4144,14 @@
         },
         "horizontal_film_offset": {
           "description": "Horizontal film offset in inches (`horizontalFilmOffset`).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "horizontal_roll_pivot": {
+          "description": "Horizontal film roll pivot (`horizontalRollPivot`), normalized device units (PROVISIONAL).",
           "format": "double",
           "type": [
             "number",
@@ -4153,6 +4203,14 @@
         },
         "vertical_film_offset": {
           "description": "Vertical film offset in inches (`verticalFilmOffset`).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "vertical_roll_pivot": {
+          "description": "Vertical film roll pivot (`verticalRollPivot`), normalized device units (PROVISIONAL).",
           "format": "double",
           "type": [
             "number",

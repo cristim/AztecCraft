@@ -5,7 +5,7 @@ use crate::{
         registry::ToolSpec,
     },
 };
-use azteccraft::viewport::{FilmBackEdit, FilmFit, MAX_PITCH};
+use azteccraft::viewport::{FilmBackEdit, FilmFit, FilmRollOrder, MAX_PITCH};
 use rmcp::{
     model::{ErrorData, JsonObject},
     schemars::{self, JsonSchema},
@@ -96,6 +96,22 @@ impl From<FilmFitArg> for FilmFit {
     }
 }
 
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum FilmRollOrderArg {
+    RotateTranslate,
+    TranslateRotate,
+}
+
+impl From<FilmRollOrderArg> for FilmRollOrder {
+    fn from(order: FilmRollOrderArg) -> Self {
+        match order {
+            FilmRollOrderArg::RotateTranslate => Self::RotateTranslate,
+            FilmRollOrderArg::TranslateRotate => Self::TranslateRotate,
+        }
+    }
+}
+
 /// Maya `camera -e` film back attributes in Maya's units; every field is optional (omit or null
 /// leaves it unchanged) and at least one must be set.
 #[derive(Deserialize, JsonSchema)]
@@ -128,6 +144,19 @@ struct SetCameraFilmBackArgs {
     film_roll_value: Option<f64>,
     /// Draw the film gate (`displayFilmGate`); never changes overscan.
     display_film_gate: Option<bool>,
+    /// Camera scale (`cameraScale`), greater than zero; the effective focal length is
+    /// `focal_length * camera_scale` (PROVISIONAL direction).
+    camera_scale: Option<f64>,
+    /// Horizontal film translate (`filmTranslateH`), normalized device units (PROVISIONAL unit).
+    film_translate_h: Option<f64>,
+    /// Vertical film translate (`filmTranslateV`), normalized device units (PROVISIONAL unit).
+    film_translate_v: Option<f64>,
+    /// Horizontal film roll pivot (`horizontalRollPivot`), normalized device units (PROVISIONAL).
+    horizontal_roll_pivot: Option<f64>,
+    /// Vertical film roll pivot (`verticalRollPivot`), normalized device units (PROVISIONAL).
+    vertical_roll_pivot: Option<f64>,
+    /// `rotate_translate` or `translate_rotate` (`filmRollOrder`); the ids are PROVISIONAL.
+    film_roll_order: Option<FilmRollOrderArg>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -320,7 +349,10 @@ fn parse_set_camera_film_back(arguments: JsonObject) -> Result<RemoteRequest, Er
             film_roll_degrees: args.film_roll_value,
             overscan: args.overscan,
             display_film_gate: args.display_film_gate,
-            ..FilmBackEdit::default()
+            camera_scale: args.camera_scale,
+            film_translate: [args.film_translate_h, args.film_translate_v],
+            film_roll_pivot: [args.horizontal_roll_pivot, args.vertical_roll_pivot],
+            film_roll_order: args.film_roll_order.map(FilmRollOrder::from),
         }),
     ))
 }
@@ -416,7 +448,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_camera_film_back",
-        description: "Edit the live camera's film back in Maya units (camera -e): focal_length mm; horizontal_film_aperture, vertical_film_aperture, film_fit_offset, horizontal_film_offset and vertical_film_offset in inches; film_fit (fill, horizontal, vertical, overscan); lens_squeeze_ratio, overscan, pre_scale, post_scale; film_roll_value in degrees; display_film_gate. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error, code camera_error) leaves every field untouched. Reports changed or unchanged, judged numerically. Allowed in every projection but only the perspective view follows it; a vertical-field-of-view lens becomes a film back with defaults for the fields you do not name. display_film_gate does not change overscan. Session-only; does not edit the scene",
+        description: "Edit the live camera's film back in Maya units (camera -e): focal_length mm; horizontal_film_aperture, vertical_film_aperture, film_fit_offset, horizontal_film_offset and vertical_film_offset in inches; film_fit (fill, horizontal, vertical, overscan); lens_squeeze_ratio, overscan, pre_scale, post_scale; film_roll_value in degrees; display_film_gate; camera_scale; film_translate_h and film_translate_v and horizontal_roll_pivot and vertical_roll_pivot in normalized device units; film_roll_order (rotate_translate, translate_rotate). The scale direction, NDC units and roll order are PROVISIONAL. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error, code camera_error) leaves every field untouched. Reports changed or unchanged, judged numerically. Allowed in every projection but only the perspective view follows it; a vertical-field-of-view lens becomes a film back with defaults for the fields you do not name. display_film_gate does not change overscan. Session-only; does not edit the scene",
         schema: schema::<SetCameraFilmBackArgs>,
         parse: parse_set_camera_film_back,
         idempotent: true,

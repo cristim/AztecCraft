@@ -1,6 +1,6 @@
 use super::camera::inspected_camera;
 use super::*;
-use azteccraft::viewport::{FilmBack, FilmFit, Lens};
+use azteccraft::viewport::{FilmBack, FilmFit, FilmRollOrder, Lens};
 
 fn film(editor: &Editor) -> FilmBack {
     match editor.camera.lens() {
@@ -24,6 +24,12 @@ fn bits(film: &FilmBack) -> Vec<u64> {
         film.film_roll_degrees.to_bits(),
         film.overscan.to_bits(),
         u64::from(film.display_film_gate),
+        film.camera_scale.to_bits(),
+        film.film_translate[0].to_bits(),
+        film.film_translate[1].to_bits(),
+        film.film_roll_pivot[0].to_bits(),
+        film.film_roll_pivot[1].to_bits(),
+        film.film_roll_order as u64,
     ]
 }
 
@@ -50,6 +56,12 @@ fn every_field(token: &str) -> Value {
         "post_scale": 0.9,
         "film_roll_value": 33.3,
         "display_film_gate": true,
+        "camera_scale": 1.25,
+        "film_translate_h": 0.0625,
+        "film_translate_v": -0.125,
+        "horizontal_roll_pivot": 0.25,
+        "vertical_roll_pivot": -0.375,
+        "film_roll_order": "translate_rotate",
     })
 }
 
@@ -87,7 +99,10 @@ async fn sdk_set_camera_film_back_sets_each_field_exactly_and_edits_only_the_nam
         film_roll_degrees: 33.3,
         overscan: 1.2,
         display_film_gate: true,
-        ..FilmBack::DEFAULT
+        camera_scale: 1.25,
+        film_translate: [0.0625, -0.125],
+        film_roll_pivot: [0.25, -0.375],
+        film_roll_order: FilmRollOrder::TranslateRotate,
     };
     assert_eq!(bits(&film(&editor)), bits(&expected));
 
@@ -196,6 +211,25 @@ async fn sdk_set_camera_film_back_refusals_name_the_field_and_leave_the_camera_b
             "pre_scale",
         ),
         (json!({"focal_length": 80, "overscan": 0}), "overscan"),
+        (json!({"camera_scale": 0}), "camera_scale"),
+        (json!({"camera_scale": -2}), "camera_scale"),
+        (json!({"camera_scale": 1e7}), "camera_scale"),
+        (json!({"camera_scale": 1e-7}), "camera_scale"),
+        (json!({"camera_scale": 1e6}), "angle_of_view"),
+        (json!({"film_translate_h": 1e300}), "film_translate_h"),
+        (json!({"film_translate_v": -100001}), "film_translate_v"),
+        (
+            json!({"horizontal_roll_pivot": 1e5 + 1.0}),
+            "horizontal_roll_pivot",
+        ),
+        (
+            json!({"vertical_roll_pivot": -1e300}),
+            "vertical_roll_pivot",
+        ),
+        (
+            json!({"focal_length": 80, "film_roll_order": "rotate_translate", "film_translate_h": 1e9}),
+            "film_translate_h",
+        ),
         (json!({}), "no_fields"),
         (json!({"focal_length": null}), "no_fields"),
     ] {
@@ -223,6 +257,12 @@ async fn sdk_set_camera_film_back_refusals_name_the_field_and_leave_the_camera_b
     for arguments in [
         json!({"scene_token": text, "film_fit": "Fill"}),
         json!({"scene_token": text, "film_fit": "back"}),
+        json!({"scene_token": text, "film_roll_order": "Rotate-Translate"}),
+        json!({"scene_token": text, "film_roll_order": 1}),
+        json!({"scene_token": text, "camera_scale": "2"}),
+        json!({"scene_token": text, "film_translate_h": "NaN"}),
+        json!({"scene_token": text, "film_translate": [0.1, 0.2]}),
+        json!({"scene_token": text, "horizontal_film_translate": 0.1}),
         json!({"scene_token": text, "focal_length": "NaN"}),
         json!({"scene_token": text, "focal_length": [35]}),
         json!({"scene_token": text, "display_film_gate": 1}),
@@ -413,6 +453,12 @@ async fn sdk_inspect_scene_reads_back_every_film_back_field_exactly() {
             "post_scale": 1.0,
             "film_roll_value": 0.0,
             "display_film_gate": false,
+            "camera_scale": 1.0,
+            "film_translate_h": 0.0,
+            "film_translate_v": 0.0,
+            "horizontal_roll_pivot": 0.0,
+            "vertical_roll_pivot": 0.0,
+            "film_roll_order": "rotate_translate",
         })
     );
 

@@ -514,10 +514,10 @@ fraction other objects get. There is no per-camera near clip control (Maya expos
 Plane on the camera); a Camera Attributes near-clip setting is the candidate, not built.
 The default lens is film-fit (development.md row 25). The viewport models the four film fits,
 lens squeeze (as an effective horizontal aperture), overscan, film offset, Film Fit Offset, pre
-and post scale and film roll through `FilmBack`; camera scale, roll pivot and roll order are not
-modelled. Until the operation, Attribute Editor and MCP tasks (#458 T2 onward) land, nothing can
-change the film back, so the focal length, aperture and every other field stay at their
-defaults. Every film formula, the Fill threshold, the Fill default and treating the viewport
+and post scale, film roll, camera scale, Film Translate, Film Roll Pivot and Film Roll Order
+through `FilmBack` (the last four PROVISIONAL, row 25). Frame All and Frame Selected still
+ignore pre and post scale, roll, translate and pivot. Only the MCP `set_camera_film_back` edits
+the film back; the Attribute Editor Camera tab (#458) is not built, so no native control exists. Every film formula, the Fill threshold, the Fill default and treating the viewport
 aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
 1.21x (aspect <= 1.5) to 1.43x (16:9) faster than under the old 45 degrees; it is not

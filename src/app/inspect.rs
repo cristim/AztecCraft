@@ -686,6 +686,19 @@ impl Editor {
                             post_scale: film.post_scale,
                             film_roll_value: film.film_roll_degrees,
                             display_film_gate: film.display_film_gate,
+                            camera_scale: film.camera_scale,
+                            film_translate_h: film.film_translate[0],
+                            film_translate_v: film.film_translate[1],
+                            horizontal_roll_pivot: film.film_roll_pivot[0],
+                            vertical_roll_pivot: film.film_roll_pivot[1],
+                            film_roll_order: match film.film_roll_order {
+                                azteccraft::viewport::FilmRollOrder::RotateTranslate => {
+                                    "rotate_translate"
+                                }
+                                azteccraft::viewport::FilmRollOrder::TranslateRotate => {
+                                    "translate_rotate"
+                                }
+                            },
                         })
                     }
                     azteccraft::viewport::Lens::VerticalFov(_) => None,
