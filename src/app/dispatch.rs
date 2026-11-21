@@ -200,6 +200,9 @@ impl Editor {
             | Operation::SetPlaybackRange { .. }
             | Operation::Play
             | Operation::Stop => None,
+            // Without a line of its own a success would leave an earlier refusal on screen.
+            Operation::SetImagePlane(_) => Some("Image plane set"),
+            Operation::RemoveImagePlane => Some("Image plane removed"),
             Operation::SetKeyframe { .. } => Some("Key set"),
             Operation::DeleteKeys { .. } => Some("Keys deleted"),
             Operation::EulerFilter { .. } => Some("Euler filter applied"),
@@ -214,8 +217,6 @@ impl Editor {
             | Operation::DefaultView
             | Operation::SetCameraPose { .. }
             | Operation::SetCameraFilmBack(_)
-            | Operation::SetImagePlane(_)
-            | Operation::RemoveImagePlane
             | Operation::CreateCameraBookmark { .. }
             | Operation::RenameCameraBookmark { .. }
             | Operation::DeleteCameraBookmark { .. }
