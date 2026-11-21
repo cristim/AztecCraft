@@ -541,7 +541,13 @@ sphere angle by the roll and scales, and widen the distance until every point is
 (PROVISIONAL). The sphere angle ignores overscan, but the widening projects through the real
 film, so an overscan below 1 also widens. When the widening cannot converge (rounding at
 extreme coordinates, or more than 1000 times the sphere distance) the framing silently keeps the
-sphere distance and may leave points outside the view; nothing reports it yet. Only the MCP `set_camera_film_back` edits
+sphere distance and may leave points outside the view; nothing reports it yet. `NativeScene` also holds per-camera film back overrides (#458 S2a). The store is independent of
+the live viewport lens that `set_camera_film_back` edits, so the two can differ until the editor
+wires them together (S2b); nothing writes the store yet, the authored `.ma` and `.mb` writers
+refuse a scene that holds an override (`camera_override`), and an opened file refuses the edit,
+until persistence lands. The persistence slices must tell an explicit statement of the default
+values in a file from an unstated camera: the store drops an override equal to the defaults, so
+saving would otherwise lose a file's explicit statement. Only the MCP `set_camera_film_back` edits
 the film back; the Attribute Editor Camera tab (#458) is not built, so no native control exists. Every film formula, the Fill threshold, the Fill default and treating the viewport
 aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about

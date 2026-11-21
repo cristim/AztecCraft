@@ -193,6 +193,11 @@ impl FilmBack {
         Ok(())
     }
 
+    /// Equal bit for bit, so a `-0.0` differs from `0.0` (unlike `==`).
+    pub fn same_bits(&self, other: &Self) -> bool {
+        self.bits() == other.bits()
+    }
+
     fn bits(&self) -> [u64; 19] {
         [
             self.focal_mm.to_bits(),

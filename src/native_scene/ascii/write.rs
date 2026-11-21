@@ -85,6 +85,7 @@ pub enum AsciiWriteRefusal {
     Joints,
     SessionMaterials,
     Keys,
+    CameraOverride,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -119,6 +120,9 @@ impl fmt::Display for AsciiWriteRefusal {
                 "the session material table is not one the authored layout can carry"
             }
             Self::Keys => "session keys are not saved",
+            Self::CameraOverride => {
+                "a camera film back is not saved to a Maya file yet; reset it to the defaults to save"
+            }
             Self::InvalidScene(error) => return error.fmt(f),
             Self::UnsupportedUnits => "only centimeter, degree and film units are supported",
             Self::NonAuthoredHierarchy => "only flat transform-over-mesh ownership is supported",
@@ -311,6 +315,8 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
         session_joints: _,
         session_uvs: _,
         session_keys: _,
+        // Refused by `check_content_kind` (`CameraOverride`) until the codecs persist it.
+        cameras: _,
     } = scene;
     Ok(())
 }
@@ -344,6 +350,7 @@ impl From<AuthoredIneligible> for AsciiWriteRefusal {
             I::Curves => Self::Curves,
             I::Joints => Self::Joints,
             I::Keys => Self::Keys,
+            I::CameraOverride => Self::CameraOverride,
             I::InvalidScene(error) => Self::InvalidScene(error),
             I::UnsupportedUnits => Self::UnsupportedUnits,
             I::NonAuthoredHierarchy => Self::NonAuthoredHierarchy,

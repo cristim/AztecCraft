@@ -3,6 +3,7 @@ mod appearance;
 pub mod ascii;
 mod authored;
 pub mod binary;
+mod camera;
 mod component_move;
 mod curve;
 mod group;
@@ -29,6 +30,8 @@ pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
     MaterialShader,
 };
+use camera::CameraStore;
+pub use camera::SceneCamera;
 pub use component_move::{ComponentMoveFrame, MAX_MOVED_VERTICES, VertexBaseline};
 pub use curve::{CurveForm, NativeCurveShape};
 pub use group::{GroupOptions, GroupPivot, GroupUnder};
@@ -617,6 +620,8 @@ pub struct NativeScene {
     session_joints: SessionJoints,
     session_keys: SessionKeys,
     session_uvs: SessionUvs,
+    /// Film back overrides of the built-in cameras (#458); not persisted yet.
+    cameras: CameraStore,
     /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
     removed: Vec<NativeId>,
     /// Inert `file -r` declarations from a parsed ASCII source (#440); never loaded or saved.
@@ -780,6 +785,7 @@ impl PartialEq for NativeScene {
             && self.session_joints == other.session_joints
             && self.session_keys == other.session_keys
             && self.session_uvs == other.session_uvs
+            && self.cameras == other.cameras
             && self.removed == other.removed
     }
 }
@@ -799,6 +805,7 @@ impl Default for NativeScene {
             session_joints: SessionJoints::default(),
             session_keys: SessionKeys::default(),
             session_uvs: SessionUvs::default(),
+            cameras: CameraStore::default(),
             removed: Vec::new(),
             references: Vec::new(),
             next_id: 1,
@@ -2370,6 +2377,10 @@ pub enum NativeError {
     /// An edit that leaves a node's world geometry outside the range the view draws in (f32).
     WorldOutOfRange,
     InvalidSessionKeys,
+    /// A film back value the camera store refuses; names the first offending field.
+    InvalidFilmBack(&'static str),
+    /// The scene was opened from a file whose camera attributes the editor cannot yet write back.
+    SourcedCameraEdit,
     InvalidFrame,
     InvalidPlaybackRange,
     KeyLimit,
@@ -2478,6 +2489,11 @@ impl fmt::Display for NativeError {
                  use smaller translation, scale or pivot values",
             ),
             Self::InvalidSessionKeys => f.write_str("invalid session key table"),
+            Self::InvalidFilmBack(field) => write!(f, "invalid camera film back field {field}"),
+            Self::SourcedCameraEdit => f.write_str(
+                "camera film back edits are not written back to an opened Maya file yet; \
+                 edit a new scene",
+            ),
             Self::InvalidFrame => write!(
                 f,
                 "a time must be a whole frame from {} through {}",

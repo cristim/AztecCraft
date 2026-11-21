@@ -133,6 +133,8 @@ impl From<AuthoredIneligible> for MayaImportRefusal {
             A::NameCollision => Self::InvalidScene,
             A::Curves => Self::Curves,
             A::Keys => Self::Keys,
+            // An import never creates a camera override.
+            A::CameraOverride => Self::InvalidScene,
             // An import builds a flat authored scene and never creates session joints.
             A::Joints => Self::InvalidScene,
             A::SessionUvs => Self::SessionUvs,

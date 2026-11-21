@@ -49,6 +49,8 @@ pub(crate) enum AuthoredIneligible {
     Curves,
     Joints,
     Keys,
+    /// A camera film back override: not saved to a Maya file yet (#458).
+    CameraOverride,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -110,6 +112,9 @@ pub(super) fn check_content_kind(
     }
     if scene.has_joints() {
         return Err(AuthoredIneligible::Joints);
+    }
+    if scene.has_camera_overrides() {
+        return Err(AuthoredIneligible::CameraOverride);
     }
     if !scene.session_keys.is_empty() {
         return Err(AuthoredIneligible::Keys);

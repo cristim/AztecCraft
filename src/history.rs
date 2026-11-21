@@ -169,6 +169,11 @@ pub enum Command {
     ImportObjects(Box<ObjImportPlan>),
     /// Adds the meshes of a parsed Maya scene as one undo step, with the same view admission.
     ImportMaya(Box<MayaImportPlan>),
+    /// A whole film back for one built-in camera (#458); the scene refuses a sourced scene.
+    SetCameraFilmBack {
+        camera: crate::native_scene::SceneCamera,
+        film: crate::viewport::FilmBack,
+    },
 }
 
 impl Command {
@@ -215,6 +220,8 @@ impl Command {
             Self::ReduceMesh { .. } => "Reduce".to_string(),
             // PROVISIONAL: Maya's docs name no undo entries.
             Self::ImportObjects(_) | Self::ImportMaya(_) => "Import".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::SetCameraFilmBack { .. } => "Camera".to_string(),
         }
     }
 }
@@ -694,6 +701,10 @@ impl History {
             }
             Command::SetMaterialDiffuse { shape, value } => {
                 candidate.set_material_diffuse(shape, value)?;
+                EditOutcome::Changed
+            }
+            Command::SetCameraFilmBack { camera, film } => {
+                candidate.set_camera_film_back(camera, film)?;
                 EditOutcome::Changed
             }
             Command::CreateSessionMaterial { color } => {

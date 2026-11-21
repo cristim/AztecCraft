@@ -143,6 +143,8 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         // none reach this writer.
         session_joints: _,
         session_keys: _,
+        // Refused by `check_content_kind` (`CameraOverride`) until the codecs persist it.
+        cameras: _,
     } = scene;
     if *session_materials != SessionMaterials::default() {
         return Err(AuthoredBinaryRefusal::SessionMaterials);
