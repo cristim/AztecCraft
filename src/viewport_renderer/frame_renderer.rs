@@ -1,19 +1,11 @@
 //! The wgpu [`FrameRenderer`] of the playblast (#460): the viewport camera through the window's
 //! own `Submission` path, drawn offscreen on the window's device and read back as RGBA8.
-#![cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "the Editor playblast operation is the first caller (#460)"
-    )
-)]
 use super::offscreen::{check_size, read_back};
 use super::{
     GpuResources, RenderError, SelectionFeedback, ShadingMode, Submission, ViewportRenderer, wgpu,
 };
 use azteccraft::{
-    playblast::{FrameRenderer, PlayblastError},
-    view_scene::ViewScene,
+    playblast::{FrameRenderer, PlayblastError, SceneAt},
     viewport::Camera,
 };
 
@@ -111,8 +103,6 @@ impl OffscreenRenderer {
         read_back(&self.device, &self.queue, &color, size)
     }
 }
-
-pub(super) type SceneAt = Box<dyn FnMut(i64) -> Result<ViewScene, PlayblastError> + Send>;
 
 /// Renders the viewport camera at each requested frame through the same [`Submission`] code
 /// as the window, on the window's device and queue (no second wgpu device).

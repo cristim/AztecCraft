@@ -25,6 +25,8 @@ pub(in crate::app) use group_edit::{GROUP_OPTIONS_REASON, UNGROUP_OPTIONS_REASON
 pub(in crate::app) use node_edit::NameStyle;
 pub(in crate::app) use session_material::colour_edit_id;
 pub(in crate::app) mod marquee;
+#[cfg(any(test, feature = "mcp"))]
+pub(in crate::app) mod playblast;
 pub(in crate::app) mod primitive_options;
 pub(in crate::app) mod rigging;
 pub(in crate::app) mod rotate_step;

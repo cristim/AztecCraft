@@ -2876,6 +2876,8 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             },
         )],
         Operation::SetCameraFilmBack(_) => vec![sample("set_camera_film_back", film_back_edit())],
+        // Sampled in the commit that adds the playblast progress to the inspection.
+        Operation::Playblast(_) => vec![],
     }
 }
 

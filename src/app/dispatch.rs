@@ -252,7 +252,9 @@ impl Editor {
             | Operation::ExportObj { .. }
             | Operation::ResolveFileAction { .. } => None,
             #[cfg(any(test, feature = "mcp"))]
-            Operation::ExportGltf { .. } | Operation::ExportUsd { .. } => None,
+            Operation::ExportGltf { .. }
+            | Operation::ExportUsd { .. }
+            | Operation::Playblast(_) => None,
             _ => Some("Scene edited"),
         };
         StatusFeedback {
@@ -644,6 +646,10 @@ impl Editor {
         #[cfg(any(test, feature = "mcp"))]
         if let Operation::ExportGltf { path, .. } = &operation {
             super::features::gltf_export::validate_export_path(path)?;
+        }
+        #[cfg(any(test, feature = "mcp"))]
+        if matches!(operation, Operation::Playblast(_)) && self.files.is_modal() {
+            return Err(OperationError::BusyEditing);
         }
         #[cfg(any(test, feature = "mcp"))]
         if let Operation::ImportMaya { path, .. } = &operation {
@@ -1627,6 +1633,8 @@ impl Editor {
                 path,
                 selection_only,
             } => return self.export_usd(&path, selection_only, may_install),
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::Playblast(request) => return self.start_playblast(request),
 
             Operation::SetCameraPose {
                 target,

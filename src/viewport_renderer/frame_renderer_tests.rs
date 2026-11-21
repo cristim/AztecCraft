@@ -1,7 +1,7 @@
 use super::*;
 use crate::viewport_renderer::tests::{Offscreen, creation_context, device_setup, renderer_handle};
 use azteccraft::{
-    native_scene::NativeScene, scene::Primitive, view_scene::ViewScene,
+    native_scene::NativeScene, playblast::SceneAt, scene::Primitive, view_scene::ViewScene,
     viewport::InvalidCameraInput,
 };
 use glam::Vec3;
