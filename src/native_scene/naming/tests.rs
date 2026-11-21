@@ -228,7 +228,7 @@ fn replace_is_atomic_when_the_third_match_clashes() {
 }
 
 #[test]
-fn swapping_two_names_through_replace_is_a_collision_not_a_silent_merge() {
+fn two_names_that_become_equal_are_a_collision_not_a_silent_merge() {
     let mut scene = NativeScene::default();
     let a = cube(&mut scene, "ab");
     let b = cube(&mut scene, "ba");
@@ -237,6 +237,110 @@ fn swapping_two_names_through_replace_is_a_collision_not_a_silent_merge() {
         scene.search_replace_names(&[a, b], false, "a", "b", true),
         Err(NativeError::NameCollision)
     );
+}
+
+#[test]
+fn a_chain_that_frees_the_name_it_takes_is_applied_whatever_the_order() {
+    // aaa -> aa and aa -> a: the final names are unique, so the edit applies although aaa takes
+    // the name aa still holds when the edit starts. A search and replace cannot swap two names
+    // (one search, one replacement), so a chain is the case. The derived shape names follow the
+    // same final names, whichever node is listed or stored first.
+    let run = |reverse: bool| {
+        let mut scene = NativeScene::default();
+        let (x, y) = (cube(&mut scene, "aaa"), cube(&mut scene, "aa"));
+        let ids = if reverse { [y, x] } else { [x, y] };
+        scene
+            .search_replace_names(&ids, false, "aa", "a", true)
+            .unwrap();
+        (name(&scene, x), name(&scene, y), shape_names(&scene))
+    };
+    let forward = run(false);
+    assert_eq!(
+        forward,
+        (
+            "aa".into(),
+            "a".into(),
+            vec!["aaShape".into(), "aShape".into()]
+        )
+    );
+    assert_eq!(run(true), forward);
+    let mut reversed = NativeScene::default();
+    let (y, x) = (cube(&mut reversed, "aa"), cube(&mut reversed, "aaa"));
+    reversed
+        .search_replace_names(&[x, y], false, "aa", "a", true)
+        .unwrap();
+    assert_eq!(names(&reversed), ["a", "aa"]);
+    assert_eq!(shape_names(&reversed), ["aShape", "aaShape"]);
+}
+
+#[test]
+fn a_node_name_that_equals_a_derived_shape_name_is_a_collision_and_changes_nothing() {
+    // Dropping the Q makes node aShape and the shape of node aQ (aQShape -> aShape) equal.
+    let mut scene = NativeScene::default();
+    let a = cube(&mut scene, "aQ");
+    let b = cube(&mut scene, "aShapeQ");
+    let before = scene.clone();
+    assert_eq!(
+        scene.search_replace_names(&[a, b], false, "Q", "", true),
+        Err(NativeError::NameCollision)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn a_prefix_whose_derived_shape_name_is_another_node_is_a_collision() {
+    let mut scene = NativeScene::default();
+    let a = cube(&mut scene, "a");
+    cube(&mut scene, "paShape");
+    let before = scene.clone();
+    // Node a becomes pa, whose shape would become paShape: the name of the other node.
+    assert_eq!(
+        scene.prefix_hierarchy_names(&[a], "p"),
+        Err(NativeError::NameCollision)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn a_successful_edit_leaves_names_the_authored_check_accepts() {
+    let (mut scene, root, ..) = family();
+    scene.prefix_hierarchy_names(&[root], "n_").unwrap();
+    scene
+        .search_replace_names(&[root], true, "n_", "", true)
+        .unwrap();
+    scene
+        .search_replace_names(&[root], true, "oo", "ee", true)
+        .unwrap();
+    crate::native_scene::authored::check_names(&scene).unwrap();
+    let mut chain = NativeScene::default();
+    let (x, y) = (cube(&mut chain, "aaa"), cube(&mut chain, "aa"));
+    chain
+        .search_replace_names(&[x, y], false, "aa", "a", true)
+        .unwrap();
+    crate::native_scene::authored::check_names(&chain).unwrap();
+}
+
+#[test]
+fn a_result_name_over_the_cap_is_invalid_and_changes_nothing() {
+    let mut scene = NativeScene::default();
+    let id = cube(&mut scene, "ab");
+    let before = scene.clone();
+    // The node name would fit, but its derived shape name (five bytes longer) would not.
+    let shape_over = "a".repeat(MAX_RESULT_NAME_BYTES - 6);
+    let over = "a".repeat(MAX_RESULT_NAME_BYTES - 1);
+    let replace_over = "b".repeat(MAX_RESULT_NAME_BYTES);
+    for got in [
+        scene.prefix_hierarchy_names(&[id], &over),
+        scene.prefix_hierarchy_names(&[id], &shape_over),
+        scene.search_replace_names(&[id], false, "b", &replace_over, true),
+    ] {
+        assert_eq!(got, Err(NativeError::InvalidName));
+        assert_eq!(scene, before);
+    }
+    let fits = "a".repeat(MAX_RESULT_NAME_BYTES - 7);
+    scene.prefix_hierarchy_names(&[id], &fits).unwrap();
+    assert_eq!(name(&scene, id).len(), MAX_RESULT_NAME_BYTES - 5);
+    assert_eq!(shape_names(&scene)[0].len(), MAX_RESULT_NAME_BYTES);
 }
 
 #[test]
