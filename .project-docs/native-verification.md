@@ -377,3 +377,11 @@ disabled option box, choose an `.obj` file in the panel, look at the selected im
 objects and undo them. The same applies to File > Export All and Export Selection (default
 name `untitled.obj`, `.obj` appended, occupied destination refused). The step list lives in
 `known-issues.md`; nothing here is a Maya comparison.
+
+## Linux Maya Binary Save and Save As (#14)
+
+Ran the [default Linux x86_64 archive](https://github.com/cristim/AztecCraft/actions/runs/44890134828) at `927fcc5d869d65a2412c53e2b0886d10a73fac47` on Omarchy 4.5.0 with isolated X11/Xvfb and the GTK file portal. Open refused a scratch copy of the public gt-tools `dummy_mesh.mb` fixture (SHA-256 `9eb842b4568ec5324b52f50dfb1ce792133946269d1e9d85d405dc645cd229c3`) as unsupported at byte 345044. The previous scene stayed open.
+
+Created a synthetic cube, used the Maya binary format in Save As, set Translate X to 2.5 in the Channel Box and used Save. Started a new scene and reopened the binary through the native picker. The Channel Box showed Translate X 2.5. Save As to a second filename left the source byte-identical and produced an identical copy. An independent byte check found the FOR8 Maya header and the big-endian double for 2.5 at byte 391. Both saved files had SHA-256 `25d76aa9a7ef197c63ad756f023570f7c32b416a0e464af4b32d3225f86f922f`.
+
+This covers the native authored-cube binary round trip and unchanged Save As. The pinned Maya runtime read, sourced-scene edit coverage, source-change handling and uncertain-write reconciliation remain open.
