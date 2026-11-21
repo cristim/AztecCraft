@@ -821,6 +821,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             color: [0.0, 1.0, 0.0],
         },
         Operation::SetCurrentTime { time: 5.0 },
+        Operation::SetAnimationRange {
+            start: 1.0,
+            end: 48.0,
+        },
         Operation::SetPlaybackRange {
             start: 2.0,
             end: 12.0,
@@ -1487,6 +1491,22 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "set_current_time(fractional)",
                 Operation::SetCurrentTime { time: 1.5 },
+            ),
+        ],
+        Operation::SetAnimationRange { .. } => vec![
+            sample(
+                "set_animation_range(3,30)",
+                Operation::SetAnimationRange {
+                    start: 3.0,
+                    end: 30.0,
+                },
+            ),
+            sample(
+                "set_animation_range(inverted)",
+                Operation::SetAnimationRange {
+                    start: 30.0,
+                    end: 3.0,
+                },
             ),
         ],
         Operation::SetPlaybackRange { .. } => vec![

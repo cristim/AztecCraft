@@ -893,3 +893,52 @@ async fn animation_sdk_euler_filter_refuses_a_key_beyond_the_turn_limit() {
     client.cancel().await.unwrap();
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_animation_bounds_keep_playback_inside_and_reset_with_new() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let changed = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_animation_range",
+        json!({"scene_token":token,"start":5,"end":33}),
+    )
+    .await;
+    assert_eq!(changed.structured_content.unwrap()["outcome"], "changed");
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await;
+    let timeline = &inspected.structured_content.unwrap()["inspection"]["timeline"];
+    assert_eq!(timeline["current_time"], 1);
+    assert_eq!(timeline["animation_start"], 5);
+    assert_eq!(timeline["animation_end"], 33);
+    assert_eq!(timeline["playback_start"], 5);
+    assert_eq!(timeline["playback_end"], 33);
+    let rejected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_playback_range",
+        json!({"scene_token":token,"start":4,"end":33}),
+    )
+    .await;
+    assert_eq!(
+        rejected.structured_content.unwrap()["error"]["code"],
+        "invalid_input"
+    );
+    assert!(!editor.history.can_undo());
+    editor.native_operation(Operation::NewScene);
+    assert_eq!(editor.inspect_timeline().animation_start, 1);
+    assert_eq!(editor.inspect_timeline().animation_end, 48);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

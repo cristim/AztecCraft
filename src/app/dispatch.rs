@@ -198,6 +198,7 @@ impl Editor {
             | Operation::SelectAttributeEditorTab { .. }
             | Operation::SetCurrentTime { .. }
             | Operation::SetPlaybackRange { .. }
+            | Operation::SetAnimationRange { .. }
             | Operation::Play
             | Operation::Stop => None,
             Operation::SetKeyframe { .. } => Some("Key set"),
@@ -727,6 +728,7 @@ impl Editor {
                     | Operation::ModifyComponentSelection { .. }
                     | Operation::SetCurrentTime { .. }
                     | Operation::SetPlaybackRange { .. }
+                    | Operation::SetAnimationRange { .. }
                     | Operation::Play
                     | Operation::SetKeyframe { .. }
                     | Operation::DeleteKeys { .. }
@@ -881,6 +883,9 @@ impl Editor {
                 }
                 self.check_key_request(nodes.as_deref(), None, *channels)?;
             }
+            Operation::SetAnimationRange { start, end } => {
+                self.check_animation_range(*start, *end)?;
+            }
             Operation::SetPlaybackRange { start, end } => {
                 self.check_playback_range(*start, *end)?;
             }
@@ -978,6 +983,9 @@ impl Editor {
                 Command::SetSessionMaterialColor { material, color }
             }
             Operation::SetCurrentTime { time } => return self.set_current_time(time),
+            Operation::SetAnimationRange { start, end } => {
+                return self.set_animation_range(start, end);
+            }
             Operation::SetPlaybackRange { start, end } => {
                 return self.set_playback_range(start, end);
             }

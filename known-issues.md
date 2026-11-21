@@ -187,8 +187,8 @@ PROVISIONAL, because the docs do not state it or the feature behind it is absent
 - Playback at 24 fps in real time, skipping frames, looping continuously. The 2027 Playback Controls
   page states no default for either.
 - A playback range defaulting to 1 through 48. The 2027 [New Scene Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-8F961875-1D41-4C52-9CD5-B90DE75C546C.htm) page gives
-  animation start 1 and end 48 and no playback default. There is no separate animation range, and
-  the Range Slider is absent.
+  animation start 1 and end 48 and no playback default. Separate animation bounds are editable
+  below the Time Slider and through MCP. They are session-only fields and outside scene undo.
 - A manual edit of a keyed channel holds until the next time change, then snaps back. Undo and Redo
   re-evaluate at the current time only when the restored snapshot was taken at another time, which
   they do not restore; at an unchanged time they give back the recorded state, held edits included.

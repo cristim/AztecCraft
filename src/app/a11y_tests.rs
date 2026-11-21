@@ -151,7 +151,7 @@ pub(super) fn known_ids() -> HashMap<NodeId, String> {
             .map(|(index, id)| (id, format!("{name}[{index}]")))
             .collect()
     };
-    let [time, start, end] = super::features::timeline::field_ids();
+    let [time, start, end, ..] = super::features::timeline::field_ids();
     let mut table = vec![
         (super::name_edit_id(), "name_edit".to_owned()),
         (super::material_edit_id(), "material_edit".to_owned()),

@@ -16,12 +16,16 @@ pub(in crate::app) struct Timeline {
     pub(in crate::app) current: i32,
     pub(in crate::app) start: i32,
     pub(in crate::app) end: i32,
+    pub(in crate::app) animation_start: i32,
+    pub(in crate::app) animation_end: i32,
     pub(in crate::app) playing: bool,
     /// The wall-clock second and frame playback counts from; the first tick sets it.
     anchor: Option<(f64, i32)>,
     time_field: FrameField,
     start_field: FrameField,
     end_field: FrameField,
+    animation_start_field: FrameField,
+    animation_end_field: FrameField,
 }
 
 /// A frame text field. It shows the live value until it takes focus, then holds what is typed
@@ -83,8 +87,21 @@ fn time_slider_id() -> egui::Id {
     egui::Id::unique("time_slider")
 }
 
-pub(in crate::app) fn field_ids() -> [egui::Id; 3] {
-    [time_field_id(), start_field_id(), end_field_id()]
+fn animation_start_id() -> egui::Id {
+    egui::Id::unique("timeline_animation_start")
+}
+fn animation_end_id() -> egui::Id {
+    egui::Id::unique("timeline_animation_end")
+}
+
+pub(in crate::app) fn field_ids() -> [egui::Id; 5] {
+    [
+        time_field_id(),
+        start_field_id(),
+        end_field_id(),
+        animation_start_id(),
+        animation_end_id(),
+    ]
 }
 
 /// The Maya 2027 Animation hotkeys page: S sets a key, Alt+V plays or stops, Alt+, and Alt+. step a
@@ -148,11 +165,15 @@ impl Default for Timeline {
             current: DEFAULT_START,
             start: DEFAULT_START,
             end: DEFAULT_END,
+            animation_start: DEFAULT_START,
+            animation_end: DEFAULT_END,
             playing: false,
             anchor: None,
             time_field: FrameField::default(),
             start_field: FrameField::default(),
             end_field: FrameField::default(),
+            animation_start_field: FrameField::default(),
+            animation_end_field: FrameField::default(),
         }
     }
 }
@@ -279,6 +300,11 @@ impl Editor {
         if start > end {
             return Err(OperationError::Scene(NativeError::InvalidPlaybackRange));
         }
+        if start < self.timeline.animation_start || end > self.timeline.animation_end {
+            return Err(OperationError::InvalidInput(
+                "Playback range must lie inside the animation range".into(),
+            ));
+        }
         Ok((start, end))
     }
 
@@ -296,6 +322,41 @@ impl Editor {
         } else {
             OperationReply::Unchanged
         })
+    }
+
+    pub(in crate::app) fn check_animation_range(
+        &self,
+        start: f64,
+        end: f64,
+    ) -> Result<(i32, i32), OperationError> {
+        self.history
+            .scene()
+            .check_time_unit()
+            .map_err(OperationError::Scene)?;
+        let start = whole_frame(start).map_err(OperationError::Scene)?;
+        let end = whole_frame(end).map_err(OperationError::Scene)?;
+        if start > end {
+            return Err(OperationError::InvalidInput(
+                "Animation start must not follow animation end".into(),
+            ));
+        }
+        Ok((start, end))
+    }
+
+    pub(in crate::app) fn set_animation_range(
+        &mut self,
+        start: f64,
+        end: f64,
+    ) -> Result<OperationReply, OperationError> {
+        let (start, end) = self.check_animation_range(start, end)?;
+        if (start, end) == (self.timeline.animation_start, self.timeline.animation_end) {
+            return Ok(OperationReply::Unchanged);
+        }
+        self.timeline.animation_start = start;
+        self.timeline.animation_end = end;
+        self.timeline.start = self.timeline.start.clamp(start, end);
+        self.timeline.end = self.timeline.end.clamp(start, end);
+        Ok(OperationReply::Changed)
     }
 
     /// Starts playback from the current time, or from the range start when that is outside the
@@ -517,8 +578,31 @@ impl Editor {
         let mut action = None;
         let mut typed_time = None;
         let mut typed_range = None;
+        let mut typed_animation = None;
         ui.add_enabled_ui(live, |ui| {
             action = self.time_slider(ui);
+            ui.horizontal(|ui| {
+                let start = self.timeline.animation_start;
+                let end = self.timeline.animation_end;
+                let typed_start = self.timeline.animation_start_field.show(
+                    ui,
+                    animation_start_id(),
+                    start,
+                    "Animation start",
+                );
+                let typed_end = self.timeline.animation_end_field.show(
+                    ui,
+                    animation_end_id(),
+                    end,
+                    "Animation end",
+                );
+                if typed_start.is_some() || typed_end.is_some() {
+                    typed_animation = Some((
+                        typed_start.unwrap_or_else(|| start.to_string()),
+                        typed_end.unwrap_or_else(|| end.to_string()),
+                    ));
+                }
+            });
             ui.horizontal_wrapped(|ui| {
                 let (start, end, current) = (
                     self.timeline.start,
@@ -596,6 +680,14 @@ impl Editor {
                 ui.weak("Keys are session-only and block Save");
             });
         });
+        if let Some((start, end)) = typed_animation {
+            match (start.parse::<f64>(), end.parse::<f64>()) {
+                (Ok(start), Ok(end)) => {
+                    self.native_operation(Operation::SetAnimationRange { start, end });
+                }
+                _ => self.refuse_frame_text(),
+            }
+        }
         if let Some((start, end)) = typed_range {
             match (start.parse::<f64>(), end.parse::<f64>()) {
                 (Ok(start), Ok(end)) => {
@@ -820,6 +912,8 @@ impl Editor {
     pub(in crate::app) fn inspect_timeline(&self) -> crate::editor_operations::TimelineInspection {
         crate::editor_operations::TimelineInspection {
             current_time: self.timeline.current,
+            animation_start: self.timeline.animation_start,
+            animation_end: self.timeline.animation_end,
             playback_start: self.timeline.start,
             playback_end: self.timeline.end,
             playing: self.timeline.playing,
