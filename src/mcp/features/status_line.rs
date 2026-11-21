@@ -14,6 +14,7 @@ use serde::Deserialize;
 #[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum PanelInput {
+    Outliner,
     ChannelBox,
     AttributeEditor,
 }
@@ -29,6 +30,7 @@ struct SidebarPanelArgs {
 fn parse_set_sidebar_panel_visibility(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let args: SidebarPanelArgs = decode(arguments)?;
     let panel = match args.panel {
+        PanelInput::Outliner => SidebarPanel::Outliner,
         PanelInput::ChannelBox => SidebarPanel::ChannelBox,
         PanelInput::AttributeEditor => SidebarPanel::AttributeEditor,
     };
@@ -140,7 +142,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_sidebar_panel_visibility",
-        description: "Set one sidebar panel's visibility explicitly. Session-only and idempotent; does not edit the scene. The dock shows one panel: showing attribute_editor hides channel_box and the reverse",
+        description: "Set one sidebar panel's visibility explicitly. Session-only and idempotent; does not edit the scene. Outliner opens independently on the left and defaults to visible. The right dock shows one panel: showing attribute_editor hides channel_box and the reverse",
         schema: schema::<SidebarPanelArgs>,
         parse: parse_set_sidebar_panel_visibility,
         idempotent: true,

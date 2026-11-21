@@ -21,9 +21,10 @@ use std::path::PathBuf;
 #[cfg(feature = "mcp")]
 use rmcp::schemars;
 
-/// Sidebar panels the editor implements; the dock shows at most one.
+/// Sidebar panels the editor implements; the right dock shows at most one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SidebarPanel {
+    Outliner,
     ChannelBox,
     AttributeEditor,
 }
@@ -1469,6 +1470,7 @@ impl From<NativeTransform> for AuthoringTransformInspection {
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct SidebarPanelsInspection {
+    pub outliner: bool,
     pub channel_box: bool,
     pub attribute_editor: bool,
 }
@@ -2149,7 +2151,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
     r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"snap_to_grid":true,"shading":"","menu_set":"","#,
     r#""face_centres_hidden":true,"vertex_markers_hidden":true,"#,
-    r#""sidebar_panels":{"channel_box":true,"attribute_editor":true},"attribute_editor_tab":null,"#,
+    r#""sidebar_panels":{"outliner":true,"channel_box":true,"attribute_editor":true},"attribute_editor_tab":null,"#,
     r#""depth_complete":true,"clipping_complete":true,"appearance_incomplete":true,"#,
     r#""source_appearance":"#,
     min_appearance_summary!(),

@@ -4917,11 +4917,12 @@
   },
   {
     "name": "set_sidebar_panel_visibility",
-    "description": "Set one sidebar panel's visibility explicitly. Session-only and idempotent; does not edit the scene. The dock shows one panel: showing attribute_editor hides channel_box and the reverse",
+    "description": "Set one sidebar panel's visibility explicitly. Session-only and idempotent; does not edit the scene. Outliner opens independently on the left and defaults to visible. The right dock shows one panel: showing attribute_editor hides channel_box and the reverse",
     "inputSchema": {
       "$defs": {
         "PanelInput": {
           "enum": [
+            "outliner",
             "channel_box",
             "attribute_editor"
           ],

@@ -1085,6 +1085,15 @@ impl Editor {
                 });
             }
             Operation::SetSidebarPanelVisible { panel, visible } => {
+                if panel == SidebarPanel::Outliner {
+                    return Ok(
+                        if std::mem::replace(&mut self.outliner_visible, visible) == visible {
+                            OperationReply::Unchanged
+                        } else {
+                            OperationReply::Changed
+                        },
+                    );
+                }
                 let before = self.sidebar_dock;
                 if visible {
                     self.sidebar_dock = Some(panel);

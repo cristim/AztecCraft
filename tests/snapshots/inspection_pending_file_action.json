@@ -270,7 +270,8 @@
     ],
     "sidebar_panels": {
       "attribute_editor": false,
-      "channel_box": true
+      "channel_box": true,
+      "outliner": true
     },
     "snap_to_grid": false,
     "source_appearance": {
