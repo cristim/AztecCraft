@@ -34,6 +34,20 @@ async fn sdk_snap_mode_snaps_a_move_and_guards_the_session_state() {
         .collect();
     let x = |editor: &Editor| editor.history.scene().nodes()[0].transform().translation[0];
     assert_eq!(snapped(&mut editor, &context, &client).await, false);
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(
+        inspected["inspection"]["snap_spacing"],
+        json!({"scene_units": 1.0, "cm": 1.0})
+    );
 
     for (grid, outcome) in [
         (true, "changed"),

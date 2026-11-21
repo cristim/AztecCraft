@@ -1135,6 +1135,11 @@ pub struct SceneInspection {
     pub grid_visible: bool,
     /// Snap to grids (`snapMode -grid`), off by default (PROVISIONAL: the docs state no default).
     pub snap_to_grid: bool,
+    /// What Snap to grids rounds to: the drawn grid line spacing in centimetres and the same
+    /// length in the scene linear unit (1 cm in every unit for now: the drawn grid is in
+    /// centimetres); null for an unsupported linear unit, where a Move cannot be declared either.
+    /// PROVISIONAL (#5): Maya's pages do not say whether snapping uses subdivision or main lines.
+    pub snap_spacing: Option<SnapSpacingInspection>,
     pub shading: ShadingMode,
     pub menu_set: MenuSet,
     pub face_centres_hidden: bool,
@@ -1477,6 +1482,12 @@ pub struct SidebarPanelsInspection {
 pub struct AttributeEditorTabInspection {
     pub kind: &'static str,
     pub id: String,
+}
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct SnapSpacingInspection {
+    pub scene_units: f64,
+    pub cm: f64,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -2155,7 +2166,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
     r#""units":{"linear":"","angular":"","time":""},"save_available":true,"save_as_available":true,"#,
     r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
-    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"snap_to_grid":true,"shading":"","menu_set":"","#,
+    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"snap_to_grid":true,"snap_spacing":{"scene_units":0.0,"cm":0.0},"shading":"","menu_set":"","#,
     r#""face_centres_hidden":true,"vertex_markers_hidden":true,"#,
     r#""sidebar_panels":{"channel_box":true,"attribute_editor":true},"attribute_editor_tab":null,"#,
     r#""depth_complete":true,"clipping_complete":true,"appearance_incomplete":true,"#,

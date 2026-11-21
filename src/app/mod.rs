@@ -7,7 +7,8 @@ use crate::editor_operations::{
 use crate::editor_operations::{
     AttributeEditorTabInspection, CameraInspection, EdgeSelectionTarget, FaceSelectionPolicy,
     FaceSelectionTarget, NodeInspection, RemoteRequest, SceneInspection, ShapeInspection,
-    SidebarPanelsInspection, TransformInput, UnitsInspection, VertexSelectionTarget,
+    SidebarPanelsInspection, SnapSpacingInspection, TransformInput, UnitsInspection,
+    VertexSelectionTarget,
 };
 use azteccraft::native_scene::LinearUnit;
 #[cfg(any(test, feature = "mcp"))]

@@ -355,3 +355,28 @@ fn the_snap_spacing_is_the_drawn_one_centimetre_in_every_scene_linear_unit() {
         assert!(x.abs() < 1e-9, "{unit:?}: {x}");
     }
 }
+
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn the_inspected_snap_spacing_is_the_drawn_cm_and_its_scene_unit_length() {
+    use azteccraft::native_scene::LinearUnit::{Centimeter, Foot, Inch, Meter, Millimeter};
+    for (unit, cm_per_unit) in [
+        (Centimeter, 1.0),
+        (Millimeter, 0.1),
+        (Meter, 100.0),
+        (Inch, 2.54),
+        (Foot, 30.48),
+    ] {
+        let (editor, _) = editor_in(unit.clone());
+        let inspected = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+        let spacing = &inspected["snap_spacing"];
+        assert_eq!(spacing["cm"], 1.0, "{unit:?}");
+        let scene_units = spacing["scene_units"].as_f64().unwrap();
+        assert!((scene_units * cm_per_unit - 1.0).abs() < 1e-12, "{unit:?}");
+    }
+    let (editor, _) = editor_in(azteccraft::native_scene::LinearUnit::Unsupported(
+        "yard".into(),
+    ));
+    let inspected = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+    assert!(inspected["snap_spacing"].is_null());
+}

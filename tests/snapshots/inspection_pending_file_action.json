@@ -273,6 +273,10 @@
       "attribute_editor": false,
       "channel_box": true
     },
+    "snap_spacing": {
+      "cm": 1.0,
+      "scene_units": 1.0
+    },
     "snap_to_grid": false,
     "source_appearance": {
       "checked_source_bindings": 0,

@@ -538,6 +538,13 @@ impl Editor {
             viewport_error,
             grid_visible: self.grid_visible,
             snap_to_grid: self.snap_to_grid,
+            snap_spacing: {
+                let cm =
+                    azteccraft::snap::drawn_grid_spacing_cm(azteccraft::snap::DEFAULT_GRID_OPTIONS);
+                azteccraft::snap::spacing_in_scene_units(cm, self.history.scene().units())
+                    .ok()
+                    .map(|scene_units| SnapSpacingInspection { scene_units, cm })
+            },
             shading: self.shading,
             menu_set: self.menu_set,
             face_centres_hidden: self.face_centres_hidden,

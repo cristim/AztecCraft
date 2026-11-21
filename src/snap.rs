@@ -1,6 +1,7 @@
 //! Snap to grids for the Move tool: the lead object's pivot lands on a grid line of the drawn
 //! grid. Pure math over world centimetres; the editor feeds it the lead pivot and handle axis.
 
+use crate::native_scene::{NativeError, Units};
 use glam::DVec3;
 use std::fmt;
 
@@ -35,6 +36,12 @@ impl GridOptions {
 /// scene units (#454). PROVISIONAL (#5): snapping to the subdivision (drawn) lines.
 pub fn drawn_grid_spacing_cm(grid: GridOptions) -> f64 {
     grid.line_spacing_units()
+}
+
+/// `cm` centimetres expressed in the scene's linear unit (the unit factors are exact: 1, 0.1, 100,
+/// 2.54 and 30.48 cm per unit); an error for an unsupported linear unit.
+pub fn spacing_in_scene_units(cm: f64, units: &Units) -> Result<f64, NativeError> {
+    Ok(cm / units.linear_factor()?)
 }
 
 /// A handle axis within this of a world axis counts as aligned; an Object or Parent axis
@@ -328,6 +335,32 @@ mod tests {
         };
         assert_eq!(custom.line_spacing_units(), 2.5);
         assert_eq!(drawn_grid_spacing_cm(custom), 2.5);
+    }
+
+    #[test]
+    fn the_drawn_spacing_converts_to_the_scene_linear_unit() {
+        use crate::native_scene::LinearUnit;
+        let cm = drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS);
+        let cases = [
+            (LinearUnit::Centimeter, 1.0),
+            (LinearUnit::Millimeter, 10.0),
+            (LinearUnit::Meter, 0.01),
+            (LinearUnit::Inch, 1.0 / 2.54),
+            (LinearUnit::Foot, 1.0 / 30.48),
+        ];
+        for (linear, expected) in cases {
+            let units = Units {
+                linear: linear.clone(),
+                ..Units::default()
+            };
+            let got = spacing_in_scene_units(cm, &units).unwrap();
+            assert!((got - expected).abs() < 1e-12, "{linear:?}: {got}");
+        }
+        let unsupported = Units {
+            linear: LinearUnit::Unsupported("yard".into()),
+            ..Units::default()
+        };
+        assert!(spacing_in_scene_units(cm, &unsupported).is_err());
     }
 
     #[test]

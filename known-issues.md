@@ -1206,7 +1206,7 @@ the Display menu, where Maya keeps the Grid option box.
 Snap to grids rounds to the drawn grid's line spacing, `snap::drawn_grid_spacing_cm`: the shared
 `snap::DEFAULT_GRID_OPTIONS` give `lines_every / subdivisions` = 5 / 5 = 1 render unit, and the
 viewport draws one render unit per centimetre whatever the scene linear unit, so the spacing is
-1 cm in every scene unit (a metre, inch, foot or millimetre scene snaps at 1 cm too). Making the
+1 cm in every scene unit (a metre, inch, foot or millimetre scene snaps at 1 cm too). `inspect_scene` `snap_spacing` reports it as `{cm, scene_units}`: the centimetres and the same length in the scene unit (`snap::spacing_in_scene_units`; null for an unsupported unit). Making the
 viewport draw its grid in scene units and then following the scene unit in snapping is the remaining
 #454 item; the options are not editable (Grid Options stays disabled).
 
