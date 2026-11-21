@@ -1783,6 +1783,64 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
             sample(
+                "create(helix,2 coils)",
+                Operation::Create {
+                    primitive: Primitive::Helix,
+                    options: Some(PrimitiveOptions::Helix {
+                        coils: 2.0,
+                        height: 3.0,
+                        width: 1.5,
+                        radius: 0.2,
+                        sub_axis: 5,
+                        sub_coil: 12,
+                        axis: Axis::X,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
+                "create(helix,invalid coils)",
+                Operation::Create {
+                    primitive: Primitive::Helix,
+                    options: Some(PrimitiveOptions::Helix {
+                        coils: 0.0,
+                        height: 2.0,
+                        width: 2.0,
+                        radius: 0.4,
+                        sub_axis: 8,
+                        sub_coil: 50,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
+                "create(soccer ball,side 2)",
+                Operation::Create {
+                    primitive: Primitive::SoccerBall,
+                    options: Some(PrimitiveOptions::SoccerBall {
+                        side_length: 2.0,
+                        axis: Axis::Z,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
+                "create(soccer ball,invalid side)",
+                Operation::Create {
+                    primitive: Primitive::SoccerBall,
+                    options: Some(PrimitiveOptions::SoccerBall {
+                        side_length: 0.0,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                    create_uvs: false,
+                },
+            ),
+            sample(
                 "create(cylinder,round caps)",
                 Operation::Create {
                     primitive: Primitive::Cylinder,
