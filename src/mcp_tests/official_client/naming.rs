@@ -362,3 +362,40 @@ async fn an_opened_maya_ascii_scene_is_read_only() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn an_opened_binary_scene_is_refused_as_unsupported_edit() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let source = directory.path().join("specimen.mb");
+    std::fs::write(
+        &source,
+        appearance_fixture::appearance_specimen_with_users(2),
+    )
+    .unwrap();
+    let opened = tool(
+        &mut editor,
+        &context,
+        &client,
+        "open_scene",
+        json!({"path":source}),
+    )
+    .await;
+    assert_eq!(reply(&opened)["outcome"], "document_applied");
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(paths.into_iter().take(1).collect());
+    editor.sync_fields();
+    let scene = editor.history.scene().clone();
+    for (name, args) in [
+        (PREFIX, json!({"prefix":"a_"})),
+        (REPLACE, json!({"search":"p","replace":"q","scope":"all"})),
+    ] {
+        let refused = tool(&mut editor, &context, &client, name, args).await;
+        assert_eq!(code(&refused), "unsupported_edit", "{name}");
+    }
+    assert_eq!(editor.history.scene(), &scene);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
