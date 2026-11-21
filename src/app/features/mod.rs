@@ -31,6 +31,7 @@ mod display_layers;
 pub(in crate::app) mod marquee;
 pub(in crate::app) mod playblast;
 pub(in crate::app) mod playblast_options;
+pub(in crate::app) mod playblast_plate;
 pub(in crate::app) mod primitive_options;
 pub(in crate::app) mod rigging;
 pub(in crate::app) mod rotate_step;

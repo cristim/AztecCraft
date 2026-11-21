@@ -112,7 +112,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("new_scene", "`file -new`", "dirty confirmation via `resolve_file_action`; Maya uses `-force`"),
     ("resolve_file_action", "no equivalent", "Maya prompts in a dialog or takes `-force`"),
     ("request_close", "`quit`", "dirty confirmation required"),
-    ("playblast", "`playblast -startTime -endTime -percent -format -offScreen -showOrnaments`", "image sequence only (png), offscreen only, viewport camera, width and height required, never overwrites (PROVISIONAL: Maya's page does not say whether -endTime is inclusive; percent is 1 to 100 here, 10 to 100 in Maya; no movie, image plane or wireframe on shaded yet)"),
+    ("playblast", "`playblast -startTime -endTime -percent -format -offScreen -showOrnaments`", "image sequence only (png), offscreen only, viewport camera, width and height required, never overwrites (PROVISIONAL: Maya's page does not say whether -endTime is inclusive; percent is 1 to 100 here, 10 to 100 in Maya; the image plane is drawn; no movie container and no wireframe on shaded yet, #48, #49)"),
     ("cancel_playblast", "no equivalent", "AztecCraft's own background job, cancelled by this tool (PROVISIONAL); Maya's page documents no cancel"),
     ("autosave_now", "`autoSave -perform`", "writes a separate recovery file; interval, destination and limitBackups not modelled; off unless the host passes --recovery-dir (PROVISIONAL)"),
     ("get_recovery_status", "`autoSave -q -enable`, `-q -maxBackups`", "reports enabled, retention and a file count; no folder path (PROVISIONAL)"),

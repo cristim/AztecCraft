@@ -2072,7 +2072,21 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
 - The end-to-end `headless_gpu_playblast_*` Editor tests (real `WgpuFrameRenderer`, PNGs read back) do not cover the
   native window or its surface and colour management, frames larger than 128 x 128 (sizes 64 x 48, 100 x 60 and
   128 x 128 only), a second adapter family (exact equality is asserted only between renders on one adapter, analytic
-  checks use +-2), or the camera image plane, which is not drawn into playblasts yet. Esc and the menu are unchecked.
+  checks use +-2). Esc and the menu are unchecked.
+- The camera image plane is drawn into playblasts (PROVISIONAL, no Maya comparison): the plate is scene content, so
+  `show_ornaments` does not affect it; a sequence shows `frame + frame_offset`; the plate is placed by `plate_quad` at the
+  output aspect (the film gate is fitted into the output as in the viewport); a frame with no file renders without a plate
+  and the job continues, counted in `frames_without_plate` (`inspect_scene` `playblast`, the option box progress text;
+  a sequence template with no digits counts every frame; a plane hidden by its display mode, a single image and no plane
+  count 0; there is no `require_plate` flag because no caller needs one); an unreadable frame or a failed plate upload
+  stops the job with `playblast_render`. The plane is snapshotted at the start. Wireframe on shaded (#48, #49) and
+  movie containers remain open.
+- Image plane in playblasts, untested or unproven: portrait outputs and outputs that are neither square nor exactly the
+  film gate's aspect; sRGB window colour parity (the exact-equality test shares `Submission`, the plate shader and
+  `read_back` with the render it is compared to, so it cannot show a difference from the window).
+- The playblast calls the decoder (`decode_from_disk`) directly; it does not use the viewport's `PlateStream` or cache
+  (an injected decoder is used only by tests). Decoding is synchronous on the UI tick: a 32 MP plate can block the tick
+  for about a second and peaks at about 400 MB. Cancel is serviced between frames only.
 
 ## Viewport View menu rows: the stale-token guard is tested only for Remove Image Plane
 
@@ -2095,3 +2109,41 @@ and recovery refuse while named layers exist, with removal or undo as the
 remedy. View-based export observes display-layer visibility.
 Playback, template/reference, color, layer attributes, naming, undocking,
 animation layers and Render Setup remain unsupported.
+
+## Camera image plane: implemented, not compared against Maya (#459)
+
+**Severity:** medium
+**Area:** viewport, parity, persistence
+**Issue:** #459
+
+One image plane on the live camera (View > Image Plane, the Attribute Editor Image Plane tab, MCP
+`set_image_plane`, `remove_image_plane` and `inspect_scene` `camera.image_plane`). No Maya render or screenshot
+was compared (#5), so this is implemented, not parity. Every choice below the Maya 2027 pages do not state is
+PROVISIONAL and pinned by a test (rows 68 to 72 of the policy constants table in `.project-docs/development.md`).
+
+- **Session only.** The plane is not saved in `.ma` or `.mb` and is cleared by New and Open.
+- **A scene that declares an imagePlane node is refused.** The `.ma` reader refuses a scene with an `imagePlane`
+  `createNode`, like any node class it does not model, with `ErrorKind::Unsupported` at an offset inside that
+  `createNode` (`an_image_plane_node_refuses_the_whole_scene_at_the_create_node`). Nothing is dropped, nothing is
+  turned into a session plane and nothing is executed. The error text is only "native ASCII scene Unsupported at byte
+  N": it does not name the imagePlane node. For `.mb` an unknown group form is refused the same way (a joint form is
+  pinned in `a_joint_form_is_refused_not_dropped_from_the_scene`), but the real form tag of an imagePlane in a
+  Maya-saved file is unconfirmed, so no `.mb` test exists. The exact `.ma` shape of a Maya-saved imagePlane needs a
+  Maya sample (#5). Reading and writing the scene node is deferred on #459.
+- **First-pass playback is not real time.** A cold pass over a sequence decodes on one worker thread and may show
+  the held frame or `loading`; once frames are cached a pass plays from the cache.
+- **The playing prefetch window does not wrap at the playback end.** Each loop wrap shows `loading` on its first
+  frame until it decodes (PROVISIONAL, a later refinement).
+- **A frame past the last file is `missing`.** The plate does not wrap, clamp or hold (PROVISIONAL).
+- **EXR, DPX, movies, free image planes, placement, colour and depth maps are unsupported.** Only PNG and JPEG
+  (also `.jpeg`) load. Size, Offset, Rotate, Squeeze Correction, Color Gain, Color Offset, Color Space, Depth Map and
+  Fit to Resolution Gate are drawn disabled with a reason (the resolution gate needs #55, colour management #49).
+- **Re-setting the same image name does not reload the file.** A changed file is picked up by Remove Image Plane
+  then Import Image, or by another name.
+- **Orthographic views show no plate.** The plate is drawn in perspective views only, and it is not drawn into
+  playblasts.
+- **Typed or keyed Image Number is unsupported** (it follows the time slider; keys need #52).
+- **The viewport summary line waits on #465 T7.** `Editor::viewport_summary()` is not on main. The plate state is
+  exposed meanwhile as real text in the status line ("Plate frame N: loading", "missing", "failed: <code>"), in the
+  Image Plane tab's Resolved Frame row and in `inspect_scene`; the line "image plane: <file>, frame N, <state>" is
+  added when T7 lands.

@@ -84,10 +84,14 @@ fn request(dialog: &Dialog) -> Result<PlayblastRequest, String> {
 /// What the window says about the job; it reads the inspection, like MCP does.
 fn progress_text(inspection: &PlayblastInspection) -> String {
     let (done, total) = (inspection.frames_done, inspection.frames_total);
+    let plate = match inspection.frames_without_plate {
+        0 => String::new(),
+        count => format!(" ({count} without the image plane's image)"),
+    };
     match inspection.state {
-        "running" => format!("Rendering {done} of {total} frames"),
-        "finished" => format!("Finished: {total} frames"),
-        "cancelled" => format!("Cancelled after {done} of {total} frames"),
+        "running" => format!("Rendering {done} of {total} frames{plate}"),
+        "finished" => format!("Finished: {total} frames{plate}"),
+        "cancelled" => format!("Cancelled after {done} of {total} frames{plate}"),
         "failed" => format!(
             "Failed after {done} of {total} frames: {}",
             inspection.last_error.as_deref().unwrap_or_default()

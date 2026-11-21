@@ -1147,8 +1147,8 @@ impl CallbackTrait for ViewportCallback {
 }
 
 mod plate;
-pub(crate) use plate::PlateDraw;
 use plate::PlateGpu;
+pub(crate) use plate::{PlateAt, PlateDraw};
 
 mod offscreen;
 

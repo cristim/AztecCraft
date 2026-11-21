@@ -34,6 +34,13 @@ pub(crate) struct PlateDraw {
     pub(crate) alpha_gain: f32,
 }
 
+/// Resolves the plate of one playblast frame at an output size `[width, height]`: `None` when
+/// nothing is drawn for it (#460). Called with ascending frames, one per render.
+pub(crate) type PlateAt = Box<
+    dyn FnMut(i64, [u32; 2]) -> Result<Option<PlateDraw>, azteccraft::playblast::PlayblastError>
+        + Send,
+>;
+
 pub(super) struct TextureSlot {
     texture: wgpu::Texture,
     size: (u32, u32),
@@ -340,6 +347,11 @@ impl PlateGpu {
             }
             Ok(Some(PlateStyle::Skip)) | Ok(None) | Err(_) => {}
         }
+    }
+
+    /// Whether the last upload failed: the viewport keeps drawing, a playblast must not.
+    pub(super) fn failed(&self) -> bool {
+        self.status.is_err()
     }
 
     /// Releases the frame texture (up to 128 MiB) once no plate is submitted.

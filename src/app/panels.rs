@@ -264,6 +264,7 @@ impl Editor {
         let mut import_image_requested = false;
         let mut remove_image_requested = false;
         let mut attributes_requested = false;
+        let mut camera_attributes_requested = false;
         ui.horizontal(|ui| {
             ui.label(self.view_name());
             ui.label(match self.selection_mode {
@@ -379,6 +380,12 @@ impl Editor {
                             ui.close();
                         }
                     });
+                    // View > Camera Attribute Editor (Maya panel View menu); the Camera tab needs no
+                    // selection, so the row is always enabled.
+                    if ui.button("Camera Attribute Editor").clicked() {
+                        camera_attributes_requested = true;
+                        ui.close();
+                    }
                 });
                 ui.menu_button("Shading", |ui| {
                     for (mode, label) in [
@@ -505,6 +512,15 @@ impl Editor {
             });
             self.native_operation(Operation::SelectAttributeEditorTab {
                 tab: AttributeEditorTab::ImagePlane,
+            });
+        }
+        if camera_attributes_requested && self.scene_token == frame_token {
+            self.native_operation(Operation::SetSidebarPanelVisible {
+                panel: SidebarPanel::AttributeEditor,
+                visible: true,
+            });
+            self.native_operation(Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::Camera,
             });
         }
         if let Some(mode) = shading_requested
