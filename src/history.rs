@@ -1,8 +1,8 @@
 use crate::{
     native_scene::{
-        ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest, LambertAttribute,
-        MaterialChoice, MayaImportPlan, NativeError, NativeId, NativeScene, NativeTransform,
-        ObjImportPlan, PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId,
+        AlignOptions, ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest,
+        LambertAttribute, MaterialChoice, MayaImportPlan, NativeError, NativeId, NativeScene,
+        NativeTransform, ObjImportPlan, PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId,
         TransformChannels, TransformTarget, UngroupOptions, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
@@ -98,6 +98,12 @@ pub enum Command {
     MatchTransformations {
         ids: Vec<NodeId>,
         channels: TransformChannels,
+    },
+    /// Aligns the world bounding boxes of `ids` as one undo step; any refusal leaves the scene
+    /// and history untouched.
+    AlignObjects {
+        ids: Vec<NodeId>,
+        options: AlignOptions,
     },
     /// Prefixes the names of `ids` and everything below them as one undo step; any refusal leaves
     /// the scene and history untouched.
@@ -229,6 +235,7 @@ impl Command {
             Self::ResetTransformations { .. } => "Reset Transformations".to_string(),
             Self::FreezeTransformations { .. } => "Freeze Transformations".to_string(),
             Self::MatchTransformations { .. } => "Match Transformations".to_string(),
+            Self::AlignObjects { .. } => "Align Objects".to_string(),
             // PROVISIONAL: Maya's docs name no undo entries.
             Self::PrefixHierarchyNames { .. } => "Prefix Hierarchy Names".to_string(),
             Self::SearchReplaceNames { .. } => "Search and Replace Names".to_string(),
@@ -640,6 +647,7 @@ impl History {
                 | Command::ResetTransformations { .. }
                 | Command::FreezeTransformations { .. }
                 | Command::MatchTransformations { .. }
+                | Command::AlignObjects { .. }
                 | Command::ExtrudeFace { .. }
                 | Command::MoveVertices { .. }
         );
@@ -733,6 +741,10 @@ impl History {
             }
             Command::MatchTransformations { ids, channels } => {
                 candidate.match_transformations(&ids, channels)?;
+                EditOutcome::Changed
+            }
+            Command::AlignObjects { ids, options } => {
+                candidate.align_objects(&ids, options)?;
                 EditOutcome::Changed
             }
             Command::PrefixHierarchyNames { ids, prefix } => {

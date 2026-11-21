@@ -1,5 +1,5 @@
 #[cfg(any(test, feature = "mcp"))]
-use azteccraft::native_scene::{NativeTransform, ReparentKeep, TransformAttributes};
+use azteccraft::native_scene::{AlignOptions, NativeTransform, ReparentKeep, TransformAttributes};
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
@@ -826,6 +826,22 @@ pub enum Operation {
     /// the last selected is the "target", so the naming is inverted (no behavior change).
     MatchTransformations {
         channels: TransformChannels,
+        expected_selection_generation: Option<u64>,
+    },
+    /// Modify > Snap Align Objects > Align Objects on the object selection: the world bounding
+    /// boxes of the selected objects line up per world axis (translate only), as one "Align
+    /// Objects" undo step. The last selected is the reference of `AlignTo::LastSelected`. Object
+    /// and Hierarchy modes only.
+    #[cfg(any(test, feature = "mcp"))]
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "first caller is the align_objects MCP tool, added next"
+        )
+    )]
+    AlignObjects {
+        options: AlignOptions,
         expected_selection_generation: Option<u64>,
     },
     /// Modify > Prefix Hierarchy Names on the object selection: `prefix` is prepended to the name
