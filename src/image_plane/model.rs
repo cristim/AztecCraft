@@ -88,6 +88,13 @@ pub struct ImagePlaneEdit {
     pub coverage: Option<Option<Coverage>>,
 }
 
+impl ImagePlaneEdit {
+    /// True when no field is named. The model treats that as Unchanged; the operation refuses it.
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
 // The image name is a user path: Debug prints its length only, so logs and panics never carry it.
 impl fmt::Debug for ImagePlane {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
