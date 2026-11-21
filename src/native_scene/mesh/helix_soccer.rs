@@ -96,8 +96,10 @@ impl NativeMesh {
     /// capped by one n-gon each, so it is a closed genus-0 mesh (V-E+F=2). PROVISIONAL (#5): what
     /// width and height measure, per-coil versus total subdivisions, the start angle, the point
     /// order and the winding are unverified against Maya; the pages list no axis flag, direction
-    /// is not built, and round or subdivided caps are not built. A tube radius above the helix
-    /// radius or the pitch self-intersects; nothing refuses it.
+    /// is not built, and round or subdivided caps are not built. The tube self-intersects when its
+    /// radius exceeds half the pitch (`height / coils`) or the helix radius, and nothing refuses it:
+    /// the sourced defaults (3 coils, height 2, width 2, radius 0.4) already do, because the closest
+    /// non-adjacent turns are about 0.66 apart against a 0.8 tube diameter.
     pub(super) fn helix(
         coils: f64,
         height: f64,
