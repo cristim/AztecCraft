@@ -437,6 +437,7 @@ pub(super) fn violations(
 }
 
 mod gaps;
+mod image_plane_tab;
 mod keyboard;
 mod rig;
 mod scenarios;
