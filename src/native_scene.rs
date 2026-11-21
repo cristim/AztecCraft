@@ -1276,6 +1276,13 @@ impl NativeScene {
         *self = snapshot;
     }
 
+    /// Test seam: declares the scene's linear unit without rescaling stored values.
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_linear_unit_for_test(&mut self, linear: LinearUnit) {
+        self.units.linear = linear;
+    }
+
     /// Test seam: gives `node` rotate and scale pivots, which no operation can yet (slice B of #39).
     #[cfg(feature = "mcp-test-client")]
     #[doc(hidden)]

@@ -92,7 +92,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("rename_camera_bookmark", "no equivalent (the Edit Bookmarks window renames; `cameraView` has no rename flag)", "name-keyed rename; Maya's rename path is unsourced (PROVISIONAL)"),
     ("delete_camera_bookmark", "`cameraView -removeBookmark`", "name-keyed; not an undo step (PROVISIONAL)"),
     ("apply_camera_bookmark", "`cameraView -e -setCamera`", "instant, no `-animate` interpolation; pose only, fov and clip planes untouched"),
-    ("set_snap_mode", "`snapMode -grid`", "grid only (PROVISIONAL: absolute landing of the lead pivot on the drawn 1 cm grid, Move only, refused at begin when the axis is off the world grid; no curve, point, view-plane or step snapping); off by default (PROVISIONAL, docs state none)"),
+    ("set_snap_mode", "`snapMode -grid`", "grid only (PROVISIONAL: absolute landing of the lead pivot on the drawn grid, which is 1 cm in every scene unit for now (#454), Move only, refused at begin when the axis is off the world grid; no curve, point, view-plane or step snapping); off by default (PROVISIONAL, docs state none)"),
     ("set_menu_set", "`setMenuMode`", "Modeling, Rigging and Rendering only; session-only (PROVISIONAL)"),
     ("set_sidebar_panel_visibility", "`workspaceControl -e -visible`", "fixed dock; the 2027 attribute editor page was not found (PROVISIONAL)"),
     ("select_attribute_editor_tab", "no equivalent", "Maya has no command for choosing an Attribute Editor tab (PROVISIONAL)"),

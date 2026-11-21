@@ -4,10 +4,38 @@
 use glam::DVec3;
 use std::fmt;
 
-/// Distance between the drawn grid's lines (one minor line per render unit, which is one
-/// centimetre; `viewport_renderer::GRID_SIZE`). PROVISIONAL: Maya's grid spacing is in scene
-/// linear units; ours follows what is drawn.
-pub const GRID_LINE_SPACING_CM: f64 = 1.0;
+/// The grid options of Maya's Display > Grid option box: a main line every `lines_every` render
+/// units, each square split into `subdivisions`. The viewport's drawn grid and Snap to grids
+/// both read the same value, so the drawn lines and the snap lines have one source. One render
+/// unit is one centimetre whatever the scene linear unit (`viewport_renderer`).
+/// The current Maya grid command page (Commands/grid.html) gives defaults 10 and 10 "in linear
+/// units"; no page gives 5 and 5, which rests on a runtime `grid -q` result in Maya 2025.1.
+/// The 5 and 5 defaults are PROVISIONAL (#5); the options are not editable yet (#160).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct GridOptions {
+    pub lines_every: f64,
+    pub subdivisions: u32,
+}
+
+pub const DEFAULT_GRID_OPTIONS: GridOptions = GridOptions {
+    lines_every: 5.0,
+    subdivisions: 5,
+};
+
+impl GridOptions {
+    /// The distance between drawn lines, main and subdivision, in render units.
+    pub fn line_spacing_units(&self) -> f64 {
+        self.lines_every / f64::from(self.subdivisions.max(1))
+    }
+}
+
+/// The distance between the drawn grid's lines in centimetres, which is what Snap to grids
+/// rounds to in every scene linear unit: the viewport draws one render unit per centimetre
+/// whatever the scene unit. Following the scene unit waits until the viewport draws its grid in
+/// scene units (#454). PROVISIONAL (#5): snapping to the subdivision (drawn) lines.
+pub fn drawn_grid_spacing_cm(grid: GridOptions) -> f64 {
+    grid.line_spacing_units()
+}
 
 /// A handle axis within this of a world axis counts as aligned; an Object or Parent axis
 /// rotated by a multiple of 90 degrees differs from it by rounding error only.
@@ -16,9 +44,14 @@ const AXIS_TOLERANCE: f64 = 1e-9;
 /// A pivot within this fraction of max(|coordinate|, 1) of a grid line counts as on it: 32 times
 /// 2^20 (the inverse of the core's 2^-20 move resolution, `MIN_RESOLUTION`) times f64 epsilon,
 /// about 7.45e-9, so the stored channel's few-ulp rounding error stays well inside it.
-/// Revisit when a grid spacing below 1 cm arrives (#48): the tolerance is relative to the
-/// coordinate, not to the spacing.
 const ON_LINE_RELATIVE: f64 = 32.0 * f64::EPSILON * 1_048_576.0;
+
+/// The tolerance never exceeds this fraction of the line spacing, so a fine grid far from the
+/// origin keeps its lines apart (at 1e6 the coordinate term alone is 7e-3, wider than a 0.001
+/// spacing). PROVISIONAL (#5): no Maya source for this constant or the on-line tolerance. Where
+/// the cap is below the core's move resolution at that coordinate, the small gap is requested
+/// and the core refuses it loudly.
+const ON_LINE_SPACING_FRACTION: f64 = 1e-2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SnapError {
@@ -84,7 +117,9 @@ pub fn snap_distance_to_grid(
     // `translation_in` refuses a displacement below about 2^-20 of the stored channel's rounding
     // (`MIN_RESOLUTION`). A pivot that close to a line is on it, and a refusal would fail every
     // drag update, so the distance is exactly zero.
-    let result = if gap.abs() <= ON_LINE_RELATIVE * origin[index].abs().max(1.0) {
+    let tolerance =
+        (ON_LINE_RELATIVE * origin[index].abs().max(1.0)).min(ON_LINE_SPACING_FRACTION * spacing);
+    let result = if gap.abs() <= tolerance {
         0.0
     } else {
         gap * sign
@@ -258,6 +293,41 @@ mod tests {
         let d =
             snap_distance_to_grid(DVec3::new(2.0 + 1e-6, 0.0, 0.0), DVec3::X, 0.1, 1.0).unwrap();
         assert!((d + 1e-6).abs() < 1e-12, "{d}");
+    }
+
+    #[test]
+    fn the_tolerance_follows_the_spacing_at_fine_and_coarse_grids_far_from_the_origin() {
+        for spacing in [0.001_f64, 0.01, 1.0, 100.0] {
+            for base in [0.0, 1.0e6] {
+                let on_line = (base / spacing).round() * spacing;
+                // A few ulps off a line is on it.
+                let near = on_line + 3.0 * f64::EPSILON * on_line.abs().max(1.0);
+                assert_eq!(
+                    snap_distance_to_grid(DVec3::new(near, 0.0, 0.0), DVec3::X, 0.0, spacing),
+                    Ok(0.0),
+                    "spacing {spacing} base {base}"
+                );
+                // A tenth of a spacing off a line is not: the pivot moves onto the line.
+                let off = on_line + 0.1 * spacing;
+                let d = snap_distance_to_grid(DVec3::new(off, 0.0, 0.0), DVec3::X, 0.0, spacing)
+                    .unwrap();
+                assert!(
+                    (d + 0.1 * spacing).abs() < 1e-3 * spacing,
+                    "spacing {spacing} base {base}: {d}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_default_grid_snaps_to_its_drawn_line_spacing() {
+        assert_eq!(drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS), 1.0);
+        let custom = GridOptions {
+            lines_every: 10.0,
+            subdivisions: 4,
+        };
+        assert_eq!(custom.line_spacing_units(), 2.5);
+        assert_eq!(drawn_grid_spacing_cm(custom), 2.5);
     }
 
     #[test]

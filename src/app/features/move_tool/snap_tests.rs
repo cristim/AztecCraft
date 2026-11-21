@@ -313,3 +313,45 @@ fn a_non_finite_distance_is_still_refused_with_snap_on() {
     }
     assert_eq!(x_of(&editor, &target), 0.0);
 }
+
+#[cfg(feature = "mcp-test-client")]
+fn editor_in(unit: azteccraft::native_scene::LinearUnit) -> (Editor, TransformTarget) {
+    let (mut editor, target) = one_cube();
+    let mut scene = editor.history.scene().clone();
+    scene.set_linear_unit_for_test(unit);
+    editor.history = azteccraft::history::History::new(scene);
+    editor.sync_fields();
+    (editor, target)
+}
+
+/// The lead's stored x (declared units) after one snapped Move of `distance` declared units.
+#[cfg(feature = "mcp-test-client")]
+fn snapped_x(unit: azteccraft::native_scene::LinearUnit, distance: f64) -> f64 {
+    let (mut editor, target) = editor_in(unit);
+    snap(&mut editor, true);
+    let id = begin(&mut editor, &target);
+    update(&mut editor, id, distance).unwrap();
+    let x = x_of(&editor, &target);
+    finish(&mut editor, id);
+    x
+}
+
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn the_snap_spacing_is_the_drawn_one_centimetre_in_every_scene_linear_unit() {
+    use azteccraft::native_scene::LinearUnit::{Centimeter, Foot, Inch, Meter, Millimeter};
+    // The viewport draws one line per centimetre whatever the scene unit, so a Move of 2.4 cm
+    // lands on 2 cm and one of 0.4 cm on 0 in a metre, inch, foot or millimetre scene too.
+    for (unit, cm_per_unit) in [
+        (Centimeter, 1.0),
+        (Millimeter, 0.1),
+        (Meter, 100.0),
+        (Inch, 2.54),
+        (Foot, 30.48),
+    ] {
+        let x = snapped_x(unit.clone(), 2.4 / cm_per_unit);
+        assert!((x * cm_per_unit - 2.0).abs() < 1e-9, "{unit:?}: {x}");
+        let x = snapped_x(unit.clone(), 0.4 / cm_per_unit);
+        assert!(x.abs() < 1e-9, "{unit:?}: {x}");
+    }
+}

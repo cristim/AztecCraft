@@ -7,7 +7,7 @@ use crate::app::Editor;
 use crate::editor_operations::{
     ActiveTool, ManipulationValue, MoveDistance, Operation, OperationError, OperationReply,
 };
-use azteccraft::snap::{GRID_LINE_SPACING_CM, snap_distance_to_grid};
+use azteccraft::snap::{DEFAULT_GRID_OPTIONS, drawn_grid_spacing_cm, snap_distance_to_grid};
 use azteccraft::{
     history::{
         EditOutcome, ManipulationError, ManipulationFinish, ManipulationId, ManipulationProvenance,
@@ -388,8 +388,9 @@ impl Editor {
         let space = self.manipulation.move_space();
         let snap = if self.snap_to_grid {
             let (origin, direction) = self.grid_snap_frame(axis)?;
+            let spacing = drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS);
             // Refuse an axis off the world grid now rather than at every update.
-            snap_distance_to_grid(origin, direction, 0.0, GRID_LINE_SPACING_CM)
+            snap_distance_to_grid(origin, direction, 0.0, spacing)
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
             Some((origin, direction))
         } else {
@@ -464,9 +465,13 @@ impl Editor {
         }
         let (distance_cm, declared) = match self.manipulation.snap {
             Some((snap_id, origin, direction)) if snap_id == id => {
-                let snapped =
-                    snap_distance_to_grid(origin, direction, distance_cm, GRID_LINE_SPACING_CM)
-                        .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+                let snapped = snap_distance_to_grid(
+                    origin,
+                    direction,
+                    distance_cm,
+                    drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS),
+                )
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
                 // The inspection reads the snapped distance, not the one asked for.
                 (snapped, None)
             }

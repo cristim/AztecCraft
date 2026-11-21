@@ -1201,6 +1201,31 @@ earlier AztecCraft ordering is kept), and Maya draws the axes bold, which one-pi
 Maya 2026 is unverified. Grid Options (size, spacing, divisions, colours) is a disabled row in
 the Display menu, where Maya keeps the Grid option box.
 
+## Snap to grids follows the drawn 1 cm grid in every scene unit (#454)
+
+Snap to grids rounds to the drawn grid's line spacing, `snap::drawn_grid_spacing_cm`: the shared
+`snap::DEFAULT_GRID_OPTIONS` give `lines_every / subdivisions` = 5 / 5 = 1 render unit, and the
+viewport draws one render unit per centimetre whatever the scene linear unit, so the spacing is
+1 cm in every scene unit (a metre, inch, foot or millimetre scene snaps at 1 cm too). Making the
+viewport draw its grid in scene units and then following the scene unit in snapping is the remaining
+#454 item; the options are not editable (Grid Options stays disabled).
+
+Maya sourcing: the current grid command page (MayaCRE-Tech-Docs/Commands/grid.html) gives defaults
+spacing 10, divisions 10 and size 12 "in linear units". No page gives 5 and 5; that claim rests on a
+runtime `grid -q` result in Maya 2025.1. The Snap to the grid page names "Grid intersections" as a
+target but does not say whether snapping lands on subdivision or main lines. PROVISIONAL (#5): the
+5 / 5 defaults, snapping to the subdivision (drawn) lines, the on-line tolerance
+`min(7.45e-9 * max(|coordinate|, 1), 1e-2 * spacing)` and the 1e-2 cap constant
+(`ON_LINE_SPACING_FRACTION`).
+
+Sub-resolution case: at a large coordinate with a tiny spacing (for example coordinate 1e6 and
+spacing 0.001) the snapped displacement is below the core's move resolution, the core refuses the
+update with `NativeError::UnsupportedMove(NumericalDisplacement)`
+(`src/native_scene/move_translation.rs`), and every drag update fails. The failure is typed, so
+nothing is corrupted; the point storage channel is f64, so this is the move resolution, not
+storage precision. Unreachable today because the spacing is fixed at 1 cm; it matters once the
+grid options become editable.
+
 ## Grid lines over primitive faces are expected (#111, closed)
 
 #111 closed as expected behaviour: origin-centred primitives straddle the y=0 grid plane, so grid

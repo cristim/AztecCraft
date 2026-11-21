@@ -107,7 +107,7 @@ const SELECTED_EDGE_RGB: [u8; 3] = [255, 178, 96];
 // the half-length, and these greys, are PROVISIONAL; Maya also draws the axes bold, which
 // one-pixel lines cannot.
 const GRID_SIZE: i32 = 12;
-const GRID_MAJOR_EVERY: i32 = 5;
+const GRID_MAJOR_EVERY: i32 = azteccraft::snap::DEFAULT_GRID_OPTIONS.lines_every as i32;
 const GRID_AXIS_GRAY: u8 = 85;
 const GRID_MAJOR_GRAY: u8 = 64;
 const GRID_DIVISION_GRAY: u8 = 48;
