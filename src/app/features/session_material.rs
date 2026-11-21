@@ -19,9 +19,9 @@ const COMPONENT_REASON: &str =
     "Use Object mode: assigning a material to selected faces is not implemented";
 /// Maya's other Assign New Material types; only lambert exists in the session table.
 const UNSUPPORTED_TYPES: [&str; 4] = ["Blinn", "Phong", "Phong E", "Standard Surface"];
-/// Lambert attributes the session table does not store yet.
-const UNSUPPORTED_ROWS: [&str; 3] = ["Transparency", "Ambient Color", "Incandescence"];
-const NOT_EDITABLE_REASON: &str = "Not implemented: session materials store only a colour yet (PROVISIONAL: Maya's initial material is not a lambert)";
+/// Shown under the attribute rows: they are stored and saved but the viewport ignores them.
+const NO_VIEWPORT_EFFECT: &str =
+    "Transparency, Ambient Color and Incandescence do not yet affect the viewport";
 const NOT_IMPLEMENTED_REASON: &str = "Not implemented: only lambert materials exist yet";
 
 impl Editor {
@@ -185,7 +185,8 @@ impl Editor {
                 .map(|group| group.name().to_owned())
         });
         let users = id.map_or(0, |id| scene.session_material_shape_count(id));
-        let (name, color) = (lambert.name().to_owned(), lambert.color());
+        let name = lambert.name().to_owned();
+        let colours = LambertAttribute::ALL.map(|attribute| lambert.attribute(attribute));
         let shape = shape.id();
         ui.label(format!("Material: {name}"));
         if let Some(group) = group {
@@ -195,24 +196,25 @@ impl Editor {
             "{users} shape {}",
             if users == 1 { "user" } else { "users" }
         ));
-        let [r, g, b] = color.map(azteccraft::view_scene::channel_to_u8);
-        let label = format!("Color, {name}");
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Color");
-            // The swatch only displays; the R/G/B fields below edit.
-            let (rect, swatch) =
-                ui.allocate_exact_size(egui::vec2(48.0, 18.0), egui::Sense::hover());
-            ui.painter()
-                .rect_filled(rect, 2.0, Color32::from_rgb(r, g, b));
-            swatch.widget_info(|| {
-                egui::WidgetInfo::labeled(egui::accesskit::Role::Image, true, label.as_str())
+        for (attribute, colour) in LambertAttribute::ALL.into_iter().zip(colours) {
+            let [r, g, b] = colour.map(azteccraft::view_scene::channel_to_u8);
+            let title = colour::row_label(attribute);
+            let label = format!("{title}, {name}");
+            ui.horizontal_wrapped(|ui| {
+                ui.label(title);
+                // The swatch only displays; the R/G/B fields below edit.
+                let (rect, swatch) =
+                    ui.allocate_exact_size(egui::vec2(48.0, 18.0), egui::Sense::hover());
+                ui.painter()
+                    .rect_filled(rect, 2.0, Color32::from_rgb(r, g, b));
+                swatch.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::accesskit::Role::Image, true, label.as_str())
+                });
             });
-            self.session_color_fields(ui, shape, LambertAttribute::Color);
-        });
-        for row in UNSUPPORTED_ROWS {
-            ui.add_enabled(false, egui::Button::new(row))
-                .on_disabled_hover_text(NOT_EDITABLE_REASON);
+            // Its own row: wrapped inside the title row it grew the side panel over several frames.
+            ui.horizontal_wrapped(|ui| self.session_color_fields(ui, shape, attribute));
         }
+        ui.label(NO_VIEWPORT_EFFECT);
         true
     }
 

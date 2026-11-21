@@ -1,6 +1,8 @@
 //! The session-material section of the Attribute Editor material tab (#467 T5a).
+use super::colour::attribute_edit_id;
 use super::*;
 use crate::app::tests::remote;
+use azteccraft::native_scene::LambertAttribute;
 use eframe::egui::accesskit::Role;
 
 fn new_lambert() -> MaterialChoice {
@@ -157,29 +159,15 @@ fn the_swatch_is_a_named_non_interactive_image_filled_with_the_viewport_byte() {
 }
 
 #[test]
-fn unstored_lambert_attributes_are_disabled_rows_with_their_reason_on_hover() {
+fn the_section_notes_that_the_extra_attributes_do_not_affect_the_viewport() {
     let mut editor = cube_with_editor_open();
+    editor.assign_material_to_selection(new_lambert()).unwrap();
     select_material_tab(&mut editor).unwrap();
-    let context = egui::Context::default();
-    context.enable_accesskit();
-    context.all_styles_mut(|style| {
-        style.interaction.tooltip_delay = 0.0;
-        style.interaction.show_tooltips_only_when_still = false;
-    });
-    let output = frame_in(&mut editor, &context, vec![]);
-    for row in UNSUPPORTED_ROWS {
-        assert!(crate::app::tests::button_disabled(&output, row), "{row}");
-        let at = node_bounds(&output, Role::Button, row).center();
-        frame_in(&mut editor, &context, vec![egui::Event::PointerMoved(at)]);
-        frame_in(&mut editor, &context, vec![]);
-        let hovered = frame_in(&mut editor, &context, vec![]);
-        assert!(
-            has_text(&texts(&hovered), NOT_EDITABLE_REASON),
-            "{row}: {:?}",
-            texts(&hovered)
-        );
-        frame_in(&mut editor, &context, vec![egui::Event::PointerGone]);
+    let shown = texts(&frame(&mut editor));
+    for row in ["Transparency", "Ambient Color", "Incandescence"] {
+        assert!(has_text(&shown, row), "{row}: {shown:?}");
     }
+    assert!(has_text(&shown, NO_VIEWPORT_EFFECT), "{shown:?}");
 }
 
 #[test]
@@ -539,7 +527,19 @@ fn the_fields_are_labelled_text_inputs_and_disabled_for_the_locked_initial_mater
         names.push(label_node.value().unwrap_or_default().to_owned());
     }
     names.sort();
-    assert_eq!(names, ["Blue", "Green", "Red"]);
+    // Color keeps the bare names; the other three rows are prefixed so every name is distinct.
+    assert_eq!(names.len(), 12);
+    assert!(
+        [
+            "Blue",
+            "Green",
+            "Red",
+            "Transparency Red",
+            "Ambient Color Green"
+        ]
+        .iter()
+        .all(|name| names.contains(&(*name).to_string()))
+    );
     editor
         .assign_material_to_selection(MaterialChoice::Existing(SessionMaterialId::from_index(0)))
         .unwrap();
@@ -574,7 +574,7 @@ fn the_fields_are_labelled_text_inputs_and_disabled_for_the_locked_initial_mater
         .iter()
         .filter(|(_, node)| node.role() == Role::TextInput)
         .collect();
-    assert_eq!(inputs.len(), 3);
+    assert_eq!(inputs.len(), 12);
     assert!(inputs.iter().all(|(_, node)| node.is_disabled()));
 }
 
@@ -831,6 +831,10 @@ fn sliders_expose_a_name_the_range_and_the_clamped_value() {
         ));
     }
     seen.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(seen.len(), 12);
+    seen.retain(|(label, _)| {
+        ["Blue slider", "Green slider", "Red slider"].contains(&label.as_str())
+    });
     assert_eq!(
         seen,
         [
@@ -889,7 +893,7 @@ fn the_sliders_are_disabled_with_a_hover_reason_for_the_locked_initial_material(
         .iter()
         .filter(|(_, node)| node.role() == Role::Slider)
         .collect();
-    assert_eq!(sliders.len(), 3);
+    assert_eq!(sliders.len(), 12);
     assert!(sliders.iter().all(|(_, node)| node.is_disabled()));
     let at = slider_centre_at(&output, "Blue slider", 0.5);
     frame_in(&mut editor, &context, vec![egui::Event::PointerMoved(at)]);
@@ -921,4 +925,136 @@ fn the_sliders_are_disabled_with_a_reason_while_a_channel_edit_is_pending() {
     frame_in(&mut editor, &context, vec![]);
     let hovered = frame_in(&mut editor, &context, vec![]);
     assert!(has_text(&texts(&hovered), "Finish the channel edit first"));
+}
+
+fn attribute(editor: &Editor, attribute: LambertAttribute) -> [f64; 3] {
+    let scene = editor.history.scene();
+    scene
+        .session_material(scene.shape(shape_id(editor)).unwrap())
+        .unwrap()
+        .attribute(attribute)
+}
+
+fn type_into_attribute(
+    editor: &mut Editor,
+    context: &egui::Context,
+    attribute: LambertAttribute,
+    channel: usize,
+    text: &str,
+) {
+    context.memory_mut(|memory| memory.request_focus(attribute_edit_id(attribute, channel)));
+    frame_in(editor, context, vec![]);
+    type_focused(editor, context, text);
+}
+
+#[test]
+fn a_typed_transparency_commits_one_undo_step_and_leaves_the_other_rows() {
+    let (mut editor, context) = colour_editor();
+    let before = editor.history.scene().clone();
+    type_into_attribute(
+        &mut editor,
+        &context,
+        LambertAttribute::Transparency,
+        1,
+        "0.5",
+    );
+    assert!(editor.has_draft());
+    assert_eq!(
+        attribute(&editor, LambertAttribute::Transparency),
+        [0.0; 3],
+        "typing alone commits nothing"
+    );
+    press_enter(&mut editor, &context);
+    assert_eq!(editor.status, "Material transparency edited");
+    assert_eq!(
+        attribute(&editor, LambertAttribute::Transparency),
+        [0.0, 0.5, 0.0]
+    );
+    assert_eq!(colour(&editor), SAME);
+    assert_eq!(attribute(&editor, LambertAttribute::AmbientColor), [0.0; 3]);
+    editor.native_operation(Operation::Undo);
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn invalid_extra_attribute_text_keeps_the_scene_and_escape_reverts_that_row() {
+    let (mut editor, context) = colour_editor();
+    let before = editor.history.scene().clone();
+    type_into_attribute(
+        &mut editor,
+        &context,
+        LambertAttribute::AmbientColor,
+        0,
+        "2",
+    );
+    press_enter(&mut editor, &context);
+    assert!(editor.error);
+    assert_eq!(
+        editor.status,
+        "Ambient color channels must be numbers from 0 to 1"
+    );
+    assert_eq!(editor.history.scene(), &before);
+    frame_in(
+        &mut editor,
+        &context,
+        vec![key(egui::Key::Escape, egui::Modifiers::NONE)],
+    );
+    assert!(!editor.has_draft());
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn the_extra_rows_are_disabled_for_the_locked_initial_material() {
+    let mut editor = cube_with_editor_open();
+    select_material_tab(&mut editor).unwrap();
+    let context = egui::Context::default();
+    context.enable_accesskit();
+    let output = frame_in(&mut editor, &context, vec![]);
+    let update = output.platform_output.accesskit_update.as_ref().unwrap();
+    for name in ["Transparency Red slider", "Incandescence Blue slider"] {
+        let (_, node) = update
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some(name))
+            .unwrap_or_else(|| panic!("{name} missing"));
+        assert!(node.is_disabled(), "{name}");
+    }
+}
+
+#[test]
+fn a_commit_with_one_invalid_row_executes_nothing_and_two_valid_rows_are_two_undo_steps() {
+    let (mut editor, _context) = colour_editor();
+    let before = editor.history.scene().clone();
+    let set = |editor: &mut Editor, row: usize, channel: usize, text: &str| {
+        let draft = editor.session_color_draft.as_mut().unwrap();
+        draft.rows[row].text[channel] = text.into();
+        draft.rows[row].intent = true;
+    };
+    set(&mut editor, 0, 0, "1");
+    set(&mut editor, 1, 0, "2");
+    assert!(!editor.commit_pending());
+    assert_eq!(
+        editor.status,
+        "Transparency channels must be numbers from 0 to 1"
+    );
+    assert_eq!(editor.history.scene(), &before, "no row was executed");
+    // Row 0 back to its stored value: an unchanged row is a no-op, so two rows make two steps.
+    set(&mut editor, 0, 0, "0.5");
+    set(&mut editor, 1, 0, "0.25");
+    set(&mut editor, 2, 1, "0.5");
+    assert!(editor.commit_pending());
+    assert_eq!(colour(&editor), SAME);
+    assert_eq!(
+        attribute(&editor, LambertAttribute::Transparency),
+        [0.25, 0.0, 0.0]
+    );
+    assert_eq!(
+        attribute(&editor, LambertAttribute::AmbientColor),
+        [0.0, 0.5, 0.0]
+    );
+    for _ in 0..2 {
+        assert_ne!(editor.history.scene(), &before);
+        editor.native_operation(Operation::Undo);
+    }
+    assert_eq!(editor.history.scene(), &before);
 }

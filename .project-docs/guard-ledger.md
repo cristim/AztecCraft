@@ -179,7 +179,7 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   Tab between the fields keeps the draft; Enter, the end of a slider drag or focus leaving all six controls commits them as one step. Material 0 gets no draft (fields
   disabled, reason as hover text); a sourced scene shows the Phong section, so no colour fields exist, and the draft constructor refuses it
   with the core reason. Matrix cells are the existing
-  `set_session_material_color(...)` ones, unchanged.
+  `set_session_material_color(...)` ones, unchanged. The draft has one row per lambert colour attribute (Color, Transparency, Ambient Color, Incandescence); a commit runs one `SetSessionMaterialColor` or `SetSessionMaterialAttribute` per changed row, after every changed row parsed and every original matched, and remote `SetSessionMaterialAttribute` is draft-guarded exactly like the colour (matrix cells `set_session_material_attribute(...)`). Esc reverts the row it was pressed in.
 - Lighting/Shading > Material Attributes (`show_material_attributes` in the same file) dispatches `SetSidebarPanelVisible` then
   `SelectAttributeEditorTab` through `native_operation_result`, so both keep their own guards; it first resolves one object with one
   direct shape that has a material tab and refuses otherwise (status line only). View state only: never dirty, no scene-token change.
