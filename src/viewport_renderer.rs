@@ -467,6 +467,8 @@ impl ViewportRenderer {
 
 #[cfg_attr(test, derive(Clone))]
 struct Submission {
+    /// The camera image plane, drawn first and outside the empty-geometry early returns.
+    plate: Option<PlateDraw>,
     bytes: Vec<u8>,
     surfaces: Range<u32>,
     lines: Range<u32>,
@@ -575,6 +577,7 @@ impl Submission {
             max_buffer_size,
         )?;
         let mut submission = Self {
+            plate: None,
             bytes: Vec::new(),
             surfaces: 0..0,
             lines: 0..0,
@@ -948,6 +951,7 @@ impl Submission {
 }
 
 struct GpuResources {
+    plate: PlateGpu,
     surfaces: wgpu::RenderPipeline,
     lines: wgpu::RenderPipeline,
     markers: wgpu::RenderPipeline,
@@ -1002,6 +1006,7 @@ impl GpuResources {
             })
         };
         Self {
+            plate: PlateGpu::new(device, format),
             // Surfaces hide their own steepest depth slope behind themselves so a flat marker on
             // a steep face stays whole; the CPU occlusion test applies the same amount.
             surfaces: pipeline(
@@ -1029,6 +1034,13 @@ impl GpuResources {
         queue: &wgpu::Queue,
         submission: &Submission,
     ) -> Result<(), RenderError> {
+        // A plate failure is its own state (`PlateGpu::error`), never a viewport error.
+        match &submission.plate {
+            Some(plate) => {
+                let _ = self.plate.upload(device, queue, plate);
+            }
+            None => self.plate.clear(),
+        }
         if submission.bytes.is_empty() {
             return Ok(());
         }
@@ -1068,6 +1080,9 @@ impl GpuResources {
         pass: &mut wgpu::RenderPass<'_>,
         submission: &Submission,
     ) -> Result<(), RenderError> {
+        if let Some(plate) = &submission.plate {
+            self.plate.draw(pass, plate);
+        }
         if submission.bytes.is_empty() {
             return Ok(());
         }
@@ -1130,6 +1145,9 @@ impl CallbackTrait for ViewportCallback {
         }
     }
 }
+
+mod plate;
+use plate::{PlateDraw, PlateGpu};
 
 #[cfg(any(test, feature = "mcp"))]
 mod offscreen;
