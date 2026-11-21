@@ -2083,3 +2083,41 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
   Plane Attributes, Remove Image Plane) acts only when `self.scene_token == frame_token`. Only Remove Image Plane
   has a test that a stale frame token is refused (`the_remove_row_is_ignored_when_the_frames_scene_token_is_stale`);
   the other rows share the pattern but their guard is unpinned.
+
+## Camera image plane: implemented, not compared against Maya (#459)
+
+**Severity:** medium
+**Area:** viewport, parity, persistence
+**Issue:** #459
+
+One image plane on the live camera (View > Image Plane, the Attribute Editor Image Plane tab, MCP
+`set_image_plane`, `remove_image_plane` and `inspect_scene` `camera.image_plane`). No Maya render or screenshot
+was compared (#5), so this is implemented, not parity. Every choice below the Maya 2027 pages do not state is
+PROVISIONAL and pinned by a test (rows 68 to 72 of the policy constants table in `.project-docs/development.md`).
+
+- **Session only.** The plane is not saved in `.ma` or `.mb` and is cleared by New and Open.
+- **A scene that declares an imagePlane node is refused.** The `.ma` reader refuses a scene with an `imagePlane`
+  `createNode`, like any node class it does not model, with `ErrorKind::Unsupported` at an offset inside that
+  `createNode` (`an_image_plane_node_refuses_the_whole_scene_at_the_create_node`). Nothing is dropped, nothing is
+  turned into a session plane and nothing is executed. The error text is only "native ASCII scene Unsupported at byte
+  N": it does not name the imagePlane node. For `.mb` an unknown group form is refused the same way (a joint form is
+  pinned in `a_joint_form_is_refused_not_dropped_from_the_scene`), but the real form tag of an imagePlane in a
+  Maya-saved file is unconfirmed, so no `.mb` test exists. The exact `.ma` shape of a Maya-saved imagePlane needs a
+  Maya sample (#5). Reading and writing the scene node is deferred on #459.
+- **First-pass playback is not real time.** A cold pass over a sequence decodes on one worker thread and may show
+  the held frame or `loading`; once frames are cached a pass plays from the cache.
+- **The playing prefetch window does not wrap at the playback end.** Each loop wrap shows `loading` on its first
+  frame until it decodes (PROVISIONAL, a later refinement).
+- **A frame past the last file is `missing`.** The plate does not wrap, clamp or hold (PROVISIONAL).
+- **EXR, DPX, movies, free image planes, placement, colour and depth maps are unsupported.** Only PNG and JPEG
+  (also `.jpeg`) load. Size, Offset, Rotate, Squeeze Correction, Color Gain, Color Offset, Color Space, Depth Map and
+  Fit to Resolution Gate are drawn disabled with a reason (the resolution gate needs #55, colour management #49).
+- **Re-setting the same image name does not reload the file.** A changed file is picked up by Remove Image Plane
+  then Import Image, or by another name.
+- **Orthographic views show no plate.** The plate is drawn in perspective views only, and it is not drawn into
+  playblasts.
+- **Typed or keyed Image Number is unsupported** (it follows the time slider; keys need #52).
+- **The viewport summary line waits on #465 T7.** `Editor::viewport_summary()` is not on main. The plate state is
+  exposed meanwhile as real text in the status line ("Plate frame N: loading", "missing", "failed: <code>"), in the
+  Image Plane tab's Resolved Frame row and in `inspect_scene`; the line "image plane: <file>, frame N, <state>" is
+  added when T7 lands.
