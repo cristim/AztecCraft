@@ -145,6 +145,7 @@ The viewport header (`src/app/panels.rs "persp"`) shows the camera name, the sel
 | Panel Toolbar group: X-Ray (X-Ray, X-Ray Active Components, X-Ray Joints) | [paneltoolbar] | Missing | absent | none | P2 | S8 Panels and quick layouts (#48 / #69) |
 | Panel Toolbar group: Color Management (Exposure, Gamma, View Transform) | [paneltoolbar] | Missing | absent | none | P3 | S8 Panels and quick layouts (#48 / #69) |
 | Toggle panel menus (Shift+M) and Panel Toolbar (Ctrl+Shift+M) | [panelvis] | Missing | absent | none | P3 | S5 Hotkeys (#32) |
+| Marking menus: RMB mesh menu in the viewport | [marking] | Partial | `src/app/features/marking_menu/layout.rs` `mesh_menu`: an eight-zone dial (Vertex, Edge, Face, Object Mode, Extrude, Delete, Merge, UV, Multi, Paint and Inputs by mode; unsupported ones disabled with a reason) and a Select list (Select All, Select Hierarchy, Invert Selection, Deselect All; Select Similar, Make Live, Metadata, Assign Material and in component modes Bevel to Detach unsupported); hold-drag, flick, sticky click, Shift+F10 and AccessKit paths; layout PROVISIONAL and original, no Maya comparison, no real-window run yet (checklist in known-issues.md). Shift and Ctrl+RMB, hold-key, Hotbox and the Marking Menu Editor are unsupported | `set_selection_mode`, `extrude_face`, `select_by_rule`, `deselect_all` (entries map to tools; a held or open menu makes remote mutation `busy_editing`) | P1 | S5 Hotkeys (#32) |
 
 ## 6. Channel Box and Layer Editor
 
@@ -358,6 +359,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 [hotkeys-2027]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-KeyboardShortcuts/files/GUID-30CACC9D-8FBE-4B85-8A8F-C5ADF32DDD4E.htm
 [polygon-options]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-45D2EAD4-5BCF-42DA-A1AB-EC6EE09FE705.htm
 [interactive-creation]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-6D21314A-54AD-41D4-AFC0-AAED13CD50A6.htm
+[marking]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-8BA1A3AA-4C44-4779-8B22-0AAE3627E8EB.htm
 [menus]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-D90A2BDB-FD05-4528-8A95-C33A02D15129.htm
 [modeling-menus]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Modeling/files/GUID-A0E08BF2-0206-4518-8431-DC4E15AD4558.htm
 [menuset-editor]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Customizing/files/GUID-C14313A4-D814-4C2A-987E-F54B46FC7707.htm
