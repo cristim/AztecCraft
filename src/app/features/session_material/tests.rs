@@ -170,6 +170,12 @@ fn an_opened_binary_scene_refuses_assignment_with_the_typed_reason() {
         editor.assign_material_to_selection(new_lambert()),
         Err(OperationError::SessionMaterial(_))
     ));
+    assert!(editor.error);
+    assert!(
+        editor.status.contains(UNSUPPORTED_EDIT),
+        "{}",
+        editor.status
+    );
     assert_eq!(editor.history.scene(), &before);
 }
 
@@ -181,7 +187,11 @@ fn several_direct_shapes_have_no_assignment_target() {
         Err(OperationError::InvalidInput(ref reason)) if reason == NO_SHAPE_REASON
     ));
     let before = editor.history.scene().clone();
-    assert!(editor.assign_material_to_selection(new_lambert()).is_err());
+    assert!(matches!(
+        editor.assign_material_to_selection(new_lambert()),
+        Err(OperationError::InvalidInput(ref reason)) if reason == NO_SHAPE_REASON
+    ));
+    assert_eq!(editor.status, NO_SHAPE_REASON);
     assert!(editor.error);
     assert_eq!(editor.history.scene(), &before);
 }

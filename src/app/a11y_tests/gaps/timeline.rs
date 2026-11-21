@@ -1,6 +1,7 @@
 //! Recorded violations: timeline.
 
 pub(super) const GAPS: &[&str] = &[
+    "timeline-keys|R1|ScrollBar|root/<Window>#0/<ScrollBar>#0",
     "timeline-keys|R1|TextInput|channel_edit[0]",
     "timeline-keys|R1|TextInput|channel_edit[1]",
     "timeline-keys|R1|TextInput|channel_edit[2]",
@@ -10,8 +11,11 @@ pub(super) const GAPS: &[&str] = &[
     "timeline-keys|R1|TextInput|channel_edit[6]",
     "timeline-keys|R1|TextInput|channel_edit[7]",
     "timeline-keys|R1|TextInput|channel_edit[8]",
+    "timeline-keys|R3|Button|root/<Window>#0/Ambient Color",
     "timeline-keys|R3|Button|root/<Window>#0/INPUTS: not implemented yet",
+    "timeline-keys|R3|Button|root/<Window>#0/Incandescence",
     "timeline-keys|R3|Button|root/<Window>#0/OUTPUTS: not implemented yet",
     "timeline-keys|R3|Button|root/<Window>#0/SHAPES: not implemented yet",
+    "timeline-keys|R3|Button|root/<Window>#0/Transparency",
     "timeline-keys|R3|Button|root/<Window>#0/on",
 ];

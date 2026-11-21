@@ -31,6 +31,16 @@ impl Editor {
             .map(|shape| shape.id())
     }
 
+    /// Whether `shape` has something to show on a material tab: a saved Phong binding, or the
+    /// session material of an authored shape.
+    fn shape_has_material_tab(&self, shape: NativeId) -> bool {
+        let scene = self.history.scene();
+        scene.material_for_shape(shape).is_ok()
+            || scene
+                .shape(shape)
+                .is_ok_and(|shape| scene.session_material(shape).is_some())
+    }
+
     /// Whether `tab` names the selected transform or one of its direct shapes or their materials.
     fn attribute_editor_tab_resolves(&self, tab: AttributeEditorTab) -> bool {
         let Some(node) = self
@@ -48,7 +58,7 @@ impl Editor {
             AttributeEditorTab::Material(shape) => {
                 self.direct_shape_rank(node.transform_id(), shape)
                     .is_some_and(|rank| rank < MAX_SHAPE_TABS)
-                    && self.history.scene().material_for_shape(shape).is_ok()
+                    && self.shape_has_material_tab(shape)
             }
         }
     }
@@ -319,7 +329,7 @@ impl Editor {
                 AttributeEditorTab::Shape(shape.id()),
                 shape.name().to_owned(),
             ));
-            if scene.material_for_shape(shape.id()).is_ok() {
+            if self.shape_has_material_tab(shape.id()) {
                 tabs.push((
                     AttributeEditorTab::Material(shape.id()),
                     format!("{} material", shape.name()),

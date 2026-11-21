@@ -13,6 +13,9 @@ const COMPONENT_REASON: &str =
     "Use Object mode: assigning a material to selected faces is not implemented";
 /// Maya's other Assign New Material types; only lambert exists in the session table.
 const UNSUPPORTED_TYPES: [&str; 4] = ["Blinn", "Phong", "Phong E", "Standard Surface"];
+/// Lambert attributes the session table does not store yet.
+const UNSUPPORTED_ROWS: [&str; 3] = ["Transparency", "Ambient Color", "Incandescence"];
+const NOT_EDITABLE_REASON: &str = "Not implemented: session materials store only a colour yet (PROVISIONAL: Maya's initial material is not a lambert)";
 const NOT_IMPLEMENTED_REASON: &str = "Not implemented: only lambert materials exist yet";
 
 impl Editor {
@@ -83,6 +86,63 @@ impl Editor {
             .collect()
     }
 
+    /// The session-material section of a material tab; `false` when `shape` has none (sourced
+    /// scenes, which show the Phong section instead). Colour editing arrives in a later slice,
+    /// so the swatch is a named image, not a control.
+    pub(in crate::app) fn session_material_section(
+        &self,
+        ui: &mut egui::Ui,
+        shape: NativeId,
+    ) -> bool {
+        let scene = self.history.scene();
+        let Some((shape, lambert)) = scene
+            .shape(shape)
+            .ok()
+            .and_then(|shape| scene.session_material(shape).map(|l| (shape, l)))
+        else {
+            return false;
+        };
+        let id = scene.session_material_id(shape);
+        let group = id.and_then(|id| {
+            scene
+                .session_shading_groups()
+                .iter()
+                .find(|group| group.material() == id)
+        });
+        let users = id.map_or(0, |id| scene.session_material_shape_count(id));
+        ui.label(format!("Material: {}", lambert.name()));
+        if let Some(group) = group {
+            ui.label(format!("Shading group: {}", group.name()));
+        }
+        ui.label(format!(
+            "{users} shape {}",
+            if users == 1 { "user" } else { "users" }
+        ));
+        let color = lambert.color();
+        let [r, g, b] = color.map(azteccraft::view_scene::channel_to_u8);
+        let label = format!("Color, {}", lambert.name());
+        ui.horizontal(|ui| {
+            ui.label("Color");
+            // Not a button: recolouring has no native control yet, so the swatch is display only.
+            let (rect, swatch) =
+                ui.allocate_exact_size(egui::vec2(48.0, 18.0), egui::Sense::hover());
+            ui.painter()
+                .rect_filled(rect, 2.0, Color32::from_rgb(r, g, b));
+            swatch.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::accesskit::Role::Image, true, label.as_str())
+            });
+            ui.label(format!(
+                "R {:.3} G {:.3} B {:.3}",
+                color[0], color[1], color[2]
+            ));
+        });
+        for row in UNSUPPORTED_ROWS {
+            ui.add_enabled(false, egui::Button::new(row))
+                .on_disabled_hover_text(NOT_EDITABLE_REASON);
+        }
+        true
+    }
+
     pub(in crate::app) fn lighting_shading_menu(&mut self, ui: &mut egui::Ui) {
         // Row order follows the Object-mode marking menu (Material Attributes, Assign New, Assign
         // Favorite, Assign Existing); its placement in this menu is PROVISIONAL.
@@ -138,5 +198,7 @@ impl Editor {
     }
 }
 
+#[cfg(test)]
+mod section_tests;
 #[cfg(test)]
 mod tests;

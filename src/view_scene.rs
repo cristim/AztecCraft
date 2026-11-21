@@ -30,7 +30,8 @@ const WINDING_RESIDUAL: f64 = 0.25;
 
 mod curves;
 
-fn channel_to_u8(channel: f64) -> u8 {
+/// The byte the viewport fills with for a linear channel; UI swatches use it too, so they match.
+pub fn channel_to_u8(channel: f64) -> u8 {
     (channel * 255.0).round().clamp(0.0, 255.0) as u8
 }
 

@@ -267,7 +267,6 @@ impl NativeScene {
     /// Number of authored shapes that display this material; 0 for an unknown id and for
     /// sourced scenes, which the table does not own.
     // Caller: the Attribute Editor "shared by" line (#467 T5a).
-    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     pub fn session_material_shape_count(&self, material: SessionMaterialId) -> usize {
         let table = &self.session_materials;
         if self.source.is_some() {

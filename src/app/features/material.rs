@@ -58,6 +58,9 @@ impl Editor {
             ui.weak("Material selection is out of sync with this tab.");
             return;
         }
+        if self.session_material_section(ui, shape) {
+            return;
+        }
         let Ok(material) = self.history.scene().material_for_shape(shape) else {
             ui.weak("Material data editing unavailable for this shape.");
             return;

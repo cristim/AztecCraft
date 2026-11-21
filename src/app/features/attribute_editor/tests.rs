@@ -301,9 +301,10 @@ fn scene_replacement_resets_the_tab() {
 }
 
 #[test]
-fn a_stored_material_tab_without_a_material_is_never_reported() {
+fn a_stored_material_tab_for_another_objects_shape_is_never_reported() {
     let mut editor = cube();
     let shape = shape_of(&editor);
+    editor.create(Primitive::Plane);
     editor.attribute_editor_tab = Some(AttributeEditorTab::Material(shape));
     assert!(matches!(
         editor.effective_attribute_editor_tab(),

@@ -182,12 +182,13 @@ async fn sdk_tab_selection_resolves_reports_and_refuses() {
     .await;
     assert_eq!(back["outcome"], "changed");
 
-    // A failed call leaves state unchanged: unknown shape, foreign node, cube has no material.
+    // A failed call leaves state unchanged: unknown shape, foreign node, another object's shape.
+    let foreign = editor.history.scene().shapes()[0].id().to_decimal();
     let state = inspect(&mut editor, &context, &client).await;
     for tab in [
         json!({"kind": "shape", "id": "999999"}),
         json!({"kind": "transform", "id": "999999"}),
-        json!({"kind": "material", "id": shape}),
+        json!({"kind": "material", "id": foreign}),
         json!({"kind": "shape", "id": node}),
     ] {
         let refused = select_tab(&mut editor, &context, &client, &token, tab.clone()).await;
@@ -239,6 +240,26 @@ async fn sdk_material_tab_selects_and_drives_the_material_shape() {
     let result = select_tab(&mut editor, &context, &client, &token, tab.clone()).await;
     assert_eq!(result["outcome"], "changed");
     assert_eq!(editor.material_shape, Some(shape));
+    assert_eq!(
+        inspect(&mut editor, &context, &client).await["attribute_editor_tab"],
+        tab
+    );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_material_tab_resolves_for_an_authored_scene_with_a_session_material() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let shape = editor.history.scene().shapes()[0].id();
+    set_panel(&mut editor, &context, &client, AE, true).await;
+    let tab = json!({"kind": "material", "id": shape.to_decimal()});
+    let token = editor.scene_token.to_string();
+    let result = select_tab(&mut editor, &context, &client, &token, tab.clone()).await;
+    assert_eq!(result["outcome"], "changed");
     assert_eq!(
         inspect(&mut editor, &context, &client).await["attribute_editor_tab"],
         tab
