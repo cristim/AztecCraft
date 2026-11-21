@@ -270,6 +270,41 @@ async fn sdk_material_tab_resolves_for_an_authored_scene_with_a_session_material
 }
 
 #[tokio::test]
+async fn sdk_material_tab_is_refused_for_a_sourced_shape_without_a_phong_binding() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("plain.mb");
+    std::fs::write(
+        &path,
+        crate::app::features::attribute_editor::ui_tests::many_shapes(1),
+    )
+    .unwrap();
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let before_open = editor.scene_token.to_string();
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "open_scene",
+        json!({"scene_token": before_open, "path": path}),
+    )
+    .await;
+    let token = editor.scene_token.to_string();
+    let id = editor.history.scene().nodes()[0].id();
+    editor.select(Some(id));
+    let shape = editor.history.scene().shapes()[0].id();
+    set_panel(&mut editor, &context, &client, AE, true).await;
+    let state = inspect(&mut editor, &context, &client).await;
+    let tab = json!({"kind": "material", "id": shape.to_decimal()});
+    let refused = select_tab(&mut editor, &context, &client, &token, tab).await;
+    assert_eq!(refused["error"]["code"], "invalid_input");
+    assert_eq!(inspect(&mut editor, &context, &client).await, state);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
 async fn sdk_attribute_editor_operations_are_guarded_like_the_other_view_setters() {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;

@@ -318,6 +318,28 @@ fn a_stored_material_tab_for_another_objects_shape_is_never_reported() {
 }
 
 #[test]
+fn a_sourced_shape_without_a_phong_binding_has_no_material_tab() {
+    let (mut editor, _directory) =
+        ui_tests::open_with_attribute_editor("plain.mb", &ui_tests::many_shapes(1));
+    let shape = editor.history.scene().shapes()[0].id();
+    assert!(!editor.shape_has_material_tab(shape));
+    editor.attribute_editor_tab = Some(AttributeEditorTab::Material(shape));
+    assert!(matches!(
+        editor.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Transform(_))
+    ));
+    let before = inspected(&editor);
+    assert!(matches!(
+        remote(&mut editor, tab_op(AttributeEditorTab::Material(shape))),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(
+        inspected(&editor)["attribute_editor_tab"],
+        before["attribute_editor_tab"]
+    );
+}
+
+#[test]
 fn native_refuses_closing_and_modal_before_committing_drafts() {
     for closing in [false, true] {
         for make in MAKERS {
