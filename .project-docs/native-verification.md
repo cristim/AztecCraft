@@ -1,5 +1,19 @@
 # Native verification record
 
+
+## Linux x86_64 CI archive verification (2026-11-21)
+
+Ran the default binary extracted from the [successful Rust checks run](https://github.com/cristim/AztecCraft/actions/runs/44882886747) for commit `071cda7d0bb28e5afeabe98a8aa010afd2579213`. Artifact `azteccraft-linux-X64-071cda7d0bb28e5afeabe98a8aa010afd2579213` contained `azteccraft-0.1.0-linux-x86_64.tar.gz`. Its SHA-256 matched the manifest (`c36673d11e143372c481984212957998b916270c8026ae725368f7128bd146fb`) and the executable SHA-256 matched (`8ae8ff8a90e7382c3759a474d07c3bd7b179474efa4e39f4b8d6d5b616feb280`).
+
+Omarchy 4.5.0, Linux 7.2.15 x86_64, isolated X11/Xvfb at 1440x900 with the GTK file portal. Native pointer and keyboard events drove the following checks.
+
+- Launched the extracted archive and observed the editor and its viewport.
+- Created a cube from the shelf, entered Translate X 2.5 in the Channel Box, then checked Undo and Redo.
+- Saved as Maya ASCII through the native Save As picker. An independent text check found `pCube1`, its mesh and a translation of `2.5 0 0`.
+- Created a new document and reopened the saved cube through the native Open picker. Selected the reopened cube and checked Translate X 2.5 in the Channel Box. Synthetic fixture SHA-256 `b1cfb45dd28330e1db19399af0ad678c66f3f36f334e2c249451f363678fb5bf`.
+
+An initial attempt stopped when the test X display disconnected while Save As was open. The editor emitted a winit X11 connection error. The completed retry used a separately managed X display. This covers Linux x86_64 launch and the described authored-scene journey for this archive. Windows, Linux ARM64 and Maya interoperability remain open on their respective issues.
+
 ## Linux native interaction verification (2026-10-23)
 
 Verified source: `origin/main` commit [`bcc0cc1`](https://github.com/cristim/AztecCraft/commit/bcc0cc15e9c73ba3654071ffa8ccc4311c96fdd4),
