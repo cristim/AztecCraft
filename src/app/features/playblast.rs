@@ -121,6 +121,24 @@ impl Editor {
         })
     }
 
+    /// Stops the job after the file in flight and joins its writer thread.
+    pub(in crate::app) fn cancel_playblast(&mut self) -> OperationReply {
+        match self.playblast.run.take() {
+            Some(mut run) => {
+                let progress = run.job.cancel();
+                self.record_playblast(progress);
+                OperationReply::Changed
+            }
+            None => OperationReply::Unchanged,
+        }
+    }
+
+    /// A new or opened document ends the job and forgets its report.
+    pub(in crate::app) fn reset_playblast(&mut self) {
+        self.cancel_playblast();
+        self.playblast.last = None;
+    }
+
     fn record_playblast(&mut self, progress: JobProgress) {
         self.playblast.last = Some(progress);
     }

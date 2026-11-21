@@ -254,7 +254,8 @@ impl Editor {
             #[cfg(any(test, feature = "mcp"))]
             Operation::ExportGltf { .. }
             | Operation::ExportUsd { .. }
-            | Operation::Playblast(_) => None,
+            | Operation::Playblast(_)
+            | Operation::CancelPlayblast => None,
             _ => Some("Scene edited"),
         };
         StatusFeedback {
@@ -1635,6 +1636,8 @@ impl Editor {
             } => return self.export_usd(&path, selection_only, may_install),
             #[cfg(any(test, feature = "mcp"))]
             Operation::Playblast(request) => return self.start_playblast(request),
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::CancelPlayblast => return Ok(self.cancel_playblast()),
 
             Operation::SetCameraPose {
                 target,
