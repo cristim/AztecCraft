@@ -174,6 +174,7 @@ impl Editor {
     pub(in crate::app) fn attribute_editor(&mut self, ui: &mut egui::Ui) {
         ui.label(RichText::new("Attribute Editor").strong());
         let Some(active) = self.effective_attribute_editor_tab() else {
+            self.plane_drafts_primed = false;
             ui.separator();
             if self.image_plane.is_some() {
                 // No selected node: only the plane's tab can be shown.
@@ -196,6 +197,7 @@ impl Editor {
             self.image_plane_section(ui);
             return;
         }
+        self.plane_drafts_primed = false;
         let read_only_reason = self.authoring_refusal();
         let authoring = read_only_reason.is_none();
         if let Some(reason) = read_only_reason {
@@ -405,13 +407,6 @@ impl Editor {
             shape.mesh().faces().len()
         ));
         ui.weak("Shape attributes are read-only in this slice.");
-    }
-}
-
-impl Editor {
-    /// Placeholder until the editable rows land in the next change.
-    fn image_plane_section(&mut self, ui: &mut egui::Ui) {
-        ui.weak("Image Plane attributes are not shown yet.");
     }
 }
 

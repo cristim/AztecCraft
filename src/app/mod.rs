@@ -95,6 +95,10 @@ pub struct Editor {
     /// Session-only (#459); cleared when a document replaces the scene (New, Open).
     image_plane: Option<azteccraft::image_plane::ops::ImagePlaneState>,
     plate: features::image_plane::PlateRuntime,
+    /// The Image Plane tab's text fields (see `image_plane_attributes`).
+    plane_drafts: [String; features::image_plane_attributes::FIELDS],
+    /// Whether `plane_drafts` hold the stored values since the tab was last shown.
+    plane_drafts_primed: bool,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     /// Off unless the host enables it; recovery files never replace the scene file.
@@ -181,6 +185,8 @@ impl Default for Editor {
             view_history: Default::default(),
             image_plane: None,
             plate: Default::default(),
+            plane_drafts: Default::default(),
+            plane_drafts_primed: false,
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
             recovery: None,
@@ -424,6 +430,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .chain([features::extrude_options::thickness_field_id()])
     .chain(features::playblast_options::field_ids())
     .chain(features::timeline::field_ids())
+    .chain(features::image_plane_attributes::field_ids())
 }
 
 /// egui 0.37 surrenders a focused field on a press elsewhere when the field reads its style,
