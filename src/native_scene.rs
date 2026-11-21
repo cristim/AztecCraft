@@ -2379,8 +2379,8 @@ pub enum NativeError {
     InvalidSessionKeys,
     /// A film back value the camera store refuses; names the first offending field.
     InvalidFilmBack(&'static str),
-    /// The camera was stated in a file with a value the editor cannot carry (an unknown
-    /// `filmRollOrder` id), so it cannot be edited.
+    /// The camera was stated in a file in a way the editor cannot carry (a partial film back
+    /// statement or an unknown `filmRollOrder` id), so it cannot be edited.
     BlockedCamera,
     /// The scene was opened from a file whose camera attributes the editor cannot yet write back.
     SourcedCameraEdit,
@@ -2494,8 +2494,8 @@ impl fmt::Display for NativeError {
             Self::InvalidSessionKeys => f.write_str("invalid session key table"),
             Self::InvalidFilmBack(field) => write!(f, "invalid camera film back field {field}"),
             Self::BlockedCamera => f.write_str(
-                "the camera film back cannot be edited: the file states a value this editor \
-                 does not know",
+                "the camera film back cannot be edited: the file states it in a way this editor \
+                 cannot carry (a partial statement or an unknown roll order id)",
             ),
             Self::SourcedCameraEdit => f.write_str(
                 "camera film back edits are not written back to an opened Maya file yet; \

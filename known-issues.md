@@ -551,16 +551,20 @@ stated. The short names and the `ff` ids 0 to 3 (fill, horizontal, vertical, ove
 the Maya camera node page; the `fro` ids (0 rotate-translate, 1 translate-rotate) are not on it,
 and Maya's acceptance of the `select -ne` form is unverified, all PROVISIONAL. S2b (wiring the
 editor to the store) stays blocked until Maya accepts the block and the `fro` ids are verified.
-A PARTIAL block refuses the whole file (`unsupported`): real Maya writes only the attributes
-that differ from the node defaults, so a Maya file whose camera has an edited film back and does
-not state all 19 attributes does not open. That is no regression (those attributes were already
-refused), and a follow-up should preserve a partial block as unknown source data instead (with
-the .mb work, S2d and S2e). The block always states `ff`, so the viewport Fill default (the page
-lists the node default as horizontal; see row 25) never decides a stated camera. An out-of-range
-fit id, a duplicate, an invalid value or a radian file also refuses the file. An unknown `fro` id
-blocks the camera: a mesh-free file stays readable and read-only with its source bytes, but a
-mesh file with one is refused (the authored gate cannot re-emit it and a mesh file is never
-retained read-only), so "the source keeps it" holds for mesh-free files only. The `.mb` writer
+A PARTIAL block (real Maya writes only the attributes that differ from the node defaults) blocks
+the camera instead of refusing the file: the source bytes stay, the file opens read-only, the
+viewport keeps its default lens for that camera (`camera_projection_available` is false) and the
+editor cannot edit or write it. Open says so in the status line ("camera persp film back is kept
+in the file but not applied") and `inspect_scene` lists the camera under `camera.blocked_cameras`.
+Nothing else shows it yet (Follow-up F-458-3: an indicator in the Camera Attribute Editor and the
+Help Line once that tab exists). The `.mb` reader still drops the camera attributes and keeps the
+source, so an opened .mb is read-only and its camera film back is not read; S2d and S2e need the
+.mb camera field table, a reader that parses the scalars into the store with spans, a writer and
+source-bound edits. The block always states `ff`, so the viewport Fill default (the page lists the
+node default as horizontal; see row 25) never decides a stated camera. An out-of-range fit id in a
+complete block, a duplicate, a typed or unknown attribute, an invalid value or a radian file
+refuses the file. An unknown `fro` id blocks the camera likewise; "the source keeps it" holds for
+mesh-free files only (F-458-2). The `.mb` writer
 still refuses an override (`camera_override`, slice S2d). Only the MCP `set_camera_film_back` edits
 the film back; the Attribute Editor Camera tab (#458) is not built, so no native control exists. Every film formula, the Fill threshold, the Fill default and treating the viewport
 aspect as the resolution gate are PROVISIONAL. Pan moves
@@ -1952,3 +1956,19 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
 - One tick renders one frame on the UI thread. A very large frame on a software adapter can freeze the window
   for seconds, and Cancel cannot interrupt a frame in flight; it takes effect before the next frame.
 - `width` and `height` are required: no viewport size is stored, so there is no default to take.
+
+## Camera film back file persistence follow-ups (#458)
+
+**Severity:** medium
+**Area:** camera, Maya ASCII and Binary files
+**Issue:** #458
+
+- Follow-up F-458-1: a statement of `fl` alone is ignored (the viewport stays at the default focal
+  length for a Maya file that edited it) while `fl` plus any other attribute blocks the camera;
+  make a lone non-default `fl` block or be read too (PROVISIONAL, inconsistent today).
+- Follow-up F-458-2: a mesh file with a blocked camera is refused, because the authored gate must
+  re-emit every statement and meshes are never retained read-only. That likely affects most real
+  Maya scenes that contain meshes and a camera edit. The fix is to preserve a blocked camera's
+  statements as unknown source data (S2d and S2e) so the file opens with its camera intact.
+- Follow-up F-458-3: a blocked camera shows only in the Open status line and `inspect_scene`;
+  add an indicator in the Camera Attribute Editor and the Help Line once that tab exists.

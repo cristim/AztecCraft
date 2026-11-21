@@ -2,6 +2,7 @@
 //! form (`select -ne :perspShape;` then one `setAttr` per film back attribute, PROVISIONAL: Maya
 //! acceptance of this form is unproved) and exact f64 bits.
 use super::*;
+use crate::native_scene::camera::FILM_ATTRIBUTES;
 use crate::native_scene::test_fixtures;
 use crate::viewport::{FilmFit, FilmRollOrder};
 
@@ -159,14 +160,6 @@ fn complete_block(shape: &str) -> String {
 fn malformed_partial_and_invalid_camera_statements_are_refused() {
     let complete = complete_block("perspShape");
     assert!(decode(Arc::from(complete.clone().into_bytes())).is_ok());
-    let without = |attribute: &str| {
-        complete
-            .lines()
-            .filter(|line| !line.contains(&format!("\".{attribute}\"")))
-            .collect::<Vec<_>>()
-            .join("\n")
-            + "\n"
-    };
     let with = |from: &str, to: &str| {
         let changed = complete.replace(from, to);
         assert_ne!(changed, complete, "{from}");
@@ -174,8 +167,6 @@ fn malformed_partial_and_invalid_camera_statements_are_refused() {
     };
     use ErrorKind::{Malformed, Unsupported};
     let cases = [
-        ("missing hfa", without("hfa"), Unsupported),
-        ("missing fro", without("fro"), Unsupported),
         (
             "duplicate fl",
             format!("{complete}\tsetAttr \".fl\" 40;\n"),
@@ -330,4 +321,76 @@ fn a_default_camera_that_states_only_its_focal_length_keeps_its_old_meaning() {
             .same_bits(&FilmBack::DEFAULT)
     );
     assert!(scene.camera_projection_available(SceneCamera::Persp));
+}
+
+fn without(block: &str, attribute: &str) -> String {
+    block
+        .lines()
+        .filter(|line| !line.contains(&format!("\".{attribute}\"")))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
+}
+
+#[test]
+fn a_partial_block_blocks_the_camera_and_keeps_the_source_instead_of_refusing_the_file() {
+    let complete = complete_block("perspShape");
+    for attribute in FILM_ATTRIBUTES {
+        let source = without(&complete, attribute);
+        let bytes: Arc<[u8]> = Arc::from(source.clone().into_bytes());
+        let scene = decode(bytes.clone()).unwrap_or_else(|e| panic!("{attribute}: {e:?}"));
+        assert!(
+            !scene.camera_projection_available(SceneCamera::Persp),
+            "missing {attribute}"
+        );
+        assert!(scene.camera_projection_available(SceneCamera::Top));
+        assert!(
+            scene
+                .camera_film_back(SceneCamera::Persp)
+                .same_bits(&FilmBack::DEFAULT)
+        );
+        assert_eq!(&*scene.source.as_ref().unwrap().bytes, source.as_bytes());
+        assert!(matches!(
+            decode_document(bytes, true),
+            Ok(AsciiDecoded::Retained(_))
+        ));
+    }
+}
+
+#[test]
+fn one_real_maya_attribute_blocks_the_camera_and_is_not_an_error() {
+    // Maya writes only what differs from the node defaults: a lone edited aperture.
+    let source = format!(
+        "{PREFIX}createNode transform -s -n \"persp\";\ncreateNode camera -s -n \"perspShape\" -p \"persp\";\n\tsetAttr \".fl\" 50;\n\tsetAttr \".vfa\" 1.2;\n"
+    );
+    let scene = decode(Arc::from(source.into_bytes())).unwrap();
+    assert!(!scene.camera_projection_available(SceneCamera::Persp));
+    assert!(scene.has_blocked_camera());
+    assert_eq!(scene.blocked_camera_names(), ["persp"]);
+    assert!(NativeScene::default().blocked_camera_names().is_empty());
+    // A duplicate statement, a typed setAttr and an unknown attribute still refuse the file.
+    for body in [
+        "\tsetAttr \".vfa\" 1.2;\n\tsetAttr \".vfa\" 1.3;\n",
+        "\tsetAttr -type \"double\" \".vfa\" 1.2;\n",
+        "\tsetAttr \".vfa\" 1.2;\n\tsetAttr \".shakeEnabled\" 1;\n",
+    ] {
+        let source = format!(
+            "{PREFIX}createNode transform -s -n \"persp\";\ncreateNode camera -s -n \"perspShape\" -p \"persp\";\n{body}"
+        );
+        assert!(decode(Arc::from(source.into_bytes())).is_err(), "{body}");
+    }
+}
+
+#[test]
+fn a_mesh_file_with_a_partial_camera_block_is_refused_like_any_unreemittable_statement() {
+    let (scene, _) = test_fixtures::cube();
+    let mut text = String::from_utf8(emit_geometry_prefix(&scene).unwrap()).unwrap();
+    text.push_str("select -ne :perspShape;\n\tsetAttr \".hfa\" 1.2;\n");
+    assert!(matches!(
+        decode_document(Arc::from(text.into_bytes()), true),
+        Err(AsciiDocumentError::Ascii(AsciiError {
+            kind: ErrorKind::Unsupported,
+            ..
+        }))
+    ));
 }

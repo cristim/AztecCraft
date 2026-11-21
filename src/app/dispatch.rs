@@ -360,6 +360,16 @@ impl Editor {
                 self.error = true;
             }
         }
+        if matches!(result, Ok(OperationReply::DocumentApplied { .. })) {
+            let blocked = self.history.scene().blocked_camera_names();
+            if !blocked.is_empty() {
+                self.status = format!(
+                    "{} - camera {} film back is kept in the file but not applied (default lens shown)",
+                    self.status,
+                    blocked.join(", ")
+                );
+            }
+        }
         if let Some((step, error)) = self.refusal_after_change.take() {
             self.report_refusal_after_change(step, &error);
         }

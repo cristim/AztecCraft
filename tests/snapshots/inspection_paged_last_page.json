@@ -3,6 +3,7 @@
     "appearance_incomplete": false,
     "attribute_editor_tab": null,
     "camera": {
+      "blocked_cameras": [],
       "can_redo_view": false,
       "can_undo_view": false,
       "center_of_interest_cm": 8.0,

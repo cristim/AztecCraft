@@ -668,6 +668,7 @@ impl Editor {
                 can_redo_view: !self.view_history.redo.is_empty(),
                 native_gesture_active: self.native_camera_drag,
                 focal_length_mm: self.camera.lens().focal_length_mm(),
+                blocked_cameras: self.history.scene().blocked_camera_names(),
                 film_back: match self.camera.lens() {
                     azteccraft::viewport::Lens::Film(film) => {
                         Some(crate::editor_operations::FilmBackInspection {

@@ -86,7 +86,8 @@ pub enum AsciiWriteRefusal {
     SessionMaterials,
     Keys,
     CameraOverride,
-    /// A camera the file stated with a roll order id this editor does not know.
+    /// A camera the file stated in a way this editor cannot carry (a partial film back
+    /// statement or an unknown roll order id).
     CameraBlocked,
     InvalidScene(NativeError),
     UnsupportedUnits,
@@ -126,7 +127,7 @@ impl fmt::Display for AsciiWriteRefusal {
                 "a camera film back is not saved to a Maya file yet; reset it to the defaults to save"
             }
             Self::CameraBlocked => {
-                "a camera film back with a roll order id this editor does not know cannot be saved"
+                "a camera film back stated partially or with an unknown roll order id cannot be saved"
             }
             Self::InvalidScene(error) => return error.fmt(f),
             Self::UnsupportedUnits => "only centimeter, degree and film units are supported",
