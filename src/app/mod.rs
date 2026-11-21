@@ -545,6 +545,8 @@ mod group_persistence_tests;
 #[cfg(test)]
 mod match_transformations_tests;
 #[cfg(test)]
+mod naming_tests;
+#[cfg(test)]
 mod pivot_ops_tests;
 #[cfg(test)]
 mod transform_menu_tests;
