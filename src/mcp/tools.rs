@@ -968,7 +968,7 @@ mod tests {
                 "edit_node" => json!({"scene_token":token,"node_id":"1"}),
                 "set_pivots" => json!({"scene_token":token,"node_id":"1"}),
                 "reset_pivots" => json!({"scene_token":token,"mode":"zero"}),
-                "reset_transformations" | "freeze_transformations" => {
+                "reset_transformations" | "freeze_transformations" | "match_transformations" => {
                     json!({"scene_token":token})
                 }
                 "parent_node" => json!({"scene_token":token,"node_id":"1","world":true}),
@@ -1157,6 +1157,7 @@ mod tests {
                     | "reset_pivots"
                     | "reset_transformations"
                     | "freeze_transformations"
+                    | "match_transformations"
                     | "list_camera_bookmarks"
                     | "apply_camera_bookmark"
             );

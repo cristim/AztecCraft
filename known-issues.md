@@ -1905,6 +1905,22 @@ The behavior is PROVISIONAL and not compared with Maya (#5). Point storage is f3
 about 4e-4 relative at a scale ratio of 1e3/1e-3; ordinary scales stay far below that. Mirrored nodes are refused
 whenever the scale is frozen (translate-only and rotate-only freezes of a mirrored node keep the mirror on the node).
 
+## Match Transformations refuses shear and cross-channel cases and is PROVISIONAL
+
+**Severity:** low
+**Area:** transform, native scene
+**Issue:** #313 (Match Transformations slice)
+
+The fetched Autodesk pages (Match Transformations Options, the `matchTransform` command, the Modify menu) do not
+state world versus local space, child handling, defaults or the behaviour with several objects; the menu page names
+the last selected object as the one matched and the command page lists position, rotation, scale and pivot flags.
+The native op assumes world space and writes only the chosen local channels, so a subset that would also need a
+different unchosen channel (a rotation-only match under a non-uniformly scaled parent that swaps its axes) or any
+shear is refused as `invalid_transform_edit`, never approximated. Match Pivots, bounding-box matching, per-axis
+flags, targets and moved objects with pivots, extras, keys or joints, and instanced objects are unsupported. Not
+compared with Maya (#5). Vocabulary: Maya's pages call the last selected object the "source" and the others
+"targets"; here the last selected is the "target" (also in `maya_map`), so the naming is inverted (no behavior change).
+
 ## Poly Helix and Soccer Ball are provisional (#466)
 
 `create_primitive` with `helix` (default 3 coils, height 2, width 2, tube radius 0.4, 8 points per ring, 50 segments: 408 points, 808
