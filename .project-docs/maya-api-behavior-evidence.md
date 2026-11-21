@@ -99,6 +99,38 @@ C++ members are documented as introduced in 2027.3. This is wrapper-exposure
 evidence for this runtime, not a C++ behavior test, ABI result, or claim about
 all Python API surfaces.
 
+## `traxAudioTrack` empty-track batch observation
+
+The [2027 command reference](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Commands/traxAudioTrack.html)
+documents insertion of an empty track at a 1-based index, removal of an empty
+track, and a `numTracks` query. The [audio node reference](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Nodes/audio.html)
+says audio nodes carry sound-file information and are created with the `sound`
+command. The probe therefore avoids fabricated audio nodes, sound-file inputs,
+and undocumented audio-clip setup; it exercises only empty-track operations.
+
+The opt-in [`traxAudioTrack` probe](../scripts/maya-api-trax-track-probe.py)
+(SHA-256 `913F85C90089A76E1B4B027C11F709F757C036B678EAF3B8296613BE79627D89`)
+ran twice in Maya 2027.3 standalone, each time with a unique ignored
+`MAYA_APP_DIR` and a blank unnamed scene. Both runs exited `0`; their parsed
+JSON results matched. The ignored local capture
+`target/maya-catalog/trax-empty-track-final-1.json` has SHA-256
+`FCD6B79A97F68760B5997CF37EEA3F8D2811578A26FB70C3C697AF9A657E4DCF`.
+Local runtime reports are not distributed.
+
+| Operation | Batch observation |
+| --- | --- |
+| Initial `numTracks` query | `0` |
+| `insertTrack=1` | Returned `None` without a reported exception; subsequent count remained `0` |
+| `removeTrack=1` | Returned `None` without a reported exception; final count remained `0` |
+
+No audio node or clip existed in either scene. This records what the installed
+batch runtime did, not proof that the API is absent or that an empty track
+cannot be created in a GUI/editor workflow. The command reference describes
+tracks as related to audio clips displayed in Trax; the tested standalone
+process does not exercise a Trax editor. Lock/mute/solo, track assignment,
+playback, audio-node creation, and artist-facing GUI workflows remain
+untested. Maya 2026 remains unverified.
+
 ## Evidence boundaries and next work
 
 - Runtime command execution, node defaults, and API wrapper exposure are
@@ -106,10 +138,10 @@ all Python API surfaces.
 - The exact Maya 2026 acceptance build remains unavailable. Nothing in this
   pass establishes Maya 2026 compatibility.
 - No user scenes, reference assets, or Maya GUI were used.
-- Next Maya-dependent candidates: run carefully scoped synthetic `traxAudioTrack`
-  checks if audio-track state can be isolated in batch; GUI-only Camera Sequencer
-  and artist-facing placement still require a separately authorized/available
-  Maya GUI evidence path.
+- Next Maya-dependent candidates: test audio-node track state only if an
+  authorized synthetic audio input can be established; GUI-only Camera
+  Sequencer and artist-facing placement still require a separately
+  authorized/available Maya GUI evidence path.
 
 See the [versioned leaf audit](maya-api-leaf-audit.md), [audit plan](maya-api-audit-plan.md),
 and [runtime catalog inventory](maya-2027-api-inventory.md) for the broader
