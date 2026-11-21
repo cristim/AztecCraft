@@ -774,10 +774,6 @@ pub enum Operation {
     /// chosen channels, as one "Match Transformations" undo step. Object and Hierarchy modes only.
     /// Vocabulary: Maya's pages call the last selected the "source" and the others "targets"; here
     /// the last selected is the "target", so the naming is inverted (no behavior change).
-    #[cfg_attr(
-        not(test),
-        allow(dead_code, reason = "first caller is the Modify menu row, added next")
-    )]
     MatchTransformations {
         channels: TransformChannels,
         expected_selection_generation: Option<u64>,

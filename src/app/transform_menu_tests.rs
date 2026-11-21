@@ -1,5 +1,5 @@
 //! Issue #313: the Modify menu's Reset and Freeze Transformations rows reach the same
-//! `Operation`s as the remote caller; Match Transformations and the option boxes are visibly
+//! `Operation`s as the remote caller (Match needs two objects); the option boxes are visibly
 //! unsupported, and every disabled row says why to AccessKit.
 use super::tests::{
     button_disabled, editing_ctx, face_pointer_click, face_text_position, frame, two_cube_editor,
@@ -114,17 +114,88 @@ fn the_rows_are_disabled_in_component_modes_and_read_only_scenes() {
 }
 
 #[test]
-fn match_transformations_and_the_option_boxes_are_visibly_unsupported() {
+fn the_option_boxes_are_visibly_unsupported() {
     let mut editor = two_cube_editor();
     let output = open_modify_menu(&mut editor, &editing_ctx());
     for label in [
-        "Match Transformations",
         "Reset Transformations option box",
         "Freeze Transformations option box",
+        "Match Transformations option box",
     ] {
         assert!(button_disabled(&output, label), "{label}");
+        assert!(description(&output, label).is_some_and(|text| text.contains("#313")));
     }
-    assert!(
-        description(&output, "Match Transformations").is_some_and(|text| text.contains("#313"))
+}
+
+#[test]
+fn the_match_row_dispatches_one_named_undo_step_with_the_last_selected_as_target() {
+    let ctx = editing_ctx();
+    let mut editor = two_cube_editor();
+    let ids: Vec<_> = editor.selection.members().iter().map(|m| m.node).collect();
+    editor
+        .apply_operation(Operation::EditNode {
+            id: ids[1],
+            name: None,
+            translation: [Some(4.0), Some(5.0), Some(6.0)],
+            rotation_degrees: [None; 3],
+            scale: [None; 3],
+        })
+        .unwrap();
+    let output = open_modify_menu(&mut editor, &ctx);
+    assert!(!button_disabled(&output, "Match Transformations"));
+    let at = face_text_position(&output, "Match Transformations");
+    face_pointer_click(&mut editor, &ctx, at, egui::Modifiers::NONE, vec![]);
+    assert!(!editor.error, "{}", editor.status);
+    assert_eq!(
+        editor.history.undo_label().as_deref(),
+        Some("Match Transformations")
     );
+    let scene = editor.history.scene();
+    assert_eq!(
+        scene.node(ids[0]).unwrap().transform().translation,
+        [4.0, 5.0, 6.0]
+    );
+}
+
+#[test]
+fn the_match_row_says_why_it_is_disabled() {
+    let mut one = two_cube_editor();
+    let first = one.history.scene().transform_paths().unwrap()[0].clone();
+    one.set_selection_members_for_test(vec![first]);
+    let output = open_modify_menu(&mut one, &editing_ctx());
+    assert!(button_disabled(&output, "Match Transformations"));
+    assert_eq!(
+        description(&output, "Match Transformations").as_deref(),
+        Some("Unavailable: Select at least two objects; the last selected is the target")
+    );
+    let mut empty = two_cube_editor();
+    empty.deselect_all();
+    let output = open_modify_menu(&mut empty, &editing_ctx());
+    assert_eq!(
+        description(&output, "Match Transformations").as_deref(),
+        Some("Unavailable: Select an object first")
+    );
+    let mut face = Editor::default();
+    face.create(Primitive::Cube);
+    face.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+    let output = open_modify_menu(&mut face, &editing_ctx());
+    assert!(button_disabled(&output, "Match Transformations"));
+    assert!(
+        description(&output, "Match Transformations")
+            .is_some_and(|text| text.contains("unsupported"))
+    );
+}
+
+#[test]
+fn the_match_row_is_disabled_on_a_read_only_scene() {
+    let scene = azteccraft::native_scene::ascii::decode(ascii_fixture::specimen().into()).unwrap();
+    let mut editor = Editor {
+        history: azteccraft::history::History::new(scene),
+        ..Editor::default()
+    };
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(paths.into_iter().take(2).collect());
+    editor.sync_fields();
+    let output = open_modify_menu(&mut editor, &editing_ctx());
+    assert!(button_disabled(&output, "Match Transformations"));
 }
