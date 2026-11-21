@@ -43,6 +43,9 @@ impl Editor {
                     shading_group: group.name().into(),
                     color: material.color(),
                     editable: index != 0,
+                    shape_count: scene.session_material_shape_count(
+                        azteccraft::native_scene::SessionMaterialId::from_index(index),
+                    ),
                 },
             )
             .collect()

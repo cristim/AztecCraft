@@ -264,7 +264,8 @@
         "editable": false,
         "id": "0",
         "name": "standardSurface1",
-        "shading_group": "initialShadingGroup"
+        "shading_group": "initialShadingGroup",
+        "shape_count": 1
       }
     ],
     "shading": "smooth_shade_all",

@@ -48,6 +48,7 @@ async fn session_material_sdk_create_assign_recolour_inspect_undo_redo() {
     let before = inspect_json(&mut editor, &context, &client).await;
     assert_eq!(before["session_materials"].as_array().unwrap().len(), 1);
     assert_eq!(before["session_materials"][0]["editable"], false);
+    assert_eq!(before["session_materials"][0]["shape_count"], 1);
     assert_eq!(before["shapes"][0]["session_material"], "0");
 
     let created = tool(
@@ -87,6 +88,8 @@ async fn session_material_sdk_create_assign_recolour_inspect_undo_redo() {
     assert_eq!(inspection["shapes"][0]["session_material"], "1");
     assert_eq!(inspection["session_materials"][1]["color"], json!(RED));
     assert_eq!(inspection["session_materials"][1]["editable"], true);
+    assert_eq!(inspection["session_materials"][0]["shape_count"], 0);
+    assert_eq!(inspection["session_materials"][1]["shape_count"], 1);
     assert_eq!(
         inspection["session_materials"][1]["shading_group"],
         "lambert2SG"

@@ -1514,6 +1514,8 @@ pub struct SessionMaterialInspection {
     pub shading_group: String,
     pub color: [f64; 3],
     pub editable: bool,
+    /// Authored shapes that display this material.
+    pub shape_count: usize,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -1920,7 +1922,7 @@ pub const STATUS_MESSAGE_WITHHELD: &str = "File operation failed (details withhe
 #[cfg(test)]
 pub(crate) const MOVE_INSPECTION_MAX_BYTES: usize = 32 * 1024;
 #[cfg(test)]
-const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 192;
+const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 240;
 
 // The inspection preflight is a guaranteed minimum: each constant below is the serialized length
 // of the smallest value the DTO can take, so the sum never exceeds what `inspect_scene` writes and
@@ -1969,8 +1971,7 @@ const MIN_REFERENCE: &str = concat!(
     r#""renaming_prefix":null,"file_type":null,"deferred":null,"depth_info":null}"#
 );
 #[cfg(any(test, feature = "mcp"))]
-const MIN_SESSION_MATERIAL: &str =
-    r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"editable":true}"#;
+const MIN_SESSION_MATERIAL: &str = r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"editable":true,"shape_count":0}"#;
 /// One path element in an `instance_path` array: `"1",`. A non-empty array of L elements costs
 /// 4L + 1 bytes (the last element has no comma), so a member or target already counted with `[]`
 /// adds 4L - 1; a node's `instance_paths` entry is a whole array and is charged 4L.
@@ -2152,6 +2153,7 @@ mod tests {
             shading_group: format!("lambert{}SG", u32::MAX),
             color: [-1.2345678901234567e-308; 3],
             editable: true,
+            shape_count: usize::MAX,
         };
         assert!(
             serde_json::to_vec(&widest).unwrap().len() <= SESSION_MATERIAL_INSPECTION_MAX_BYTES
@@ -2264,6 +2266,7 @@ mod tests {
             shading_group: String::new(),
             color: zeros(),
             editable: true,
+            shape_count: 0,
         };
         assert_eq!(
             serde_json::to_string(&material).unwrap(),
