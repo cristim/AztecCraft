@@ -53,6 +53,8 @@ mod manipulator_handles;
 
 #[path = "tests/multi_selection.rs"]
 mod multi_selection;
+#[path = "tests/plate.rs"]
+mod plate;
 #[path = "tests/vertex_edge.rs"]
 mod vertex_edge;
 
