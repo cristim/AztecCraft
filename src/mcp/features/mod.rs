@@ -4,6 +4,7 @@ pub(super) mod extrude;
 pub(super) mod file;
 pub(super) mod group;
 pub(super) mod history;
+pub(super) mod image_plane;
 pub(super) mod inspect;
 pub(super) mod manipulation;
 pub(super) mod material;

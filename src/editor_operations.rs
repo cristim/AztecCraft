@@ -3,6 +3,7 @@ use azteccraft::native_scene::{NativeTransform, ReparentKeep, TransformAttribute
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
+    image_plane::{model::ImagePlaneEdit, ops::ImagePlaneOpError},
     move_handles::ManipulatorSize,
     native_scene::{
         EdgeTarget, FaceTarget, GroupOptions, MoveSpace, NativeError, NativeId, RotateAxis,
@@ -959,6 +960,16 @@ pub enum Operation {
         )
     )]
     SetCameraFilmBack(FilmBackEdit),
+    /// Creates the camera image plane (`image_name` required) or edits it, all or nothing. View
+    /// state like the pose: no undo, not saved, cleared by New and Open. A new `image_name`
+    /// reads the first frame's header (at most 1 MiB); PROVISIONAL: the same name again is
+    /// Unchanged and does not reload the file (remove the plane or change the name to reload).
+    /// Unchanged is judged numerically; an empty edit is refused.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetImagePlane(ImagePlaneEdit),
+    /// Removes the image plane; Unchanged when there is none.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    RemoveImagePlane,
 }
 
 #[derive(Debug, Serialize)]
@@ -1626,6 +1637,8 @@ pub struct CameraInspection {
     /// The film back attributes in Maya's units as stored (f64, no rounding); null for an explicit
     /// field-of-view lens. An orthographic view reports the stored film back though it ignores it.
     pub film_back: Option<FilmBackInspection>,
+    /// The session image plane (#459), null when none; never carries the full image path.
+    pub image_plane: Option<ImagePlaneInspection>,
     /// Session viewport eye-to-target distance, in internal centimetres.
     pub center_of_interest_cm: f32,
     pub target: [f32; 3],
@@ -1641,6 +1654,69 @@ pub struct CameraInspection {
     /// `perspective` or `orthographic`. An orthographic view shows `distance * tan(fov_y / 2)`
     /// as its half height (PROVISIONAL).
     pub projection: &'static str,
+}
+
+/// The image plane as `set_image_plane` takes it, plus what the editor can say about the frame
+/// on screen. No pixels and no directory: only the resolved file name.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneInspection {
+    pub settings: ImagePlaneSettingsInspection,
+    /// The first frame's size in pixels, probed when the image name was set.
+    pub image_size: ImagePlaneSizeInspection,
+    /// The file name (no directory) of the frame the current time resolves to. With
+    /// `use_frame_extension` off it is the image file; with it on it is the numbered frame, null
+    /// when the frame has no file (a negative frame, or a name with no digits).
+    pub resolved_file_name: Option<String>,
+    /// Current time plus `frame_offset` while `use_frame_extension` is on, else null.
+    pub resolved_frame: Option<i64>,
+    /// `missing` (the resolved frame has no file name) or `not_loaded`. PROVISIONAL: the editor
+    /// runs no frame decoder yet, so `ready`, `loading` and `failed` are not reported.
+    pub frame_state: &'static str,
+    pub cache: ImagePlaneCacheInspection,
+}
+
+/// Units as in `set_image_plane`: depth in centimetres, offsets and counts in frames.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneSettingsInspection {
+    pub use_frame_extension: bool,
+    pub frame_offset: i32,
+    pub frame_cache: u32,
+    /// `fill`, `best`, `horizontal`, `vertical` or `to_size`.
+    pub fit: &'static str,
+    pub depth_cm: f32,
+    pub alpha_gain: f32,
+    /// `none`, `outline`, `rgb`, `rgba`, `luminance` or `alpha`.
+    pub display_mode: &'static str,
+    /// Source pixels used; null means the full image.
+    pub coverage: Option<ImagePlaneCoverageInspection>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneCoverageInspection {
+    pub origin_x: u32,
+    pub origin_y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneSizeInspection {
+    pub width: u32,
+    pub height: u32,
+}
+
+/// PROVISIONAL: no decoded frames are held yet, so `frames` and `bytes` are 0; `budget_bytes` is
+/// the policy cap the cache will use.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneCacheInspection {
+    pub frames: usize,
+    pub bytes: usize,
+    pub budget_bytes: usize,
 }
 
 /// The camera film back as `set_camera_film_back` takes it: the same names and units.
@@ -1817,6 +1893,8 @@ pub enum OperationError {
     CameraPose(InvalidCameraPose),
     /// A refused film back edit; names the field.
     FilmBack(InvalidFilmBack),
+    /// A refused image plane edit or first-frame probe; its text never carries a path.
+    ImagePlane(ImagePlaneOpError),
     CameraBookmark(BookmarkError),
     #[cfg(any(test, feature = "mcp"))]
     Recovery(RecoveryFailure),
@@ -1962,6 +2040,7 @@ impl fmt::Display for OperationError {
             Self::Camera(error) => error.fmt(f),
             Self::CameraPose(error) => error.fmt(f),
             Self::FilmBack(error) => error.fmt(f),
+            Self::ImagePlane(error) => error.fmt(f),
             Self::CameraBookmark(error) => error.fmt(f),
 #[cfg(any(test, feature = "mcp"))]
             Self::Recovery(error) => error.fmt(f),
@@ -2093,7 +2172,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"undo_queue":[],"redo_queue":[],"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
-    r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"film_back":null,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
+    r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"film_back":null,"image_plane":null,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
     r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
     r#""frames_per_second":0.0,"loop":"","key_count":0},"#,

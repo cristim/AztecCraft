@@ -4,5 +4,6 @@
 pub mod cache;
 pub mod decode;
 pub mod model;
+pub mod ops;
 pub mod sequence;
 pub mod worker;

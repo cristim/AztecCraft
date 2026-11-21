@@ -706,6 +706,7 @@ impl Editor {
                     }
                     azteccraft::viewport::Lens::VerticalFov(_) => None,
                 },
+                image_plane: self.inspect_image_plane(),
                 center_of_interest_cm: self.camera.distance(),
                 target: self.camera.target().to_array(),
                 eye: self.camera.eye().to_array(),
@@ -723,6 +724,84 @@ impl Editor {
             },
             timeline: self.inspect_timeline(),
             playblast: self.inspect_playblast(),
+        })
+    }
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl Editor {
+    /// Read-only view of the session image plane (#459): no file is opened, nothing is decoded and
+    /// neither the plane nor any cache changes. Only the file name leaves, never the directory.
+    fn inspect_image_plane(&self) -> Option<crate::editor_operations::ImagePlaneInspection> {
+        use azteccraft::image_plane::{
+            cache::PLATE_CACHE_BUDGET_BYTES,
+            model::{PlateDisplayMode, PlateFit},
+            sequence::frame_path,
+        };
+        let state = self.image_plane.as_ref()?;
+        let plane = &state.plane;
+        let file_name = |path: &std::path::Path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+        };
+        let (resolved_frame, resolved_file_name) = if plane.use_frame_extension {
+            let frame = i64::from(self.timeline.current) + i64::from(plane.frame_offset);
+            (
+                Some(frame),
+                frame_path(&plane.image_name, frame)
+                    .ok()
+                    .and_then(|path| file_name(&path)),
+            )
+        } else {
+            (None, file_name(&plane.image_name))
+        };
+        Some(crate::editor_operations::ImagePlaneInspection {
+            settings: crate::editor_operations::ImagePlaneSettingsInspection {
+                use_frame_extension: plane.use_frame_extension,
+                frame_offset: plane.frame_offset,
+                frame_cache: plane.frame_cache,
+                fit: match plane.fit {
+                    PlateFit::Fill => "fill",
+                    PlateFit::Best => "best",
+                    PlateFit::Horizontal => "horizontal",
+                    PlateFit::Vertical => "vertical",
+                    PlateFit::ToSize => "to_size",
+                },
+                depth_cm: plane.depth,
+                alpha_gain: plane.alpha_gain,
+                display_mode: match plane.display_mode {
+                    PlateDisplayMode::None => "none",
+                    PlateDisplayMode::Outline => "outline",
+                    PlateDisplayMode::Rgb => "rgb",
+                    PlateDisplayMode::Rgba => "rgba",
+                    PlateDisplayMode::Luminance => "luminance",
+                    PlateDisplayMode::Alpha => "alpha",
+                },
+                coverage: plane.coverage.map(|c| {
+                    crate::editor_operations::ImagePlaneCoverageInspection {
+                        origin_x: c.origin_x,
+                        origin_y: c.origin_y,
+                        width: c.width,
+                        height: c.height,
+                    }
+                }),
+            },
+            image_size: crate::editor_operations::ImagePlaneSizeInspection {
+                width: state.image_size.0,
+                height: state.image_size.1,
+            },
+            frame_state: if resolved_file_name.is_some() {
+                "not_loaded"
+            } else {
+                "missing"
+            },
+            resolved_file_name,
+            resolved_frame,
+            cache: crate::editor_operations::ImagePlaneCacheInspection {
+                frames: 0,
+                bytes: 0,
+                budget_bytes: PLATE_CACHE_BUDGET_BYTES,
+            },
         })
     }
 }
