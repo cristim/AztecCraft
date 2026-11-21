@@ -2044,3 +2044,13 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
   native window or its surface and colour management, frames larger than 128 x 128 (sizes 64 x 48, 100 x 60 and
   128 x 128 only), a second adapter family (exact equality is asserted only between renders on one adapter, analytic
   checks use +-2), or the camera image plane, which is not drawn into playblasts yet. Esc and the menu are unchecked.
+
+## Viewport View menu rows: the stale-token guard is tested only for Remove Image Plane
+
+**Area:** native UI, tests
+**Issue:** #459
+
+- Each View menu request in `Editor::viewport` (frame all, frame selection, view presets, Import Image, Image
+  Plane Attributes, Remove Image Plane) acts only when `self.scene_token == frame_token`. Only Remove Image Plane
+  has a test that a stale frame token is refused (`the_remove_row_is_ignored_when_the_frames_scene_token_is_stale`);
+  the other rows share the pattern but their guard is unpinned.
