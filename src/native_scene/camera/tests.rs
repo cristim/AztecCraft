@@ -1,5 +1,6 @@
 use super::*;
-use crate::native_scene::ascii;
+use crate::history::{Command, EditOutcome, History};
+use crate::native_scene::{ascii, test_fixtures};
 use crate::viewport::FilmFit;
 use std::sync::Arc;
 
@@ -172,4 +173,119 @@ fn a_refusal_names_the_field_before_the_source_rule() {
         scene.set_camera_film_back(SceneCamera::Persp, bad),
         Err(NativeError::InvalidFilmBack("focal_mm"))
     );
+}
+
+#[test]
+fn the_edit_is_undoable_and_redoable_and_a_failed_edit_records_nothing() {
+    let (scene, _) = test_fixtures::cube();
+    let original = scene.clone();
+    let mut history = History::new(scene);
+    let outcome = history
+        .execute(Command::SetCameraFilmBack {
+            camera: SceneCamera::Persp,
+            film: film(),
+        })
+        .unwrap();
+    assert_eq!(outcome, EditOutcome::Changed);
+    assert_eq!(history.undo_label().as_deref(), Some("Camera"));
+    assert!(
+        history
+            .scene()
+            .camera_film_back(SceneCamera::Persp)
+            .same_bits(&film())
+    );
+    assert!(history.undo());
+    assert_eq!(history.scene(), &original);
+    assert!(history.redo());
+    assert!(
+        history
+            .scene()
+            .camera_film_back(SceneCamera::Persp)
+            .same_bits(&film())
+    );
+    // The same bits again change nothing and record nothing.
+    let depth = history.revision();
+    assert_eq!(
+        history
+            .execute(Command::SetCameraFilmBack {
+                camera: SceneCamera::Persp,
+                film: film(),
+            })
+            .unwrap(),
+        EditOutcome::Unchanged
+    );
+    assert_eq!(history.revision(), depth);
+    let mut bad = film();
+    bad.camera_scale = 0.0;
+    let before = history.scene().clone();
+    assert_eq!(
+        history.execute(Command::SetCameraFilmBack {
+            camera: SceneCamera::Persp,
+            film: bad,
+        }),
+        Err(NativeError::InvalidFilmBack("camera_scale"))
+    );
+    assert_eq!(history.scene(), &before);
+    assert_eq!(history.revision(), depth);
+    // Reverting to the default is one more undoable step that equals the original scene.
+    history
+        .execute(Command::SetCameraFilmBack {
+            camera: SceneCamera::Persp,
+            film: FilmBack::DEFAULT,
+        })
+        .unwrap();
+    assert_eq!(history.scene(), &original);
+}
+
+#[test]
+fn the_authored_writers_refuse_an_override_with_a_typed_reason() {
+    let (mut scene, _) = test_fixtures::cube();
+    assert!(ascii::write::emit_geometry_prefix(&scene).is_ok());
+    #[cfg(unix)]
+    assert!(crate::native_scene::binary::encode_authored(&scene).is_ok());
+    scene
+        .set_camera_film_back(SceneCamera::Top, film())
+        .unwrap();
+    assert_eq!(
+        ascii::write::emit_geometry_prefix(&scene).unwrap_err(),
+        ascii::write::AsciiWriteRefusal::CameraOverride
+    );
+    #[cfg(unix)]
+    {
+        use crate::native_scene::binary::AuthoredRefusalCode;
+        let refusal = crate::native_scene::binary::encode_authored(&scene).unwrap_err();
+        let code = AuthoredRefusalCode::from(&refusal);
+        assert_eq!(code, AuthoredRefusalCode::CameraOverride);
+        assert_eq!(code.as_str(), "camera_override");
+    }
+    scene
+        .set_camera_film_back(SceneCamera::Top, FilmBack::DEFAULT)
+        .unwrap();
+    assert!(ascii::write::emit_geometry_prefix(&scene).is_ok());
+    #[cfg(unix)]
+    assert!(crate::native_scene::binary::encode_authored(&scene).is_ok());
+}
+
+#[test]
+fn scenes_that_differ_only_by_a_negative_zero_are_not_equal() {
+    let mut positive = NativeScene::default();
+    let mut negative = NativeScene::default();
+    let base = FilmBack {
+        focal_mm: 50.0,
+        ..FilmBack::DEFAULT
+    };
+    positive
+        .set_camera_film_back(SceneCamera::Side, base)
+        .unwrap();
+    negative
+        .set_camera_film_back(
+            SceneCamera::Side,
+            FilmBack {
+                film_offset_in: [-0.0, 0.0],
+                ..base
+            },
+        )
+        .unwrap();
+    assert_ne!(positive, negative);
+    assert_eq!(positive, positive.clone());
 }
