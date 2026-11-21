@@ -179,6 +179,7 @@ impl Editor {
         ui.label(RichText::new("Attribute Editor").strong());
         let Some(active) = self.effective_attribute_editor_tab() else {
             self.plane_drafts_primed = false;
+            self.camera_drafts_primed = false;
             ui.separator();
             // No selected node: only the live camera's tabs can be shown.
             self.attribute_editor_tabs(ui, None);
@@ -196,6 +197,7 @@ impl Editor {
 
     fn attribute_editor_body(&mut self, ui: &mut egui::Ui, active: AttributeEditorTab) {
         if active == AttributeEditorTab::ImagePlane {
+            self.camera_drafts_primed = false;
             self.image_plane_section(ui);
             return;
         }
@@ -205,6 +207,7 @@ impl Editor {
             return;
         }
         self.plane_drafts_primed = false;
+        self.camera_drafts_primed = false;
         let read_only_reason = self.authoring_refusal();
         let authoring = read_only_reason.is_none();
         if let Some(reason) = read_only_reason {

@@ -268,7 +268,7 @@ impl Editor {
 }
 
 /// A labelled combo; returns the newly chosen value.
-fn combo<T: Copy + PartialEq>(
+pub(super) fn combo<T: Copy + PartialEq>(
     ui: &mut egui::Ui,
     label: &'static str,
     options: &[(T, &'static str)],

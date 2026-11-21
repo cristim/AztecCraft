@@ -66,6 +66,20 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             rig.settle();
             plain(&rig, Some(default_frame()))
         }),
+        Scenario::new("attribute-editor-camera", "fields", || {
+            let mut rig = face_rig();
+            rig.editor
+                .native_operation(Operation::SetSidebarPanelVisible {
+                    panel: SidebarPanel::AttributeEditor,
+                    visible: true,
+                });
+            rig.editor
+                .native_operation(Operation::SelectAttributeEditorTab {
+                    tab: AttributeEditorTab::Camera,
+                });
+            rig.settle();
+            plain(&rig, Some(default_frame()))
+        }),
         Scenario::new("timeline-keys", "timeline", || {
             let mut rig = Rig::new(true);
             for time in [1.0, 25.0] {

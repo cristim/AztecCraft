@@ -105,6 +105,13 @@ pub struct Editor {
     plane_drafts: [String; features::image_plane_attributes::FIELDS],
     /// Whether `plane_drafts` hold the stored values since the tab was last shown.
     plane_drafts_primed: bool,
+    /// The Camera tab's text fields (see `camera_attributes`) and whether they hold the stored
+    /// values since the tab was last shown.
+    camera_drafts: [String; features::camera_attributes::FIELDS],
+    camera_drafts_primed: bool,
+    /// Each field's text when it gained focus (the stored text while unfocused): a blur commits
+    /// only text that differs from it.
+    camera_baseline: [String; features::camera_attributes::FIELDS],
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     /// Off unless the host enables it; recovery files never replace the scene file.
@@ -193,6 +200,9 @@ impl Default for Editor {
             plate: Default::default(),
             plane_drafts: Default::default(),
             plane_drafts_primed: false,
+            camera_drafts: Default::default(),
+            camera_drafts_primed: false,
+            camera_baseline: Default::default(),
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
             recovery: None,
@@ -437,6 +447,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .chain(features::playblast_options::field_ids())
     .chain(features::timeline::field_ids())
     .chain(features::image_plane_attributes::field_ids())
+    .chain(features::camera_attributes::field_ids())
 }
 
 /// egui 0.37 surrenders a focused field on a press elsewhere when the field reads its style,

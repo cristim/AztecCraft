@@ -1,6 +1,7 @@
 //! Recorded violations: fields.
 
 pub(super) const GAPS: &[&str] = &[
+    "attribute-editor-camera|R1|ScrollBar|root/<Window>#0/<ScrollBar>#0",
     "attribute-editor-transform|R1|ScrollBar|root/<Window>#0/<ScrollBar>#0",
     "attribute-editor-transform|R1|TextInput|channel_edit[0]",
     "attribute-editor-transform|R1|TextInput|channel_edit[1]",

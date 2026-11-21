@@ -986,13 +986,6 @@ pub enum Operation {
     /// named fields change, all or nothing. A `VerticalFov` lens becomes a film back with the
     /// defaults for unnamed fields. Allowed in every projection; the view follows once perspective.
     /// Unchanged is judged numerically; an empty edit is refused.
-    #[cfg_attr(
-        not(any(test, feature = "mcp")),
-        expect(
-            dead_code,
-            reason = "only the MCP tool constructs it until the Attribute Editor Camera tab (#458)"
-        )
-    )]
     SetCameraFilmBack(FilmBackEdit),
     /// Creates the camera image plane (`image_name` required) or edits it, all or nothing. View
     /// state like the pose: no undo, not saved, cleared by New and Open. A new `image_name`

@@ -235,6 +235,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "show_material_attributes",
             "start_from_dialog",
             "run_import_image",
+            "camera_section",
         ],
     );
     expect(

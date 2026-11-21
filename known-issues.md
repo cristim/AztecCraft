@@ -565,8 +565,8 @@ node default as horizontal; see row 25) never decides a stated camera. An out-of
 complete block, a duplicate, a typed or unknown attribute, an invalid value or a radian file
 refuses the file. An unknown `fro` id blocks the camera likewise; "the source keeps it" holds for
 mesh-free files only (F-458-2). The `.mb` writer
-still refuses an override (`camera_override`, slice S2d). Only the MCP `set_camera_film_back` edits
-the film back; the Attribute Editor Camera tab (#458) is not built, so no native control exists. Every film formula, the Fill threshold, the Fill default and treating the viewport
+still refuses an override (`camera_override`, slice S2d). The MCP `set_camera_film_back` and the Attribute Editor Camera tab (#458, the same typed
+operation, no sliders, session only, no undo step) edit the live camera's film back. Every film formula, the Fill threshold, the Fill default and treating the viewport
 aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
 1.21x (aspect <= 1.5) to 1.43x (16:9) faster than under the old 45 degrees; it is not
@@ -2050,8 +2050,13 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
   re-emit every statement and meshes are never retained read-only. That likely affects most real
   Maya scenes that contain meshes and a camera edit. The fix is to preserve a blocked camera's
   statements as unknown source data (S2d and S2e) so the file opens with its camera intact.
-- Follow-up F-458-3: a blocked camera shows only in the Open status line and `inspect_scene`;
-  add an indicator in the Camera Attribute Editor and the Help Line once that tab exists.
+- Follow-up F-458-3: a blocked camera shows in the Open status line, `inspect_scene` and, as a note
+  (not a disabled state: the live-camera operation does not refuse it), in the Attribute Editor
+  Camera tab; the Help Line indicator is still missing. The tab edits the live camera lens, which
+  the scene's per-camera store (`camera_film_back`) does not yet feed, so blocked cameras and
+  file-stated film backs do not reach the rows. The tab shows the session lens values, not the
+  open file's film back, for every camera (non-blocked ones too) until S2b connects the store and
+  the lens. Esc on a focused field drops the typed text (Maya cancels the edit).
 
 ## Playblast option box and MCP test limits (#460)
 

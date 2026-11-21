@@ -650,6 +650,7 @@ impl Editor {
                 | Operation::SetMenuSet { .. }
                 | Operation::SetSidebarPanelVisible { .. }
                 | Operation::SelectAttributeEditorTab { .. }
+                | Operation::SetCameraFilmBack(_)
                 | Operation::CreateCameraBookmark { .. }
                 | Operation::RenameCameraBookmark { .. }
                 | Operation::DeleteCameraBookmark { .. }
