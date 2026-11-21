@@ -561,6 +561,20 @@ impl NativeMesh {
                 sides,
                 axis,
             } => Ok(Self::polygon_prism(side_length, length, sides, axis)),
+            PrimitiveOptions::Helix {
+                coils,
+                height,
+                width,
+                radius,
+                sub_axis,
+                sub_coil,
+                axis,
+            } => Ok(Self::helix(
+                coils, height, width, radius, sub_axis, sub_coil, axis,
+            )),
+            PrimitiveOptions::SoccerBall { side_length, axis } => {
+                Ok(Self::soccer_ball(side_length, axis))
+            }
         }
     }
     pub(super) fn from_legacy(mesh: &Mesh) -> Self {
@@ -823,6 +837,7 @@ mod edge_index_tests;
 mod grid;
 #[cfg(test)]
 mod grid_tests;
+mod helix_soccer;
 mod platonic;
 #[cfg(test)]
 mod platonic_tests;

@@ -30,7 +30,7 @@ fn shape_of(editor: &Editor, index: usize) -> NativeId {
 
 #[test]
 fn create_uvs_false_builds_none_and_true_builds_a_matching_valid_set() {
-    // The Platonic solids, the Pyramid and the Prism refuse create_uvs (see the core and MCP tests).
+    // The Platonic solids, the Pyramid, the Prism, the Helix and the Soccer Ball refuse create_uvs (see the core and MCP tests).
     for primitive in PRIMITIVES
         .into_iter()
         .filter(|p| PrimitiveOptions::default_for(*p).has_uv_layout())

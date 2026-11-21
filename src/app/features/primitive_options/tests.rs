@@ -1262,11 +1262,13 @@ fn create_uvs_is_unchecked_by_default_and_ticking_it_builds_and_remembers_the_se
 
 #[test]
 fn the_boxes_without_a_uv_layout_show_create_uvs_disabled_with_its_reason_and_never_build_uvs() {
-    // The Platonic solid, the Pyramid and the Prism have no UV layout yet.
+    // The Platonic solid, the Pyramid, the Prism, the Helix and the Soccer Ball have no UV layout yet.
     for primitive in [
         Primitive::PlatonicSolid,
         Primitive::Pyramid,
         Primitive::Prism,
+        Primitive::Helix,
+        Primitive::SoccerBall,
     ] {
         let (mut editor, ctx) = setup();
         open_dialog(&mut editor, &ctx, primitive);

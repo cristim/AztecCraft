@@ -364,7 +364,9 @@ fn face_budget_binds_and_admits_the_other_maxima() {
             PrimitiveOptions::Cube { .. }
             | PrimitiveOptions::PlatonicSolid { .. }
             | PrimitiveOptions::Pyramid { .. }
-            | PrimitiveOptions::Prism { .. } => {
+            | PrimitiveOptions::Prism { .. }
+            | PrimitiveOptions::Helix { .. }
+            | PrimitiveOptions::SoccerBall { .. } => {
                 unreachable!()
             }
         }
@@ -610,7 +612,7 @@ fn round_cap_at_zero_caps_is_an_accepted_no_op() {
 }
 
 #[test]
-fn only_the_platonic_solids_pyramid_and_prism_lack_a_uv_layout() {
+fn only_the_platonic_solids_pyramid_prism_helix_and_soccer_ball_lack_a_uv_layout() {
     for primitive in [
         Primitive::Cube,
         Primitive::Plane,
@@ -621,12 +623,18 @@ fn only_the_platonic_solids_pyramid_and_prism_lack_a_uv_layout() {
         Primitive::PlatonicSolid,
         Primitive::Pyramid,
         Primitive::Prism,
+        Primitive::Helix,
+        Primitive::SoccerBall,
     ] {
         assert_eq!(
             PrimitiveOptions::default_for(primitive).has_uv_layout(),
             !matches!(
                 primitive,
-                Primitive::PlatonicSolid | Primitive::Pyramid | Primitive::Prism
+                Primitive::PlatonicSolid
+                    | Primitive::Pyramid
+                    | Primitive::Prism
+                    | Primitive::Helix
+                    | Primitive::SoccerBall
             ),
             "{primitive:?}"
         );

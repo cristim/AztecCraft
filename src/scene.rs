@@ -34,6 +34,8 @@ pub enum Primitive {
     PlatonicSolid,
     Pyramid,
     Prism,
+    Helix,
+    SoccerBall,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]

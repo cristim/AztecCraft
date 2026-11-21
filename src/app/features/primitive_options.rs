@@ -12,7 +12,7 @@ use azteccraft::primitive_options::{Axis, PlatonicSolidKind, PrimitiveOptions};
 
 /// Cube has the most numeric fields: three sizes and three subdivision counts.
 const MAX_FIELDS: usize = 6;
-const PRIMITIVES: [Primitive; 9] = [
+const PRIMITIVES: [Primitive; 11] = [
     Primitive::Cube,
     Primitive::Plane,
     Primitive::Sphere,
@@ -22,6 +22,8 @@ const PRIMITIVES: [Primitive; 9] = [
     Primitive::PlatonicSolid,
     Primitive::Pyramid,
     Primitive::Prism,
+    Primitive::Helix,
+    Primitive::SoccerBall,
 ];
 
 pub(in crate::app) fn option_field_ids() -> impl Iterator<Item = egui::Id> {
@@ -47,6 +49,8 @@ fn slot(primitive: Primitive) -> usize {
         Primitive::PlatonicSolid => 6,
         Primitive::Pyramid => 7,
         Primitive::Prism => 8,
+        Primitive::Helix => 9,
+        Primitive::SoccerBall => 10,
     }
 }
 
@@ -61,6 +65,8 @@ fn title(primitive: Primitive) -> &'static str {
         Primitive::PlatonicSolid => "Polygon Platonic Solid Options",
         Primitive::Pyramid => "Polygon Pyramid Options",
         Primitive::Prism => "Polygon Prism Options",
+        Primitive::Helix => "Polygon Helix Options",
+        Primitive::SoccerBall => "Polygon Soccer Ball Options",
     }
 }
 
@@ -104,6 +110,11 @@ fn labels(primitive: Primitive) -> (&'static [&'static str], &'static [&'static 
         Primitive::PlatonicSolid => (&["Radius"], &[]),
         Primitive::Pyramid => (&["Side length"], &["Number of sides"]),
         Primitive::Prism => (&["Side length", "Length"], &["Number of sides"]),
+        Primitive::Helix => (
+            &["Coils", "Height", "Width", "Radius"],
+            &["Subdivisions axis", "Subdivisions coil"],
+        ),
+        Primitive::SoccerBall => (&["Side length"], &[]),
     }
 }
 
@@ -171,6 +182,16 @@ fn texts(options: &PrimitiveOptions) -> Vec<String> {
             sides,
             ..
         } => (vec![side_length, length], vec![sides]),
+        PrimitiveOptions::Helix {
+            coils,
+            height,
+            width,
+            radius,
+            sub_axis,
+            sub_coil,
+            ..
+        } => (vec![coils, height, width, radius], vec![sub_axis, sub_coil]),
+        PrimitiveOptions::SoccerBall { side_length, .. } => (vec![side_length], vec![]),
     };
     sizes
         .iter()
@@ -202,7 +223,9 @@ fn axis_of(options: &PrimitiveOptions) -> Axis {
         | PrimitiveOptions::Torus { axis, .. }
         | PrimitiveOptions::PlatonicSolid { axis, .. }
         | PrimitiveOptions::Pyramid { axis, .. }
-        | PrimitiveOptions::Prism { axis, .. } => axis,
+        | PrimitiveOptions::Prism { axis, .. }
+        | PrimitiveOptions::Helix { axis, .. }
+        | PrimitiveOptions::SoccerBall { axis, .. } => axis,
     }
 }
 
@@ -317,6 +340,20 @@ fn assemble(
             sides,
             axis,
         },
+        (Primitive::Helix, &[coils, height, width, radius], &[sub_axis, sub_coil]) => {
+            PrimitiveOptions::Helix {
+                coils,
+                height,
+                width,
+                radius,
+                sub_axis,
+                sub_coil,
+                axis,
+            }
+        }
+        (Primitive::SoccerBall, &[side_length], &[]) => {
+            PrimitiveOptions::SoccerBall { side_length, axis }
+        }
         _ => return Err("Option fields are out of sync; reopen the window".into()),
     };
     options.validate(primitive).map_err(|e| e.to_string())?;
@@ -354,9 +391,9 @@ struct Dialog {
 }
 
 pub(in crate::app) struct PrimitiveOptionsUi {
-    remembered: [PrimitiveOptions; 9],
+    remembered: [PrimitiveOptions; 11],
     /// Whether the last successful create from each option box had Create UVs ticked.
-    remembered_uvs: [bool; 9],
+    remembered_uvs: [bool; 11],
     dialog: Option<Dialog>,
     /// Any text field (dialog, name, channel, ...) held focus at the end of the last frame; egui
     /// clears focus before Escape runs, so the key still belongs to that field.
@@ -379,7 +416,7 @@ impl Default for PrimitiveOptionsUi {
     fn default() -> Self {
         Self {
             remembered: PRIMITIVES.map(PrimitiveOptions::default_for),
-            remembered_uvs: [false; 9],
+            remembered_uvs: [false; 11],
             dialog: None,
             typing: false,
         }

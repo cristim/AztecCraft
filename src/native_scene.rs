@@ -1352,6 +1352,9 @@ impl NativeScene {
             // PROVISIONAL (#5): Maya names these "pPyramid" and "pPrism"; unverified here.
             Primitive::Pyramid => "pPyramid",
             Primitive::Prism => "pPrism",
+            // PROVISIONAL (#5): Maya names these "pHelix" and "pSoccerBall"; unverified here.
+            Primitive::Helix => "pHelix",
+            Primitive::SoccerBall => "pSoccerBall",
         };
         let name = self.free_name(base)?;
         let shape_name = self.free_name(&format!("{base}Shape"))?;

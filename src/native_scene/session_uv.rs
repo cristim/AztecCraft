@@ -164,7 +164,9 @@ pub(super) fn new_primitive_uvs(
         // pyramid or the prism.
         PrimitiveOptions::PlatonicSolid { .. }
         | PrimitiveOptions::Pyramid { .. }
-        | PrimitiveOptions::Prism { .. } => {
+        | PrimitiveOptions::Prism { .. }
+        | PrimitiveOptions::Helix { .. }
+        | PrimitiveOptions::SoccerBall { .. } => {
             Err(NativeError::UnsupportedUvPrimitive(options.primitive()))
         }
         PrimitiveOptions::Cube { .. }

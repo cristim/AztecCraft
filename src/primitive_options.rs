@@ -65,6 +65,18 @@ pub const DEFAULT_PRISM_SIDES: u32 = 3;
 pub const DEFAULT_PRISM_SIDE_LENGTH_CM: f64 = 2.0;
 pub const DEFAULT_PRISM_LENGTH_CM: f64 = 2.0;
 
+/// polyHelix defaults (command pages, 2023 and 2027): coils 3, height 2, width 2, radius 0.4 (the
+/// page calls it the radius of the tube), subdivisionsAxis 8, subdivisionsCoil 50. What width and
+/// height measure, and whether the coil subdivisions are per coil or in total, is PROVISIONAL (#5).
+pub const DEFAULT_HELIX_COILS: f64 = 3.0;
+pub const DEFAULT_HELIX_HEIGHT_CM: f64 = 2.0;
+pub const DEFAULT_HELIX_WIDTH_CM: f64 = 2.0;
+pub const DEFAULT_HELIX_RADIUS_CM: f64 = 0.4;
+pub const DEFAULT_HELIX_SUB_AXIS: u32 = 8;
+pub const DEFAULT_HELIX_SUB_COIL: u32 = 50;
+/// polyPrimitive `-sideLength` default (command pages, 2023 and 2027); `-polyType 0` is the soccer ball.
+pub const DEFAULT_SOCCER_BALL_SIDE_LENGTH_CM: f64 = 1.0;
+
 /// The solid a Platonic Solid primitive builds. Maya's `-solidType` lists 0 dodecahedron
 /// (default), 1 icosahedron, 2 octahedron and 3 tetrahedron; the cube is PROVISIONAL (#466): the
 /// issue lists it as a fifth solid but the command page does not.
@@ -193,6 +205,29 @@ pub enum PrimitiveOptions {
         sides: u32,
         axis: Axis,
     },
+    Helix {
+        /// Turns (`-coils`, a float in Maya). Any value in the generic size range is accepted;
+        /// that range is a PROVISIONAL (#5) safety bound.
+        coils: f64,
+        /// Extent of the tube centreline along the axis (`-height`); PROVISIONAL (#5) reading.
+        height: f64,
+        /// Diameter of the circle the tube centreline follows (`-width`); PROVISIONAL (#5) reading.
+        width: f64,
+        /// Radius of the tube (`-radius`: "radius of tube").
+        radius: f64,
+        /// Points around the tube (`-subdivisionsAxis`).
+        sub_axis: u32,
+        /// Segments along the whole helix (`-subdivisionsCoil`); PROVISIONAL (#5): total, not per coil.
+        sub_coil: u32,
+        /// Not a polyHelix flag (the command pages list none); an AztecCraft addition, PROVISIONAL (#5).
+        axis: Axis,
+    },
+    SoccerBall {
+        /// Edge length of the truncated icosahedron (`-sideLength`); PROVISIONAL (#5): the page
+        /// does not say how it relates to `-radius`, which is not exposed.
+        side_length: f64,
+        axis: Axis,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -315,10 +350,23 @@ impl PrimitiveOptions {
                 sides: DEFAULT_PRISM_SIDES,
                 axis,
             },
+            Primitive::Helix => Self::Helix {
+                coils: DEFAULT_HELIX_COILS,
+                height: DEFAULT_HELIX_HEIGHT_CM,
+                width: DEFAULT_HELIX_WIDTH_CM,
+                radius: DEFAULT_HELIX_RADIUS_CM,
+                sub_axis: DEFAULT_HELIX_SUB_AXIS,
+                sub_coil: DEFAULT_HELIX_SUB_COIL,
+                axis,
+            },
+            Primitive::SoccerBall => Self::SoccerBall {
+                side_length: DEFAULT_SOCCER_BALL_SIDE_LENGTH_CM,
+                axis,
+            },
         }
     }
 
-    /// Whether `create_uvs` has a real UV layout for these options. The Platonic solids, pyramid and prism have none,
+    /// Whether `create_uvs` has a real UV layout for these options. The Platonic solids, pyramid, prism, helix and soccer ball have none,
     /// so the create path refuses `create_uvs` on them with `UnsupportedUvPrimitive` (#453 T10);
     /// a caller that offers the option (the native checkbox, T11) must not offer it for them.
     pub fn has_uv_layout(&self) -> bool {
@@ -329,7 +377,11 @@ impl PrimitiveOptions {
             | Self::Cylinder { .. }
             | Self::Cone { .. }
             | Self::Torus { .. } => true,
-            Self::PlatonicSolid { .. } | Self::Pyramid { .. } | Self::Prism { .. } => false,
+            Self::PlatonicSolid { .. }
+            | Self::Pyramid { .. }
+            | Self::Prism { .. }
+            | Self::Helix { .. }
+            | Self::SoccerBall { .. } => false,
         }
     }
 
@@ -344,6 +396,8 @@ impl PrimitiveOptions {
             Self::PlatonicSolid { .. } => Primitive::PlatonicSolid,
             Self::Pyramid { .. } => Primitive::Pyramid,
             Self::Prism { .. } => Primitive::Prism,
+            Self::Helix { .. } => Primitive::Helix,
+            Self::SoccerBall { .. } => Primitive::SoccerBall,
         }
     }
 
@@ -427,6 +481,12 @@ impl PrimitiveOptions {
             Self::PlatonicSolid { solid, .. } => Some(solid.face_count()),
             Self::Pyramid { sides, .. } => u64::from(sides).checked_add(1),
             Self::Prism { sides, .. } => u64::from(sides).checked_add(2),
+            Self::Helix {
+                sub_axis, sub_coil, ..
+            } => u64::from(sub_axis)
+                .checked_mul(u64::from(sub_coil))
+                .and_then(|side| side.checked_add(2)),
+            Self::SoccerBall { .. } => Some(32),
         };
         counted.unwrap_or(u64::MAX)
     }
@@ -530,6 +590,27 @@ impl PrimitiveOptions {
                 vec![("side_length", side_length), ("length", length)],
                 vec![("number_of_sides", sides, MIN_AXIS_DIVISIONS)],
             ),
+            Self::Helix {
+                coils,
+                height,
+                width,
+                radius,
+                sub_axis,
+                sub_coil,
+                ..
+            } => (
+                vec![
+                    ("coils", coils),
+                    ("height", height),
+                    ("width", width),
+                    ("radius", radius),
+                ],
+                vec![
+                    ("subdivisions_axis", sub_axis, MIN_AXIS_DIVISIONS),
+                    ("subdivisions_coil", sub_coil, MIN_DIVISIONS),
+                ],
+            ),
+            Self::SoccerBall { side_length, .. } => (vec![("side_length", side_length)], vec![]),
         }
     }
 }
