@@ -5,6 +5,7 @@ fn panel_name(panel: SidebarPanel) -> &'static str {
     match panel {
         CB => "channel_box",
         AE => "attribute_editor",
+        SidebarPanel::ModelingToolkit => "modeling_toolkit",
     }
 }
 

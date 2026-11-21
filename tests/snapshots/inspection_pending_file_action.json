@@ -286,7 +286,8 @@
     ],
     "sidebar_panels": {
       "attribute_editor": false,
-      "channel_box": true
+      "channel_box": true,
+      "modeling_toolkit": false
     },
     "snap_spacing": {
       "cm": 1.0,

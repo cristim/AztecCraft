@@ -269,3 +269,87 @@ async fn sdk_inspection_withholds_file_error_status_and_bounds_length() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_modeling_toolkit_uses_the_shared_dock_and_guards() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let baseline = editor.history.scene().clone();
+    let toolkit = |token: &str, visible| json!({"scene_token": token, "panel": "modeling_toolkit", "visible": visible});
+    let stale = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_sidebar_panel_visibility",
+        toolkit(&Uuid::new_v4().to_string(), true),
+    )
+    .await;
+    assert_eq!(
+        stale.structured_content.unwrap()["error"]["code"],
+        "stale_scene"
+    );
+
+    editor.name = "human_draft".into();
+    let blocked = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_sidebar_panel_visibility",
+        toolkit(&token, true),
+    )
+    .await;
+    assert_eq!(
+        blocked.structured_content.unwrap()["error"]["code"],
+        "busy_editing"
+    );
+    assert_eq!(editor.name, "human_draft");
+    editor.sync_fields();
+
+    for outcome in ["changed", "unchanged"] {
+        let reply = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_sidebar_panel_visibility",
+            toolkit(&token, true),
+        )
+        .await;
+        assert_eq!(reply.structured_content.unwrap()["outcome"], outcome);
+    }
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(
+        inspected["inspection"]["sidebar_panels"],
+        json!({
+            "channel_box": false, "attribute_editor": false, "modeling_toolkit": true
+        })
+    );
+    assert_eq!(editor.history.scene(), &baseline);
+    assert_eq!(editor.scene_token.to_string(), token);
+
+    let other = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_sidebar_panel_visibility",
+        json!({"scene_token": token, "panel": "attribute_editor", "visible": true}),
+    )
+    .await;
+    assert_eq!(other.structured_content.unwrap()["outcome"], "changed");
+    assert!(editor.sidebar_panel_visible(SidebarPanel::AttributeEditor));
+    assert!(!editor.sidebar_panel_visible(SidebarPanel::ModelingToolkit));
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

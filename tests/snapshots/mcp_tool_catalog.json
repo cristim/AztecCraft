@@ -5143,13 +5143,14 @@
   },
   {
     "name": "set_sidebar_panel_visibility",
-    "description": "Set one sidebar panel's visibility explicitly. Session-only and idempotent; does not edit the scene. The dock shows one panel: showing attribute_editor hides channel_box and the reverse",
+    "description": "Set one sidebar panel's visibility explicitly. Session-only and idempotent; does not edit the scene. The dock shows one panel: showing any panel hides the previous panel. Inspect sidebar_panels for channel_box, attribute_editor and modeling_toolkit",
     "inputSchema": {
       "$defs": {
         "PanelInput": {
           "enum": [
             "channel_box",
-            "attribute_editor"
+            "attribute_editor",
+            "modeling_toolkit"
           ],
           "type": "string"
         }

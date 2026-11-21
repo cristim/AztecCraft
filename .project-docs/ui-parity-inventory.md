@@ -74,7 +74,7 @@ The AztecCraft window draws a partial Status Line strip, from `Editor::status_li
 | Hypershade button | [statusline] | Missing | absent | none | P3 | S6 Menu content (#66) |
 | Input box (Absolute, Relative, Rename, Select by name) | [statusline] | Missing | absent; the Channel Box has per-field edits instead | `edit_node`, `rename_node` | P2 | S1 Status Line strip (#59) |
 | Workspace selector | [overview] | Missing | absent from the window; no entry in the menu bar (`src/app/menus.rs "pub(super) const ALWAYS_ON_MENUS"`) or the shelf (`src/app/menus.rs "UiIcon::PolyCube"`) | none | P2 | S14 Docking and workspaces (#67) |
-| Sidebar toggle: Modeling Toolkit | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:55 "Modeling Toolkit: not implemented yet"` | none | P2 | S1 Status Line strip (#59) |
+| Sidebar toggle: Modeling Toolkit | [statusline] | Partial | Status Line toggle switches the active right dock panel | `set_sidebar_panel_visibility` | P2 | S1 Status Line strip (#59) |
 | Sidebar toggle: HumanIK | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:61 "HumanIK: not implemented yet"` | none | P3 | S1 Status Line strip (#59) |
 | Sidebar toggle: Attribute Editor | [statusline] | Supported | `src/app/features/status_line.rs:67 "Show or hide the Attribute Editor"`; shows the Attribute Editor and hides the Channel Box; disabled during an active manipulation | `set_sidebar_panel_visibility` | P1 | S1 Status Line strip (#59) |
 | Sidebar toggle: Tool Settings | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:73 "Tool Settings: not implemented yet"` | none | P2 | S1 Status Line strip (#59) |
@@ -245,17 +245,17 @@ The bottom message (`src/app/panels.rs "&self.status"`) is an operation status l
 
 ## 11. Modeling Toolkit
 
-No Modeling Toolkit panel exists. Default dock is UNCONFIRMED for 2026.
+The Modeling Toolkit opens in the single right dock. Default dock placement is PROVISIONAL.
 
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |
-| Modeling Toolkit panel | [toolkit] | Missing | absent | none | P2 | S13 Modeling Toolkit (#64) |
+| Modeling Toolkit panel | [toolkit] | Partial | Status Line and Mesh Tools toggle the same dock panel (`modeling_toolkit_status_line_and_mesh_tools_share_the_dock`) | `set_sidebar_panel_visibility` | P2 | S13 Modeling Toolkit (#64) |
 | Section: menus | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
-| Section: Selection modes | [toolkit] | Missing | absent; Object and Face modes exist in the Select menu only | `set_selection_mode` | P2 | S13 Modeling Toolkit (#64) |
+| Section: Selection modes | [toolkit] | Partial | Object, Vertex, Edge and Face dispatch the existing selection intents. Multi-Component and conversion are visibly unsupported | `set_selection_mode` | P2 | S13 Modeling Toolkit (#64) |
 | Section: Selection options | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
-| Section: Selection constraints | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
+| Section: Selection constraints | [toolkit] | Visible-unsupported | Disabled Selection Constraints row | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Transform constraints | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
-| Section: Commands and tools | [toolkit] | Missing | absent; the shelf Extrude button exists (`src/app/menus.rs "Open Extrude Options"`) but there is no Modeling Toolkit panel | `extrude_face` | P2 | S13 Modeling Toolkit (#64) |
+| Section: Commands and tools | [toolkit] | Partial | Existing single-face Extrude Options. Other commands and tools are visibly unsupported | `extrude_face` | P2 | S13 Modeling Toolkit (#64) |
 | Section: Transform tool settings | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Custom shelf | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Hotkeys | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |

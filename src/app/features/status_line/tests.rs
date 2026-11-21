@@ -29,7 +29,7 @@ const HIERARCHY: &str = "Hierarchy selection";
 const CHANNEL_BOX: &str = "Channel Box / Layer Editor";
 const ATTRIBUTE_EDITOR: &str = "Attribute Editor";
 /// Toggles that are live; every other toggle is a disabled placeholder.
-const LIVE: [&str; 2] = [CHANNEL_BOX, ATTRIBUTE_EDITOR];
+const LIVE: [&str; 3] = [CHANNEL_BOX, ATTRIBUTE_EDITOR, "Modeling Toolkit"];
 const TOGGLES: [&str; 5] = [
     "Modeling Toolkit",
     "HumanIK",
@@ -1655,4 +1655,32 @@ fn closing_file_clicks_change_nothing() {
             assert!(editor.files.is_closing(), "{state:?} {label}");
         }
     }
+}
+
+#[test]
+fn modeling_toolkit_status_line_and_mesh_tools_share_the_dock() {
+    let (mut editor, context) = setup();
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let at = |output: &egui::FullOutput, label: &str| {
+        controls(output)
+            .into_iter()
+            .find(|control| control.label == label)
+            .unwrap_or_else(|| panic!("missing control {label}"))
+            .rect
+            .center()
+    };
+    click(&mut editor, &context, at(&output, "Modeling Toolkit"));
+    assert_eq!(editor.sidebar_dock, Some(SidebarPanel::ModelingToolkit));
+
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    click(&mut editor, &context, at(&output, "Vertex"));
+    assert_eq!(editor.selection_mode, SelectionMode::Vertex);
+
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    click(&mut editor, &context, at(&output, "Mesh Tools"));
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    click(&mut editor, &context, at(&output, "Hide Modeling Toolkit"));
+    assert_eq!(editor.sidebar_dock, None);
+    assert_eq!(editor.selection_mode, SelectionMode::Vertex);
 }

@@ -220,6 +220,16 @@ impl Editor {
                         ui.add_enabled_ui(sidebar_enabled, |ui| self.attribute_editor(ui));
                     });
             }
+            Some(SidebarPanel::ModelingToolkit) => {
+                egui::Panel::right("modeling_toolkit")
+                    .default_size(255.0)
+                    .size_range(230.0..=400.0)
+                    .show(ui, |ui| {
+                        ui.add_enabled_ui(sidebar_enabled, |ui| {
+                            self.modeling_toolkit(ui, &mut selection_intent);
+                        });
+                    });
+            }
             None => {}
         }
         egui::CentralPanel::default().show(ui, |ui| {

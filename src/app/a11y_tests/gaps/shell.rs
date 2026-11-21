@@ -16,7 +16,6 @@ pub(super) const GAPS: &[&str] = &[
     "default|R3|Button|root/<Window>#0/Last Used",
     "default|R3|Button|root/<Window>#0/Layers: not implemented yet",
     "default|R3|Button|root/<Window>#0/Materials",
-    "default|R3|Button|root/<Window>#0/Modeling Toolkit",
     "default|R3|Button|root/<Window>#0/Paint Selection",
     "default|R3|Button|root/<Window>#0/Redo",
     "default|R3|Button|root/<Window>#0/Save Scene",

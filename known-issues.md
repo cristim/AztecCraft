@@ -913,7 +913,7 @@ The strip shows:
   Like F8 to F11 and the other mode buttons they cancel an active native Move, Rotate or Scale
   manipulation rather than being disabled, but are disabled while a remote manipulation is active;
 - a selection mode menu (presets), shown disabled with no state (visibly unsupported; real presets need masks);
-- five sidebar toggles, of which only Channel Box / Layer Editor works. The others are disabled.
+- five sidebar toggles, including Modeling Toolkit, Attribute Editor and Channel Box / Layer Editor. HumanIK and Tool Settings remain disabled.
 
 Groups without AztecCraft behavior are not drawn rather than shown as inert controls: per-type selection masks,
 snaps, symmetry, construction history, render buttons, Hypershade and the input box. The right-end
@@ -2083,3 +2083,12 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
   Plane Attributes, Remove Image Plane) acts only when `self.scene_token == frame_token`. Only Remove Image Plane
   has a test that a stale frame token is refused (`the_remove_row_is_ignored_when_the_frames_scene_token_is_stale`);
   the other rows share the pattern but their guard is unpinned.
+
+## Modeling Toolkit remains partial (#64)
+
+The Status Line toggle and Mesh Tools menu open the same right-docked panel.
+Object, Vertex, Edge and Face use the existing exclusive selection modes.
+Extrude Options applies only to a single face. Multi-Component, selection
+conversion and constraints, the other mesh and component commands, and Toolkit
+tools remain disabled. Placement, the Ctrl+A fallback and the options-dialog
+entry are PROVISIONAL.

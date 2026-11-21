@@ -82,8 +82,8 @@ const SIDEBAR_TOGGLES: [StripButton; 5] = [
     StripButton {
         label: "Modeling Toolkit",
         icon: UiIcon::SidebarModelingToolkit,
-        hover: "Modeling Toolkit: not implemented yet",
-        panel: None,
+        hover: "Show or hide the Modeling Toolkit",
+        panel: Some(SidebarPanel::ModelingToolkit),
     },
     StripButton {
         label: "HumanIK",
@@ -120,7 +120,7 @@ impl Editor {
     }
 
     /// What keeps a session display switch from applying now, if anything.
-    fn display_switch_refusal(&self) -> Option<&'static str> {
+    pub(in crate::app) fn display_switch_refusal(&self) -> Option<&'static str> {
         if self.files.is_closing() {
             Some(CLOSING_REASON)
         } else if self.files.is_modal() {

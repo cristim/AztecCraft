@@ -26,6 +26,7 @@ use rmcp::schemars;
 pub enum SidebarPanel {
     ChannelBox,
     AttributeEditor,
+    ModelingToolkit,
 }
 
 /// The menu sets the editor implements. Session-only: New and Open keep it, it is not undoable
@@ -1511,6 +1512,7 @@ impl From<NativeTransform> for AuthoringTransformInspection {
 pub struct SidebarPanelsInspection {
     pub channel_box: bool,
     pub attribute_editor: bool,
+    pub modeling_toolkit: bool,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -2210,7 +2212,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
     r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"snap_to_grid":true,"snap_spacing":{"scene_units":0.0,"cm":0.0},"shading":"","menu_set":"","#,
     r#""face_centres_hidden":true,"vertex_markers_hidden":true,"#,
-    r#""sidebar_panels":{"channel_box":true,"attribute_editor":true},"attribute_editor_tab":null,"#,
+    r#""sidebar_panels":{"channel_box":true,"attribute_editor":true,"modeling_toolkit":true},"attribute_editor_tab":null,"#,
     r#""depth_complete":true,"clipping_complete":true,"appearance_incomplete":true,"#,
     r#""source_appearance":"#,
     min_appearance_summary!(),
