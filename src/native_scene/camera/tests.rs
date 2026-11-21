@@ -238,17 +238,20 @@ fn the_edit_is_undoable_and_redoable_and_a_failed_edit_records_nothing() {
 }
 
 #[test]
-fn the_authored_writers_refuse_an_override_with_a_typed_reason() {
+fn the_ascii_writer_saves_an_override_and_the_binary_writer_refuses_it_with_a_typed_reason() {
     let (mut scene, _) = test_fixtures::cube();
-    assert!(ascii::write::emit_geometry_prefix(&scene).is_ok());
+    let plain = ascii::write::emit_geometry_prefix(&scene).unwrap();
     #[cfg(unix)]
     assert!(crate::native_scene::binary::encode_authored(&scene).is_ok());
     scene
         .set_camera_film_back(SceneCamera::Top, film())
         .unwrap();
-    assert_eq!(
-        ascii::write::emit_geometry_prefix(&scene).unwrap_err(),
-        ascii::write::AsciiWriteRefusal::CameraOverride
+    let saved = ascii::write::emit_geometry_prefix(&scene).unwrap();
+    assert!(saved.len() > plain.len());
+    assert!(
+        String::from_utf8(saved)
+            .unwrap()
+            .contains("select -ne :topShape;")
     );
     #[cfg(unix)]
     {
@@ -261,7 +264,7 @@ fn the_authored_writers_refuse_an_override_with_a_typed_reason() {
     scene
         .set_camera_film_back(SceneCamera::Top, FilmBack::DEFAULT)
         .unwrap();
-    assert!(ascii::write::emit_geometry_prefix(&scene).is_ok());
+    assert_eq!(ascii::write::emit_geometry_prefix(&scene).unwrap(), plain);
     #[cfg(unix)]
     assert!(crate::native_scene::binary::encode_authored(&scene).is_ok());
 }

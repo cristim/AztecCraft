@@ -36,6 +36,7 @@
       },
       "focal_length_mm": 35.0,
       "fov_y_degrees": 37.849961153583806,
+      "image_plane": null,
       "native_gesture_active": false,
       "near_clip": 0.10000000149011612,
       "pitch_degrees": 22.918312146742387,
@@ -194,6 +195,15 @@
       }
     ],
     "pending_action": null,
+    "playblast": {
+      "directory_name": null,
+      "frames_done": 0,
+      "frames_total": 0,
+      "height": 0,
+      "last_error": null,
+      "state": "idle",
+      "width": 0
+    },
     "read_only_reason": "Maya ASCII scenes are read-only in this version",
     "redo_label": null,
     "references": [],

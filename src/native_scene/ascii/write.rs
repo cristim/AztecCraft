@@ -86,6 +86,8 @@ pub enum AsciiWriteRefusal {
     SessionMaterials,
     Keys,
     CameraOverride,
+    /// A camera the file stated with a roll order id this editor does not know.
+    CameraBlocked,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -122,6 +124,9 @@ impl fmt::Display for AsciiWriteRefusal {
             Self::Keys => "session keys are not saved",
             Self::CameraOverride => {
                 "a camera film back is not saved to a Maya file yet; reset it to the defaults to save"
+            }
+            Self::CameraBlocked => {
+                "a camera film back with a roll order id this editor does not know cannot be saved"
             }
             Self::InvalidScene(error) => return error.fmt(f),
             Self::UnsupportedUnits => "only centimeter, degree and film units are supported",
@@ -288,6 +293,9 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
     resource_admission(scene).map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
     authored::check_scene(scene)?;
     check_materials(scene)?;
+    if scene.has_blocked_camera() {
+        return Err(AsciiWriteRefusal::CameraBlocked);
+    }
     // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
     let NativeScene {
         // Covered by `check_content_kind` and `check_scene` above.
@@ -315,7 +323,7 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
         session_joints: _,
         session_uvs: _,
         session_keys: _,
-        // Refused by `check_content_kind` (`CameraOverride`) until the codecs persist it.
+        // Emitted by `camera_blocks`; a blocked camera is refused above.
         cameras: _,
     } = scene;
     Ok(())
@@ -633,6 +641,59 @@ fn session_block(
     }
     Ok(())
 }
+/// One `select -ne :<shape>` block per camera override, last in the file so no earlier statement's
+/// selection changes. Every attribute is written (a partial block is not one this writer made), in
+/// `FILM_ATTRIBUTES` order, with `{}` so the f64 reads back bit for bit (PROVISIONAL: Maya
+/// acceptance of this form is unproved).
+fn camera_blocks(
+    scene: &NativeScene,
+    mut consume: impl FnMut(&[u8]) -> Result<(), AsciiWriteRefusal>,
+) -> Result<(), AsciiWriteRefusal> {
+    use super::super::camera::{FILM_ATTRIBUTES, SceneCamera, fit_id, order_id};
+    let mut line = ChannelLine {
+        bytes: [0; CHANNEL_BYTES],
+        used: 0,
+    };
+    for camera in SceneCamera::ALL {
+        let Some(film) = scene.camera_override(camera) else {
+            continue;
+        };
+        film.validate().map_err(|invalid| {
+            AsciiWriteRefusal::InvalidScene(NativeError::InvalidFilmBack(invalid.0))
+        })?;
+        line.used = 0;
+        line.format(format_args!("select -ne :{};\n", camera.shape_name()))?;
+        consume(&line.bytes[..line.used])?;
+        let real = |value: f64| format!("{value}");
+        let values = [
+            real(film.focal_mm),
+            real(film.aperture_in[0]),
+            real(film.aperture_in[1]),
+            fit_id(film.film_fit).to_string(),
+            real(film.film_fit_offset_in),
+            real(film.film_offset_in[0]),
+            real(film.film_offset_in[1]),
+            real(film.lens_squeeze),
+            real(film.overscan),
+            real(film.camera_scale),
+            real(film.pre_scale),
+            real(film.post_scale),
+            real(film.film_roll_degrees),
+            if film.display_film_gate { "yes" } else { "no" }.to_string(),
+            real(film.film_translate[0]),
+            real(film.film_translate[1]),
+            real(film.film_roll_pivot[0]),
+            real(film.film_roll_pivot[1]),
+            order_id(film.film_roll_order).to_string(),
+        ];
+        for (attribute, value) in FILM_ATTRIBUTES.iter().zip(values) {
+            line.used = 0;
+            line.format(format_args!("\tsetAttr \".{attribute}\" {value};\n"))?;
+            consume(&line.bytes[..line.used])?;
+        }
+    }
+    Ok(())
+}
 fn prefix_bytes(scene: &NativeScene, links: DefaultLinks) -> Result<usize, AsciiWriteRefusal> {
     let name_bytes = scene
         .nodes
@@ -666,6 +727,10 @@ fn prefix_bytes(scene: &NativeScene, links: DefaultLinks) -> Result<usize, Ascii
         })?;
     }
     session_block(scene, links, |bytes| {
+        length = add_prefix_bytes(length, bytes.len())?;
+        Ok(())
+    })?;
+    camera_blocks(scene, |bytes| {
         length = add_prefix_bytes(length, bytes.len())?;
         Ok(())
     })?;
@@ -716,6 +781,7 @@ pub(crate) fn emit_with_links(
         })?;
     }
     session_block(scene, links, |bytes| append(&mut out, length, bytes))?;
+    camera_blocks(scene, |bytes| append(&mut out, length, bytes))?;
     Ok(out)
 }
 

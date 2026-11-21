@@ -233,6 +233,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "extrude_selected_face",
             "assign_material_to_selection",
             "show_material_attributes",
+            "outliner",
         ],
     );
     expect(
@@ -260,7 +261,6 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "native_reset_transformations",
             "native_freeze_transformations",
             "manipulation_options",
-            "outliner",
             "render",
             "select",
             "shortcuts",
@@ -312,11 +312,13 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
         ],
     );
     // A time change writes evaluated channels with no undo entry. Dispatch re-evaluates after Undo
-    // and Redo, and write_time serves set_current_time, play and the playback tick.
+    // and Redo, and write_time serves set_current_time, play and the playback tick. scene_at
+    // advances the playblast's private scene clone, never the history; the ledger matches function
+    // names only, so scene_at must touch nothing but that clone.
     expect(
         "history evaluate",
         ".apply_evaluated(",
-        &["dispatch_operation_guarded", "write_time"],
+        &["dispatch_operation_guarded", "scene_at", "write_time"],
     );
     for (what, call) in [
         ("undo queue", ".set_undo_queue("),

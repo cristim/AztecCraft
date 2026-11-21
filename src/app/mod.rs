@@ -91,6 +91,8 @@ pub struct Editor {
     camera: Camera,
     native_camera_drag: bool,
     view_history: features::camera::ViewHistory,
+    /// Session-only (#459); cleared when a document replaces the scene (New, Open).
+    image_plane: Option<azteccraft::image_plane::ops::ImagePlaneState>,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     /// Off unless the host enables it; recovery files never replace the scene file.
@@ -133,6 +135,8 @@ pub struct Editor {
     joint_options: features::rigging::JointOptionsUi,
     extrude_options: features::extrude_options::ExtrudeOptionsUi,
     timeline: features::timeline::Timeline,
+    #[cfg(any(test, feature = "mcp"))]
+    playblast: features::playblast::Playblast,
     uv: features::uv::UvUi,
     native_input_pending: bool,
     /// The marking menu's interaction. Closed until the native wiring lands; the overlay gate
@@ -172,6 +176,7 @@ impl Default for Editor {
             camera: Camera::default(),
             native_camera_drag: false,
             view_history: Default::default(),
+            image_plane: None,
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
             recovery: None,
@@ -208,6 +213,8 @@ impl Default for Editor {
             joint_options: Default::default(),
             extrude_options: Default::default(),
             timeline: Default::default(),
+            #[cfg(any(test, feature = "mcp"))]
+            playblast: Default::default(),
             uv: Default::default(),
             native_input_pending: false,
             marking_menu: Default::default(),
@@ -362,6 +369,12 @@ impl eframe::App for Editor {
             self.process_mcp(ctx);
             // No tick runs while hidden, so `playing` must not claim otherwise.
             self.stop_playback();
+            // After process_mcp so a start request is ticked in the same pass.
+            #[cfg(any(test, feature = "mcp"))]
+            self.tick_playblast(ctx);
+        } else {
+            #[cfg(any(test, feature = "mcp"))]
+            self.tick_playblast(ctx);
         }
     }
 
@@ -490,6 +503,12 @@ fn material_edit_id() -> egui::Id {
 
 #[cfg(test)]
 mod film_back_tests;
+
+#[cfg(test)]
+mod image_plane_tests;
+
+#[cfg(test)]
+mod image_plane_inspect_tests;
 
 #[cfg(test)]
 pub(in crate::app) mod overlay_gate_tests;

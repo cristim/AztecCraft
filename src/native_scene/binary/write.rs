@@ -105,6 +105,9 @@ fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
 )]
 pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     authored::check_content_kind(scene, authored::UvPolicy::Refuse)?;
+    if scene.has_camera_overrides() {
+        return Err(AuthoredIneligible::CameraOverride.into());
+    }
     if scene.shapes().is_empty() {
         authored::check_transforms_only(scene)?;
     } else {
@@ -143,7 +146,7 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         // none reach this writer.
         session_joints: _,
         session_keys: _,
-        // Refused by `check_content_kind` (`CameraOverride`) until the codecs persist it.
+        // Refused by `check_content_kind` (`CameraOverride`) above until the .mb codec persists it.
         cameras: _,
     } = scene;
     if *session_materials != SessionMaterials::default() {

@@ -1090,6 +1090,8 @@ fn playback_keeps_playing_through_selection_tool_camera_view_and_read_requests_o
             yaw: 0.0,
             pitch: 0.0,
         },
+        Operation::SetImagePlane(azteccraft::image_plane::model::ImagePlaneEdit::default()),
+        Operation::RemoveImagePlane,
     ] {
         assert!(!stops_playback(&keeps));
     }
