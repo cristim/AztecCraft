@@ -9912,6 +9912,8 @@ fn every_primitive_variant_is_in_the_create_menu() {
         Primitive::PlatonicSolid,
         Primitive::Pyramid,
         Primitive::Prism,
+        Primitive::Helix,
+        Primitive::SoccerBall,
     ] {
         match primitive {
             Primitive::Cube
@@ -9922,14 +9924,16 @@ fn every_primitive_variant_is_in_the_create_menu() {
             | Primitive::Torus
             | Primitive::PlatonicSolid
             | Primitive::Pyramid
-            | Primitive::Prism => assert!(listed(primitive), "{primitive:?}"),
+            | Primitive::Prism
+            | Primitive::Helix
+            | Primitive::SoccerBall => assert!(listed(primitive), "{primitive:?}"),
         }
     }
     let built = menus::POLYGON_PRIMITIVES
         .iter()
         .filter(|(_, primitive)| primitive.is_some())
         .count();
-    assert_eq!(built, 9);
+    assert_eq!(built, 11);
 }
 
 #[test]
@@ -9956,7 +9960,7 @@ fn unbuilt_primitives_and_the_interactive_toggles_are_disabled_with_their_reason
             rows.push((label.into(), reason));
         }
     }
-    assert_eq!(rows.len(), 8);
+    assert_eq!(rows.len(), 6);
     for (label, reason) in rows {
         let item = submenu_item(&output, &label);
         assert!(item.disabled, "{label} enabled");

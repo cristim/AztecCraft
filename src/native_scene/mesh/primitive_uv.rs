@@ -84,7 +84,9 @@ pub(in crate::native_scene) fn layout(
         PrimitiveOptions::Plane { .. } => return Err(NativeError::UnsupportedUvTopology),
         PrimitiveOptions::PlatonicSolid { .. }
         | PrimitiveOptions::Pyramid { .. }
-        | PrimitiveOptions::Prism { .. } => {
+        | PrimitiveOptions::Prism { .. }
+        | PrimitiveOptions::Helix { .. }
+        | PrimitiveOptions::SoccerBall { .. } => {
             return Err(NativeError::UnsupportedUvPrimitive(options.primitive()));
         }
     };

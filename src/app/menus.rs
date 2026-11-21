@@ -87,9 +87,9 @@ pub(super) const POLYGON_PRIMITIVES: [(&str, Option<Primitive>); 15] = [
     ("Pyramid", Some(Primitive::Pyramid)),
     ("Prism", Some(Primitive::Prism)),
     ("Pipe", None),
-    ("Helix", None),
+    ("Helix", Some(Primitive::Helix)),
     ("Gear", None),
-    ("Soccer Ball", None),
+    ("Soccer Ball", Some(Primitive::SoccerBall)),
     ("Super Shapes", None),
 ];
 
