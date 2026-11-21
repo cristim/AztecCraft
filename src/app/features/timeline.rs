@@ -232,6 +232,8 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::DefaultView
         | Operation::SetCameraPose { .. }
         | Operation::SetCameraFilmBack(_)
+        | Operation::SetImagePlane(_)
+        | Operation::RemoveImagePlane
         | Operation::CreateCameraBookmark { .. }
         | Operation::RenameCameraBookmark { .. }
         | Operation::DeleteCameraBookmark { .. }

@@ -36,6 +36,7 @@
       },
       "focal_length_mm": 35.0,
       "fov_y_degrees": 37.2114784850656,
+      "image_plane": null,
       "native_gesture_active": false,
       "near_clip": 0.10000000149011612,
       "pitch_degrees": 22.918312146742387,

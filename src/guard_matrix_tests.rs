@@ -17,6 +17,7 @@ use crate::editor_operations::{
 };
 use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
+use azteccraft::image_plane::model::ImagePlaneEdit;
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
     ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, MaterialChoice,
@@ -311,6 +312,8 @@ struct Targets {
     playblast_dir: std::path::PathBuf,
     /// A `.ma` file no decoder accepts, so the cell reads the same on every platform.
     import_ma: std::path::PathBuf,
+    /// A valid 2x2 PNG, written by `build`.
+    plate: std::path::PathBuf,
 }
 
 impl Targets {
@@ -431,6 +434,7 @@ fn targets(rig: &Rig) -> Targets {
         export_usd: rig.directory.path().join("export.usda"),
         playblast_dir: rig.directory.path().to_path_buf(),
         import_ma: rig.directory.path().join("import.ma"),
+        plate: rig.directory.path().join("plate.png"),
     }
 }
 
@@ -631,6 +635,18 @@ fn build(state: State) -> Rig {
     )
     .unwrap();
     std::fs::write(directory.path().join("import.ma"), "not a Maya scene\n").unwrap();
+    {
+        let mut encoder = png::Encoder::new(
+            std::fs::File::create(directory.path().join("plate.png")).unwrap(),
+            2,
+            2,
+        );
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&[0; 16]).unwrap();
+        writer.finish().unwrap();
+    }
     let context = egui::Context::default();
     let mut editor = match state {
         State::MaterialDraft => material_editor(),
@@ -1070,7 +1086,17 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         // Differs from the default film back so a Changed outcome is observable.
         film_back_edit(),
+        image_plane_edit(t),
+        Operation::RemoveImagePlane,
     ]
+}
+
+/// A valid PNG written by `build`, so a Changed outcome is observable.
+fn image_plane_edit(t: &Targets) -> Operation {
+    Operation::SetImagePlane(ImagePlaneEdit {
+        image_name: Some(t.plate.clone()),
+        ..ImagePlaneEdit::default()
+    })
 }
 
 fn film_back_edit() -> Operation {
@@ -2905,6 +2931,23 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             },
         )],
         Operation::SetCameraFilmBack(_) => vec![sample("set_camera_film_back", film_back_edit())],
+        Operation::SetImagePlane(_) => vec![
+            sample("set_image_plane(valid)", image_plane_edit(t)),
+            sample(
+                "set_image_plane(missing)",
+                Operation::SetImagePlane(ImagePlaneEdit {
+                    image_name: Some(t.plate.with_file_name("missing.png")),
+                    ..ImagePlaneEdit::default()
+                }),
+            ),
+            sample(
+                "set_image_plane(empty)",
+                Operation::SetImagePlane(ImagePlaneEdit::default()),
+            ),
+        ],
+        Operation::RemoveImagePlane => {
+            vec![sample("remove_image_plane", Operation::RemoveImagePlane)]
+        }
         Operation::Playblast(_) => vec![
             sample(
                 "playblast(valid)",
@@ -3119,6 +3162,13 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
                 .map(|b| b.name.as_str())
                 .collect::<Vec<_>>()
                 .join(","),
+        ),
+        (
+            "image_plane",
+            editor.image_plane.as_ref().map_or_else(
+                || "none".to_string(),
+                |state| format!("{}x{}", state.image_size.0, state.image_size.1),
+            ),
         ),
         (
             "recovery_files",

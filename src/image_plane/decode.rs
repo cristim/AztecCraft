@@ -198,9 +198,14 @@ pub fn probe_reader(reader: impl Read) -> Result<PlateInfo, PlateError> {
     probe_bytes(&prefix)
 }
 
-/// Opens a regular file and probes its header; never reads more than [`PROBE_BYTES`].
+/// Opens a regular file and probes its header; never reads more than [`PROBE_BYTES`]. A file over
+/// [`MAX_PLATE_FILE_BYTES`] is refused `TooLarge` here, so a first frame no decode could read
+/// fails when it is set, not later.
 pub fn probe_file(path: &Path) -> Result<PlateInfo, PlateError> {
-    let (file, _) = open_regular_file(path).map_err(|error| PlateError::Io(error.kind()))?;
+    let (file, metadata) = open_regular_file(path).map_err(|error| PlateError::Io(error.kind()))?;
+    if metadata.len() > MAX_PLATE_FILE_BYTES as u64 {
+        return Err(PlateError::TooLarge);
+    }
     probe_reader(file)
 }
 
