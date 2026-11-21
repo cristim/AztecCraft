@@ -296,6 +296,7 @@ async fn sdk_scale_parent_begins_remotely_and_natively() {
             target: editor.selected_move_target().unwrap(),
             axis: azteccraft::native_scene::RotateAxis::X,
             space: ManipulationSpace::Parent,
+            expected_selection_generation: None,
         }),
         Err(crate::editor_operations::OperationError::InvalidInput(_))
     ));

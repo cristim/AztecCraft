@@ -48,6 +48,8 @@ pub enum RotateUnsupported {
     RotateAxis,
     Gimbal,
     NumericalAngle,
+    SharedInstances,
+    AlternatePathAncestor,
 }
 
 impl fmt::Display for RotateUnsupported {
@@ -61,6 +63,10 @@ impl fmt::Display for RotateUnsupported {
             Self::RotateAxis => "rotation needs a zero rotate axis (Rotate axis is read-only)",
             Self::Gimbal => "rotation is too close to gimbal lock",
             Self::NumericalAngle => "rotation cannot be represented accurately",
+            Self::SharedInstances => "Rotate cannot independently edit two instances of one node",
+            Self::AlternatePathAncestor => {
+                "Rotate cannot edit a node also affected through an alternate instance path"
+            }
         })
     }
 }
@@ -288,6 +294,10 @@ impl RotateFrame {
 }
 
 impl NativeScene {
+    pub(crate) fn rotation_baseline(&self, node: NodeId) -> Result<ChannelBaseline, NativeError> {
+        Ok(self.channel_baseline(self.node(node)?, TransformField::Rotation))
+    }
+
     pub(crate) fn begin_rotation(
         &self,
         target: &TransformTarget,

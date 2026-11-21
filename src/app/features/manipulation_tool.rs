@@ -509,15 +509,16 @@ impl Editor {
         axis: RotateAxis,
         space: ManipulationSpace,
         provenance: ManipulationProvenance,
+        expected_selection_generation: Option<u64>,
     ) -> Result<OperationReply, OperationError> {
-        self.check_manipulation_target("Rotate", target)?;
+        self.check_selection_target("Rotate", target, provenance, expected_selection_generation)?;
         let space = space
             .rotate()
             .ok_or_else(|| OperationError::InvalidInput(NO_ROTATE_PARENT.to_owned()))?;
         let id = self
             .history
-            .begin_rotate(
-                target,
+            .begin_rotate_many(
+                self.selection.members(),
                 axis,
                 space,
                 self.scene_token,
@@ -710,13 +711,7 @@ impl Editor {
                 refusal,
             )));
         }
-        // Scale acts on the whole selection and draws at the lead, like Move.
-        let target = if tool == ActiveTool::Scale {
-            self.selected_move_lead()
-        } else {
-            self.selected_move_target()
-        }
-        .map_err(FrameFailure::Operation)?;
+        let target = self.selected_move_lead().map_err(FrameFailure::Operation)?;
         let frame = self
             .history
             .scene()
@@ -760,8 +755,10 @@ impl Editor {
         let scene = self.history.scene();
         match handle {
             DragHandle::Rotate(axis) => match space.rotate() {
-                Some(space) => scene
-                    .rotation_refusal(target, axis, space)
+                Some(space) => self
+                    .history
+                    .check_rotate(self.selection.members(), axis, space)
+                    .err()
                     .map(|error| error.to_string()),
                 None => Some(NO_ROTATE_PARENT.to_owned()),
             },
@@ -909,6 +906,7 @@ impl Editor {
                     target,
                     axis,
                     space,
+                    expected_selection_generation: None,
                 },
                 format!("{} {} Rotate", space_name(space), rotate_axis_name(axis)),
             ),
@@ -1235,11 +1233,7 @@ impl Editor {
             .trim()
             .parse()
             .map_err(|_| OperationError::InvalidInput("Enter a number".into()))?;
-        let target = if tool == ActiveTool::Scale {
-            self.selected_move_lead()?
-        } else {
-            self.selected_move_target()?
-        };
+        let target = self.selected_move_lead()?;
         let space = self.manipulation.space(tool);
         let (begin, value) = match tool {
             ActiveTool::Rotate => (
@@ -1247,6 +1241,7 @@ impl Editor {
                     target,
                     axis: self.manipulation.rotate_axis(),
                     space,
+                    expected_selection_generation: None,
                 },
                 ManipulationValue::Angle(number),
             ),

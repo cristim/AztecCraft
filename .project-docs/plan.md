@@ -187,3 +187,7 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+### Multi-object Rotate (#455)
+
+The [Maya 2027.2 Rotate Tool settings](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-C2D0F80C-812B-465D-A634-DB6ECFABFCB3.htm) documents Object orientation and individual pivots for Rotate Center Default. The [workflow page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-169906C5-CBC4-45CD-8DFB-F716D51D6168.htm) describes a common pivot. Use the explicit settings default for E and the Tool Box Rotate tool. The [rotate command](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/rotate.html) distinguishes absolute and relative angles and pivot options. The existing manipulation transaction takes a relative angle from begin. Lead-ring placement and ancestor coverage reuse Move and Scale policy (PROVISIONAL). Shared-pivot Manip and component Rotate remain unsupported. Remote begin uses the existing selection-generation guard with its selected lead. One commit produces one undo entry.

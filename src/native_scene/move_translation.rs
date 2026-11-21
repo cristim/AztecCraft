@@ -369,6 +369,7 @@ impl NativeScene {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(crate) fn preview_channels(
         &mut self,
         baseline: &ChannelBaseline,
@@ -380,6 +381,7 @@ impl NativeScene {
         Ok((previous, changed))
     }
 
+    #[cfg(test)]
     pub(crate) fn restore_channels(
         &mut self,
         baseline: &ChannelBaseline,
@@ -387,6 +389,7 @@ impl NativeScene {
         self.restore_channels_many(std::iter::once(baseline))
     }
 
+    #[cfg(test)]
     pub(crate) fn channel_changes(
         &self,
         baseline: &ChannelBaseline,

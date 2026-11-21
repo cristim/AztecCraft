@@ -645,6 +645,7 @@ fn a_value_of_the_wrong_kind_or_not_finite_is_refused_without_changing_the_previ
             target,
             axis: RotateAxis::Z,
             space: ManipulationSpace::Object,
+            expected_selection_generation: None,
         })
         .unwrap();
     let id = editor.history.active_manipulation().unwrap().id;
@@ -1245,6 +1246,7 @@ fn begin_operation(editor: &Editor, kind: ActiveTool, space: ManipulationSpace) 
             target,
             axis: RotateAxis::Z,
             space,
+            expected_selection_generation: None,
         },
         _ => Operation::BeginScale {
             target,
@@ -3634,6 +3636,7 @@ fn begin_rotate_z(editor: &mut Editor) -> ManipulationId {
             target,
             axis: RotateAxis::Z,
             space: ManipulationSpace::Object,
+            expected_selection_generation: None,
         })
         .unwrap();
     editor.history.active_manipulation().unwrap().id
