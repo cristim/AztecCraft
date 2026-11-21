@@ -77,3 +77,7 @@ pub(in crate::app) fn plate_at(plane: ImagePlane, camera: Camera, decode: Decode
         }))
     })
 }
+
+#[cfg(test)]
+#[path = "playblast_plate_tests.rs"]
+mod tests;

@@ -318,7 +318,7 @@ pub(in crate::app) mod fake {
 
 #[cfg(test)]
 #[path = "playblast_tests.rs"]
-mod tests;
+pub(in crate::app) mod tests;
 
 #[cfg(test)]
 #[path = "playblast_gpu_tests.rs"]
