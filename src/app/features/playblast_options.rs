@@ -104,7 +104,9 @@ fn name_control(response: &egui::Response, role: egui::Role, label: &str) {
 impl Editor {
     pub(in crate::app) fn windows_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button("Windows", |ui| {
-            unsupported(ui, NOT_IMPLEMENTED_YET);
+            let row = unsupported(ui, NOT_IMPLEMENTED_YET);
+            describe_unavailable(ui.ctx(), row.id, NOT_IMPLEMENTED_YET);
+            self.editors_menu(ui);
             let blocked = (self.files.is_closing() || self.files.is_modal())
                 .then(|| self.playblast_refusal())
                 .flatten();
@@ -118,6 +120,39 @@ impl Editor {
                 self.open_playblast_options();
                 ui.close();
             }
+        });
+    }
+
+    /// Windows > Editors: the General editors the dock implements, in the Maya 2027 Windows menu
+    /// order (Maya-Basics GUID-67B0B363-94D9-4BF9-BDB6-75B966F5B144). The 2027 Tool Settings page
+    /// still says Windows > General Editors > Tool Settings; this follows the Windows menu page
+    /// (PROVISIONAL until compared with the pinned reference, #5). Each row shows its panel through
+    /// the Status Line toggles' deferred request.
+    fn editors_menu(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button("Editors", |ui| {
+            ui.weak("General");
+            let blocked = self.manipulation_unavailable();
+            for (label, panel) in [
+                ("Attribute Editor", SidebarPanel::AttributeEditor),
+                ("Channel Box / Layer Editor", SidebarPanel::ChannelBox),
+                ("Tool Settings", SidebarPanel::ToolSettings),
+            ] {
+                let item = ui
+                    .add_enabled(
+                        blocked.is_none(),
+                        egui::Button::selectable(self.sidebar_panel_visible(panel), label),
+                    )
+                    .on_disabled_hover_text(blocked.unwrap_or_default());
+                if let Some(reason) = blocked {
+                    describe_unavailable(ui.ctx(), item.id, reason);
+                }
+                if item.clicked() {
+                    self.sidebar_panel_request = Some((panel, true));
+                    ui.close();
+                }
+            }
+            let row = unsupported(ui, NOT_IMPLEMENTED_YET);
+            describe_unavailable(ui.ctx(), row.id, NOT_IMPLEMENTED_YET);
         });
     }
 

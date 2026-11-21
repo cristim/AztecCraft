@@ -1159,8 +1159,8 @@ line shows the refusal, and the drag continues from the last valid preview (rele
 that preview).
 
 Rotate and Scale each keep their own Object/World selector, as Maya does. The selector,
-the axis choice and the numeric field are a row above the viewport standing in for the
-unsupported Tool Settings panel. Rotate lists Object, World, Component, Gimbal and Custom
+the axis choice and the numeric field are a row above the viewport, or the Tool Settings panel
+(#491) when that panel is shown (the row is then hidden). Rotate lists Object, World, Component, Gimbal and Custom
 (Maya's order), the last three disabled with the owning issue named. Scale lists Object, World,
 Parent, then Gimbal, Normal, Custom and Component disabled. Move's row has only an Axis Orientation selector: World (default), Object and Parent are
 selectable and Component, Normal, Along Rotation Axis, Along Live Object Axis and Custom (the

@@ -20,7 +20,6 @@ pub(super) const GAPS: &[&str] = &[
     "default|R3|Button|root/<Window>#0/Paint Selection",
     "default|R3|Button|root/<Window>#0/Redo",
     "default|R3|Button|root/<Window>#0/Save Scene",
-    "default|R3|Button|root/<Window>#0/Tool Settings",
     "default|R3|Button|root/<Window>#0/Undo",
     "default|R3|ComboBox|root/<Window>#0/Selection mode menu",
     "default|R5|Button|root/<Window>#0/<",

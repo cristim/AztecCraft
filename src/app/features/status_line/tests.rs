@@ -28,8 +28,9 @@ const MENU_FILES: [&str; 4] = [
 const HIERARCHY: &str = "Hierarchy selection";
 const CHANNEL_BOX: &str = "Channel Box / Layer Editor";
 const ATTRIBUTE_EDITOR: &str = "Attribute Editor";
+const TOOL_SETTINGS: &str = "Tool Settings";
 /// Toggles that are live; every other toggle is a disabled placeholder.
-const LIVE: [&str; 2] = [CHANNEL_BOX, ATTRIBUTE_EDITOR];
+const LIVE: [&str; 3] = [CHANNEL_BOX, ATTRIBUTE_EDITOR, TOOL_SETTINGS];
 const TOGGLES: [&str; 5] = [
     "Modeling Toolkit",
     "HumanIK",

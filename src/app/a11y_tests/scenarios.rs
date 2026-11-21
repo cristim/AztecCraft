@@ -179,7 +179,7 @@ fn newly_disabled_controls(captured: &Captured) -> impl Iterator<Item = super::E
 /// labels and its popup).
 const MIN_NEW_NODES: usize = 2;
 /// Scenarios in `all`; adding one means raising this, so a dropped line is noticed.
-const SCENARIOS: usize = 32;
+const SCENARIOS: usize = 37;
 
 fn tiny_png(dir: &std::path::Path) -> std::path::PathBuf {
     let path = dir.join("plate.png");
@@ -210,6 +210,20 @@ pub(super) fn default_frame() -> TreeUpdate {
 fn tool_scenario(name: &str, tool: ActiveTool) -> Scenario {
     Scenario::new(name, "shell", move || {
         let mut rig = Rig::new(true);
+        rig.tool(tool);
+        plain(&rig, Some(default_frame()))
+    })
+}
+
+/// The Tool Settings panel (#491) docked for `tool` on a cube scene.
+fn tool_settings_scenario(name: &str, tool: ActiveTool) -> Scenario {
+    Scenario::new(name, "fields", move || {
+        let mut rig = Rig::new(true);
+        rig.editor
+            .native_operation(Operation::SetSidebarPanelVisible {
+                panel: crate::editor_operations::SidebarPanel::ToolSettings,
+                visible: true,
+            });
         rig.tool(tool);
         plain(&rig, Some(default_frame()))
     })
@@ -247,6 +261,10 @@ pub(super) fn all() -> Vec<Scenario> {
         tool_scenario("tool-move", ActiveTool::Move),
         tool_scenario("tool-rotate", ActiveTool::Rotate),
         tool_scenario("tool-scale", ActiveTool::Scale),
+        tool_settings_scenario("tool-settings-select", ActiveTool::Select),
+        tool_settings_scenario("tool-settings-move", ActiveTool::Move),
+        tool_settings_scenario("tool-settings-rotate", ActiveTool::Rotate),
+        tool_settings_scenario("tool-settings-scale", ActiveTool::Scale),
     ];
     let modeling = MenuSet::Modeling;
     for (name, set, path, row) in [
@@ -287,6 +305,12 @@ pub(super) fn all() -> Vec<Scenario> {
             "Remove Joints",
         ),
         ("menu-help", modeling, &["Help"], "Local editor prototype"),
+        (
+            "menu-windows-editors",
+            modeling,
+            &["Windows", "Editors"],
+            "Channel Box / Layer Editor",
+        ),
         (
             "menu-lighting-shading",
             MenuSet::Rendering,

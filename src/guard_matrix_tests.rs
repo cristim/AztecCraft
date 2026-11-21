@@ -2994,6 +2994,13 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     visible: true,
                 },
             ),
+            sample(
+                "set_sidebar_panel_visible(tool_settings,true)",
+                Operation::SetSidebarPanelVisible {
+                    panel: crate::editor_operations::SidebarPanel::ToolSettings,
+                    visible: true,
+                },
+            ),
         ],
         Operation::SelectAttributeEditorTab { .. } => vec![
             Sample {
@@ -3197,8 +3204,9 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         (
             "sidebar_panels",
             format!(
-                "channel_box={}",
-                editor.sidebar_panel_visible(crate::editor_operations::SidebarPanel::ChannelBox)
+                "channel_box={} tool_settings={}",
+                editor.sidebar_panel_visible(crate::editor_operations::SidebarPanel::ChannelBox),
+                editor.sidebar_panel_visible(crate::editor_operations::SidebarPanel::ToolSettings)
             ),
         ),
         (

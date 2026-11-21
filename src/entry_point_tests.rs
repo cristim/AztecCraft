@@ -263,7 +263,9 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "native_match_transformations",
             "native_reset_transformations",
             "native_freeze_transformations",
-            "manipulation_options",
+            // The tool settings widgets the row and the Tool Settings panel share (#491).
+            "apply_settings_choice",
+            "step_settings",
             "outliner",
             "playblast_options_window",
             "render",
@@ -292,7 +294,7 @@ fn tool_handle_setter_is_reached_only_through_dispatch() {
     expect(
         "tool handle combos",
         "native_operation(Operation::SetToolHandle(",
-        &["manipulation_options"],
+        &["apply_settings_choice"],
     );
 }
 

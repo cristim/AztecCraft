@@ -1,10 +1,13 @@
 use super::*;
-use crate::editor_operations::SidebarPanel::{self, AttributeEditor as AE, ChannelBox as CB};
+use crate::editor_operations::SidebarPanel::{
+    self, AttributeEditor as AE, ChannelBox as CB, ToolSettings as TS,
+};
 
 fn panel_name(panel: SidebarPanel) -> &'static str {
     match panel {
         CB => "channel_box",
         AE => "attribute_editor",
+        TS => "tool_settings",
     }
 }
 
@@ -24,10 +27,19 @@ fn dock_of(inspection: &Value) -> Option<SidebarPanel> {
     let panels = &inspection["sidebar_panels"];
     let channel_box = panels["channel_box"].as_bool().unwrap();
     let attribute_editor = panels["attribute_editor"].as_bool().unwrap();
-    assert!(!(channel_box && attribute_editor), "at most one dock panel");
-    match (channel_box, attribute_editor) {
-        (true, _) => Some(CB),
-        (_, true) => Some(AE),
+    let tool_settings = panels["tool_settings"].as_bool().unwrap();
+    assert!(
+        [channel_box, attribute_editor, tool_settings]
+            .iter()
+            .filter(|shown| **shown)
+            .count()
+            <= 1,
+        "at most one dock panel"
+    );
+    match (channel_box, attribute_editor, tool_settings) {
+        (true, _, _) => Some(CB),
+        (_, true, _) => Some(AE),
+        (_, _, true) => Some(TS),
         _ => None,
     }
 }
@@ -73,15 +85,24 @@ async fn select_tab(
 
 #[tokio::test]
 async fn sdk_transition_table_every_cell() {
-    let ops = [(CB, true), (CB, false), (AE, true), (AE, false)];
+    let ops = [
+        (CB, true),
+        (CB, false),
+        (AE, true),
+        (AE, false),
+        (TS, true),
+        (TS, false),
+    ];
     type Cell = (Option<SidebarPanel>, &'static str);
-    let table: [(Option<SidebarPanel>, [Cell; 4]); 3] = [
+    let table: [(Option<SidebarPanel>, [Cell; 6]); 4] = [
         (
             Some(CB),
             [
                 (Some(CB), "unchanged"),
                 (None, "changed"),
                 (Some(AE), "changed"),
+                (Some(CB), "unchanged"),
+                (Some(TS), "changed"),
                 (Some(CB), "unchanged"),
             ],
         ),
@@ -92,6 +113,19 @@ async fn sdk_transition_table_every_cell() {
                 (Some(AE), "unchanged"),
                 (Some(AE), "unchanged"),
                 (None, "changed"),
+                (Some(TS), "changed"),
+                (Some(AE), "unchanged"),
+            ],
+        ),
+        (
+            Some(TS),
+            [
+                (Some(CB), "changed"),
+                (Some(TS), "unchanged"),
+                (Some(AE), "changed"),
+                (Some(TS), "unchanged"),
+                (Some(TS), "unchanged"),
+                (None, "changed"),
             ],
         ),
         (
@@ -100,6 +134,8 @@ async fn sdk_transition_table_every_cell() {
                 (Some(CB), "changed"),
                 (None, "unchanged"),
                 (Some(AE), "changed"),
+                (None, "unchanged"),
+                (Some(TS), "changed"),
                 (None, "unchanged"),
             ],
         ),

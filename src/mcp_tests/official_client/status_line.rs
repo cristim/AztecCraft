@@ -72,7 +72,7 @@ async fn sdk_sidebar_panel_visibility_is_idempotent_and_guarded() {
     );
     assert!(editor.sidebar_panel_visible(SidebarPanel::ChannelBox));
 
-    for panel in ["tool_settings", "ChannelBox", ""] {
+    for panel in ["modeling_toolkit", "ChannelBox", ""] {
         let rejected = call_response(
             &mut editor,
             &context,
@@ -265,6 +265,163 @@ async fn sdk_inspection_withholds_file_error_status_and_bounds_length() {
         long.as_str().unwrap().chars().count(),
         crate::editor_operations::STATUS_MESSAGE_MAX_CHARS
     );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+async fn sidebar_panels(
+    editor: &mut Editor,
+    context: &egui::Context,
+    client: &rmcp::service::RunningService<RoleClient, ()>,
+) -> serde_json::Value {
+    call(editor, context, client.peer(), "inspect_scene", json!({}))
+        .await
+        .structured_content
+        .unwrap()["inspection"]["sidebar_panels"]
+        .clone()
+}
+
+/// #491: `tool_settings` goes through the same one-panel dock, and the native panel reads the tool
+/// state `set_tool_space` writes.
+#[tokio::test]
+async fn sdk_tool_settings_panel_shares_the_dock_and_the_tool_state() {
+    let context = egui::Context::default();
+    context.enable_accesskit();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let scene = editor.history.scene().clone();
+    let set =
+        |visible: bool| json!({"scene_token": token, "panel": "tool_settings", "visible": visible});
+    for (visible, outcome, panels) in [
+        (
+            true,
+            "changed",
+            json!({"channel_box": false, "attribute_editor": false, "tool_settings": true}),
+        ),
+        (
+            true,
+            "unchanged",
+            json!({"channel_box": false, "attribute_editor": false, "tool_settings": true}),
+        ),
+        (
+            false,
+            "changed",
+            json!({"channel_box": false, "attribute_editor": false, "tool_settings": false}),
+        ),
+        (
+            false,
+            "unchanged",
+            json!({"channel_box": false, "attribute_editor": false, "tool_settings": false}),
+        ),
+    ] {
+        let result = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_sidebar_panel_visibility",
+            set(visible),
+        )
+        .await;
+        assert_eq!(result.structured_content.unwrap()["outcome"], outcome);
+        assert_eq!(sidebar_panels(&mut editor, &context, &client).await, panels);
+        assert_eq!(editor.scene_token.to_string(), token);
+        assert_eq!(editor.history.scene(), &scene);
+    }
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_sidebar_panel_visibility",
+        set(true),
+    )
+    .await;
+    // The remote guards are the other panels': a human draft is busy_editing and an active
+    // manipulation is busy_manipulation, and neither switches the dock.
+    editor.name = "human_draft".into();
+    let draft = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_sidebar_panel_visibility",
+        set(false),
+    )
+    .await;
+    assert_eq!(
+        draft.structured_content.unwrap()["error"]["code"],
+        "busy_editing"
+    );
+    assert!(editor.sidebar_panel_visible(SidebarPanel::ToolSettings));
+    editor.sync_fields();
+    let path: Vec<_> = editor
+        .selected_path()
+        .iter()
+        .map(|id| id.to_decimal())
+        .collect();
+    let node = editor.selected().unwrap().to_decimal();
+    let begun = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "begin_manipulation",
+        json!({"scene_token": token, "node_id": node, "instance_path": path, "kind": "move", "axis": "x"}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let busy = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_sidebar_panel_visibility",
+        set(false),
+    )
+    .await;
+    assert_eq!(
+        busy.structured_content.unwrap()["error"]["code"],
+        "busy_manipulation"
+    );
+    assert!(editor.sidebar_panel_visible(SidebarPanel::ToolSettings));
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "finish_manipulation",
+        json!({"scene_token": token, "manipulation_id": begun["manipulation_id"], "finish": "cancel"}),
+    )
+    .await;
+    for (tool, space) in [("move", "object"), ("rotate", "world"), ("scale", "parent")] {
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_active_tool",
+            json!({"scene_token": token, "tool": tool}),
+        )
+        .await;
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_tool_space",
+            json!({"scene_token": token, "tool": tool, "space": space}),
+        )
+        .await;
+        let output = frame(&mut editor, &context, vec![]);
+        let update = output.platform_output.accesskit_update.unwrap();
+        let combo = update
+            .nodes
+            .iter()
+            .map(|(_, node)| node)
+            .find(|node| node.label() == Some("Axis Orientation"))
+            .unwrap_or_else(|| panic!("no Axis Orientation combo for {tool}"));
+        let mut expected = space.to_owned();
+        expected[..1].make_ascii_uppercase();
+        assert_eq!(combo.value(), Some(expected.as_str()), "{tool}");
+    }
+    assert_eq!(editor.history.scene(), &scene);
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

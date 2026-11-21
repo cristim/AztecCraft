@@ -1,6 +1,8 @@
 use super::*;
 use crate::app::tests::{material_editor, remote};
-use crate::editor_operations::SidebarPanel::{AttributeEditor as AE, ChannelBox as CB};
+use crate::editor_operations::SidebarPanel::{
+    AttributeEditor as AE, ChannelBox as CB, ToolSettings as TS,
+};
 use azteccraft::history::ManipulationProvenance;
 use azteccraft::native_scene::WorldAxis;
 
@@ -39,14 +41,23 @@ type Cell = (Option<SidebarPanel>, bool);
 
 #[test]
 fn transition_table_covers_every_cell_natively_and_remotely() {
-    let ops = [(CB, true), (CB, false), (AE, true), (AE, false)];
-    let table: [(Option<SidebarPanel>, [Cell; 4]); 3] = [
+    let ops = [
+        (CB, true),
+        (CB, false),
+        (AE, true),
+        (AE, false),
+        (TS, true),
+        (TS, false),
+    ];
+    let table: [(Option<SidebarPanel>, [Cell; 6]); 4] = [
         (
             Some(CB),
             [
                 (Some(CB), false),
                 (None, true),
                 (Some(AE), true),
+                (Some(CB), false),
+                (Some(TS), true),
                 (Some(CB), false),
             ],
         ),
@@ -57,6 +68,19 @@ fn transition_table_covers_every_cell_natively_and_remotely() {
                 (Some(AE), false),
                 (Some(AE), false),
                 (None, true),
+                (Some(TS), true),
+                (Some(AE), false),
+            ],
+        ),
+        (
+            Some(TS),
+            [
+                (Some(CB), true),
+                (Some(TS), false),
+                (Some(AE), true),
+                (Some(TS), false),
+                (Some(TS), false),
+                (None, true),
             ],
         ),
         (
@@ -65,6 +89,8 @@ fn transition_table_covers_every_cell_natively_and_remotely() {
                 (Some(CB), true),
                 (None, false),
                 (Some(AE), true),
+                (None, false),
+                (Some(TS), true),
                 (None, false),
             ],
         ),
@@ -95,6 +121,10 @@ fn transition_table_covers_every_cell_natively_and_remotely() {
                 assert_eq!(
                     json["sidebar_panels"]["attribute_editor"],
                     expected == Some(AE)
+                );
+                assert_eq!(
+                    json["sidebar_panels"]["tool_settings"],
+                    expected == Some(TS)
                 );
             }
         }

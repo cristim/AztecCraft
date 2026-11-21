@@ -190,7 +190,13 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   `BusyManipulation` during a manipulation (`src/app/features/move_tool.rs "fn guard_move_dispatch"`), and otherwise commits a valid
   draft first and refuses an invalid one (`src/app/dispatch.rs "&& !self.commit_pending()"`). The handler is
   `src/app/dispatch.rs "Operation::SetSidebarPanelVisible { panel, visible }"`; matrix cells are `set_sidebar_panel_visible(channel_box,false)` and
-  `set_sidebar_panel_visible(attribute_editor,true)`.
+  `set_sidebar_panel_visible(attribute_editor,true)`. The Tool Settings panel (#491,
+  `SidebarPanel::ToolSettings`, MCP `tool_settings`) goes through the same handler and guards; its
+  native entry points (the Status Line toggle, a Tool Box double-click, Windows > Editors) set the
+  deferred `sidebar_panel_request` that `src/app/panels.rs "let sidebar_request"` dispatches, and the
+  transition table is covered for all three panels in
+  `src/app/features/attribute_editor/tests.rs "transition_table_covers_every_cell_natively_and_remotely"`
+  and `src/mcp_tests/official_client/attribute_editor.rs "sdk_transition_table_every_cell"`.
 - `SelectAttributeEditorTab` has the same guards as `SetSidebarPanelVisible` (modal check in `dispatch_operation_guarded`, the `commit_pending` gate `src/app/dispatch.rs "&& !self.commit_pending()"`, Move default-deny).
   It is view state only and never enters history. After the draft commit it is refused as
   `InvalidInput` unless the Attribute Editor is the active dock panel (no hidden state that
