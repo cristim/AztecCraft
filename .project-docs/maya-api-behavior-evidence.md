@@ -7,7 +7,7 @@ installed Windows Maya 2027.3 batch process.
 ## Probe and environment
 
 The opt-in probe is [`scripts/maya-api-behavior-probe.py`](../scripts/maya-api-behavior-probe.py)
-(SHA-256 `60B7666DF23B61FCC451CC5C92CB7A7DED6C04D2DBF56C9FEA10E6B29169E849`).
+(SHA-256 `0D043F98DF65630EFB8F4DE1E965D6F1091F87235062D19CDEE50D0D779C0531`).
 It creates a unique `MAYA_APP_DIR` for each run below the repository's ignored
 `target/maya-catalog/behavior-probe-appdir-<id>` before importing Maya, refuses
 an already-imported Maya runtime and a named/modified scene, and creates only
@@ -16,11 +16,13 @@ The per-run directories are retained locally and are not shared between runs.
 The source is a reusable audit affordance, not an AztecCraft feature.
 
 Two independent runs each used a unique scratch app directory, ran in the
-installed `mayapy`, and exited `0`. Their captured JSON reports were byte
-identical (SHA-256
-`4AABFC10A0A6046AEC466829798B86AB650636E319118D372B9C9235DC297EE5`); a
-separate assertion check confirmed the version, topology, short-edge length,
-unchanged short-edge geometry, `shotLabel` defaults, and Python API wrapper
+installed `mayapy`, and exited `0`. The parsed JSON contents of
+`target/maya-catalog/maya-api-behavior-probe-multiedge-1.json` and
+`target/maya-catalog/maya-api-behavior-probe-multiedge-2.json` matched. The
+first ignored capture alone has SHA-256
+`8CC1B05D76BFB7462C38E11BB6599369DC4F22D0BBE4FDB8E06303A7A314D631`. Focused
+assertions confirmed the version, single- and multi-edge topology, short-edge
+length and unchanged geometry, `shotLabel` defaults, and Python API wrapper
 result. Maya reported:
 
 For reproduction, run the script twice in separate processes and capture
@@ -28,10 +30,10 @@ stdout, for example in PowerShell:
 
 ```powershell
 & 'C:\Program Files\Autodesk\Maya2027\bin\mayapy.exe' scripts/maya-api-behavior-probe.py |
-  Set-Content target/maya-catalog/maya-api-behavior-probe-isolated-1.json -Encoding utf8
+  Set-Content target/maya-catalog/maya-api-behavior-probe-multiedge-1.json -Encoding utf8
 if ($LASTEXITCODE -ne 0) { throw "Maya probe failed: $LASTEXITCODE" }
 & 'C:\Program Files\Autodesk\Maya2027\bin\mayapy.exe' scripts/maya-api-behavior-probe.py |
-  Set-Content target/maya-catalog/maya-api-behavior-probe-isolated-2.json -Encoding utf8
+  Set-Content target/maya-catalog/maya-api-behavior-probe-multiedge-2.json -Encoding utf8
 if ($LASTEXITCODE -ne 0) { throw "Maya probe failed: $LASTEXITCODE" }
 ```
 
@@ -50,8 +52,8 @@ Maya/runtime data only.
 | Loaded plug-in names | `cacheEvaluator`, `renderSetup` |
 
 The JSON reports remain local and ignored at
-`target/maya-catalog/maya-api-behavior-probe-isolated-1.json` and
-`target/maya-catalog/maya-api-behavior-probe-isolated-2.json`. This is one Maya
+`target/maya-catalog/maya-api-behavior-probe-multiedge-1.json` and
+`target/maya-catalog/maya-api-behavior-probe-multiedge-2.json`. This is one Maya
 build and one batch environment; it does not establish GUI behavior, unloaded
 plug-in behavior, other platforms, ABI compatibility, or Maya 2026 behavior.
 
@@ -72,12 +74,16 @@ construction history enabled, then selected edge `.e[0]` and called
 | --- | --- | --- |
 | Ordinary edge | Length `2.0` object units (`cm`); `8` vertices, `12` edges, `6` faces | Returned a `polySmartBevel` node without a reported exception; topology became `10` vertices, `15` edges, `7` faces. The recorded output coordinates show the mesh changed. |
 | Short edge | One endpoint was moved so the selected edge measured `1.0013580322265625e-05` object units; `8` vertices, `12` edges, `6` faces | Returned a `polySmartBevel` node without a reported exception; topology remained `8/12/6`, and all recorded vertex coordinates were unchanged. The input edit is represented by a `polyTweak` history node. |
+| One explicit edge (control) | History-free cube; explicit component `.e[0]`; endpoint IDs `[0,1]`; `8/12/6` | Returned a node; topology became `10/15/7`. |
+| Two explicit edges (treatment) | Fresh history-free cube; explicit components `.e[0]` and `.e[6]`; endpoint IDs `[0,1]` and `[2,4]`; `8/12/6` | Returned a node; topology became `12/18/8`. This observed topology delta is larger than the one-edge control; no fixed per-edge topology contract is inferred. |
 
 The short-edge outcome is a single empirical observation consistent with
 Autodesk's summary, not proof of the fix's full behavior or its cutoff. Multiple
-specified edges, cutback amounts, straight-edge preservation, visual output,
-and other topology/selection cases remain untested. This standalone test also
-does not establish where or how the artist-facing tool is exposed in Maya's UI.
+edge configurations, cutback amounts, straight-edge preservation, visual
+output, and other topology/selection cases remain untested. The explicit
+two-edge experiment observes one cube/edge pair only; it is not a general
+per-edge algorithm or parity claim. This standalone test also does not establish
+where or how the artist-facing tool is exposed in Maya's UI.
 
 ## `shotLabel` and Python API observation
 

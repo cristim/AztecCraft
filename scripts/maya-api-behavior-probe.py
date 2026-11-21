@@ -148,6 +148,54 @@ def _shot_label(cmds):
     return {"node": node, "attributes": attributes, "api_attribute": api_result}
 
 
+def _explicit_smart_bevel_scenario(cmds):
+    """Compare one explicit edge with two explicit edges on fresh, history-free cubes."""
+    cases = {}
+    for name, edge_ids in (("control", (0,)), ("treatment", (0, 6))):
+        cube = cmds.polyCube(
+            width=2.0,
+            height=2.0,
+            depth=2.0,
+            subdivisionsX=1,
+            subdivisionsY=1,
+            subdivisionsZ=1,
+            constructionHistory=False,
+        )[0]
+        shape = cmds.listRelatives(cube, shapes=True, fullPath=True)[0]
+        components = ["{}.e[{}]".format(shape, edge_id) for edge_id in edge_ids]
+        endpoints = {}
+        for component in components:
+            edge_info = cmds.polyInfo(component, edgeToVertex=True)[0]
+            match = re.search(r":\s*(\d+)\s+(\d+)(?:\s|$)", edge_info)
+            if match is None:
+                raise ValueError("edge_endpoint_parse_failed")
+            endpoints[component] = [int(match.group(1)), int(match.group(2))]
+        before = {
+            "vertices": len(cmds.ls(shape + ".vtx[*]", flatten=True) or []),
+            "edges": len(cmds.ls(shape + ".e[*]", flatten=True) or []),
+            "faces": len(cmds.ls(shape + ".f[*]", flatten=True) or []),
+        }
+        outcome = _failure(lambda components=components: cmds.polySmartBevel(*components))
+        node = outcome["value"]
+        if isinstance(node, list):
+            node = node[0] if node else None
+        after = {
+            "vertices": len(cmds.ls(shape + ".vtx[*]", flatten=True) or []),
+            "edges": len(cmds.ls(shape + ".e[*]", flatten=True) or []),
+            "faces": len(cmds.ls(shape + ".f[*]", flatten=True) or []),
+        }
+        cases[name] = {
+            "explicit_components": components,
+            "edge_endpoint_vertex_ids": endpoints,
+            "pre_topology": before,
+            "post_topology": after,
+            "returned_node": node,
+            "history": cmds.listHistory(shape) or [],
+            "exception_type": outcome["exception_type"],
+        }
+    return cases
+
+
 def _attribute_api(node):
     from maya.api import OpenMaya as om
 
@@ -210,6 +258,10 @@ def main():
                 result["scenarios"][key] = _bevel_scenario(cmds, short)
             except Exception as error:
                 result["scenarios"][key] = {"exception_type": type(error).__name__}
+        try:
+            result["scenarios"]["explicit_smart_bevel"] = _explicit_smart_bevel_scenario(cmds)
+        except Exception as error:
+            result["scenarios"]["explicit_smart_bevel"] = {"exception_type": type(error).__name__}
         try:
             result["scenarios"]["shotLabel"] = _shot_label(cmds)
         except Exception as error:
