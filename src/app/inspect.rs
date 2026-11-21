@@ -27,6 +27,7 @@ impl Editor {
     fn inspect_session_materials(
         &self,
     ) -> Vec<crate::editor_operations::SessionMaterialInspection> {
+        use azteccraft::native_scene::LambertAttribute;
         let scene = self.history.scene();
         if scene.appearance_incomplete() {
             return Vec::new();
@@ -42,6 +43,9 @@ impl Editor {
                     name: material.name().into(),
                     shading_group: group.name().into(),
                     color: material.color(),
+                    transparency: material.attribute(LambertAttribute::Transparency),
+                    ambient_color: material.attribute(LambertAttribute::AmbientColor),
+                    incandescence: material.attribute(LambertAttribute::Incandescence),
                     editable: index != 0,
                     shape_count: scene.session_material_shape_count(
                         azteccraft::native_scene::SessionMaterialId::from_index(index),

@@ -223,6 +223,11 @@
     "selection_mode": "object",
     "session_materials": [
       {
+        "ambient_color": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "color": [
           0.3254901960784314,
           0.3254901960784314,
@@ -230,9 +235,19 @@
         ],
         "editable": false,
         "id": "0",
+        "incandescence": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "name": "standardSurface1",
         "shading_group": "initialShadingGroup",
-        "shape_count": 1
+        "shape_count": 1,
+        "transparency": [
+          0.0,
+          0.0,
+          0.0
+        ]
       }
     ],
     "shading": "smooth_shade_all",

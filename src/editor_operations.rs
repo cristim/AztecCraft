@@ -1600,6 +1600,10 @@ pub struct SessionMaterialInspection {
     pub name: String,
     pub shading_group: String,
     pub color: [f64; 3],
+    /// Stored lambert attributes that do not yet affect the viewport (PROVISIONAL).
+    pub transparency: [f64; 3],
+    pub ambient_color: [f64; 3],
+    pub incandescence: [f64; 3],
     pub editable: bool,
     /// Authored shapes that display this material.
     pub shape_count: usize,
@@ -2090,7 +2094,7 @@ pub const STATUS_MESSAGE_WITHHELD: &str = "File operation failed (details withhe
 #[cfg(test)]
 pub(crate) const MOVE_INSPECTION_MAX_BYTES: usize = 32 * 1024;
 #[cfg(test)]
-const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 240;
+const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 500;
 
 // The inspection preflight is a guaranteed minimum: each constant below is the serialized length
 // of the smallest value the DTO can take, so the sum never exceeds what `inspect_scene` writes and
@@ -2139,7 +2143,7 @@ const MIN_REFERENCE: &str = concat!(
     r#""renaming_prefix":null,"file_type":null,"deferred":null,"depth_info":null}"#
 );
 #[cfg(any(test, feature = "mcp"))]
-const MIN_SESSION_MATERIAL: &str = r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"editable":true,"shape_count":0}"#;
+const MIN_SESSION_MATERIAL: &str = r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"transparency":[0.0,0.0,0.0],"ambient_color":[0.0,0.0,0.0],"incandescence":[0.0,0.0,0.0],"editable":true,"shape_count":0}"#;
 /// One path element in an `instance_path` array: `"1",`. A non-empty array of L elements costs
 /// 4L + 1 bytes (the last element has no comma), so a member or target already counted with `[]`
 /// adds 4L - 1; a node's `instance_paths` entry is a whole array and is charged 4L.
@@ -2315,13 +2319,18 @@ mod tests {
     #[test]
     fn a_full_session_material_table_stays_well_inside_the_inspection_budget() {
         let materials = azteccraft::native_scene::MAX_SESSION_MATERIALS;
-        assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES * 2 <= MAX_REPLY_BYTES);
+        // Four colour arrays of f32-exact channels (the widest valid text is the smallest f32
+        // denormal as f64) no longer leave a 2x margin; the whole table still fits one reply.
+        assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES <= MAX_REPLY_BYTES);
         let widest = SessionMaterialInspection {
             id: (materials - 1).to_string(),
             // Material numbers are u32 (adding past u32::MAX is a resource-limit refusal).
             name: format!("lambert{}", u32::MAX),
             shading_group: format!("lambert{}SG", u32::MAX),
-            color: [-1.2345678901234567e-308; 3],
+            color: [f64::from(f32::from_bits(1)); 3],
+            transparency: [f64::from(f32::from_bits(1)); 3],
+            ambient_color: [f64::from(f32::from_bits(1)); 3],
+            incandescence: [f64::from(f32::from_bits(1)); 3],
             editable: true,
             shape_count: usize::MAX,
         };
@@ -2435,6 +2444,9 @@ mod tests {
             name: String::new(),
             shading_group: String::new(),
             color: zeros(),
+            transparency: zeros(),
+            ambient_color: zeros(),
+            incandescence: zeros(),
             editable: true,
             shape_count: 0,
         };
