@@ -125,6 +125,15 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     NativeError::WorldOutOfRange => "world_out_of_range",
                     _ => "scene_error",
                 },
+                OperationError::Transform(error) => match error {
+                    NativeError::ReadOnlyFormat => "read_only_format",
+                    NativeError::UnsupportedEdit => "unsupported_edit",
+                    NativeError::InvalidTransformEdit(_) => "invalid_transform_edit",
+                    NativeError::ResourceLimit => "resource_limit",
+                    NativeError::WorldOutOfRange => "world_out_of_range",
+                    NativeError::NonFinite => "invalid_input",
+                    _ => "scene_error",
+                },
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {
@@ -433,6 +442,33 @@ mod tests {
             OperationError::Reparent(refusal()),
         ] {
             assert_eq!(code(error), "world_out_of_range");
+        }
+    }
+
+    #[test]
+    fn transform_refusals_report_their_codes_and_the_rest_scene_error() {
+        let code = |error| {
+            let result = tool_reply(Err(OperationError::Transform(error)));
+            serde_json::to_value(&result).unwrap()["structuredContent"]["error"]["code"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        for (error, expected) in [
+            (NativeError::ReadOnlyFormat, "read_only_format"),
+            (NativeError::UnsupportedEdit, "unsupported_edit"),
+            (
+                NativeError::InvalidTransformEdit(
+                    azteccraft::native_scene::TransformRefusal::Keyed,
+                ),
+                "invalid_transform_edit",
+            ),
+            (NativeError::ResourceLimit, "resource_limit"),
+            (NativeError::WorldOutOfRange, "world_out_of_range"),
+            (NativeError::NonFinite, "invalid_input"),
+            (NativeError::NameCollision, "scene_error"),
+        ] {
+            assert_eq!(code(error), expected);
         }
     }
 

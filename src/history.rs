@@ -2,8 +2,8 @@ use crate::{
     native_scene::{
         ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest, MaterialChoice,
         MayaImportPlan, NativeError, NativeId, NativeScene, NativeTransform, ObjImportPlan,
-        PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId, TransformTarget, UngroupOptions,
-        UvProjectAxis,
+        PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId, TransformChannels,
+        TransformTarget, UngroupOptions, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -80,6 +80,18 @@ pub enum Command {
     ResetPivots {
         ids: Vec<NodeId>,
         mode: PivotReset,
+    },
+    /// Resets the chosen channels of several nodes as one undo step; any refusal leaves the scene
+    /// and history untouched.
+    ResetTransformations {
+        ids: Vec<NodeId>,
+        channels: TransformChannels,
+    },
+    /// Freezes the chosen channels of the top-most of `ids` and everything below into the meshes
+    /// as one undo step; any refusal leaves the scene and history untouched.
+    FreezeTransformations {
+        ids: Vec<NodeId>,
+        channels: TransformChannels,
     },
     SetMaterialDiffuse {
         shape: NativeId,
@@ -182,6 +194,9 @@ impl Command {
             Self::EditNode { .. } | Self::EditNodes(_) => "Edit".to_string(),
             // PROVISIONAL (P-B6): Maya's docs name no undo entries.
             Self::SetPivots { .. } | Self::ResetPivots { .. } => "Pivot".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::ResetTransformations { .. } => "Reset Transformations".to_string(),
+            Self::FreezeTransformations { .. } => "Freeze Transformations".to_string(),
             Self::SetMaterialDiffuse { .. }
             | Self::CreateSessionMaterial { .. }
             | Self::AssignSessionMaterial { .. }
@@ -584,6 +599,8 @@ impl History {
                 | Command::Ungroup { .. }
                 | Command::SetPivots { .. }
                 | Command::ResetPivots { .. }
+                | Command::ResetTransformations { .. }
+                | Command::FreezeTransformations { .. }
                 | Command::ExtrudeFace { .. }
                 | Command::MoveVertices { .. }
         );
@@ -665,6 +682,14 @@ impl History {
             }
             Command::ResetPivots { ids, mode } => {
                 candidate.reset_pivots(&ids, mode)?;
+                EditOutcome::Changed
+            }
+            Command::ResetTransformations { ids, channels } => {
+                candidate.reset_transformations(&ids, channels)?;
+                EditOutcome::Changed
+            }
+            Command::FreezeTransformations { ids, channels } => {
+                candidate.freeze_transformations(&ids, channels)?;
                 EditOutcome::Changed
             }
             Command::SetMaterialDiffuse { shape, value } => {

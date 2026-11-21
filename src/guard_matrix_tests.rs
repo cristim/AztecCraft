@@ -20,8 +20,8 @@ use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
     ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, MaterialChoice,
     MoveSpace, NativeScene, PivotReset, ReduceTarget, ReparentKeep, RotateAxis, ScaleHandle,
-    SessionMaterialId, TransformTarget, UngroupOptions, UvProjectAxis, VertexSetTarget,
-    VertexTarget, WorldAxis,
+    SessionMaterialId, TransformChannels, TransformTarget, UngroupOptions, UvProjectAxis,
+    VertexSetTarget, VertexTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PlatonicSolidKind, PrimitiveOptions};
 use azteccraft::viewport::FilmBackEdit;
@@ -1038,6 +1038,14 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         pivots(t, true),
         Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
+        },
+        Operation::ResetTransformations {
+            channels: TransformChannels::ALL,
+            expected_selection_generation: None,
+        },
+        Operation::FreezeTransformations {
+            channels: TransformChannels::ALL,
             expected_selection_generation: None,
         },
         // Differs from the rig's default camera so a Changed outcome is observable.
@@ -2471,6 +2479,44 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     "reset_pivots(face_mode)",
                     Operation::ResetPivots {
                         mode: PivotReset::Zero,
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
+        Operation::ResetTransformations { .. } => vec![
+            sample(
+                "reset_transformations(all)",
+                Operation::ResetTransformations {
+                    channels: TransformChannels::ALL,
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "reset_transformations(face_mode)",
+                    Operation::ResetTransformations {
+                        channels: TransformChannels::ALL,
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
+        Operation::FreezeTransformations { .. } => vec![
+            sample(
+                "freeze_transformations(all)",
+                Operation::FreezeTransformations {
+                    channels: TransformChannels::ALL,
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "freeze_transformations(face_mode)",
+                    Operation::FreezeTransformations {
+                        channels: TransformChannels::ALL,
                         expected_selection_generation: None,
                     },
                 )
