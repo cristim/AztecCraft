@@ -197,16 +197,56 @@ def _explicit_smart_bevel_scenario(cmds):
 
 
 def _attribute_api(node):
-    from maya.api import OpenMaya as om
+    observations = {}
 
-    selection = om.MSelectionList()
-    selection.add(node + ".color")
-    plug = selection.getPlug(0)
-    attribute = om.MFnAttribute(plug.attribute())
-    return {
-        "isNodeEditorPrimary_exposed": hasattr(attribute, "isNodeEditorPrimary"),
-        "setNodeEditorPrimary_exposed": hasattr(attribute, "setNodeEditorPrimary"),
-    }
+    try:
+        from maya import OpenMaya as om1
+
+        selection = om1.MSelectionList()
+        selection.add(node)
+        object_handle = om1.MObject()
+        selection.getDependNode(0, object_handle)
+        dependency_node = om1.MFnDependencyNode(object_handle)
+        attribute_object = dependency_node.attribute("color")
+        attribute = om1.MFnAttribute(attribute_object)
+        observations["api1"] = {
+            "class": {
+                "isNodeEditorPrimary": hasattr(om1.MFnAttribute, "isNodeEditorPrimary"),
+                "setNodeEditorPrimary": hasattr(om1.MFnAttribute, "setNodeEditorPrimary"),
+            },
+            "instance": {
+                "isNodeEditorPrimary": hasattr(attribute, "isNodeEditorPrimary"),
+                "setNodeEditorPrimary": hasattr(attribute, "setNodeEditorPrimary"),
+            },
+            "isNodeEditorPrimary": _failure(attribute.isNodeEditorPrimary),
+        }
+    except Exception as error:
+        observations["api1"] = {"construction_exception_type": type(error).__name__}
+
+    try:
+        from maya.api import OpenMaya as om2
+
+        selection = om2.MSelectionList()
+        selection.add(node + ".color")
+        plug = selection.getPlug(0)
+        attribute = om2.MFnAttribute(plug.attribute())
+        observations["api2"] = {
+            "class": {
+                "isNodeEditorPrimary": hasattr(om2.MFnAttribute, "isNodeEditorPrimary"),
+                "setNodeEditorPrimary": hasattr(om2.MFnAttribute, "setNodeEditorPrimary"),
+                "nodeEditorPrimary": hasattr(om2.MFnAttribute, "nodeEditorPrimary"),
+            },
+            "instance": {
+                "isNodeEditorPrimary": hasattr(attribute, "isNodeEditorPrimary"),
+                "setNodeEditorPrimary": hasattr(attribute, "setNodeEditorPrimary"),
+                "nodeEditorPrimary": hasattr(attribute, "nodeEditorPrimary"),
+            },
+            "nodeEditorPrimary": _failure(lambda: attribute.nodeEditorPrimary),
+        }
+    except Exception as error:
+        observations["api2"] = {"construction_exception_type": type(error).__name__}
+
+    return observations
 
 
 def main():

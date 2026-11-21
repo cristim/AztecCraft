@@ -7,7 +7,7 @@ installed Windows Maya 2027.3 batch process.
 ## Probe and environment
 
 The opt-in probe is [`scripts/maya-api-behavior-probe.py`](../scripts/maya-api-behavior-probe.py)
-(SHA-256 `0D043F98DF65630EFB8F4DE1E965D6F1091F87235062D19CDEE50D0D779C0531`).
+(SHA-256 `42B4FDED5BC1D2D1A9D452D589113E6A2A351FE9D84B4208367838AF9D0D9C4D`).
 It creates a unique `MAYA_APP_DIR` for each run below the repository's ignored
 `target/maya-catalog/behavior-probe-appdir-<id>` before importing Maya, refuses
 an already-imported Maya runtime and a named/modified scene, and creates only
@@ -17,23 +17,23 @@ The source is a reusable audit affordance, not an AztecCraft feature.
 
 Two independent runs each used a unique scratch app directory, ran in the
 installed `mayapy`, and exited `0`. The parsed JSON contents of
-`target/maya-catalog/maya-api-behavior-probe-multiedge-1.json` and
-`target/maya-catalog/maya-api-behavior-probe-multiedge-2.json` matched. The
+`target/maya-catalog/maya-api-behavior-probe-api-surfaces-1.json` and
+`target/maya-catalog/maya-api-behavior-probe-api-surfaces-2.json` matched. The
 first ignored capture alone has SHA-256
-`8CC1B05D76BFB7462C38E11BB6599369DC4F22D0BBE4FDB8E06303A7A314D631`. Focused
+`C77FC217DE2AAC2F58D50683E3B2606EE8CB9B8C4429C13D341B7B9071350407`. Focused
 assertions confirmed the version, single- and multi-edge topology, short-edge
-length and unchanged geometry, `shotLabel` defaults, and Python API wrapper
-result. Maya reported:
+length and unchanged geometry, `shotLabel` defaults, and separate API 1.0/API
+2.0 wrapper results. Maya reported:
 
 For reproduction, run the script twice in separate processes and capture
 stdout, for example in PowerShell:
 
 ```powershell
 & 'C:\Program Files\Autodesk\Maya2027\bin\mayapy.exe' scripts/maya-api-behavior-probe.py |
-  Set-Content target/maya-catalog/maya-api-behavior-probe-multiedge-1.json -Encoding utf8
+  Set-Content target/maya-catalog/maya-api-behavior-probe-api-surfaces-1.json -Encoding utf8
 if ($LASTEXITCODE -ne 0) { throw "Maya probe failed: $LASTEXITCODE" }
 & 'C:\Program Files\Autodesk\Maya2027\bin\mayapy.exe' scripts/maya-api-behavior-probe.py |
-  Set-Content target/maya-catalog/maya-api-behavior-probe-multiedge-2.json -Encoding utf8
+  Set-Content target/maya-catalog/maya-api-behavior-probe-api-surfaces-2.json -Encoding utf8
 if ($LASTEXITCODE -ne 0) { throw "Maya probe failed: $LASTEXITCODE" }
 ```
 
@@ -52,8 +52,8 @@ Maya/runtime data only.
 | Loaded plug-in names | `cacheEvaluator`, `renderSetup` |
 
 The JSON reports remain local and ignored at
-`target/maya-catalog/maya-api-behavior-probe-multiedge-1.json` and
-`target/maya-catalog/maya-api-behavior-probe-multiedge-2.json`. This is one Maya
+`target/maya-catalog/maya-api-behavior-probe-api-surfaces-1.json` and
+`target/maya-catalog/maya-api-behavior-probe-api-surfaces-2.json`. This is one Maya
 build and one batch environment; it does not establish GUI behavior, unloaded
 plug-in behavior, other platforms, ABI compatibility, or Maya 2026 behavior.
 
@@ -98,12 +98,21 @@ For `name`, Maya's generic `attributeQuery(attributeType=True)` result is
 the current value and listed default are both `None`. These are different
 queries, not a disagreement with the node page.
 
-The probe constructed Python API 2.0 `MFnAttribute` from the `shotLabel.color`
-plug. On that wrapper instance, `isNodeEditorPrimary` and
-`setNodeEditorPrimary` were both absent (`hasattr == false`) even though the
-C++ members are documented as introduced in 2027.3. This is wrapper-exposure
-evidence for this runtime, not a C++ behavior test, ABI result, or claim about
-all Python API surfaces.
+The C++ [`MFnAttribute` reference](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/class_m_fn_attribute.html)
+marks `isNodeEditorPrimary` and `setNodeEditorPrimary` as introduced in 2027.3
+and says attributes are not Node Editor primary by default. On a synthetic
+`shotLabel.color` attribute, Maya's Python API 1.0
+(`maya.OpenMaya.MFnAttribute`) exposed both method names on the class and
+instance; calling the getter returned `false`. The setter was not called.
+
+The Python API 2.0
+[`MFnAttribute` reference](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/py_ref/class_open_maya_1_1_m_fn_attribute.html)
+documents a `nodeEditorPrimary` property. Maya 2027.3 exposed that property on
+the class and instance, and its value on `shotLabel.color` was `false`; the
+method names `isNodeEditorPrimary` and `setNodeEditorPrimary` themselves were
+not exposed on that wrapper. These are API-specific wrapper observations on
+one Maya build and one attribute; no setter invocation, compiled C++ harness,
+ABI check, or claim about every member or release is included.
 
 ## `traxAudioTrack` empty-track batch observation
 
