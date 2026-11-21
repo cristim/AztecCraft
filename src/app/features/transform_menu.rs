@@ -13,6 +13,8 @@ pub(in crate::app) const RESET_OPTIONS_REASON: &str = "Reset Transformations opt
 pub(in crate::app) const FREEZE_OPTIONS_REASON: &str = "Freeze Transformations options are not implemented; Translate, Rotate and Scale are frozen; Joint orient, Lock Normals and Preserve Normals are unbuilt; see #313";
 pub(in crate::app) const MATCH_OPTIONS_REASON: &str = "Match Transformations options are not implemented; Translate, Rotate and Scale are matched in world space (PROVISIONAL); Match Pivots and bounding box sizes are unbuilt; see #313";
 pub(in crate::app) const PREFIX_ROW_REASON: &str = "Prefix Hierarchy Names has no native dialog yet; use the MCP tool prefix_hierarchy_names; see #313";
+pub(in crate::app) const ALIGN_ROW_REASON: &str =
+    "Align Objects has no native options dialog yet; use the MCP tool align_objects; see #313";
 pub(in crate::app) const SEARCH_REPLACE_ROW_REASON: &str = "Search and Replace Names has no native dialog yet; use the MCP tool search_replace_names; see #313";
 const MATCH_NEEDS_TWO: &str = "Select at least two objects; the last selected is the target";
 
@@ -151,6 +153,7 @@ impl Editor {
             for (label, reason) in [
                 ("Prefix Hierarchy Names", PREFIX_ROW_REASON),
                 ("Search and Replace Names", SEARCH_REPLACE_ROW_REASON),
+                ("Align Objects", ALIGN_ROW_REASON),
             ] {
                 let row = ui.add_enabled(false, egui::Button::new(label));
                 features::primitive_options::describe_unavailable(ui.ctx(), row.id, reason);
