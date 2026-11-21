@@ -144,6 +144,7 @@ mod official_client {
     mod grid;
     mod group;
     mod helix_soccer_ball;
+    mod image_plane;
     mod inspect_budget;
     mod inspect_paging;
     mod limits;
