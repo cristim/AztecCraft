@@ -50,6 +50,22 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         }),
         attribute_editor("attribute-editor-transform", node),
         attribute_editor("attribute-editor-shape", shape),
+        Scenario::new("attribute-editor-image-plane", "fields", || {
+            let dir = tempfile::tempdir().unwrap();
+            let mut rig = face_rig();
+            rig.editor.run_import_image(super::tiny_png(dir.path()));
+            rig.editor
+                .native_operation(Operation::SetSidebarPanelVisible {
+                    panel: SidebarPanel::AttributeEditor,
+                    visible: true,
+                });
+            rig.editor
+                .native_operation(Operation::SelectAttributeEditorTab {
+                    tab: AttributeEditorTab::ImagePlane,
+                });
+            rig.settle();
+            plain(&rig, Some(default_frame()))
+        }),
         Scenario::new("timeline-keys", "timeline", || {
             let mut rig = Rig::new(true);
             for time in [1.0, 25.0] {

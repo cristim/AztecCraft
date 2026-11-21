@@ -179,7 +179,7 @@ fn newly_disabled_controls(captured: &Captured) -> impl Iterator<Item = super::E
 /// labels and its popup).
 const MIN_NEW_NODES: usize = 2;
 /// Scenarios in `all`; adding one means raising this, so a dropped line is noticed.
-const SCENARIOS: usize = 30;
+const SCENARIOS: usize = 31;
 
 fn tiny_png(dir: &std::path::Path) -> std::path::PathBuf {
     let path = dir.join("plate.png");
