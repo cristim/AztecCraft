@@ -183,7 +183,12 @@ async fn bad_create_uvs_values_and_the_platonic_refusal_leave_the_editor_unchang
         assert_eq!(editor.history.scene(), &scene);
         assert_eq!(state(&editor), before);
     }
-    for (primitive, name) in [("pyramid", "Pyramid"), ("prism", "Prism")] {
+    for (primitive, name) in [
+        ("pyramid", "Pyramid"),
+        ("prism", "Prism"),
+        ("helix", "Helix"),
+        ("soccer_ball", "SoccerBall"),
+    ] {
         let refused = create(
             &mut editor,
             &context,

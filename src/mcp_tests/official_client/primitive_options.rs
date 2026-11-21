@@ -1,7 +1,7 @@
 use super::*;
 
 /// MCP primitive, options, then expected points, edges and faces (closed forms: Euler 2).
-const BUILDS: [(&str, &str, [u64; 3]); 21] = [
+const BUILDS: [(&str, &str, [u64; 3]); 27] = [
     (
         "cube",
         r#"{"width":2,"height":3,"depth":4,"subdivisions_width":2,"subdivisions_height":3,"subdivisions_depth":4,"axis":"x"}"#,
@@ -90,6 +90,34 @@ const BUILDS: [(&str, &str, [u64; 3]); 21] = [
         r#"{"number_of_sides":128,"length":1e6}"#,
         [256, 384, 130],
     ),
+    // Helix ((sub_coil + 1) * sub_axis points, (2 * sub_coil + 1) * sub_axis edges, sub_coil *
+    // sub_axis + 2 faces) and soccer ball (60, 90, 32 for every size and axis).
+    (
+        "helix",
+        r#"{"coils":2.5,"height":3,"width":1,"radius":0.1,"subdivisions_axis":5,"subdivisions_coil":7,"axis":"z"}"#,
+        [40, 75, 37],
+    ),
+    (
+        "helix",
+        r#"{"subdivisions_axis":3,"subdivisions_coil":1}"#,
+        [6, 9, 5],
+    ),
+    (
+        "helix",
+        r#"{"coils":1e6,"subdivisions_axis":3}"#,
+        [153, 303, 152],
+    ),
+    (
+        "helix",
+        r#"{"subdivisions_axis":128,"subdivisions_coil":128}"#,
+        [16512, 32896, 16386],
+    ),
+    (
+        "soccer_ball",
+        r#"{"side_length":2.5,"axis":"z"}"#,
+        [60, 90, 32],
+    ),
+    ("soccer_ball", r#"{"side_length":1e6}"#, [60, 90, 32]),
     // An empty options object is the defaults, like omitting it.
     ("cube", "{}", [8, 12, 6]),
 ];
@@ -164,6 +192,8 @@ async fn calls_without_options_keep_the_default_meshes() {
         ("platonic_solid", [20, 30, 12]),
         ("pyramid", [5, 8, 5]),
         ("prism", [6, 9, 5]),
+        ("helix", [408, 808, 402]),
+        ("soccer_ball", [60, 90, 32]),
     ] {
         let reply = call(
             &mut editor,
@@ -286,6 +316,27 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
         ("prism", json!({"side_length":-1})),
         ("prism", json!({"axis":"w"})),
         ("prism", json!({"subdivisions_axis":3})),
+        ("helix", json!({"coils":0})),
+        ("helix", json!({"coils":-1})),
+        ("helix", json!({"coils":"3"})),
+        ("helix", json!({"coils":null})),
+        ("helix", json!({"height":0})),
+        ("helix", json!({"width":1000001})),
+        ("helix", json!({"radius":-0.4})),
+        ("helix", json!({"subdivisions_axis":2})),
+        ("helix", json!({"subdivisions_axis":129})),
+        ("helix", json!({"subdivisions_coil":0})),
+        ("helix", json!({"subdivisions_coil":129})),
+        ("helix", json!({"subdivisions_coil":2.5})),
+        ("helix", json!({"axis":"w"})),
+        ("helix", json!({"round_cap":true})),
+        ("helix", json!({"direction":0})),
+        ("soccer_ball", json!({"side_length":0})),
+        ("soccer_ball", json!({"side_length":1000001})),
+        ("soccer_ball", json!({"side_length":null})),
+        ("soccer_ball", json!({"radius":1})),
+        ("soccer_ball", json!({"axis":"w"})),
+        ("cube", json!({"coils":3})),
         ("cube", json!({"number_of_sides":4})),
         ("cube", json!({"solid":"cube"})),
         ("torus", json!({"solid":"octahedron"})),
