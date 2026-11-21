@@ -2072,13 +2072,21 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
 - The end-to-end `headless_gpu_playblast_*` Editor tests (real `WgpuFrameRenderer`, PNGs read back) do not cover the
   native window or its surface and colour management, frames larger than 128 x 128 (sizes 64 x 48, 100 x 60 and
   128 x 128 only), a second adapter family (exact equality is asserted only between renders on one adapter, analytic
-  checks use +-2), or an image plane over a camera other than the default film back. Esc and the menu are unchecked.
+  checks use +-2). Esc and the menu are unchecked.
 - The camera image plane is drawn into playblasts (PROVISIONAL, no Maya comparison): the plate is scene content, so
   `show_ornaments` does not affect it; a sequence shows `frame + frame_offset`; the plate is placed by `plate_quad` at the
   output aspect (the film gate is fitted into the output as in the viewport); a frame with no file renders without a plate
-  and the job continues; an unreadable frame or a failed plate upload stops the job with `playblast_render`. Frames are
-  decoded synchronously on the UI tick. The plane is snapshotted at the start. Wireframe on shaded (#48, #49) and movie
-  containers remain open.
+  and the job continues, counted in `frames_without_plate` (`inspect_scene` `playblast`, the option box progress text;
+  a sequence template with no digits counts every frame; a plane hidden by its display mode, a single image and no plane
+  count 0; there is no `require_plate` flag because no caller needs one); an unreadable frame or a failed plate upload
+  stops the job with `playblast_render`. The plane is snapshotted at the start. Wireframe on shaded (#48, #49) and
+  movie containers remain open.
+- Image plane in playblasts, untested or unproven: portrait outputs and outputs that are neither square nor exactly the
+  film gate's aspect; sRGB window colour parity (the exact-equality test shares `Submission`, the plate shader and
+  `read_back` with the render it is compared to, so it cannot show a difference from the window).
+- The playblast calls the decoder (`decode_from_disk`) directly; it does not use the viewport's `PlateStream` or cache
+  (an injected decoder is used only by tests). Decoding is synchronous on the UI tick: a 32 MP plate can block the tick
+  for about a second and peaks at about 400 MB. Cancel is serviced between frames only.
 
 ## Viewport View menu rows: the stale-token guard is tested only for Remove Image Plane
 

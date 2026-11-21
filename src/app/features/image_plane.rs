@@ -89,7 +89,7 @@ impl PlateRuntime {
         }
     }
 
-    /// The injected decoder, if any (the playblast decodes through the same function).
+    /// The injected decoder, if any (a playblast uses it for test injection only; it otherwise calls `decode_from_disk`, not the viewport's stream or cache).
     pub(in crate::app) fn decoder(&self) -> Option<DecodeFn> {
         self.decode.clone()
     }
