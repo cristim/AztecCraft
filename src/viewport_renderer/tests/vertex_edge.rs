@@ -901,6 +901,7 @@ fn wireframe_vertex_markers_hide_exactly_when_vertices_times_triangles_exceed_th
                 selection,
                 true,
                 ShadingMode::Wireframe,
+                None,
             )
             .unwrap()
             .1;

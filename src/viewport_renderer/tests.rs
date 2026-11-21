@@ -846,6 +846,7 @@ fn headless_gpu_face_centers_match_picker_for_planar_nonplanar_and_degenerate_fa
                             },
                             true,
                             ShadingMode::SmoothShadeAll,
+                            None,
                         )
                         .unwrap()
                         .0,
@@ -1239,6 +1240,7 @@ fn headless_gpu_grid_callback_clears_cold_and_warm_empty_frames_and_restores_pix
                         ),
                         visible,
                         crate::editor_operations::ShadingMode::SmoothShadeAll,
+                        None,
                     )
                     .unwrap();
             });
@@ -1300,7 +1302,8 @@ fn startup_without_wgpu_and_latched_errors_never_emit_a_callback() {
             [SIZE; 2],
             SelectionFeedback::Object(None),
             true,
-            ShadingMode::SmoothShadeAll
+            ShadingMode::SmoothShadeAll,
+            None
         ),
         Err(RenderError::Camera(_))
     ));
@@ -1318,7 +1321,8 @@ fn startup_without_wgpu_and_latched_errors_never_emit_a_callback() {
             [SIZE; 2],
             SelectionFeedback::Object(None),
             true,
-            ShadingMode::SmoothShadeAll
+            ShadingMode::SmoothShadeAll,
+            None
         ),
         Err(RenderError::Backend(_))
     ));
@@ -1606,6 +1610,7 @@ fn headless_gpu_actual_viewport_caller_preserves_crossing_side() {
                 SelectionFeedback::Object(Some(&path[..path.len() - 1])),
                 true,
                 crate::editor_operations::ShadingMode::SmoothShadeAll,
+                None,
             )
             .unwrap();
     });
@@ -1642,6 +1647,7 @@ fn headless_gpu_actual_callback_scissor_and_following_egui_restore_at_one_and_tw
                         SelectionFeedback::Object(Some(&path[..path.len() - 1])),
                         true,
                         ShadingMode::SmoothShadeAll,
+                        None,
                     )
                     .unwrap()
                     .0,
@@ -1691,7 +1697,8 @@ fn headless_gpu_actual_validation_callback_latches_and_blocks_submission() {
             [SIZE; 2],
             SelectionFeedback::Object(None),
             true,
-            ShadingMode::SmoothShadeAll
+            ShadingMode::SmoothShadeAll,
+            None
         ),
         Err(RenderError::Backend(_))
     ));
@@ -2515,6 +2522,7 @@ fn wireframe_degrades_face_centres_instead_of_failing_the_frame_over_budget() {
                 },
                 true,
                 shading,
+                None,
             )
             .unwrap()
             .1

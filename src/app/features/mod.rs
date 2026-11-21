@@ -8,6 +8,7 @@ pub(in crate::app) mod extrude_options;
 pub(super) mod gltf_export;
 mod group_edit;
 mod history;
+pub(in crate::app) mod image_plane;
 pub(in crate::app) mod manipulation_tool;
 pub(in crate::app) mod marking_menu;
 mod material;

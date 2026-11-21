@@ -112,6 +112,7 @@ impl Editor {
         }
         let tool_intent = self.shortcuts(ui.ctx());
         self.tick_playback(ui.input(|i| i.time), text_edit_focused(ui.ctx()));
+        let _ = self.update_plate(ui.ctx());
         egui::Panel::top("menu_shelf").show(ui, |ui| {
             self.menus(ui, &mut selection_intent, &mut delete_intent)
         });
@@ -126,6 +127,10 @@ impl Editor {
                 },
                 &self.status,
             );
+            if let Some(plate) = self.plate_status_text() {
+                ui.separator();
+                ui.label(plate);
+            }
             ui.separator();
             self.help_line(ui);
         });
@@ -726,6 +731,7 @@ impl Editor {
                 },
                 self.grid_visible,
                 self.shading,
+                self.plate_draw(),
             );
             self.viewport_error = painted.as_ref().err().map(|error| error.category());
             let degraded = matches!(painted, Ok(true));

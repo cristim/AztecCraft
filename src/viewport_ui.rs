@@ -550,6 +550,10 @@ impl ViewportInput {
         std::mem::take(&mut self.navigation)
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "display state is a flat argument list"
+    )]
     pub fn paint(
         &self,
         renderer: Option<&ViewportRenderer>,
@@ -558,6 +562,7 @@ impl ViewportInput {
         selection: SelectionFeedback<'_>,
         grid_visible: bool,
         shading: crate::editor_operations::ShadingMode,
+        plate: Option<crate::viewport_renderer::PlateDraw>,
     ) -> Result<bool, RenderError> {
         let painter = &self.painter;
         let rect = self.rect;
@@ -573,6 +578,7 @@ impl ViewportInput {
                     selection,
                     grid_visible,
                     shading,
+                    plate,
                 )
             });
         let mut diagnostic = callback.as_ref().err().map(ToString::to_string);

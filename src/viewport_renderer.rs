@@ -424,6 +424,7 @@ impl ViewportRenderer {
         selection: SelectionFeedback<'_>,
         grid_visible: bool,
         shading: ShadingMode,
+        plate: Option<PlateDraw>,
     ) -> Result<(egui::epaint::PaintCallback, bool), RenderError> {
         if let Some(error) = self.terminal_error() {
             return Err(RenderError::Backend(error));
@@ -435,7 +436,7 @@ impl ViewportRenderer {
         {
             return Err(RenderError::Camera(InvalidCameraInput));
         }
-        let submission = Submission::new(
+        let mut submission = Submission::new(
             scene,
             camera,
             physical_size,
@@ -445,6 +446,7 @@ impl ViewportRenderer {
             self.format,
             self.max_buffer_size,
         )?;
+        submission.plate = plate;
         #[cfg(test)]
         {
             *self.submission.lock() = Some(submission.clone());
@@ -1145,7 +1147,8 @@ impl CallbackTrait for ViewportCallback {
 }
 
 mod plate;
-use plate::{PlateDraw, PlateGpu};
+pub(crate) use plate::PlateDraw;
+use plate::PlateGpu;
 
 mod offscreen;
 

@@ -735,12 +735,13 @@ impl Editor {
     /// neither the plane nor any cache changes. Only the file name leaves, never the directory.
     fn inspect_image_plane(&self) -> Option<crate::editor_operations::ImagePlaneInspection> {
         use azteccraft::image_plane::{
-            cache::PLATE_CACHE_BUDGET_BYTES,
             model::{PlateDisplayMode, PlateFit},
             sequence::frame_path,
         };
         let state = self.image_plane.as_ref()?;
         let plane = &state.plane;
+        let status = self.plate.status_of(self.plate_frame(plane));
+        let usage = self.plate.cache_usage();
         let file_name = |path: &std::path::Path| {
             path.file_name()
                 .map(|name| name.to_string_lossy().into_owned())
@@ -791,17 +792,24 @@ impl Editor {
                 width: state.image_size.0,
                 height: state.image_size.1,
             },
-            frame_state: if resolved_file_name.is_some() {
-                "not_loaded"
-            } else {
-                "missing"
+            frame_state: status.map_or(
+                if resolved_file_name.is_some() {
+                    "not_loaded"
+                } else {
+                    "missing"
+                },
+                super::features::image_plane::FrameStatus::name,
+            ),
+            frame_error: match status {
+                Some(super::features::image_plane::FrameStatus::Failed(code)) => Some(*code),
+                _ => None,
             },
             resolved_file_name,
             resolved_frame,
             cache: crate::editor_operations::ImagePlaneCacheInspection {
-                frames: 0,
-                bytes: 0,
-                budget_bytes: PLATE_CACHE_BUDGET_BYTES,
+                frames: usage.0,
+                bytes: usage.1,
+                budget_bytes: usage.2,
             },
         })
     }

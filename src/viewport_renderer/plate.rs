@@ -26,7 +26,6 @@ use eframe::wgpu;
 /// One plate to draw: the shared frame, its identity (an unchanged key skips the upload), the
 /// geometry from `plate_quad` and the display settings.
 #[derive(Clone)]
-#[cfg_attr(not(test), allow(dead_code))] // P8 builds it from the editor; until then only tests do
 pub(crate) struct PlateDraw {
     pub(crate) key: FrameKey,
     pub(crate) frame: Arc<PlateFrame>,

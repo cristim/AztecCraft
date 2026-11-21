@@ -1662,9 +1662,16 @@ pub struct ImagePlaneInspection {
     pub resolved_file_name: Option<String>,
     /// Current time plus `frame_offset` while `use_frame_extension` is on, else null.
     pub resolved_frame: Option<i64>,
-    /// `missing` (the resolved frame has no file name) or `not_loaded`. PROVISIONAL: the editor
-    /// runs no frame decoder yet, so `ready`, `loading` and `failed` are not reported.
+    /// `not_loaded` (the editor has not requested this frame yet), `loading`, `ready`, `missing`
+    /// or `failed`: what the last editor tick learned about the resolved frame, the source of the
+    /// status line text and of the viewport. After a time change through MCP it reads `not_loaded`
+    /// until the next UI tick, even when that frame is cached. PROVISIONAL naming (the Maya pages
+    /// have no such state).
     pub frame_state: &'static str,
+    /// When `frame_state` is `failed`, one of `io`, `too_large`, `header_too_large`,
+    /// `unsupported_format`, `corrupt`, `truncated`, `dimension_mismatch`, `internal`,
+    /// `worker_gone` or `missing`.
+    pub frame_error: Option<&'static str>,
     pub cache: ImagePlaneCacheInspection,
 }
 
@@ -1701,8 +1708,7 @@ pub struct ImagePlaneSizeInspection {
     pub height: u32,
 }
 
-/// PROVISIONAL: no decoded frames are held yet, so `frames` and `bytes` are 0; `budget_bytes` is
-/// the policy cap the cache will use.
+/// The decoded frames held (`frames`, `bytes`) and the policy cap (`budget_bytes`).
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct ImagePlaneCacheInspection {
