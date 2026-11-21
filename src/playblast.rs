@@ -44,6 +44,8 @@ pub enum PlayblastError {
     Io(io::ErrorKind),
     Unsupported(&'static str),
     Render(&'static str),
+    /// No GPU device is available to render with.
+    NoAdapter,
     WriterPanicked,
 }
 
@@ -63,6 +65,7 @@ impl fmt::Display for PlayblastError {
             Self::Io(kind) => write!(f, "I/O failed: {kind}"),
             Self::Unsupported(what) => write!(f, "unsupported: {what}"),
             Self::Render(what) => write!(f, "render failed: {what}"),
+            Self::NoAdapter => f.write_str("no GPU device: start the window or a headless adapter"),
             Self::WriterPanicked => f.write_str("the writer thread panicked"),
         }
     }
