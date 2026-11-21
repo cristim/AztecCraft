@@ -435,3 +435,36 @@ async fn session_material_sdk_sees_the_tab_that_native_material_attributes_selec
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn session_material_sdk_native_colour_draft_blocks_remote_recolour_and_commit_is_visible() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    editor
+        .assign_material_to_selection(azteccraft::native_scene::MaterialChoice::New {
+            color: [0.5; 3],
+        })
+        .unwrap();
+    editor.session_color_draft.as_mut().unwrap().text[0] = "1".into();
+    let refused = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_session_material_color",
+        json!({"material_id": "1", "color": [0.0, 1.0, 0.0]}),
+    )
+    .await;
+    assert_eq!(refused["error"]["code"], "busy_editing");
+    assert_eq!(base_rgb(&editor), [[128, 128, 128]]);
+    assert!(editor.commit_pending());
+    let inspection = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(
+        inspection["session_materials"][1]["color"],
+        json!([1.0, 0.5, 0.5])
+    );
+    assert_eq!(base_rgb(&editor), [[255, 128, 128]]);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
