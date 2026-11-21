@@ -897,7 +897,7 @@ mod tests {
         for (name, tagged) in [("begin_manipulation", true), ("update_manipulation", false)] {
             let tool = tools.iter().find(|tool| tool.name == name).unwrap();
             let one_of = tool.input_schema["oneOf"].as_array().unwrap();
-            assert_eq!(one_of.len(), 3, "{name}");
+            assert_eq!(one_of.len(), 4, "{name}");
             for branch in one_of {
                 assert_eq!(branch["additionalProperties"], false, "{name}: {branch}");
                 if tagged {

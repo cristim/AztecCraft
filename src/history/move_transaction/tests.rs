@@ -46,6 +46,7 @@ fn a_manipulation_without_a_channel_baseline_is_still_active() {
     let mut history = cube_history();
     let id = start(&mut history, token);
     history.active_manipulation.as_mut().unwrap().kind = ManipulationKind::Move {
+        plane: None,
         axis: WorldAxis::X,
         space: MoveSpace::World,
         movers: Vec::new(),

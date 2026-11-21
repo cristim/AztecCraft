@@ -1905,3 +1905,84 @@ async fn rotate_and_scale_sdk_refuse_face_mode_and_absent_leaves_with_typed_erro
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_move_planes_preview_cancel_and_commit_one_undo() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let token = editor.scene_token.to_string();
+    let original = editor.history.scene().clone();
+    let node = editor.selected().unwrap().to_decimal();
+    let path: Vec<_> = editor
+        .selected_path()
+        .iter()
+        .map(|id| id.to_decimal())
+        .collect();
+    for (plane, expected, finish) in [
+        ("yz", [0.0, 2.0, -3.0], "cancel"),
+        ("xz", [2.0, 0.0, -3.0], "cancel"),
+        ("xy", [2.0, -3.0, 0.0], "commit"),
+    ] {
+        let begin = call(&mut editor, &context, client.peer(), "begin_manipulation",
+            json!({"scene_token":token,"node_id":node,"instance_path":path,"kind":"move_plane","plane":plane})).await;
+        let begin = begin.structured_content.unwrap();
+        let id = begin["manipulation_id"].as_str().unwrap();
+        for delta in [[1.0, 4.0], [2.0, -3.0]] {
+            let update = call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "update_manipulation",
+                json!({"scene_token":token,"manipulation_id":id,"plane_delta":delta}),
+            )
+            .await;
+            assert_eq!(update.is_error, Some(false));
+        }
+        assert_eq!(
+            editor.history.scene().nodes()[0].transform().translation,
+            expected
+        );
+        let inspected = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await;
+        let active = &inspected.structured_content.unwrap()["inspection"]["manipulation"]["active"];
+        assert_eq!(active["kind"], "move_plane");
+        assert_eq!(active["handle"], plane);
+        assert_eq!(active["plane_delta"], json!([2.0, -3.0]));
+        let wrong = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "update_manipulation",
+            json!({"scene_token":token,"manipulation_id":id,"distance":1}),
+        )
+        .await;
+        assert_eq!(
+            wrong.structured_content.unwrap()["error"]["code"],
+            "manipulation_kind_mismatch"
+        );
+        let result = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "finish_manipulation",
+            json!({"scene_token":token,"manipulation_id":id,"finish":finish}),
+        )
+        .await;
+        assert_eq!(result.is_error, Some(false));
+        if finish == "commit" {
+            assert_eq!(editor.history.undo_label().as_deref(), Some("Move"));
+            assert!(editor.history.undo());
+        }
+        assert_eq!(editor.history.scene(), &original);
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

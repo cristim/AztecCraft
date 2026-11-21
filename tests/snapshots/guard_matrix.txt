@@ -40,6 +40,8 @@
   begin_move(edge_pick,generation) => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_pick,generation) => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> native
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move(native_vertex_drag) => Ok(changed) | scene changed
   update_move(remote_vertex_drag) => Err(Move: manipulation belongs to another input source) | no state change
@@ -288,6 +290,8 @@
   begin_move(edge_pick,generation) => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_pick,generation) => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> remote
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move(native_vertex_drag) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move(remote_vertex_drag) => Ok(changed) | scene changed
@@ -535,6 +539,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -767,6 +773,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -999,6 +1007,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1231,6 +1241,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1463,6 +1475,8 @@
   begin_move(edge_pick,generation) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(face_pick,generation) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1695,6 +1709,8 @@
   begin_move(edge_pick,generation) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(face_pick,generation) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1927,6 +1943,8 @@
   begin_move(edge_pick,generation) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_pick,generation) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_move_plane(xy) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  update_move_plane => Err(KindMismatch: A plane_delta does not apply to the active move manipulation) | no state change
   update_move => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1
   begin_rotate(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2159,6 +2177,8 @@
   begin_move(edge_pick,generation) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_pick,generation) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_move_plane(xy) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  update_move_plane => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_move => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2391,6 +2411,8 @@
   begin_move(edge_pick,generation) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_pick,generation) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_move_plane(xy) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  update_move_plane => Err(KindMismatch: A plane_delta does not apply to the active move manipulation) | no state change
   update_move => Err(Move: manipulation belongs to another input source) | no state change
   begin_rotate(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2623,6 +2645,8 @@
   begin_move(edge_pick,generation) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_pick,generation) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_move(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_move_plane(xy) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  update_move_plane => Err(KindMismatch: A plane_delta does not apply to the active move manipulation) | no state change
   update_move => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1
   begin_rotate(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2855,6 +2879,8 @@
   begin_move(edge_pick,generation) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_move(face_pick,generation) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_move(face_mode) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  begin_move_plane(xy) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_rotate(world) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -3087,6 +3113,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3320,6 +3348,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_move(face_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  begin_move_plane(xy) => Ok(manipulation_started) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; active_move: none -> native; has_draft: true -> false; can_undo: false -> true
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Err(Move: rotateX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_rotate(world) => Err(Move: rotateX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3553,6 +3583,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3785,6 +3817,8 @@
   begin_move(edge_pick,generation) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(face_pick,generation) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_move_plane(xy) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_rotate(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -4017,6 +4051,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4249,6 +4285,8 @@
   begin_move(edge_pick,generation) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(face_pick,generation) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_move_plane(xy) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_rotate(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -4481,6 +4519,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4713,6 +4753,8 @@
   begin_move(edge_pick,generation) => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_pick,generation) => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> native
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -4945,6 +4987,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5177,6 +5221,8 @@
   begin_move(edge_pick,generation) => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_pick,generation) => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> native
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -5409,6 +5455,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5641,6 +5689,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5874,6 +5924,8 @@
   begin_move(edge_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_move_plane(xy) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_move_plane => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move(native_vertex_drag) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move(remote_vertex_drag) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6111,6 +6163,8 @@
   begin_move(edge_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_move_plane(xy) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_move_plane => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6343,6 +6397,8 @@
   begin_move(edge_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_move_plane(xy) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_move_plane => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6575,6 +6631,8 @@
   begin_move(edge_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_move_plane(xy) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_move_plane => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6807,6 +6865,8 @@
   begin_move(edge_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_move_plane(xy) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_move_plane => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7039,6 +7099,8 @@
   begin_move(edge_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_move_plane(xy) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_move_plane => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7271,6 +7333,8 @@
   begin_move(edge_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_pick,generation) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_move_plane(xy) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_move_plane => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7503,6 +7567,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native mesh shape 2 does not exist) | no state change
   begin_move(face_pick,generation) => Err(Scene: native mesh shape 2 does not exist) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
+  begin_move_plane(xy) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_rotate(world) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -7735,6 +7801,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native mesh shape 2 does not exist) | no state change
   begin_move(face_pick,generation) => Err(Scene: native mesh shape 2 does not exist) | no state change
   begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
+  begin_move_plane(xy) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_rotate(world) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -7968,6 +8036,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> native
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -8201,6 +8271,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> remote
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
@@ -8434,6 +8506,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> native
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -8667,6 +8741,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> remote
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
@@ -8883,6 +8959,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> native
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -8918,6 +8996,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> remote
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
@@ -9006,6 +9086,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move needs at least one selected face) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> native
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
@@ -9239,6 +9321,8 @@
   begin_move(edge_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_pick,generation) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   begin_move(face_mode) => Err(InvalidInput: A remote component Move needs expected_selection_generation from inspect_scene) | no state change
+  begin_move_plane(xy) => Ok(manipulation_started) | active_move: none -> remote
+  update_move_plane => Err(Move: manipulation identifier is absent or stale) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
@@ -9472,6 +9556,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -9705,6 +9791,8 @@
   begin_move(edge_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_pick,generation) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move_plane(xy) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -9901,4 +9989,4 @@
   set_image_plane(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   remove_image_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 9288
+cells: 9376

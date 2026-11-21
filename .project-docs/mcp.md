@@ -711,6 +711,9 @@ Outcome: the registered catalogue covers every implemented file, creation, selec
 
 ## World-axis Move candidate
 
+World plane Move uses `begin_manipulation` with `kind: "move_plane"` and `plane: "xy"`, `"xz"` or `"yz"`. Supply the exact lead instance and selection generation for multi-selection. Send `plane_delta: [a, b]` to `update_manipulation` in scene linear units, in the plane's letter order. Both values are absolute from begin. The active inspection reports the plane as `handle` and the applied pair as `plane_delta`. Finish uses the existing commit and cancel tool. World orientation, object selection and Snap to grids off are required.
+
+
 Select and Move are real native tools, activated with their vector buttons or
 unmodified Q/W outside text fields and dialogs. Move supports one or more selected
 full transform instances in object mode, with World X/Y/Z shafts only. Rotation,

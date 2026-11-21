@@ -1,5 +1,5 @@
 use crate::{
-    native_scene::WorldAxis,
+    native_scene::{WorldAxis, WorldPlane},
     viewport::{Camera, InvalidCameraInput, Projection, Ray},
 };
 use glam::{DMat4, DVec2, DVec3, DVec4, Vec2};
@@ -525,6 +525,122 @@ impl WorldHandles {
             }
         }
         selected
+    }
+}
+
+pub struct PlaneHandle {
+    pub plane: WorldPlane,
+    pub corners: [DVec2; 4],
+}
+
+impl PlaneHandle {
+    pub fn hit(&self, pixel: DVec2) -> bool {
+        let sides = std::array::from_fn::<_, 4, _>(|index| {
+            let start = self.corners[index];
+            (self.corners[(index + 1) % 4] - start).perp_dot(pixel - start)
+        });
+        sides.iter().all(|side| *side >= 0.0) || sides.iter().all(|side| *side <= 0.0)
+    }
+}
+
+pub fn plane_handles(
+    capture: &ViewportCapture,
+    origin: DVec3,
+) -> impl Iterator<Item = PlaneHandle> + use<> {
+    let projected = capture.project_origin(origin).ok();
+    WorldPlane::ALL
+        .into_iter()
+        .filter_map(move |plane| {
+            let (clip, at) = projected?;
+            let [a, b] = plane.axes().map(WorldAxis::direction);
+            let (x, lx) = capture.axis_screen_vector(origin, clip, a).ok()?;
+            let (y, ly) = capture.axis_screen_vector(origin, clip, b).ok()?;
+            if x.perp_dot(y).abs() < 0.5 || lx.min(ly) < 18.0 {
+                return None;
+            }
+            let xx = 0.4 * lx.min(72.0);
+            let yy = 0.4 * ly.min(72.0);
+            let corners = [
+                at + x * (xx * 0.52) + y * (yy * 0.52),
+                at + x * xx + y * (yy * 0.52),
+                at + x * xx + y * yy,
+                at + x * (xx * 0.52) + y * yy,
+            ];
+            corners
+                .iter()
+                .all(|p| capture.contains(*p))
+                .then_some(PlaneHandle { plane, corners })
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+}
+
+pub struct PlaneDrag {
+    capture: ViewportCapture,
+    origin: DVec3,
+    plane: WorldPlane,
+    begin: DVec3,
+}
+
+impl PlaneDrag {
+    pub fn begin(
+        capture: ViewportCapture,
+        origin: DVec3,
+        plane: WorldPlane,
+        pointer: Vec2,
+    ) -> Result<Self, HandleError> {
+        if !capture.contains(capture.pointer_pixel(pointer)?) {
+            return Err(HandleError::OriginClipped);
+        }
+        let begin = Self::point(&capture, origin, plane, pointer)?;
+        Ok(Self {
+            capture,
+            origin,
+            plane,
+            begin,
+        })
+    }
+
+    fn point(
+        capture: &ViewportCapture,
+        origin: DVec3,
+        plane: WorldPlane,
+        pointer: Vec2,
+    ) -> Result<DVec3, HandleError> {
+        let ray = capture.ray_at_pixel(capture.pointer_pixel(pointer)?)?;
+        let [a, b] = plane.axes().map(WorldAxis::direction);
+        let normal = a.cross(b);
+        let start = ray.origin.as_dvec3();
+        let direction = ray.direction.as_dvec3();
+        let denominator = normal.dot(direction);
+        if denominator.abs() <= PARALLEL_LIMIT {
+            return Err(HandleError::ParallelAxis);
+        }
+        let along = normal.dot(origin - start) / denominator;
+        if along < 0.0 {
+            return Err(HandleError::BehindRay);
+        }
+        let point = start + direction * along;
+        point
+            .is_finite()
+            .then_some(point)
+            .ok_or(HandleError::InvalidSolve)
+    }
+
+    pub fn same_capture(&self, capture: &ViewportCapture) -> bool {
+        self.capture.same_mapping(capture)
+    }
+
+    pub fn delta_cm(
+        &self,
+        capture: &ViewportCapture,
+        pointer: Vec2,
+    ) -> Result<[f64; 2], HandleError> {
+        if !self.same_capture(capture) {
+            return Err(HandleError::CaptureChanged);
+        }
+        let delta = Self::point(&self.capture, self.origin, self.plane, pointer)? - self.begin;
+        Ok(self.plane.axes().map(|axis| delta.dot(axis.direction())))
     }
 }
 

@@ -43,7 +43,7 @@ pub use mesh::{
 };
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{
-    ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
+    ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported, WorldPlane,
 };
 pub use pivot_edit::{PivotLeaf, PivotReset};
 pub use references::{
