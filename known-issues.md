@@ -1866,3 +1866,17 @@ with scale 2,1,1) that matrix carries shear, so the mesh stores sheared points w
 The behavior is PROVISIONAL and not compared with Maya (#5). Point storage is f32, so world positions drift by
 about 4e-4 relative at a scale ratio of 1e3/1e-3; ordinary scales stay far below that. Mirrored nodes are refused
 whenever the scale is frozen (translate-only and rotate-only freezes of a mirrored node keep the mirror on the node).
+
+## Playblast job limits (#460)
+
+**Severity:** low
+**Area:** playblast, editor loop
+**Issue:** #460
+
+- A process exit while a job runs (kill, crash, OS termination that skips the close guard) leaves a staged
+  `.pb_tmp` file next to the numbered PNGs. A close through the editor cancels and joins the writer first.
+- A draft, a modal or a pending close that never resolves pauses the job indefinitely; there is no timeout.
+  It resumes when the draft is committed or discarded, the modal is resolved or the close is declined.
+- One tick renders one frame on the UI thread. A very large frame on a software adapter can freeze the window
+  for seconds, and Cancel cannot interrupt a frame in flight; it takes effect before the next frame.
+- `width` and `height` are required: no viewport size is stored, so there is no default to take.

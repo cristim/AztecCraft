@@ -1,6 +1,12 @@
 //! Playblast request validation, sizes and output file names (#460), pure policy. Caps, name
 //! charset, `<name>.NNNN.png` numbering, `percent` rounding and the inclusive range end are
 //! PROVISIONAL: no comparison with Maya's playblast output exists.
+//!
+//! Limits (also in `known-issues.md`): a process exit with a running job leaves a staged `.pb_tmp`
+//! file; a draft or modal that never resolves pauses the job with no timeout; one tick renders one
+//! frame on the UI thread, so a very large frame on a software adapter can freeze the window and
+//! Cancel cannot interrupt a frame in flight; `width` and `height` are required (no stored viewport
+//! size).
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::fmt;
