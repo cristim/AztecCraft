@@ -171,6 +171,7 @@ mod official_client {
     mod snap;
     mod torus;
     mod transform_ops;
+    mod transform_ops_guards;
 
     mod component_move;
     mod create_uvs;
