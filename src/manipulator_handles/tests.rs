@@ -1,4 +1,5 @@
 use super::*;
+use crate::history::FreeRotateHandle;
 use crate::{
     move_handles::{ARROW_LENGTH, ManipulatorSize},
     viewport::Camera,
@@ -315,26 +316,42 @@ fn ring_drag_refuses_bad_pointers_and_a_changed_capture() {
     );
 }
 
+const VIEW: Option<Pick<RotateGrip>> = Some(Pick::Handle(RotateGrip::Free(FreeRotateHandle::View)));
+const TRACKBALL: Option<Pick<RotateGrip>> =
+    Some(Pick::Handle(RotateGrip::Free(FreeRotateHandle::Trackball)));
+
 #[test]
-fn view_ring_and_free_rotate_are_drawn_but_only_reported_unsupported() {
+fn the_view_ring_and_the_inside_of_the_sphere_pick_free_rotation() {
     let handles = world_rings(&oblique_camera());
     let origin = handles.origin();
-    assert_eq!(handles.disabled().len(), 2);
+    assert_eq!(handles.free().len(), 2);
     assert_eq!(
-        handles.hit_disabled(origin + DVec2::new(ARROW_LENGTH * VIEW_RING_FACTOR, 0.0)),
-        Some(DisabledKind::ViewRing)
+        handles.pick(origin + DVec2::new(ARROW_LENGTH * VIEW_RING_FACTOR, 0.0)),
+        VIEW
     );
     assert_eq!(handles.hit_test(origin + DVec2::new(86.0, 0.0)), None);
-    let free = (0..360).any(|degrees| {
+    // Every pixel inside the sphere that misses the rings is the trackball, the pivot included.
+    let mut inside = 0;
+    for degrees in 0..360 {
         let angle = f64::from(degrees).to_radians();
-        let pixel = origin + DVec2::new(angle.cos(), angle.sin()) * ARROW_LENGTH;
-        handles.hit_disabled(pixel) == Some(DisabledKind::FreeRotate)
-    });
-    assert!(free);
-    assert_eq!(handles.hit_disabled(DVec2::NAN), None);
-    // An enabled ring wins over a disabled handle at the same pixel.
+        for radius in [0.0, 20.0, 50.0] {
+            let pixel = origin + DVec2::new(angle.cos(), angle.sin()) * radius;
+            if handles.hit_test(pixel).is_none() {
+                assert_eq!(handles.pick(pixel), TRACKBALL, "{pixel}");
+                inside += 1;
+            }
+        }
+    }
+    assert!(inside > 300, "{inside}");
+    // Outside both circles nothing is picked.
+    assert_eq!(handles.pick(origin + DVec2::new(110.0, 0.0)), None);
+    assert_eq!(handles.pick(DVec2::NAN), None);
+    // An axis ring wins over the sphere it lies on.
     let ring_pixel = handles.rings()[0].segments()[0].start;
-    assert_eq!(handles.hit_disabled(ring_pixel), None);
+    assert!(matches!(
+        handles.pick(ring_pixel),
+        Some(Pick::Handle(RotateGrip::Axis(RotateAxis::X)))
+    ));
 }
 
 #[test]
@@ -522,26 +539,34 @@ fn horizontal_disabled(kind: DisabledKind, y: f64) -> DisabledHandle {
     }
 }
 
+fn horizontal_free(handle: FreeRotateHandle, y: f64) -> FreeCircle {
+    FreeCircle {
+        handle,
+        segments: vec![ScreenSegment {
+            start: DVec2::new(0.0, y),
+            end: DVec2::new(100.0, y),
+        }],
+    }
+}
+
 #[test]
-fn disabled_ties_go_to_the_earlier_handle() {
+fn free_circle_ties_go_to_the_earlier_circle() {
     // Both segments are exactly 3 px from the probe, so the squared distances are equal.
     let pixel = DVec2::new(50.0, 0.0);
-    let handles = [
-        horizontal_disabled(DisabledKind::ViewRing, -3.0),
-        horizontal_disabled(DisabledKind::FreeRotate, 3.0),
+    let circles = [
+        horizontal_free(FreeRotateHandle::View, -3.0),
+        horizontal_free(FreeRotateHandle::Trackball, 3.0),
     ];
-    assert_eq!(
-        nearest_disabled(&handles, pixel),
-        Some(DisabledKind::ViewRing)
-    );
+    assert_eq!(nearest_free(&circles, pixel), Some(FreeRotateHandle::View));
     let reversed = [
-        horizontal_disabled(DisabledKind::FreeRotate, 3.0),
-        horizontal_disabled(DisabledKind::ViewRing, -3.0),
+        horizontal_free(FreeRotateHandle::Trackball, 3.0),
+        horizontal_free(FreeRotateHandle::View, -3.0),
     ];
     assert_eq!(
-        nearest_disabled(&reversed, pixel),
-        Some(DisabledKind::FreeRotate)
+        nearest_free(&reversed, pixel),
+        Some(FreeRotateHandle::Trackball)
     );
+    assert_eq!(nearest_free(&circles, DVec2::new(50.0, 20.0)), None);
 }
 
 #[test]
@@ -671,7 +696,7 @@ fn pointers_outside_the_viewport_hit_no_handle_enabled_or_disabled() {
     let outside = DVec2::new(-2.0, crossing);
     let beyond = DVec2::new(802.0, 300.0);
     assert_eq!(rotate.hit_test(on_edge), None);
-    assert_eq!(rotate.hit_disabled(on_edge), Some(DisabledKind::ViewRing));
+    assert_eq!(rotate.pick(on_edge), VIEW);
     for pixel in [
         outside,
         beyond,
@@ -679,7 +704,7 @@ fn pointers_outside_the_viewport_hit_no_handle_enabled_or_disabled() {
         DVec2::new(400.0, 602.0),
     ] {
         assert_eq!(rotate.hit_test(pixel), None, "{pixel}");
-        assert_eq!(rotate.hit_disabled(pixel), None, "{pixel}");
+        assert_eq!(rotate.pick(pixel), None, "{pixel}");
         assert_eq!(scale.hit_test(pixel), None, "{pixel}");
         assert_eq!(scale.hit_disabled(pixel), None, "{pixel}");
     }
@@ -856,11 +881,12 @@ fn a_foreshortened_scale_axis_stays_short_at_the_smallest_size() {
 }
 
 #[test]
-fn rotate_ring_radius_and_disabled_circles_follow_the_size_above_the_floor() {
+fn rotate_ring_radius_and_free_circles_follow_the_size_above_the_floor() {
     let camera = front_camera();
     let far_point = |size: f64| {
         let handles = RotateHandles::new(&sized(&camera, size), &world_frame()).unwrap();
-        let free = &handles.disabled()[0];
+        let free = &handles.free()[0];
+        assert_eq!(free.handle, FreeRotateHandle::Trackball);
         free.segments()
             .iter()
             .map(|segment| (segment.start - handles.origin()).length())
@@ -1152,8 +1178,8 @@ fn free_rotate_and_view_ring_overlap_resolves_to_the_nearer_circle() {
         if handles.hit_test(free).is_some() || handles.hit_test(view).is_some() {
             continue;
         }
-        assert_eq!(handles.hit_disabled(free), Some(DisabledKind::FreeRotate));
-        assert_eq!(handles.hit_disabled(view), Some(DisabledKind::ViewRing));
+        assert_eq!(handles.pick(free), TRACKBALL);
+        assert_eq!(handles.pick(view), VIEW);
         checked += 1;
     }
     assert!(checked > 0);
@@ -1169,26 +1195,47 @@ fn handle_geometry_constants_are_pinned_exactly() {
 }
 
 #[test]
-fn pick_layers_an_enabled_handle_over_a_disabled_one() {
+fn pick_layers_an_axis_ring_over_the_free_circles_and_the_sphere() {
     let rotate = world_rings(&oblique_camera());
     let origin = rotate.origin();
-    let (mut enabled, mut disabled) = (0, 0);
+    let (mut axis, mut free, mut none) = (0, 0, 0);
     for degrees in 0..360 {
         let angle = f64::from(degrees).to_radians();
         for radius in [40.0, 79.0, 86.4, 100.0] {
             let pixel = origin + DVec2::new(angle.cos(), angle.sin()) * radius;
-            let expected = match (rotate.hit_test(pixel), rotate.hit_disabled(pixel)) {
-                (Some(axis), None) => Some(Pick::Handle(axis)),
-                (None, Some(kind)) => Some(Pick::Disabled(kind)),
-                (None, None) => None,
-                both => panic!("hit_disabled must be empty under an enabled hit: {both:?}"),
-            };
-            enabled += i32::from(matches!(expected, Some(Pick::Handle(_))));
-            disabled += i32::from(matches!(expected, Some(Pick::Disabled(_))));
-            assert_eq!(rotate.pick(pixel), expected, "{pixel}");
+            let picked = rotate.pick(pixel);
+            match rotate.hit_test(pixel) {
+                Some(ring) => {
+                    assert_eq!(
+                        picked,
+                        Some(Pick::Handle(RotateGrip::Axis(ring))),
+                        "{pixel}"
+                    );
+                    axis += 1;
+                }
+                None if radius <= ARROW_LENGTH => {
+                    assert_eq!(picked, TRACKBALL, "{pixel}");
+                    free += 1;
+                }
+                None if radius > ARROW_LENGTH * VIEW_RING_FACTOR + HIT_RADIUS => {
+                    assert_eq!(picked, None, "{pixel}");
+                    none += 1;
+                }
+                None => {
+                    assert!(
+                        matches!(picked, Some(Pick::Handle(RotateGrip::Free(_)))),
+                        "{pixel}"
+                    );
+                    free += 1;
+                }
+            }
+            assert!(
+                !matches!(picked, Some(Pick::Disabled(_))),
+                "Rotate has no disabled handle"
+            );
         }
     }
-    assert!(enabled > 0 && disabled > 0, "{enabled} {disabled}");
+    assert!(axis > 0 && free > 0 && none > 0, "{axis} {free} {none}");
     assert_eq!(rotate.pick(DVec2::NAN), None);
 
     let scale = ScaleHandles::new(&sized(&oblique_camera(), 0.1), &world_frame()).unwrap();

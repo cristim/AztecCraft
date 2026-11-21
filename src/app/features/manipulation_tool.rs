@@ -9,15 +9,16 @@ use crate::editor_operations::{
 };
 use azteccraft::{
     history::{
-        EditOutcome, ManipulationError, ManipulationFinish, ManipulationId, ManipulationKindState,
-        ManipulationProvenance,
+        EditOutcome, FreeRotateHandle, ManipulationError, ManipulationFinish, ManipulationId,
+        ManipulationKindState, ManipulationProvenance,
     },
     manipulator_handles::{
-        DisabledKind, HandleFrame, Pick, RotateDrag, RotateHandles, ScaleDrag, ScaleHandles,
+        DisabledKind, FreeRotateDrag, HandleFrame, Pick, RotateDrag, RotateGrip, RotateHandles,
+        ScaleDrag, ScaleHandles,
         paint::{paint_rotate, paint_scale},
     },
     move_handles::{HandleError, ManipulatorSize, ViewportCapture},
-    native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget},
+    native_scene::{MoveSpace, RotateAxis, RotateSpace, ScaleHandle, TransformTarget},
     snap::{snap_angle_to_step, snap_factor_to_step},
     view_scene::VIEW_BUDGET,
 };
@@ -27,8 +28,16 @@ use glam::{DVec3, Vec2};
 /// The Rotate or Scale handle under a pixel, as the active tool sees it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::app) enum ToolPick {
-    Rotate(Pick<RotateAxis>),
+    Rotate(Pick<RotateGrip>),
     Scale(Pick<ScaleHandle>),
+}
+
+/// The status and help name of a free rotation handle (#492).
+pub(in crate::app) fn free_rotate_name(handle: FreeRotateHandle) -> &'static str {
+    match handle {
+        FreeRotateHandle::View => "View Rotate",
+        FreeRotateHandle::Trackball => "Free Rotate",
+    }
 }
 
 /// Rotate and Scale tool settings. Maya keeps the axis orientation per tool and defaults it to
@@ -238,6 +247,7 @@ pub(in crate::app) fn kind_name(kind: ManipulationKindState) -> &'static str {
     match kind {
         ManipulationKindState::Move { .. } | ManipulationKindState::MoveComponents { .. } => "move",
         ManipulationKindState::Rotate { .. } => "rotate",
+        ManipulationKindState::FreeRotate { .. } => "free_rotate",
         ManipulationKindState::Scale { .. } => "scale",
     }
 }
@@ -358,13 +368,15 @@ pub(in crate::app) fn begin_error(error: ManipulationError) -> OperationError {
 #[derive(Clone, Copy)]
 enum DragHandle {
     Rotate(RotateAxis),
+    Free(FreeRotateHandle),
     Scale(ScaleHandle),
 }
 
 impl DragHandle {
     fn of(pick: ToolPick) -> Result<Self, DisabledKind> {
         match pick {
-            ToolPick::Rotate(Pick::Handle(axis)) => Ok(Self::Rotate(axis)),
+            ToolPick::Rotate(Pick::Handle(RotateGrip::Axis(axis))) => Ok(Self::Rotate(axis)),
+            ToolPick::Rotate(Pick::Handle(RotateGrip::Free(handle))) => Ok(Self::Free(handle)),
             ToolPick::Scale(Pick::Handle(handle)) => Ok(Self::Scale(handle)),
             ToolPick::Rotate(Pick::Disabled(kind)) | ToolPick::Scale(Pick::Disabled(kind)) => {
                 Err(kind)
@@ -385,6 +397,9 @@ fn start_drag(
     Ok(match handle {
         DragHandle::Rotate(axis) => {
             NativeDrag::Rotate(RotateDrag::begin(capture, frame, axis, pointer)?)
+        }
+        DragHandle::Free(handle) => {
+            NativeDrag::FreeRotate(FreeRotateDrag::begin(capture, frame, handle, pointer)?)
         }
         DragHandle::Scale(handle) => {
             NativeDrag::Scale(ScaleDrag::begin(capture, frame, handle, pointer)?)
@@ -532,6 +547,125 @@ impl Editor {
         })
     }
 
+    /// Begins a free rotation (#492). The view ring's axis is the direction toward the viewer
+    /// through the Rotate manipulator's pivot, from the editor camera at begin: the axis the
+    /// native drag measures its screen angle about.
+    pub(in crate::app) fn begin_editor_free_rotate(
+        &mut self,
+        target: &TransformTarget,
+        handle: FreeRotateHandle,
+        provenance: ManipulationProvenance,
+    ) -> Result<OperationReply, OperationError> {
+        self.check_manipulation_target("Rotate", target)?;
+        let view_axis = match handle {
+            FreeRotateHandle::View => Some(self.view_axis_through(target)?),
+            FreeRotateHandle::Trackball => None,
+        };
+        let id = self
+            .history
+            .begin_free_rotate(
+                target,
+                handle,
+                view_axis,
+                self.scene_token,
+                provenance,
+                VIEW_BUDGET,
+            )
+            .map_err(begin_error)?;
+        self.manipulation.refusal = None;
+        self.sync_fields();
+        Ok(OperationReply::ManipulationStarted {
+            manipulation_id: id.to_decimal(),
+        })
+    }
+
+    // The unit direction from the Rotate pivot of `target` toward the viewer.
+    fn view_axis_through(&self, target: &TransformTarget) -> Result<DVec3, OperationError> {
+        let origin = self
+            .history
+            .scene()
+            .manipulator_frame(target)
+            .map_err(OperationError::Scene)?
+            .handle_origin(azteccraft::native_scene::ManipulatorTool::Rotate);
+        let toward = match self.camera.projection() {
+            azteccraft::viewport::Projection::Perspective => {
+                (self.camera.eye().as_dvec3() - origin).normalize_or_zero()
+            }
+            azteccraft::viewport::Projection::Orthographic => -self
+                .camera
+                .view_direction_at(origin.as_vec3())
+                .as_dvec3()
+                .normalize_or_zero(),
+        };
+        if toward == DVec3::ZERO || !toward.is_finite() {
+            return Err(OperationError::InvalidInput(
+                "View Rotate needs the pivot away from the camera eye".into(),
+            ));
+        }
+        Ok(toward)
+    }
+
+    // A trackball update: a world axis and an angle, both from the begin. Step Snap does not
+    // apply (PROVISIONAL: the Rotate Tool page does not say whether it does).
+    fn update_editor_free_rotate(
+        &mut self,
+        id: ManipulationId,
+        value: ManipulationValue,
+        provenance: ManipulationProvenance,
+    ) -> Result<OperationReply, OperationError> {
+        if let Some(active) = self.history.active_manipulation()
+            && active.id == id
+            && active.kind
+                != (ManipulationKindState::FreeRotate {
+                    handle: FreeRotateHandle::Trackball,
+                })
+        {
+            return Err(OperationError::KindMismatch {
+                parameter: "world_axis",
+                active: kind_name(active.kind),
+            });
+        }
+        let (axis, degrees) = match value {
+            ManipulationValue::AxisDegrees { axis, degrees } => (axis, degrees),
+            #[cfg(feature = "mcp")]
+            ManipulationValue::AxisAngle { axis, angle } => (
+                axis,
+                angle
+                    * self
+                        .history
+                        .scene()
+                        .units()
+                        .angular_degrees_factor()
+                        .map_err(OperationError::Scene)?,
+            ),
+            _ => {
+                return Err(OperationError::InvalidInput(
+                    "A free rotation update takes a world axis and an angle".into(),
+                ));
+            }
+        };
+        if !degrees.is_finite() || !axis.is_finite() {
+            return Err(OperationError::InvalidInput(
+                "Free Rotate axis and angle must be finite".into(),
+            ));
+        }
+        if !axis.length().is_normal() {
+            return Err(OperationError::InvalidInput(
+                "Free Rotate world_axis must be non-zero".into(),
+            ));
+        }
+        let updated =
+            self.history
+                .update_free_rotate(self.scene_token, id, provenance, axis, degrees);
+        let outcome = self.record_update(updated)?;
+        self.manipulation.declared = None;
+        self.sync_fields();
+        Ok(match outcome {
+            EditOutcome::Unchanged => OperationReply::Unchanged,
+            _ => OperationReply::Changed,
+        })
+    }
+
     pub(in crate::app) fn begin_editor_scale(
         &mut self,
         target: &TransformTarget,
@@ -569,12 +703,25 @@ impl Editor {
             ManipulationValue::Degrees(value) => (value, "angle"),
             ManipulationValue::Angle(value) => (value, "angle"),
             ManipulationValue::Factor(value) => (value, "factor"),
+            ManipulationValue::AxisDegrees { .. } => {
+                return self.update_editor_free_rotate(id, value, provenance);
+            }
+            #[cfg(feature = "mcp")]
+            ManipulationValue::AxisAngle { .. } => {
+                return self.update_editor_free_rotate(id, value, provenance);
+            }
         };
         if let Some(active) = self.history.active_manipulation()
             && active.id == id
             && !matches!(
                 (parameter, active.kind),
                 ("angle", ManipulationKindState::Rotate { .. })
+                    | (
+                        "angle",
+                        ManipulationKindState::FreeRotate {
+                            handle: FreeRotateHandle::View
+                        }
+                    )
                     | ("factor", ManipulationKindState::Scale { .. })
             )
         {
@@ -678,8 +825,8 @@ impl Editor {
         let space = space_name(self.manipulation.space(self.active_tool));
         match self.active_tool {
             ActiveTool::Rotate => format!(
-                "Rotate tool ({space}): drag a ring to turn about that axis | Esc cancels | \
-                 view ring and free rotate are unsupported"
+                "Rotate tool ({space}): drag a ring to turn about that axis, inside the rings to \
+                 rotate freely or the outer ring about the view axis | Esc cancels"
             ),
             ActiveTool::Scale => format!(
                 "Scale tool ({space}): drag an axis box or the center box | Esc cancels | \
@@ -765,6 +912,10 @@ impl Editor {
                     .map(|error| error.to_string()),
                 None => Some(NO_ROTATE_PARENT.to_owned()),
             },
+            // A free rotation is a World-space turn whatever the Axis Orientation.
+            DragHandle::Free(_) => scene
+                .rotation_refusal(target, RotateAxis::X, RotateSpace::World)
+                .map(|error| error.to_string()),
             DragHandle::Scale(handle) => scene
                 .scale_refusal(target, handle, space.scale())
                 .map(|error| error.to_string()),
@@ -796,11 +947,22 @@ impl Editor {
         let space = self.manipulation.space(tool);
         let picked = self.pick_handle(tool, capture, &frame, pixel)?;
         Some(match picked {
-            ToolPick::Rotate(Pick::Handle(axis)) => {
+            ToolPick::Rotate(Pick::Handle(RotateGrip::Axis(axis))) => {
                 let label = format!("{} {} Rotate", space_name(space), rotate_axis_name(axis));
                 match self.pick_refusal(capture, &frame, &target, tool, picked, pointer) {
                     Some(refusal) => (format!("{label}: {refusal}"), true),
                     None => (format!("{label}: drag to turn"), false),
+                }
+            }
+            ToolPick::Rotate(Pick::Handle(RotateGrip::Free(handle))) => {
+                let label = free_rotate_name(handle);
+                let hint = match handle {
+                    FreeRotateHandle::View => "drag to turn about the view axis",
+                    FreeRotateHandle::Trackball => "drag to rotate freely",
+                };
+                match self.pick_refusal(capture, &frame, &target, tool, picked, pointer) {
+                    Some(refusal) => (format!("{label}: {refusal}"), true),
+                    None => (format!("{label}: {hint}"), false),
                 }
             }
             ToolPick::Scale(Pick::Handle(handle)) => {
@@ -912,6 +1074,10 @@ impl Editor {
                 },
                 format!("{} {} Rotate", space_name(space), rotate_axis_name(axis)),
             ),
+            DragHandle::Free(handle) => (
+                Operation::BeginFreeRotate { target, handle },
+                free_rotate_name(handle).to_owned(),
+            ),
             DragHandle::Scale(handle) => (
                 Operation::BeginScale {
                     target,
@@ -983,7 +1149,12 @@ impl Editor {
                     let handles = RotateHandles::new(&capture, &frame)
                         .map_err(|error| handle_error(tool, error))?;
                     let active = match active {
-                        Some(ManipulationKindState::Rotate { axis, .. }) => Some(axis),
+                        Some(ManipulationKindState::Rotate { axis, .. }) => {
+                            Some(RotateGrip::Axis(axis))
+                        }
+                        Some(ManipulationKindState::FreeRotate { handle }) => {
+                            Some(RotateGrip::Free(handle))
+                        }
                         _ => None,
                     };
                     let hover = pointer

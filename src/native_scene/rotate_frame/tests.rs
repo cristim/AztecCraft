@@ -31,6 +31,7 @@ fn frame(scene: &NativeScene, node: NodeId, axis: RotateAxis) -> RotateFrame {
         .0
 }
 
+mod about_world;
 mod gimbal;
 mod world;
 

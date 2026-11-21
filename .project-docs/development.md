@@ -827,6 +827,22 @@ current-parent publication is claimed by this paragraph.
 
 ## Rotate and Scale tools (native UI)
 
+Free rotation (#492). With the Rotate tool, a press on the outer (light blue) view ring or
+anywhere inside the sphere that misses the axis rings begins `BeginFreeRotate`, as the Maya
+2027 Rotate objects page describes (dragging inside the rings rotates freely; the outer ring
+rotates in screen space). Both turn the object in World space, whatever the Axis
+Orientation, through `RotateFrame::rotation_about_world` (the World ring's arithmetic with an
+arbitrary world direction) and share the World ring's refusals; one drag is one Rotate
+history entry. The view ring turns about the direction toward the viewer through the pivot,
+fixed at begin, by the pointer's angle about the projected pivot (counterclockwise on screen
+is positive); Step Snap applies to it as to a ring. The trackball maps the pointer onto a
+virtual sphere of the manipulator's screen radius (outside it, onto the silhouette) and turns
+along the shortest arc from the pressed point, so dragging from the centre to the rim is 90
+degrees; each update carries a world axis and an angle (`ManipulationValue::AxisDegrees`), and
+Step Snap does not apply. The mappings, the colours and the Step Snap choices are PROVISIONAL:
+the Maya pages describe neither mapping. A press inside the sphere no longer falls through to
+selection.
+
 E and R select the Rotate and Scale tools, and their Tool Box icons are live. While
 either is active, a row above the viewport holds the Axis Orientation selector, an axis
 choice and a numeric field with Apply (Enter also applies). The Rotate list follows Maya

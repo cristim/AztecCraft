@@ -178,7 +178,7 @@ impl RotateFrame {
         if !delta.is_finite() || delta.abs() > MAX_ANGLE_RADIANS {
             return Err(refused);
         }
-        let mut radians = match (self.space, axis) {
+        let radians = match (self.space, axis) {
             (RotateSpace::Object, RotateAxis::X) | (RotateSpace::Gimbal, _) => {
                 let mut radians = self.radians;
                 radians[axis.index()] += delta;
@@ -203,17 +203,63 @@ impl RotateFrame {
                 self.decompose(step * rotation_matrix(self.radians))?
             }
         };
-        // Heuristic: the channel that moves most is taken as intended; a genuine change below
-        // SNAP_TOLERANCE on any other channel is snapped away (see known-issues.md).
         let intended = match self.space {
-            RotateSpace::Object | RotateSpace::Gimbal => axis.index(),
-            RotateSpace::World => (0..3)
+            RotateSpace::Object | RotateSpace::Gimbal => Some(axis.index()),
+            RotateSpace::World => None,
+        };
+        self.settle(radians, intended, delta, degrees)
+    }
+
+    /// Declared rotate channel values after turning by `degrees` about the world direction `axis`
+    /// (#492: the Rotate tool's view ring and free rotation). `axis` need not be normalized but
+    /// must be finite and non-zero. The frame must be begun in World space, whose parent map this
+    /// uses: turning the world about `a` equals turning the parent-local frame about the
+    /// normalized `P^T a` (P = s * Rp), the World ring rule with `a` no longer a basis vector.
+    pub fn rotation_about_world(&self, axis: DVec3, degrees: f64) -> Result<[f64; 3], NativeError> {
+        if !degrees.is_finite() || !axis.is_finite() {
+            return Err(NativeError::NonFinite);
+        }
+        if self.space != RotateSpace::World {
+            return Err(NativeError::UnsupportedEdit);
+        }
+        if degrees == 0.0 {
+            return Ok(self.declared);
+        }
+        let delta = degrees.to_radians();
+        let refused = NativeError::UnsupportedRotate(RotateUnsupported::NumericalAngle);
+        if !delta.is_finite() || delta.abs() > MAX_ANGLE_RADIANS {
+            return Err(refused);
+        }
+        let local = self.parent_linear.transpose() * axis;
+        let length = local.length();
+        if !length.is_normal() {
+            return Err(refused);
+        }
+        let step = DMat3::from_axis_angle(local / length, delta);
+        let radians = self.decompose(step * rotation_matrix(self.radians))?;
+        self.settle(radians, None, delta, degrees)
+    }
+
+    // Turns decomposed `radians` into declared channel values. `intended` is the channel the
+    // handle edits, or `None` when any may move (World rings, free rotation): then the channel
+    // that moves most is taken as intended. A genuine change below SNAP_TOLERANCE on any other
+    // channel is snapped away (heuristic, see known-issues.md).
+    fn settle(
+        &self,
+        mut radians: [f64; 3],
+        intended: Option<usize>,
+        delta: f64,
+        degrees: f64,
+    ) -> Result<[f64; 3], NativeError> {
+        let refused = NativeError::UnsupportedRotate(RotateUnsupported::NumericalAngle);
+        let intended = intended.unwrap_or_else(|| {
+            (0..3)
                 .max_by(|a, b| {
                     let moved = |i: usize| (radians[i] - self.radians[i]).abs();
                     moved(*a).total_cmp(&moved(*b))
                 })
-                .unwrap_or(0),
-        };
+                .unwrap_or(0)
+        });
         let mut resolution: f64 = 0.0;
         for (component, (value, &base)) in radians.iter_mut().zip(&self.radians).enumerate() {
             if component != intended && (*value - base).abs() <= SNAP_TOLERANCE * (base.abs() + 1.0)

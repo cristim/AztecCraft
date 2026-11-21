@@ -1,16 +1,15 @@
 //! egui drawing for the Rotate and Scale handles. Colors follow the Move axis palette and are
 //! provisional until compared with the pinned Maya reference.
 
-use super::{DisabledHandle, RotateHandles, ScaleHandles};
-use crate::{
-    move_handles::ScreenSegment,
-    native_scene::{RotateAxis, ScaleHandle},
-};
+use super::{DisabledHandle, RotateGrip, RotateHandles, ScaleHandles};
+use crate::{history::FreeRotateHandle, move_handles::ScreenSegment, native_scene::ScaleHandle};
 use eframe::egui::{Color32, Painter, Pos2, Stroke, vec2};
 
 const HOVER: Color32 = Color32::WHITE;
 const ACTIVE: Color32 = Color32::from_rgb(255, 225, 80);
 const DISABLED: Color32 = Color32::from_rgb(110, 110, 110);
+const SPHERE: Color32 = Color32::from_rgb(150, 150, 150);
+const VIEW_RING: Color32 = Color32::from_rgb(120, 200, 230);
 
 pub fn axis_color(index: usize) -> Color32 {
     match index {
@@ -71,17 +70,32 @@ pub fn paint_rotate(
     rect_min: Pos2,
     pixels_per_point: f32,
     handles: &RotateHandles,
-    hovered: Option<RotateAxis>,
-    active: Option<RotateAxis>,
+    hovered: Option<RotateGrip>,
+    active: Option<RotateGrip>,
 ) {
     let surface = Surface {
         painter,
         rect_min,
         pixels_per_point,
     };
-    surface.disabled(handles.disabled());
+    // The sphere outline grey and the view ring light blue (PROVISIONAL colours, #5).
+    for circle in handles.free() {
+        let base = match circle.handle {
+            FreeRotateHandle::Trackball => SPHERE,
+            FreeRotateHandle::View => VIEW_RING,
+        };
+        let color = state_color(RotateGrip::Free(circle.handle), base, hovered, active);
+        for segment in circle.segments() {
+            surface.segment(segment, 1.5, color);
+        }
+    }
     for (index, ring) in handles.rings().iter().enumerate() {
-        let color = state_color(ring.axis, axis_color(index), hovered, active);
+        let color = state_color(
+            RotateGrip::Axis(ring.axis),
+            axis_color(index),
+            hovered,
+            active,
+        );
         for segment in ring.segments() {
             surface.segment(segment, 2.0, color);
         }

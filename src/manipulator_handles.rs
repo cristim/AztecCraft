@@ -6,6 +6,7 @@
 //! checked against the pinned Maya reference.
 
 use crate::{
+    history::FreeRotateHandle,
     move_handles::{
         HIT_RADIUS, HandleError, ScreenSegment, ViewportCapture, axis_parameter_along,
         clip_segment, segment_distance_squared,
@@ -146,19 +147,50 @@ impl From<&GimbalFrame> for RingFrame {
 /// Handles that are drawn but cannot be used.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DisabledKind {
-    ViewRing,
-    FreeRotate,
     ScalePlane,
 }
 
 impl fmt::Display for DisabledKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::ViewRing => "View-axis rotation is unsupported",
-            Self::FreeRotate => "Free rotation is unsupported",
             Self::ScalePlane => "Plane scaling is unsupported",
         })
     }
+}
+
+/// What a Rotate press grabs: an axis ring, or a handle without an axis of its own (#492).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RotateGrip {
+    Axis(RotateAxis),
+    Free(FreeRotateHandle),
+}
+
+/// A Rotate circle without an axis: the free-rotation sphere's outline or the outer view ring.
+pub struct FreeCircle {
+    pub handle: FreeRotateHandle,
+    segments: Vec<ScreenSegment>,
+}
+
+impl FreeCircle {
+    pub fn segments(&self) -> &[ScreenSegment] {
+        &self.segments
+    }
+}
+
+// The free circle whose outline is nearest within the pick threshold.
+fn nearest_free(circles: &[FreeCircle], pixel: DVec2) -> Option<FreeRotateHandle> {
+    let mut closest = HIT_RADIUS * HIT_RADIUS;
+    let mut selected = None;
+    for circle in circles {
+        for segment in &circle.segments {
+            let distance = segment_distance_squared(*segment, pixel);
+            if distance <= closest && (selected.is_none() || distance < closest) {
+                closest = distance;
+                selected = Some(circle.handle);
+            }
+        }
+    }
+    selected
 }
 
 /// What lies under the pointer: an enabled handle, or a drawn-but-unsupported one that no enabled
@@ -260,7 +292,9 @@ pub struct RotateHandles {
     origin: DVec2,
     size: DVec2,
     rings: [RotateRing; 3],
-    disabled: Vec<DisabledHandle>,
+    free: [FreeCircle; 2],
+    // The sphere's screen radius: a press inside it that misses every ring is free rotation.
+    radius: f64,
 }
 
 const ROTATE_AXES: [RotateAxis; 3] = [RotateAxis::X, RotateAxis::Y, RotateAxis::Z];
@@ -316,13 +350,13 @@ impl RotateHandles {
             }
             RotateRing { axis, segments }
         });
-        let disabled = vec![
-            DisabledHandle {
-                kind: DisabledKind::FreeRotate,
+        let free = [
+            FreeCircle {
+                handle: FreeRotateHandle::Trackball,
                 segments: screen_circle(origin, capture.handle_length(), size),
             },
-            DisabledHandle {
-                kind: DisabledKind::ViewRing,
+            FreeCircle {
+                handle: FreeRotateHandle::View,
                 segments: screen_circle(origin, capture.handle_length() * VIEW_RING_FACTOR, size),
             },
         ];
@@ -330,7 +364,8 @@ impl RotateHandles {
             origin,
             size,
             rings,
-            disabled,
+            free,
+            radius: capture.handle_length(),
         })
     }
 
@@ -338,8 +373,8 @@ impl RotateHandles {
         &self.rings
     }
 
-    pub fn disabled(&self) -> &[DisabledHandle] {
-        &self.disabled
+    pub fn free(&self) -> &[FreeCircle] {
+        &self.free
     }
 
     pub fn origin(&self) -> DVec2 {
@@ -365,20 +400,21 @@ impl RotateHandles {
         selected
     }
 
-    /// The one pick for hover, press and inspection: an enabled ring wins, else a disabled handle.
-    pub fn pick(&self, pixel: DVec2) -> Option<Pick<RotateAxis>> {
+    /// The one pick for hover, press and inspection: an axis ring wins, then the nearer free
+    /// circle's outline, then anywhere inside the sphere, which is free rotation (Maya 2027
+    /// Rotate objects page: dragging inside the rings rotates freely). Rotate has no disabled
+    /// handle.
+    pub fn pick(&self, pixel: DVec2) -> Option<Pick<RotateGrip>> {
         if !inside_viewport(pixel, self.size) {
             return None;
         }
-        match self.hit_test(pixel) {
-            Some(axis) => Some(Pick::Handle(axis)),
-            None => nearest_disabled(&self.disabled, pixel).map(Pick::Disabled),
+        if let Some(axis) = self.hit_test(pixel) {
+            return Some(Pick::Handle(RotateGrip::Axis(axis)));
         }
-    }
-
-    /// A drawn-but-unsupported handle under the pointer, for the status line.
-    pub fn hit_disabled(&self, pixel: DVec2) -> Option<DisabledKind> {
-        self.pick(pixel).and_then(Pick::disabled)
+        let free = nearest_free(&self.free, pixel).or_else(|| {
+            ((pixel - self.origin).length() <= self.radius).then_some(FreeRotateHandle::Trackball)
+        });
+        free.map(|handle| Pick::Handle(RotateGrip::Free(handle)))
     }
 }
 
@@ -493,6 +529,148 @@ impl RotateDrag {
         self.last = angle;
         self.total = total;
         Ok(total.to_degrees())
+    }
+}
+
+/// A free rotation sample: the view ring's signed degrees about the view axis since the press,
+/// or the trackball's turn as a world axis and degrees, both measured from the press.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FreeRotateSample {
+    View { degrees: f64 },
+    Trackball { axis: DVec3, degrees: f64 },
+}
+
+/// One free rotation drag (#492). The view ring measures the pointer's angle about the projected
+/// pivot, counterclockwise on screen being a positive turn about the axis toward the viewer. The
+/// trackball maps the pointer onto a virtual sphere of the manipulator's screen radius around
+/// the pivot (outside it, onto the silhouette) and turns along the shortest arc from the pressed
+/// point, so dragging from the centre to the rim turns 90 degrees. Both mappings are PROVISIONAL:
+/// the Maya 2027 pages describe neither.
+pub struct FreeRotateDrag {
+    capture: ViewportCapture,
+    handle: FreeRotateHandle,
+    center: DVec2,
+    radius: f64,
+    // World directions of view-space x (right), y (up) and z (toward the viewer) at the pivot.
+    basis: [DVec3; 3],
+    start: DVec3,
+    last_axis: DVec3,
+    last: f64,
+    total: f64,
+}
+
+impl FreeRotateDrag {
+    pub fn begin(
+        capture: ViewportCapture,
+        frame: &HandleFrame,
+        handle: FreeRotateHandle,
+        pointer: Vec2,
+    ) -> Result<Self, HandleError> {
+        let (_, center) = capture.project_origin(frame.origin)?;
+        let toward = -capture.view_direction(frame.origin);
+        let (right, up) = capture
+            .screen_axes(frame.origin)
+            .ok_or(HandleError::Degenerate)?;
+        let radius = capture.handle_length();
+        if !radius.is_finite() || radius <= 0.0 || !center.is_finite() {
+            return Err(HandleError::InvalidProjection);
+        }
+        let mut drag = Self {
+            capture,
+            handle,
+            center,
+            radius,
+            basis: [right, up, toward],
+            start: DVec3::Z,
+            last_axis: toward,
+            last: 0.0,
+            total: 0.0,
+        };
+        let pixel = drag.capture.pointer_pixel(pointer)?;
+        if !drag.capture.contains(pixel) {
+            return Err(HandleError::OriginClipped);
+        }
+        match handle {
+            FreeRotateHandle::View => drag.last = drag.screen_angle(pixel)?,
+            FreeRotateHandle::Trackball => drag.start = drag.sphere_point(pixel),
+        }
+        Ok(drag)
+    }
+
+    pub fn handle(&self) -> FreeRotateHandle {
+        self.handle
+    }
+
+    pub fn same_capture(&self, current_capture: &ViewportCapture) -> bool {
+        self.capture.same_mapping(current_capture)
+    }
+
+    // Counterclockwise screen angle of `pixel` about the pivot, y up.
+    fn screen_angle(&self, pixel: DVec2) -> Result<f64, HandleError> {
+        let (x, y) = (pixel.x - self.center.x, self.center.y - pixel.y);
+        if !x.is_finite() || !y.is_finite() || (x == 0.0 && y == 0.0) {
+            return Err(HandleError::Degenerate);
+        }
+        Ok(y.atan2(x))
+    }
+
+    // The trackball point under `pixel` in view coordinates (x right, y up, z toward the viewer).
+    fn sphere_point(&self, pixel: DVec2) -> DVec3 {
+        let x = (pixel.x - self.center.x) / self.radius;
+        let y = (self.center.y - pixel.y) / self.radius;
+        let squared = x * x + y * y;
+        if squared <= 1.0 {
+            DVec3::new(x, y, (1.0 - squared).sqrt())
+        } else {
+            let length = squared.sqrt();
+            DVec3::new(x / length, y / length, 0.0)
+        }
+    }
+
+    /// The turn since the press. A refused sample leaves the drag unchanged.
+    pub fn sample(
+        &mut self,
+        current_capture: &ViewportCapture,
+        pointer: Vec2,
+    ) -> Result<FreeRotateSample, HandleError> {
+        if !self.capture.same_mapping(current_capture) {
+            return Err(HandleError::CaptureChanged);
+        }
+        let pixel = self.capture.pointer_pixel(pointer)?;
+        match self.handle {
+            FreeRotateHandle::View => {
+                let angle = self.screen_angle(pixel)?;
+                let step = (angle - self.last + std::f64::consts::PI).rem_euclid(TAU)
+                    - std::f64::consts::PI;
+                let total = self.total + step;
+                if !total.is_finite() {
+                    return Err(HandleError::InvalidSolve);
+                }
+                self.last = angle;
+                self.total = total;
+                Ok(FreeRotateSample::View {
+                    degrees: total.to_degrees(),
+                })
+            }
+            FreeRotateHandle::Trackball => {
+                let current = self.sphere_point(pixel);
+                if !current.is_finite() {
+                    return Err(HandleError::InvalidSolve);
+                }
+                let cross = self.start.cross(current);
+                let angle = cross.length().atan2(self.start.dot(current));
+                let [right, up, toward] = self.basis;
+                let axis = right * cross.x + up * cross.y + toward * cross.z;
+                // Back at the start (or exactly opposite on the rim) the arc has no axis: keep
+                // the last one, so the turn is zero or continuous.
+                let axis = axis.try_normalize().unwrap_or(self.last_axis);
+                self.last_axis = axis;
+                Ok(FreeRotateSample::Trackball {
+                    axis,
+                    degrees: angle.to_degrees(),
+                })
+            }
+        }
     }
 }
 

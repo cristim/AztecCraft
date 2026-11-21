@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use azteccraft::{
-    history::ManipulationFinish,
+    history::{FreeRotateHandle, ManipulationFinish},
     move_handles::ManipulatorSize,
     native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget, WorldAxis},
     snap::{snap_angle_to_step, snap_factor_to_step},
@@ -170,6 +170,17 @@ enum BeginManipulationArgs {
         axis: AxisInput,
         space: SpaceInput,
     },
+    /// A free rotation of the exact selected object (#492): `view` turns about the direction
+    /// toward the viewer through the Rotate pivot, fixed at begin, and takes `angle` updates;
+    /// `trackball` takes `angle` with `world_axis` updates. Both turn in World space whatever the
+    /// Rotate tool's Axis Orientation, with the World ring's refusals.
+    FreeRotate {
+        scene_token: String,
+        node_id: String,
+        #[schemars(length(min = 1, max = 256))]
+        instance_path: Vec<String>,
+        handle: FreeRotateInput,
+    },
     Scale {
         scene_token: String,
         node_id: String,
@@ -184,7 +195,16 @@ enum BeginManipulationArgs {
     },
 }
 
-/// Exactly one of `distance`, `angle` or `factor`, matching the kind of the manipulation.
+/// The free rotation handle a `free_rotate` begin grabs.
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum FreeRotateInput {
+    View,
+    Trackball,
+}
+
+/// Exactly one of `distance`, `angle` or `factor`, matching the kind of the manipulation; a
+/// free_rotate trackball takes `angle` with `world_axis`.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct UpdateManipulationArgs {
@@ -193,6 +213,7 @@ struct UpdateManipulationArgs {
     distance: Option<f64>,
     angle: Option<f64>,
     factor: Option<f64>,
+    world_axis: Option<[f64; 3]>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -392,6 +413,21 @@ fn parse_begin_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Erro
                 space: space(input),
             },
         ),
+        BeginManipulationArgs::FreeRotate {
+            scene_token,
+            node_id,
+            instance_path,
+            handle,
+        } => (
+            scene_token,
+            Operation::BeginFreeRotate {
+                target: target(&node_id, instance_path)?,
+                handle: match handle {
+                    FreeRotateInput::View => FreeRotateHandle::View,
+                    FreeRotateInput::Trackball => FreeRotateHandle::Trackball,
+                },
+            },
+        ),
         BeginManipulationArgs::Scale {
             scene_token,
             node_id,
@@ -425,16 +461,28 @@ fn parse_update_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Err
             ))
         }
     };
-    let operation = match (args.distance, args.angle, args.factor) {
-        (Some(distance), None, None) => Operation::UpdateMove {
+    let operation = match (args.distance, args.angle, args.factor, args.world_axis) {
+        (Some(distance), None, None, None) => Operation::UpdateMove {
             id,
             distance: MoveDistance::Declared(finite("distance", distance)?),
         },
-        (None, Some(angle), None) => Operation::UpdateManipulation {
+        (None, Some(angle), None, None) => Operation::UpdateManipulation {
             id,
             value: ManipulationValue::Angle(finite("angle", angle)?),
         },
-        (None, None, Some(factor)) => {
+        (None, Some(angle), None, Some(axis)) => {
+            for component in axis {
+                finite("world_axis", component)?;
+            }
+            Operation::UpdateManipulation {
+                id,
+                value: ManipulationValue::AxisAngle {
+                    axis: glam::DVec3::from_array(axis),
+                    angle: finite("angle", angle)?,
+                },
+            }
+        }
+        (None, None, Some(factor), None) => {
             if finite("factor", factor)? <= 0.0 {
                 return Err(ErrorData::invalid_params(
                     "factor must be greater than zero",
@@ -448,7 +496,7 @@ fn parse_update_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Err
         }
         _ => {
             return Err(ErrorData::invalid_params(
-                "give exactly one of distance, angle or factor",
+                "give exactly one of distance, angle or factor, or angle with world_axis for a free_rotate trackball",
                 None,
             ));
         }
@@ -473,7 +521,7 @@ fn update_schema() -> JsonObject {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "UpdateManipulationArgs",
         "type": "object",
-        "description": "Exactly one of distance (Move), angle (Rotate) or factor (Scale), matching the kind of the manipulation; any other is a typed manipulation_kind_mismatch error",
+        "description": "Exactly one of distance (Move), angle (Rotate, or a free_rotate view ring) or factor (Scale), or angle with world_axis (a free_rotate trackball), matching the kind of the manipulation; any other is a typed manipulation_kind_mismatch error",
         "oneOf": [
             common("distance", json!({
                 "type": "number",
@@ -488,6 +536,26 @@ fn update_schema() -> JsonObject {
                 "exclusiveMinimum": 0,
                 "description": "Absolute Scale factor from begin, unitless and greater than zero",
             })),
+            {
+                "type": "object",
+                "properties": {
+                    "scene_token": {"type": "string"},
+                    "manipulation_id": {"type": "string"},
+                    "angle": {
+                        "type": "number",
+                        "description": "Absolute free rotation trackball angle from begin about world_axis, in the scene angular unit",
+                    },
+                    "world_axis": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "minItems": 3,
+                        "maxItems": 3,
+                        "description": "World direction [x, y, z] the trackball turns about, from begin; finite and non-zero, any length",
+                    },
+                },
+                "required": ["scene_token", "manipulation_id", "angle", "world_axis"],
+                "additionalProperties": false,
+            },
         ],
     }) else {
         unreachable!("the update schema is an object");
@@ -561,7 +629,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "begin_manipulation",
-        description: "Begin one remote-owned Move (World axis), Rotate (Object or World space) or Scale (Object, World or Parent space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move or a Scale acts on the whole current selection with the named node as its lead (the last selected object), each object scaling about its own pivot by the same factor; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. Rotate still needs exactly one selected object. In Vertex, Edge or Face selection a move drags the unique vertices of the picked components of the selected object, a shared vertex once (World or Object orientation, no Snap to grids, at most 8192 vertices) and requires expected_selection_generation (a missing one is invalid_input); the generation moves with every object-selection, pick and selection-mode change and guards the selection, not geometry (an undo or redo that moves points does not change it); inspect_scene then reports the drag as kind move_components with component_kind and vertex_count and null channel fields",
+        description: "Begin one remote-owned Move (World axis), Rotate (Object or World space), free_rotate (handle view: about the direction toward the viewer through the Rotate pivot at begin, angle updates; handle trackball: angle with world_axis updates; always World space) or Scale (Object, World or Parent space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move or a Scale acts on the whole current selection with the named node as its lead (the last selected object), each object scaling about its own pivot by the same factor; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. Rotate still needs exactly one selected object. In Vertex, Edge or Face selection a move drags the unique vertices of the picked components of the selected object, a shared vertex once (World or Object orientation, no Snap to grids, at most 8192 vertices) and requires expected_selection_generation (a missing one is invalid_input); the generation moves with every object-selection, pick and selection-mode change and guards the selection, not geometry (an undo or redo that moves points does not change it); inspect_scene then reports the drag as kind move_components with component_kind and vertex_count and null channel fields",
         schema: schema::<BeginManipulationArgs>,
         parse: parse_begin_manipulation,
         idempotent: false,
@@ -569,7 +637,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "update_manipulation",
-        description: "Preview an absolute value from begin: distance in the scene linear unit for Move, angle in the scene angular unit for Rotate, a unitless factor greater than zero for Scale. Units are echoed in inspection.manipulation.units. Matching scene token and remote-owned manipulation ID are required; a parameter of the wrong kind is a typed error",
+        description: "Preview an absolute value from begin: distance in the scene linear unit for Move, angle in the scene angular unit for Rotate and a free_rotate view ring, angle with world_axis (a world direction) for a free_rotate trackball, a unitless factor greater than zero for Scale. Units are echoed in inspection.manipulation.units. Matching scene token and remote-owned manipulation ID are required; a parameter of the wrong kind is a typed error",
         schema: update_schema,
         parse: parse_update_manipulation,
         idempotent: false,
@@ -609,7 +677,19 @@ mod schema_drift_tests {
         assert_eq!(union, derived);
         for branch in branches {
             let own = names(&branch["properties"]);
-            assert_eq!(own.len(), 3, "each branch has the two ids and one value");
+            // The two ids and one value, or for the free_rotate trackball the angle with its
+            // world_axis (#492).
+            assert!(own.contains("scene_token") && own.contains("manipulation_id"));
+            let values: BTreeSet<String> = own
+                .iter()
+                .filter(|name| !matches!(name.as_str(), "scene_token" | "manipulation_id"))
+                .cloned()
+                .collect();
+            assert!(
+                values.len() == 1
+                    || values == BTreeSet::from(["angle".to_owned(), "world_axis".to_owned()]),
+                "{values:?}"
+            );
             let required: BTreeSet<String> = branch["required"]
                 .as_array()
                 .unwrap()

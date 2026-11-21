@@ -929,10 +929,12 @@ mod tests {
     #[test]
     fn begin_and_update_advertise_one_of_with_closed_branches() {
         let tools = catalog();
+        // begin: move, rotate, free_rotate (#492) and scale; update: distance, angle, factor and
+        // the trackball's angle with world_axis.
         for (name, tagged) in [("begin_manipulation", true), ("update_manipulation", false)] {
             let tool = tools.iter().find(|tool| tool.name == name).unwrap();
             let one_of = tool.input_schema["oneOf"].as_array().unwrap();
-            assert_eq!(one_of.len(), 3, "{name}");
+            assert_eq!(one_of.len(), 4, "{name}");
             for branch in one_of {
                 assert_eq!(branch["additionalProperties"], false, "{name}: {branch}");
                 if tagged {

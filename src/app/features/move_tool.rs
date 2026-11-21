@@ -8,18 +8,19 @@ use crate::editor_operations::{
     ActiveTool, ManipulationValue, MoveDistance, Operation, OperationError, OperationReply,
 };
 use azteccraft::snap::{DEFAULT_GRID_OPTIONS, drawn_grid_spacing_cm, snap_distance_to_grid};
+#[cfg(any(test, feature = "mcp"))]
+use azteccraft::{
+    history::FreeRotateHandle,
+    manipulator_handles::{DisabledKind, Pick, RotateGrip},
+    native_scene::{RotateAxis, ScaleHandle},
+};
 use azteccraft::{
     history::{
         EditOutcome, ManipulationError, ManipulationFinish, ManipulationId, ManipulationProvenance,
     },
-    manipulator_handles::{RotateDrag, ScaleDrag},
+    manipulator_handles::{FreeRotateDrag, FreeRotateSample, RotateDrag, ScaleDrag},
     move_handles::{AxisDrag, HandleError, ViewportCapture, WorldHandles},
     native_scene::{MoveSpace, TransformTarget, WorldAxis},
-};
-#[cfg(any(test, feature = "mcp"))]
-use azteccraft::{
-    manipulator_handles::{DisabledKind, Pick},
-    native_scene::{RotateAxis, ScaleHandle},
 };
 use glam::{DVec3, Vec2};
 use uuid::Uuid;
@@ -29,6 +30,7 @@ use uuid::Uuid;
 pub(in crate::app) enum NativeDrag {
     Move(AxisDrag),
     Rotate(RotateDrag),
+    FreeRotate(FreeRotateDrag),
     Scale(ScaleDrag),
 }
 
@@ -36,7 +38,7 @@ impl NativeDrag {
     fn tool(&self) -> ActiveTool {
         match self {
             Self::Move(_) => ActiveTool::Move,
-            Self::Rotate(_) => ActiveTool::Rotate,
+            Self::Rotate(_) | Self::FreeRotate(_) => ActiveTool::Rotate,
             Self::Scale(_) => ActiveTool::Scale,
         }
     }
@@ -45,6 +47,7 @@ impl NativeDrag {
         match self {
             Self::Move(drag) => drag.same_capture(capture),
             Self::Rotate(drag) => drag.same_capture(capture),
+            Self::FreeRotate(drag) => drag.same_capture(capture),
             Self::Scale(drag) => drag.same_capture(capture),
         }
     }
@@ -63,6 +66,15 @@ impl NativeDrag {
             Self::Rotate(drag) => Operation::UpdateManipulation {
                 id,
                 value: ManipulationValue::Degrees(drag.angle_degrees(capture, pointer)?),
+            },
+            Self::FreeRotate(drag) => Operation::UpdateManipulation {
+                id,
+                value: match drag.sample(capture, pointer)? {
+                    FreeRotateSample::View { degrees } => ManipulationValue::Degrees(degrees),
+                    FreeRotateSample::Trackball { axis, degrees } => {
+                        ManipulationValue::AxisDegrees { axis, degrees }
+                    }
+                },
             },
             Self::Scale(drag) => Operation::UpdateManipulation {
                 id,
@@ -103,12 +115,19 @@ fn rotate_axis_id(axis: RotateAxis) -> &'static str {
     }
 }
 
+/// The id inspection and MCP use for a free rotation handle (#492).
+#[cfg(any(test, feature = "mcp"))]
+pub(in crate::app) fn free_rotate_handle_id(handle: FreeRotateHandle) -> &'static str {
+    match handle {
+        FreeRotateHandle::View => "view",
+        FreeRotateHandle::Trackball => "trackball",
+    }
+}
+
 /// The id `pointer_disabled` reports for a drawn-but-unsupported handle.
 #[cfg(any(test, feature = "mcp"))]
 fn disabled_kind_id(kind: DisabledKind) -> &'static str {
     match kind {
-        DisabledKind::FreeRotate => "free_rotate",
-        DisabledKind::ViewRing => "view_ring",
         DisabledKind::ScalePlane => "scale_plane",
     }
 }
@@ -622,6 +641,18 @@ impl Editor {
             })
             .collect()),
         };
+        // Free rotation (#492) turns in World space whatever the Axis Orientation, so it has the
+        // World ring's refusals even when the Object rings are available.
+        let free_rotate_refusals = match &rotate_target {
+            Err(error) => Err(error.to_string()),
+            Ok(target) => Ok(vec![(
+                "free rotation",
+                self.history
+                    .scene()
+                    .rotation_refusal(target, RotateAxis::X, RotateSpace::World)
+                    .map(|error| error.to_string()),
+            )]),
+        };
         let scale_space = self.manipulation.space(ActiveTool::Scale).scale();
         let scale_refusals = match &scale_target {
             Err(error) => Err(error.to_string()),
@@ -661,6 +692,7 @@ impl Editor {
         let kinds = vec![
             availability("move", move_refusals),
             availability("rotate", rotate_refusals),
+            availability("free_rotate", free_rotate_refusals),
             availability("scale", scale_refusals),
         ];
         let active = self
@@ -710,6 +742,21 @@ impl Editor {
                             angular_unit_name(&units.angular).to_owned(),
                         )
                     }
+                    ManipulationKindState::FreeRotate { handle } => (
+                        "free_rotate",
+                        "world",
+                        None,
+                        Some(free_rotate_handle_id(handle)),
+                        match handle {
+                            FreeRotateHandle::View => "angle",
+                            FreeRotateHandle::Trackball => "angle_and_world_axis",
+                        },
+                        active.parameter
+                            / units
+                                .angular_degrees_factor()
+                                .map_err(OperationError::Scene)?,
+                        angular_unit_name(&units.angular).to_owned(),
+                    ),
                     ManipulationKindState::MoveComponents { axis, space } => {
                         let value = match self.manipulation.declared {
                             Some((id, declared)) if id == active.id => declared,
@@ -779,7 +826,8 @@ impl Editor {
                     channels: match active.kind {
                         ManipulationKindState::Move { .. } => Some("translate"),
                         ManipulationKindState::MoveComponents { .. } => None,
-                        ManipulationKindState::Rotate { .. } => Some("rotate"),
+                        ManipulationKindState::Rotate { .. }
+                        | ManipulationKindState::FreeRotate { .. } => Some("rotate"),
                         ManipulationKindState::Scale { .. } => Some("scale"),
                     },
                     baseline_channels: channels_of(active.baseline_channels, active.kind)?,
@@ -795,6 +843,7 @@ impl Editor {
                         _ => None,
                     },
                     vertex_count: active.vertex_count,
+                    free_rotate_axis: active.free_rotate_axis.map(|axis| axis.to_array()),
                     member_count: active.member_count(),
                     covered_count: active.covered_count(),
                 })
@@ -919,8 +968,11 @@ impl Editor {
                     }
                 };
                 match self.pick_handle(tool, capture, &frame, pixel) {
-                    Some(picked @ ToolPick::Rotate(Pick::Handle(axis))) => PointerPick {
-                        hit: Some(rotate_axis_id(axis)),
+                    Some(picked @ ToolPick::Rotate(Pick::Handle(grip))) => PointerPick {
+                        hit: Some(match grip {
+                            RotateGrip::Axis(axis) => rotate_axis_id(axis),
+                            RotateGrip::Free(handle) => free_rotate_handle_id(handle),
+                        }),
                         refusal: self.pick_refusal(capture, &frame, &target, tool, picked, pointer),
                         ..none
                     },

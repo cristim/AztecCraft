@@ -805,6 +805,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             axis: RotateAxis::Y,
             space: ManipulationSpace::Object,
         },
+        Operation::BeginFreeRotate {
+            target: t.transform_target(),
+            handle: azteccraft::history::FreeRotateHandle::View,
+        },
         Operation::BeginScale {
             target: t.transform_target(),
             handle: ScaleHandle::X,
@@ -1385,6 +1389,22 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
+        Operation::BeginFreeRotate { .. } => vec![
+            sample(
+                "begin_free_rotate(view)",
+                Operation::BeginFreeRotate {
+                    target: t.transform_target(),
+                    handle: azteccraft::history::FreeRotateHandle::View,
+                },
+            ),
+            sample(
+                "begin_free_rotate(trackball)",
+                Operation::BeginFreeRotate {
+                    target: t.transform_target(),
+                    handle: azteccraft::history::FreeRotateHandle::Trackball,
+                },
+            ),
+        ],
         Operation::BeginScale { .. } => vec![
             sample(
                 "begin_scale(object)",
@@ -1443,6 +1463,16 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::UpdateManipulation {
                     id: t.move_id,
                     value: ManipulationValue::Factor(2.0),
+                },
+            ),
+            sample(
+                "update_manipulation(axis_degrees)",
+                Operation::UpdateManipulation {
+                    id: t.move_id,
+                    value: ManipulationValue::AxisDegrees {
+                        axis: glam::DVec3::Y,
+                        degrees: 1.0,
+                    },
                 },
             ),
         ],

@@ -3,7 +3,8 @@ use crate::app::features::move_tool::tests::{
     View, button, frame, key, oblique, open_file_menu, raw, scale_plane_point, viewport,
 };
 use azteccraft::{
-    manipulator_handles::{DisabledKind, HandleFrame, RotateHandles},
+    history::FreeRotateHandle,
+    manipulator_handles::{DisabledKind, HandleFrame, RotateGrip, RotateHandles},
     move_handles::ManipulatorSize,
     native_scene::{NativeError, ScaleUnsupported},
     scene::Primitive,
@@ -342,8 +343,9 @@ fn uniform_scale_from_the_center_box_edits_all_three_channels() {
 
 #[test]
 fn rotate_hover_and_press_use_the_same_eight_pixel_distance() {
-    // 7 px off the Y ring both highlights and begins the drag (red at 6 px); 9 px neither.
-    for (offset, grabbed) in [(7.0_f32, true), (9.0, false)] {
+    // 7 px off the Y ring both picks and begins that ring's drag (red at 6 px); 9 px does neither
+    // for the ring. That point lies inside the sphere, so it is free rotation instead (#492).
+    for (offset, ring) in [(7.0_f32, true), (9.0, false)] {
         let (mut editor, context, view) = setup(Key::E, 1.0);
         let on_ring = view.ring(Vec3::Y, 0.0);
         let along = (view.ring(Vec3::Y, 1.0) - view.ring(Vec3::Y, -1.0)).normalized();
@@ -353,13 +355,40 @@ fn rotate_hover_and_press_use_the_same_eight_pixel_distance() {
             matches!(&shape.shape, Shape::LineSegment { stroke, .. }
                 if stroke.color == egui::Color32::WHITE)
         });
-        assert_eq!(highlighted, grabbed, "hover painter at {offset}");
-        press(&mut editor, &context, 1.0, point);
+        assert!(
+            highlighted,
+            "the hovered ring or sphere is highlighted at {offset}"
+        );
+        let expected = if ring { "y" } else { "trackball" };
         assert_eq!(
-            editor.history.active_manipulation().is_some(),
-            grabbed,
+            pointer_pick(&editor),
+            (Some(expected), None),
+            "hover at {offset}"
+        );
+        press(&mut editor, &context, 1.0, point);
+        let kind = editor
+            .history
+            .active_manipulation()
+            .map(|active| active.kind);
+        assert_eq!(
+            matches!(
+                kind,
+                Some(ManipulationKindState::Rotate {
+                    axis: RotateAxis::Y,
+                    ..
+                })
+            ),
+            ring,
             "press at {offset}"
         );
+        if !ring {
+            assert_eq!(
+                kind,
+                Some(ManipulationKindState::FreeRotate {
+                    handle: FreeRotateHandle::Trackball
+                })
+            );
+        }
     }
 }
 
@@ -378,7 +407,7 @@ fn hover_status_names_pickable_refused_and_unsupported_handles_and_restores_the_
         view.rect.right_bottom() - egui::vec2(2.0, 2.0),
     );
     assert_eq!(editor.status, help);
-    // The view ring lies outside the axis rings and is drawn but unsupported.
+    // The view ring lies outside the axis rings and turns about the view axis (#492).
     let origin = view.screen(Vec3::ZERO);
     moved(
         &mut editor,
@@ -386,8 +415,15 @@ fn hover_status_names_pickable_refused_and_unsupported_handles_and_restores_the_
         1.0,
         origin + egui::vec2(72.0 * 1.2, 0.0),
     );
-    assert_eq!(editor.status, DisabledKind::ViewRing.to_string());
-    assert!(editor.error);
+    assert_eq!(
+        editor.status,
+        "View Rotate: drag to turn about the view axis"
+    );
+    assert!(!editor.error);
+    // Inside the sphere, off the rings, is free rotation.
+    moved(&mut editor, &context, 1.0, origin);
+    assert_eq!(editor.status, "Free Rotate: drag to rotate freely");
+    assert!(!editor.error);
     // Unrelated status text is not overwritten when the pointer leaves.
     editor.status = "sentinel".into();
     moved(
@@ -425,19 +461,106 @@ fn scale_hover_and_press_use_the_same_eight_pixel_distance() {
     }
 }
 
+/// The editor camera's direction toward the viewer through the origin and the screen's right and
+/// up there, built independently of `ViewportCapture::screen_axes` from the camera eye and target.
+fn view_basis(editor: &Editor) -> (glam::DVec3, glam::DVec3, glam::DVec3) {
+    let eye = editor.camera.eye().as_dvec3();
+    let toward = eye.normalize();
+    let back = (eye - editor.camera.target().as_dvec3()).normalize();
+    let right = glam::DVec3::Y.cross(back).normalize();
+    let right = (right - toward * right.dot(toward)).normalize();
+    (right, toward.cross(right), toward)
+}
+
+/// The rotate channels as a world orientation (xyz order, a root node).
+fn orientation(editor: &Editor) -> glam::DQuat {
+    let [x, y, z] = [3, 4, 5].map(|index| channels(editor)[index].to_radians());
+    glam::DQuat::from_euler(glam::EulerRot::ZYX, z, y, x)
+}
+
+fn assert_turned(editor: &Editor, axis: glam::DVec3, degrees: f64, tolerance_degrees: f64) {
+    let expected = glam::DQuat::from_axis_angle(axis, degrees.to_radians());
+    let actual = orientation(editor);
+    let off = actual.angle_between(expected).to_degrees();
+    assert!(
+        off < tolerance_degrees,
+        "{off} degrees off: {actual:?} vs {expected:?}"
+    );
+}
+
 #[test]
-fn pressing_an_unsupported_handle_is_refused_and_consumed_without_selecting() {
+fn a_view_ring_drag_turns_about_the_view_axis_in_one_rotate_history_entry() {
     let (mut editor, context, view) = setup(Key::E, 1.0);
     let origin = view.screen(Vec3::ZERO);
-    let before = editor.history.scene().clone();
-    let on_view_ring = origin + egui::vec2(72.0 * 1.2, 0.0);
-    press(&mut editor, &context, 1.0, on_view_ring);
-    assert_eq!(editor.status, DisabledKind::ViewRing.to_string());
-    assert!(editor.error);
+    let radius = 72.0 * 1.2;
+    let on_ring = |degrees: f32| {
+        let angle = degrees.to_radians();
+        origin + egui::vec2(angle.cos(), -angle.sin()) * radius
+    };
+    moved(&mut editor, &context, 1.0, on_ring(0.0));
+    assert_eq!(pointer_pick(&editor), (Some("view"), None));
+    press(&mut editor, &context, 1.0, on_ring(0.0));
+    assert_eq!(
+        editor.history.active_manipulation().unwrap().kind,
+        ManipulationKindState::FreeRotate {
+            handle: FreeRotateHandle::View
+        }
+    );
+    assert_eq!(editor.status, "View Rotate");
+    let (_, _, toward) = view_basis(&editor);
+    let axis = editor
+        .history
+        .active_manipulation()
+        .unwrap()
+        .free_rotate_axis
+        .unwrap();
+    assert!(axis.dot(toward) > 1.0 - 1e-9, "{axis} vs {toward}");
+    // Counterclockwise on screen is a positive turn about the axis toward the viewer.
+    for degrees in [30.0_f32, 60.0, 40.0] {
+        moved(&mut editor, &context, 1.0, on_ring(degrees));
+        assert_turned(&editor, toward, f64::from(degrees), 0.5);
+        assert!(!editor.error, "{}", editor.status);
+    }
+    release(&mut editor, &context, 1.0, on_ring(40.0));
     assert!(editor.history.active_manipulation().is_none());
-    release(&mut editor, &context, 1.0, on_view_ring);
-    assert!(editor.selected().is_some(), "the click must not deselect");
-    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Rotate"));
+    editor.native_operation(Operation::Undo);
+    assert_eq!(&channels(&editor)[3..6], &[0.0; 3]);
+}
+
+#[test]
+fn a_press_inside_the_sphere_tumbles_like_a_trackball_in_one_rotate_history_entry() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    let origin = view.screen(Vec3::ZERO);
+    let before = editor.selected();
+    moved(&mut editor, &context, 1.0, origin);
+    assert_eq!(pointer_pick(&editor), (Some("trackball"), None));
+    press(&mut editor, &context, 1.0, origin);
+    assert_eq!(
+        editor.history.active_manipulation().unwrap().kind,
+        ManipulationKindState::FreeRotate {
+            handle: FreeRotateHandle::Trackball
+        }
+    );
+    assert_eq!(editor.status, "Free Rotate");
+    let (right, up, _) = view_basis(&editor);
+    // Half the radius to the right is 30 degrees about the screen's up axis on the virtual sphere;
+    // half the radius up is 30 degrees about the screen's left.
+    moved(&mut editor, &context, 1.0, origin + egui::vec2(36.0, 0.0));
+    assert_turned(&editor, up, 30.0, 1.0);
+    moved(&mut editor, &context, 1.0, origin + egui::vec2(0.0, -36.0));
+    assert_turned(&editor, -right, 30.0, 1.0);
+    // Back at the press there is no turn.
+    moved(&mut editor, &context, 1.0, origin);
+    assert_turned(&editor, up, 0.0, 1.0);
+    moved(&mut editor, &context, 1.0, origin + egui::vec2(36.0, 0.0));
+    release(&mut editor, &context, 1.0, origin + egui::vec2(36.0, 0.0));
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(editor.selected(), before, "the press did not select");
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Rotate"));
+    assert_turned(&editor, up, 30.0, 1.0);
+    editor.native_operation(Operation::Undo);
+    assert_eq!(&channels(&editor)[3..6], &[0.0; 3]);
 }
 
 #[test]
@@ -549,16 +672,42 @@ fn press_a_disabled_handle(
 }
 
 #[test]
-fn pressing_the_free_rotate_circle_is_refused_and_consumed_without_selecting() {
+fn a_trackball_refused_by_the_core_is_consumed_and_names_the_reason() {
+    // A free rotation is a World-space turn, so it shares the World ring's refusal of a
+    // non-positive scale (World axes keep the handle frame itself valid).
     let (mut editor, context, view) = setup(Key::E, 1.0);
-    let at = view.screen(Vec3::ZERO) + egui::vec2(-64.0, -33.0);
-    press_a_disabled_handle(
-        &mut editor,
-        &context,
-        at,
-        "free_rotate",
-        DisabledKind::FreeRotate,
+    let id = editor.selected().unwrap();
+    editor
+        .apply_operation(Operation::SetToolSpace {
+            tool: ActiveTool::Rotate,
+            space: ManipulationSpace::World,
+        })
+        .unwrap();
+    editor
+        .apply_operation(Operation::SetTransform {
+            id,
+            transform: crate::editor_operations::TransformInput {
+                translation: [0.0; 3],
+                rotation_degrees: [0.0; 3],
+                scale: [-1.0, 1.0, 1.0],
+            },
+        })
+        .unwrap();
+    idle(&mut editor, &context, 1.0);
+    let before = editor.history.scene().clone();
+    let origin = view.screen(Vec3::ZERO);
+    moved(&mut editor, &context, 1.0, origin);
+    assert!(
+        editor.status.starts_with("Free Rotate: "),
+        "{}",
+        editor.status
     );
+    assert!(editor.error);
+    press(&mut editor, &context, 1.0, origin);
+    assert!(editor.history.active_manipulation().is_none());
+    release(&mut editor, &context, 1.0, origin);
+    assert!(editor.selected().is_some(), "the click must not deselect");
+    assert_eq!(editor.history.scene(), &before);
 }
 
 #[test]
@@ -1821,9 +1970,24 @@ fn a_native_size_change_resizes_the_next_handles() {
     let (mut editor, context, view) = setup(Key::E, 1.0);
     editor.native_operation(Operation::SetManipulatorSize(size(2.0)));
     idle(&mut editor, &context, 1.0);
-    // The default ring radius no longer matches the drawn ring.
+    // The default ring radius no longer matches the drawn ring: it lies inside the doubled
+    // sphere, so the press is free rotation, not the Y ring.
+    let depth = undo_depth(&mut editor);
     press(&mut editor, &context, 1.0, view.ring(Vec3::Y, 0.0));
+    assert_eq!(
+        editor
+            .history
+            .active_manipulation()
+            .map(|active| active.kind),
+        Some(ManipulationKindState::FreeRotate {
+            handle: FreeRotateHandle::Trackball
+        })
+    );
+    // A press and release without motion leaves no history entry.
+    release(&mut editor, &context, 1.0, view.ring(Vec3::Y, 0.0));
     assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(undo_depth(&mut editor), depth);
+    idle(&mut editor, &context, 1.0);
     press(
         &mut editor,
         &context,
@@ -2135,8 +2299,9 @@ fn beside(on: Pos2, along: egui::Vec2, offset: f32) -> Pos2 {
 
 #[test]
 fn inspection_reports_the_rotate_ring_under_the_pointer() {
-    // Rotate must not report the (undrawn) Move arrow; 7 px picks the Y ring, 9 px nothing.
-    for (offset, expected) in [(7.0_f32, Some("y")), (9.0, None)] {
+    // Rotate must not report the (undrawn) Move arrow; 7 px picks the Y ring, 9 px (inside the
+    // sphere) the free rotation trackball.
+    for (offset, expected) in [(7.0_f32, Some("y")), (9.0, Some("trackball"))] {
         let (mut editor, context, view) = setup(Key::E, 1.0);
         let along = view.ring(Vec3::Y, 1.0) - view.ring(Vec3::Y, -1.0);
         moved(
@@ -2155,8 +2320,10 @@ fn inspection_reports_the_rotate_ring_under_the_pointer() {
         1.0,
         origin + egui::vec2(72.0 * 1.2, 0.0),
     );
-    assert_eq!(pointer_pick(&editor), (None, Some("view_ring")));
+    assert_eq!(pointer_pick(&editor), (Some("view"), None));
     moved(&mut editor, &context, 1.0, origin);
+    assert_eq!(pointer_pick(&editor), (Some("trackball"), None));
+    moved(&mut editor, &context, 1.0, origin + egui::vec2(110.0, 0.0));
     assert_eq!(pointer_pick(&editor), (None, None));
 }
 
@@ -2689,6 +2856,15 @@ fn pointer_refusal_is_cleared_during_a_manipulation_and_for_disabled_picks() {
     );
     // A disabled pick in a read-only scene: the kind is the reason, so no refusal is added.
     let (mut editor, context, view) =
+        ascii_editor("createNode transform -n \"a\";\n", "a", ActiveTool::Scale);
+    editor.native_operation(Operation::SetManipulatorSize(size(0.1)));
+    idle(&mut editor, &context, 1.0);
+    let at = scale_plane_point(&editor, view.rect);
+    moved(&mut editor, &context, 1.0, at);
+    assert_eq!(pointer_pick(&editor), (None, Some("scale_plane")));
+    assert_eq!(pointer_refusal(&editor), None);
+    // The view ring is a handle now (#492): in a read-only scene it carries the scene's refusal.
+    let (mut editor, context, view) =
         ascii_editor("createNode transform -n \"a\";\n", "a", ActiveTool::Rotate);
     moved(
         &mut editor,
@@ -2696,8 +2872,8 @@ fn pointer_refusal_is_cleared_during_a_manipulation_and_for_disabled_picks() {
         1.0,
         view.screen(Vec3::ZERO) + egui::vec2(72.0 * 1.2, 0.0),
     );
-    assert_eq!(pointer_pick(&editor), (None, Some("view_ring")));
-    assert_eq!(pointer_refusal(&editor), None);
+    assert_eq!(pointer_pick(&editor), (Some("view"), None));
+    assert!(pointer_refusal(&editor).is_some());
 }
 
 #[test]
@@ -3317,7 +3493,7 @@ fn the_rotate_ring_is_picked_at_the_rotate_pivot_and_not_at_the_translate() {
     let (_, frame) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
     let handles = RotateHandles::new(&capture, &frame).unwrap();
     let ring_y = Some(azteccraft::manipulator_handles::Pick::Handle(
-        azteccraft::native_scene::RotateAxis::Y,
+        RotateGrip::Axis(azteccraft::native_scene::RotateAxis::Y),
     ));
     assert_eq!(
         handles.pick(pixel(&view, ring_about(&view, dir * 4.5, Vec3::Y, 0.0))),
