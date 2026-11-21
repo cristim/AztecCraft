@@ -377,3 +377,9 @@ disabled option box, choose an `.obj` file in the panel, look at the selected im
 objects and undo them. The same applies to File > Export All and Export Selection (default
 name `untitled.obj`, `.obj` appended, occupied destination refused). The step list lives in
 `known-issues.md`; nothing here is a Maya comparison.
+
+## Linux native Scale handle drags (#36)
+
+Ran the Linux x86_64 debug build at `2d65489c1fb3a595e9cd658555bcbfa813f2ae06` on an isolated 1440 x 900 X11/Xvfb window. Created an unrotated default cube, pressed R and used the default World orientation with Step Snap off. Dragging the X axis box changed only Scale X to approximately 1.78. One keyboard Undo restored X, Y and Z to 1 in the Channel Box. Dragging the center box changed all three displayed scales to 2.08. One Undo again restored all three to 1. Screenshots of both drags and both restored states were reviewed locally.
+
+The focused core Scale suite passed 136 tests. The desktop Scale filter with `mcp-test-client` passed 64 tests and skipped one GPU-dependent test. [Maya 2027.2 Scale Objects and Components](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-09D0E733-74DF-44E2-937A-C857001E45B2.htm) documents R, axis-box dragging and uniform center-box dragging. This run covers those native gestures on the synthetic cube without a Maya runtime comparison.
