@@ -181,6 +181,7 @@ mod official_client {
 
     mod component_move;
     mod create_uvs;
+    mod naming;
     mod pointer_hit;
     mod primitive_options;
     mod recovery;
