@@ -199,5 +199,10 @@ fn whole_frame(value: f64) -> Result<i64, PlayblastError> {
     Ok(value as i64)
 }
 
+mod writer;
+pub use writer::{encode_png, install_frame};
+
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod writer_tests;
