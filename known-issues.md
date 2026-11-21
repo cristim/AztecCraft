@@ -2072,7 +2072,13 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
 - The end-to-end `headless_gpu_playblast_*` Editor tests (real `WgpuFrameRenderer`, PNGs read back) do not cover the
   native window or its surface and colour management, frames larger than 128 x 128 (sizes 64 x 48, 100 x 60 and
   128 x 128 only), a second adapter family (exact equality is asserted only between renders on one adapter, analytic
-  checks use +-2), or the camera image plane, which is not drawn into playblasts yet. Esc and the menu are unchecked.
+  checks use +-2), or an image plane over a camera other than the default film back. Esc and the menu are unchecked.
+- The camera image plane is drawn into playblasts (PROVISIONAL, no Maya comparison): the plate is scene content, so
+  `show_ornaments` does not affect it; a sequence shows `frame + frame_offset`; the plate is placed by `plate_quad` at the
+  output aspect (the film gate is fitted into the output as in the viewport); a frame with no file renders without a plate
+  and the job continues; an unreadable frame or a failed plate upload stops the job with `playblast_render`. Frames are
+  decoded synchronously on the UI tick. The plane is snapshotted at the start. Wireframe on shaded (#48, #49) and movie
+  containers remain open.
 
 ## Viewport View menu rows: the stale-token guard is tested only for Remove Image Plane
 

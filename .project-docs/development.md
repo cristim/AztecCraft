@@ -663,7 +663,9 @@ viewport_renderer::tests::headless_gpu_grid_callback_clears_cold_and_warm_empty_
 suite remains part of the explicit `headless_gpu` command above. The playblast
 proofs are `headless_gpu_playblast_*` (frame renderer, readback padding, and
 `app::features::playblast::gpu_tests` for the Editor running a real job and a
-mid-job cancel); the same `headless_gpu` command and CI job pick them up. Native clicks,
+mid-job cancel, and `app::features::playblast_plate::gpu_tests` for the image plane in
+playblast frames: per-frame plates, the frame offset, occlusion, exact equality with the viewport's own plate render, a
+missing frame and a corrupt one); the same `headless_gpu` command and CI job pick them up. Native clicks,
 window resize, file retention and the eventual Face integration need their own
 exact-build evidence; a passing adapter test does not supply it.
 
