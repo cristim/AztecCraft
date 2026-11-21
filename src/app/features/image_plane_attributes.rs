@@ -213,15 +213,10 @@ impl Editor {
                 read_only_row(ui, "Image Number", number);
                 read_only_row(ui, "Image Size", &format!("{} x {} pixels", size.0, size.1));
                 read_only_row(ui, "Resolved Frame", &resolved_frame_text(&report));
-                ui.label("Fit to");
+                // A read-only value, not a choice: every fit uses the film gate today.
+                read_only_row(ui, "Fit to", "Film Gate");
+                ui.label("");
                 ui.horizontal(|ui| {
-                    // A read-only selected value, not a choice: every fit uses the film gate today.
-                    let film = ui.label(egui::RichText::new("Film Gate").strong());
-                    ui.ctx().accesskit_node_builder(film.id, |node| {
-                        node.set_role(egui::accesskit::Role::RadioButton);
-                        node.set_label("Film Gate");
-                        node.set_toggled(egui::accesskit::Toggled::True);
-                    });
                     let gate = ui
                         .add_enabled(false, egui::Button::new("Resolution Gate"))
                         .on_disabled_hover_text(RESOLUTION_GATE_REASON);
