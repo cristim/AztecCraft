@@ -181,3 +181,6 @@ pub fn quad_vertex_bytes(quad: &PlateQuad) -> Result<[u8; QUAD_BYTES], PlateUplo
     }
     Ok(out)
 }
+
+#[cfg(test)]
+mod tests;
