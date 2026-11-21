@@ -6,8 +6,8 @@ use azteccraft::{
     move_handles::ManipulatorSize,
     native_scene::{
         EdgeTarget, FaceTarget, GroupOptions, MoveSpace, NativeError, NativeId, RotateAxis,
-        RotateSpace, ScaleHandle, ScaleSpace, TransformTarget, UngroupOptions, VertexSetTarget,
-        VertexTarget, WorldAxis,
+        RotateSpace, ScaleHandle, ScaleSpace, TransformChannels, TransformTarget, UngroupOptions,
+        VertexSetTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
     viewport::{FilmBackEdit, InvalidCameraInput, InvalidCameraPose, InvalidFilmBack, NdcRect},
@@ -752,6 +752,29 @@ pub enum Operation {
         /// The `selection_generation` the caller inspected. With several objects selected a remote
         /// caller must pass it; a value that no longer matches is refused. A native caller acts on
         /// the current selection.
+        expected_selection_generation: Option<u64>,
+    },
+    /// Modify > Reset Transformations on the object selection: the chosen channels of every
+    /// selected object return to 0 (translate, rotate) or 1 (scale), as one "Reset Transformations"
+    /// undo step. Object and Hierarchy modes only.
+    #[cfg_attr(
+        not(any(test, feature = "mcp")),
+        expect(dead_code, reason = "first native caller is the Modify menu")
+    )]
+    ResetTransformations {
+        channels: TransformChannels,
+        /// The `selection_generation` the caller inspected; see `ResetPivots`.
+        expected_selection_generation: Option<u64>,
+    },
+    /// Modify > Freeze Transformations on the object selection: the chosen channels of each
+    /// selected object and everything below it are pushed into the meshes, as one "Freeze
+    /// Transformations" undo step. Object and Hierarchy modes only.
+    #[cfg_attr(
+        not(any(test, feature = "mcp")),
+        expect(dead_code, reason = "first native caller is the Modify menu")
+    )]
+    FreezeTransformations {
+        channels: TransformChannels,
         expected_selection_generation: Option<u64>,
     },
     /// Edit > Group on the object selection: the top-most selected objects become the children
@@ -1690,6 +1713,8 @@ pub enum OperationError {
     Pivot(NativeError),
     /// A group, ungroup, parent or unparent the core refused; the MCP layer reports a typed code.
     Reparent(NativeError),
+    /// A reset or freeze the core refused; the MCP layer reports a typed code.
+    Transform(NativeError),
     NoSelection,
     /// Edit > Repeat with no repeatable operation recorded in this session.
     NothingToRepeat,
@@ -1844,6 +1869,7 @@ impl fmt::Display for OperationError {
             Self::Keys(refusal) => refusal.native().fmt(f),
             Self::Pivot(error) => error.fmt(f),
             Self::Reparent(error) => error.fmt(f),
+            Self::Transform(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face first"),
             Self::NothingToRepeat => f.write_str("No repeatable command yet"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),

@@ -594,6 +594,16 @@ impl Editor {
                 "Pivot reset on {noun} selection is unsupported; switch to Object or Hierarchy selection"
             )));
         }
+        if let Some(noun) = self.selection_mode.component_noun()
+            && matches!(
+                operation,
+                Operation::ResetTransformations { .. } | Operation::FreezeTransformations { .. }
+            )
+        {
+            return Err(OperationError::InvalidInput(format!(
+                "Reset and Freeze Transformations on {noun} selection are unsupported; switch to Object or Hierarchy selection"
+            )));
+        }
         self.guard_move_dispatch(&operation, provenance)?;
         if self.files.is_closing() {
             return Err(OperationError::BusyEditing);
@@ -732,6 +742,8 @@ impl Editor {
                     | Operation::CloseUndoChunk
                     | Operation::SetPivots { .. }
                     | Operation::ResetPivots { .. }
+                    | Operation::ResetTransformations { .. }
+                    | Operation::FreezeTransformations { .. }
                     | Operation::Group { .. }
                     | Operation::Ungroup { .. }
                     | Operation::AssignSessionMaterial { .. }
@@ -1293,6 +1305,20 @@ impl Editor {
                 let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
                 Command::ResetPivots { ids, mode }
             }
+            Operation::ResetTransformations {
+                channels,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::ResetTransformations { ids, channels }
+            }
+            Operation::FreezeTransformations {
+                channels,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::FreezeTransformations { ids, channels }
+            }
             Operation::Group {
                 options,
                 expected_selection_generation,
@@ -1725,6 +1751,10 @@ impl Editor {
             command,
             Command::Reparent { .. } | Command::Group { .. } | Command::Ungroup { .. }
         );
+        let transform_command = matches!(
+            command,
+            Command::ResetTransformations { .. } | Command::FreezeTransformations { .. }
+        );
         let key_command = matches!(
             command,
             Command::SetKeys { .. }
@@ -1745,6 +1775,10 @@ impl Editor {
                 && let Some(refusal) = crate::editor_operations::KeysRefusal::from_native(&error)
             {
                 return OperationError::Keys(refusal);
+            }
+            if transform_command && error != azteccraft::native_scene::NativeError::BusyManipulation
+            {
+                return OperationError::Transform(error);
             }
             if reparent_command && error != azteccraft::native_scene::NativeError::BusyManipulation
             {
