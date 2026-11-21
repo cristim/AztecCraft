@@ -838,6 +838,8 @@ mod grid;
 #[cfg(test)]
 mod grid_tests;
 mod helix_soccer;
+#[cfg(test)]
+mod helix_soccer_tests;
 mod platonic;
 #[cfg(test)]
 mod platonic_tests;
