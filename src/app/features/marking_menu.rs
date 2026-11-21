@@ -288,9 +288,11 @@ impl Editor {
         match outcome {
             Outcome::Dispatch(target) => {
                 if let azteccraft::marking_menu::Resolved::Dispatch(action) = menu.resolve(target) {
-                    match action.intent() {
-                        Some(intent) => frame.intent = Some(intent),
-                        None => self.open_extrude_options(),
+                    match *action {
+                        MeshAction::SelectByRule(rule) => self.native_select_by_rule(rule),
+                        MeshAction::DeselectAll => self.deselect_all(),
+                        MeshAction::OpenExtrudeOptions => self.open_extrude_options(),
+                        mode => frame.intent = mode.intent(),
                     }
                 }
             }
@@ -392,3 +394,5 @@ mod edge_tests;
 mod layout_tests;
 #[cfg(test)]
 mod pass_tests;
+#[cfg(test)]
+mod select_list_tests;

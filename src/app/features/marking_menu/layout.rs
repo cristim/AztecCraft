@@ -1,7 +1,8 @@
 //! The mesh menu layout and its hit test: pure functions of the selection mode.
 
 use crate::app::SelectionModeIntent;
-use crate::editor_operations::SelectionMode;
+use crate::app::menus::SELECT_RULE_COMPONENT_REASON;
+use crate::editor_operations::{SelectRule, SelectionMode};
 use azteccraft::marking_menu::{DEAD_ZONE, Entry, Interaction, MarkingMenu, Target, Zone, zone_at};
 use eframe::egui::Rect;
 
@@ -12,6 +13,8 @@ pub(in crate::app) const DIAL_RADIUS: f32 = 110.0;
 pub(in crate::app) enum MeshAction {
     Mode(SelectionMode),
     OpenExtrudeOptions,
+    SelectByRule(SelectRule),
+    DeselectAll,
 }
 
 impl MeshAction {
@@ -21,6 +24,8 @@ impl MeshAction {
         match self {
             Self::Mode(_) => "set_selection_mode",
             Self::OpenExtrudeOptions => "extrude_face",
+            Self::SelectByRule(_) => "select_by_rule",
+            Self::DeselectAll => "deselect_all",
         }
     }
 
@@ -31,7 +36,7 @@ impl MeshAction {
             Self::Mode(SelectionMode::Vertex) => Some(SelectionModeIntent::Vertex),
             Self::Mode(SelectionMode::Edge) => Some(SelectionModeIntent::Edge),
             Self::Mode(SelectionMode::Face) => Some(SelectionModeIntent::Face),
-            Self::OpenExtrudeOptions => None,
+            Self::OpenExtrudeOptions | Self::SelectByRule(_) | Self::DeselectAll => None,
         }
     }
 }
@@ -78,7 +83,34 @@ pub(in crate::app) fn mesh_menu(
             "Inputs is not implemented yet",
         ));
     }
+    menu.list = select_list(mode);
     menu
+}
+
+/// The overflow list: the Select menu's rows that work (the same native callers as the Select
+/// menu), then rows that are visibly unsupported. In the component modes the rule rows are
+/// disabled with the Select menu's reason; Deselect All stays enabled, since it returns to
+/// Object mode. Original order, PROVISIONAL.
+fn select_list(mode: SelectionMode) -> Vec<Entry<MeshAction>> {
+    let rule = |label: &str, rule: SelectRule| {
+        if mode.is_component() {
+            Entry::disabled(label, SELECT_RULE_COMPONENT_REASON)
+        } else {
+            Entry::new(label, MeshAction::SelectByRule(rule))
+        }
+    };
+    let unsupported =
+        |label: &str| Entry::unsupported(label, format!("{label} is not implemented yet"));
+    vec![
+        rule("Select All", SelectRule::All),
+        rule("Select Hierarchy", SelectRule::Hierarchy),
+        rule("Invert Selection", SelectRule::Inverse),
+        Entry::new("Deselect All", MeshAction::DeselectAll),
+        unsupported("Select Similar"),
+        unsupported("Make Live"),
+        unsupported("Metadata"),
+        unsupported("Assign Material"),
+    ]
 }
 
 /// The entry under `pos` for a sticky menu opened at `origin`: a zone with an entry, inside the

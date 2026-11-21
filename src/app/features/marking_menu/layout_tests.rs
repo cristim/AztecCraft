@@ -93,6 +93,8 @@ fn every_menu_action_names_a_registered_mcp_tool() {
         MeshAction::Mode(SelectionMode::Vertex),
         MeshAction::Mode(SelectionMode::Object),
         MeshAction::OpenExtrudeOptions,
+        MeshAction::SelectByRule(crate::editor_operations::SelectRule::All),
+        MeshAction::DeselectAll,
     ] {
         assert!(
             tools.contains(&action.mcp_tool()),
