@@ -498,6 +498,9 @@ fn material_edit_id() -> egui::Id {
 mod film_back_tests;
 
 #[cfg(test)]
+mod image_plane_tests;
+
+#[cfg(test)]
 pub(in crate::app) mod overlay_gate_tests;
 
 #[cfg(test)]
