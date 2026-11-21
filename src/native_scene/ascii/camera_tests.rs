@@ -145,3 +145,189 @@ fn an_explicit_default_statement_is_kept_and_a_reset_removes_it() {
         .unwrap();
     assert_eq!(reset, NativeScene::default());
 }
+
+const PREFIX: &str = "//Maya ASCII 2026 scene\nrequires maya \"2026\";\ncurrentUnit -l centimeter -a degree -t film;\nfileInfo \"AztecCraft\" \"1\";\n";
+
+fn complete_block(shape: &str) -> String {
+    let mut scene = NativeScene::default();
+    scene.state_camera_film_back(SceneCamera::Persp, FilmBack::DEFAULT);
+    let text = String::from_utf8(emit_geometry_prefix(&scene).unwrap()).unwrap();
+    text.replace("perspShape", shape)
+}
+
+#[test]
+fn malformed_partial_and_invalid_camera_statements_are_refused() {
+    let complete = complete_block("perspShape");
+    assert!(decode(Arc::from(complete.clone().into_bytes())).is_ok());
+    let without = |attribute: &str| {
+        complete
+            .lines()
+            .filter(|line| !line.contains(&format!("\".{attribute}\"")))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n"
+    };
+    let with = |from: &str, to: &str| {
+        let changed = complete.replace(from, to);
+        assert_ne!(changed, complete, "{from}");
+        changed
+    };
+    use ErrorKind::{Malformed, Unsupported};
+    let cases = [
+        ("missing hfa", without("hfa"), Unsupported),
+        ("missing fro", without("fro"), Unsupported),
+        (
+            "duplicate fl",
+            format!("{complete}\tsetAttr \".fl\" 40;\n"),
+            Unsupported,
+        ),
+        (
+            "duplicate hfa",
+            format!("{complete}\tsetAttr \".hfa\" 2;\n"),
+            Unsupported,
+        ),
+        ("fit 4", with("\".ff\" 0;", "\".ff\" 4;"), Unsupported),
+        ("fit -1", with("\".ff\" 0;", "\".ff\" -1;"), Unsupported),
+        ("fit float", with("\".ff\" 0;", "\".ff\" 1.5;"), Malformed),
+        ("zero focal", with("\".fl\" 35;", "\".fl\" 0;"), Malformed),
+        (
+            "negative squeeze",
+            with("\".lsr\" 1;", "\".lsr\" -1;"),
+            Malformed,
+        ),
+        (
+            "huge scale",
+            with("\".psc\" 1;", "\".psc\" 1e300;"),
+            Malformed,
+        ),
+        (
+            "not a number",
+            with("\".fl\" 35;", "\".fl\" nan;"),
+            Malformed,
+        ),
+        ("word", with("\".fl\" 35;", "\".fl\" thirty;"), Malformed),
+        (
+            "gate word",
+            with("\".dfg\" no;", "\".dfg\" maybe;"),
+            Malformed,
+        ),
+        (
+            "typed",
+            with("\".fl\" 35;", "-type \"double\" \".fl\" 35;"),
+            Unsupported,
+        ),
+        ("size", with("\".fl\" 35;", "-s 1 \".fl\" 35;"), Unsupported),
+        (
+            "unknown attribute",
+            format!("{complete}\tsetAttr \".shakeEnabled\" 1;\n"),
+            Unsupported,
+        ),
+        ("unknown shape", complete_block("unknownShape"), Unsupported),
+    ];
+    for (name, source, kind) in cases {
+        let refused = decode(Arc::from(source.into_bytes())).expect_err(name);
+        assert_eq!(refused.kind, kind, "{name}");
+    }
+}
+
+#[test]
+fn a_radian_file_refuses_the_plain_roll_unit() {
+    let source = complete_block("perspShape").replace("-a degree", "-a radian");
+    let refused = decode(Arc::from(source.into_bytes())).unwrap_err();
+    assert_eq!(refused.kind, ErrorKind::Unsupported);
+}
+
+#[test]
+fn an_unknown_roll_order_blocks_the_camera_and_the_source_keeps_it() {
+    let source = complete_block("perspShape").replace("\".fro\" 0;", "\".fro\" 7;");
+    let bytes: Arc<[u8]> = Arc::from(source.into_bytes());
+    let scene = decode(bytes.clone()).unwrap();
+    assert!(!scene.camera_projection_available(SceneCamera::Persp));
+    assert!(scene.camera_projection_available(SceneCamera::Top));
+    assert!(
+        scene
+            .camera_film_back(SceneCamera::Persp)
+            .same_bits(&FilmBack::DEFAULT)
+    );
+    let kept = scene.source.as_ref().unwrap();
+    assert!(
+        kept.bytes
+            .windows(b"\".fro\" 7;".len())
+            .any(|w| w == b"\".fro\" 7;")
+    );
+    // A mesh-free file stays readable and read-only: the gate cannot re-emit a blocked camera.
+    assert!(matches!(
+        decode_document(bytes, true),
+        Ok(AsciiDecoded::Retained(_))
+    ));
+}
+
+#[test]
+fn a_blocked_camera_refuses_edits_and_the_writer() {
+    let mut scene = NativeScene::default();
+    scene.block_camera(SceneCamera::Side);
+    assert_eq!(
+        scene.set_camera_film_back(SceneCamera::Side, film(0)),
+        Err(NativeError::BlockedCamera)
+    );
+    assert_eq!(
+        emit_geometry_prefix(&scene).unwrap_err(),
+        AsciiWriteRefusal::CameraBlocked
+    );
+    scene
+        .set_camera_film_back(SceneCamera::Top, film(1))
+        .unwrap();
+}
+
+#[test]
+fn a_mesh_file_with_an_unknown_roll_order_is_refused() {
+    let (mut scene, _) = test_fixtures::cube();
+    scene
+        .set_camera_film_back(SceneCamera::Persp, film(0))
+        .unwrap();
+    let bytes = emit_geometry_prefix(&scene).unwrap();
+    let changed = String::from_utf8(bytes)
+        .unwrap()
+        .replace("\".fro\" 0;", "\".fro\" 9;");
+    // The gate cannot re-emit a blocked camera, and a mesh file is never retained read-only:
+    // only a mesh-free file keeps its source bytes (see known-issues).
+    assert!(matches!(
+        decode_document(Arc::from(changed.into_bytes()), true),
+        Err(AsciiDocumentError::Ascii(AsciiError {
+            kind: ErrorKind::Unsupported,
+            ..
+        }))
+    ));
+}
+
+#[test]
+fn the_default_camera_form_of_a_maya_file_reads_a_complete_block_into_the_store() {
+    // The Maya form: the shared camera transform and shape, then the attributes.
+    let block = complete_block("perspShape");
+    let attributes: String = block.lines().skip(5).collect::<Vec<_>>().join("\n");
+    let source = format!(
+        "{PREFIX}createNode transform -s -n \"persp\";\ncreateNode camera -s -n \"perspShape\" -p \"persp\";\n{attributes}\n"
+    );
+    match decode(Arc::from(source.into_bytes())) {
+        Ok(scene) => assert!(
+            scene
+                .camera_film_back(SceneCamera::Persp)
+                .same_bits(&FilmBack::DEFAULT)
+        ),
+        Err(error) => panic!("{error:?}"),
+    }
+}
+
+#[test]
+fn a_default_camera_that_states_only_its_focal_length_keeps_its_old_meaning() {
+    let source = format!(
+        "{PREFIX}createNode transform -s -n \"persp\";\ncreateNode camera -s -n \"perspShape\" -p \"persp\";\n\tsetAttr \".fl\" 34.999999999999993;\n"
+    );
+    let scene = decode(Arc::from(source.into_bytes())).unwrap();
+    assert!(
+        scene
+            .camera_film_back(SceneCamera::Persp)
+            .same_bits(&FilmBack::DEFAULT)
+    );
+    assert!(scene.camera_projection_available(SceneCamera::Persp));
+}

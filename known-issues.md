@@ -543,11 +543,25 @@ film, so an overscan below 1 also widens. When the widening cannot converge (rou
 extreme coordinates, or more than 1000 times the sphere distance) the framing silently keeps the
 sphere distance and may leave points outside the view; nothing reports it yet. `NativeScene` also holds per-camera film back overrides (#458 S2a). The store is independent of
 the live viewport lens that `set_camera_film_back` edits, so the two can differ until the editor
-wires them together (S2b); nothing writes the store yet, the authored `.ma` and `.mb` writers
-refuse a scene that holds an override (`camera_override`), and an opened file refuses the edit,
-until persistence lands. The persistence slices must tell an explicit statement of the default
-values in a file from an unstated camera: the store drops an override equal to the defaults, so
-saving would otherwise lose a file's explicit statement. Only the MCP `set_camera_film_back` edits
+wires them together (S2b); nothing writes the store yet and an opened file refuses the edit. The
+authored `.ma` writer saves each override as a `select -ne :<camera>Shape;` block of 19 `setAttr`
+lines (`fl hfa vfa ff ffo hfo vfo lsr ovr cs psc ptsc frv dfg fth ftv hrp vrp fro`, degrees for
+`frv`, exact f64) and the reader reads only a complete block, keeping an explicit default as
+stated. The short names and the `ff` ids 0 to 3 (fill, horizontal, vertical, overscan) are from
+the Maya camera node page; the `fro` ids (0 rotate-translate, 1 translate-rotate) are not on it,
+and Maya's acceptance of the `select -ne` form is unverified, all PROVISIONAL. S2b (wiring the
+editor to the store) stays blocked until Maya accepts the block and the `fro` ids are verified.
+A PARTIAL block refuses the whole file (`unsupported`): real Maya writes only the attributes
+that differ from the node defaults, so a Maya file whose camera has an edited film back and does
+not state all 19 attributes does not open. That is no regression (those attributes were already
+refused), and a follow-up should preserve a partial block as unknown source data instead (with
+the .mb work, S2d and S2e). The block always states `ff`, so the viewport Fill default (the page
+lists the node default as horizontal; see row 25) never decides a stated camera. An out-of-range
+fit id, a duplicate, an invalid value or a radian file also refuses the file. An unknown `fro` id
+blocks the camera: a mesh-free file stays readable and read-only with its source bytes, but a
+mesh file with one is refused (the authored gate cannot re-emit it and a mesh file is never
+retained read-only), so "the source keeps it" holds for mesh-free files only. The `.mb` writer
+still refuses an override (`camera_override`, slice S2d). Only the MCP `set_camera_film_back` edits
 the film back; the Attribute Editor Camera tab (#458) is not built, so no native control exists. Every film formula, the Fill threshold, the Fill default and treating the viewport
 aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
