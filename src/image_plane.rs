@@ -3,6 +3,7 @@
 
 pub mod cache;
 pub mod decode;
+pub mod draw;
 pub mod fit;
 pub mod model;
 pub mod ops;
