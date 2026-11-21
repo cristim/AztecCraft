@@ -117,6 +117,8 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `create_joint` | `parent_id`, `position`, `relative`, `radius`, `name`: all optional | Created `node_id`, selected with its full path; `nodes[].joint.radius` in inspection; refusal `unsupported_joint` for a non-joint parent, a singular parent or a radius outside above 0 through 1e6 (PROVISIONAL safety bound) |
 | `set_shading_mode` | `mode`: required, `"wireframe"` or `"smooth_shade_all"` | Changed or unchanged shading mode in this window's viewport |
 | `set_viewport_view` | `view`: required, `"persp"`, `"top"`, `"front"` or `"side"` | Changed or unchanged viewport camera view |
+| `inspect_display_layers` | no arguments | Named display layers with id, name, visibility, transform IDs and the current scene token |
+| `edit_display_layer` | scene token and tagged `edit` object | Create, assign, show/hide or delete a named session display layer |
 | `set_sidebar_panel_visibility` | `panel`: required, `"channel_box"` or `"attribute_editor"`; `visible`: required boolean | Changed or unchanged visibility of that sidebar panel in this window; the dock shows one panel, so showing one hides the other |
 | `select_attribute_editor_tab` | `tab`: required `{kind, id}`; `kind`: `"transform"`, `"shape"`, `"material"`, `"image_plane"` or `"camera"`; `id`: decimal id (the selected node for `transform`, a direct shape for `shape`; for `material` a direct shape with a saved Phong binding or, on an authored scene, a session material, which every authored shape has; `image_plane` takes no `id`, needs no selection and is refused when there is no image plane; `camera` takes no `id`, needs neither a selection nor a plane and always resolves) | Changed or unchanged Attribute Editor tab; refused as `invalid_input` unless `attribute_editor` is the active panel or when the tab does not resolve for the current selection |
 | `orbit_camera` | `radians`: two finite numbers, yaw and pitch deltas | Changed or unchanged camera; pitch clamps near the poles |
@@ -560,6 +562,7 @@ Nine verified tools establish the initial server foundation, not catch-up with e
 | Interactive camera orbit/pan/dolly | Three navigation tools use the same typed operations as native captured gestures; live camera state is inspectable |
 | Viewport Grid visibility | `set_grid_visibility` shares the checkable native Grid button's typed setter; `grid_visible` exposes the authoritative session state. Fixed grid only; options, global/additional panels and persistence are unsupported |
 | Viewport Shading (Wireframe, Smooth Shade All) | `set_shading_mode` shares the native Shading menu's typed setter; `shading` exposes the authoritative session state. Wireframe on Shaded, Use default material, Hardware Texturing and Use All Lights are visibly unsupported and have no tool or mode value |
+| Display Layer Editor (#61) | The Channel Box and Windows > General Editors expose the display layer controls. `edit_display_layer` edits the scene and `inspect_display_layers` reports membership and visibility. Playback, template/reference, layer colors, animation layers and saving layer state remain visibly unsupported. |
 | Status Line sidebar and selection toggles | The Channel Box and Attribute Editor toggles are supported through `set_sidebar_panel_visibility` (state in `inspect_scene` `sidebar_panels`); the Hierarchy (Root sub-mask only), Object and Component selection modes and the Vertex, Edge and Face component-type buttons use `set_selection_mode` (the tool's `face` mode is the MCP mapping for entering Face; the Status Line Component button instead keeps the current component mode and enters Face only from Object or Hierarchy; the type buttons are exclusive modes, not Maya mask toggles; there is no UV button). The menu-set selector (Modeling and Rigging) is supported through `set_menu_set` (state in `inspect_scene` `menu_set`); the other sets are not implemented. The selection mode menu (presets) is native-only, disabled, stateless and has no tool. Modeling Toolkit, HumanIK and Tool Settings are visibly unsupported and have no tool |
 | Attribute Editor panel, tabs and Ctrl+A | The panel (transform, direct shape, material and image plane tabs; Transform tab shares the Channel Box drafts and edits) is switched by `set_sidebar_panel_visibility` and its tab by `select_attribute_editor_tab`; state is `sidebar_panels.attribute_editor` and `attribute_editor_tab`. Transform and Diffuse edits use `edit_node`, `set_transform` and `set_material_diffuse`. An authored shape's material tab shows its session material (name, shading group, shape users, a non-interactive swatch of the raw linear colour; material 0 is the `standardSurface1` placeholder; Transparency, Ambient Color and Incandescence have R/G/B fields too but no viewport effect yet, PROVISIONAL); the same state is in `inspect_scene` `session_materials` and recolouring uses `set_session_material_color`. Pin Tab, connected-node tabs, Notes, Extra Attributes, Add/Show/Hide Attributes, Presets and the other attribute sections are visibly unsupported and have no tool; Ctrl+A is a native key event dispatching the same setter |
 | Session materials (#51) | `create_session_material`, `assign_session_material`, `set_session_material_color` and `set_session_material_attribute` use the shared typed operations and History commands. Session materials save to an authored `.ma` and reopen from it (the statement layout is PROVISIONAL, unchecked against Maya) and are refused as `.mb` with `save_unwritable` reason `session_materials` (undo it to save a `.mb`); Save of an Untitled scene returns `save_needs_path` first, and on Windows both return `save_unsupported`. They apply to shapes of scenes without a retained source (new scenes, legacy JSON and editor-authored saved documents); a scene with a retained source, such as an opened Maya file, refuses; whole-shape semantics cover every instance. Material ids are decimal table indices valid only at the current history position, because undo and redo can free and reuse them, so clients must never cache one across edits. `inspect_scene` reports `session_materials` (id, name, shading group, linear colour, `transparency`, `ambient_color` and `incandescence` (linear RGB, default black, stored only with no viewport effect, PROVISIONAL), editable, shape_count: the authored shapes that display it; entry 0 is `standardSurface1` on `initialShadingGroup`, modelled as a placeholder lambert colour with no type field, and later entries are lamberts) and each shape's `session_material` id, both empty or null on sourced scenes. Typed error codes: `unknown_session_material`, `invalid_session_color`, `initial_session_material_locked`, `unsupported_edit` (sourced scene), `read_only_format` (Maya ASCII), `unknown_shape`, `invalid_shape_list`, plus the shared `stale_scene`, `busy_editing` and `busy_manipulation`. Native UI: Rendering > Lighting/Shading assigns and its Material Attributes row shows the Attribute Editor on the material tab (the same `set_sidebar_panel_visibility` and `select_attribute_editor_tab` operations), and the Attribute Editor material tab shows the material (name, shading group, shape users and a swatch of the raw linear colour: no gamma and not the lit viewport colour; Maya swatch parity is PROVISIONAL). Native colour editing: three R/G/B fields in the material tab (Enter, the end of a slider drag or focus leaving the fields commits all three as one undo step through the same `SetSessionMaterialColor` command as `set_session_material_color`; Esc reverts; a pending native draft makes the remote tool `busy_editing`; material 0 is disabled with the reason "The initial material is locked", and a sourced scene shows the Phong section with no colour fields; each field has a slider, no colour chooser yet). The viewport shows the colour under the approximate default lighting only. This is a slice, not Maya material parity |
@@ -689,6 +692,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Viewport | Hardware Texturing, Use All Lights, Wireframe on Shaded, Use default material | unsupported | | | |
 | Snapping | Snap to grids for Move (MCP only; no Status Line button or X hotkey yet) | supported | `set_snap_mode` | `snap_to_grid`, `snap_spacing` | PROVISIONAL semantics |
 | Snapping | Snap to curves, points, projected center, view planes and surface (step snap for Rotate and Scale is supported, see the Tools rows) | unsupported | | | |
+| Scene | Authored-scene display layers and visibility | supported | `edit_display_layer`, `inspect_display_layers` | | |
 | Settings | Sidebar panel visibility (Channel Box, Attribute Editor, Ctrl+A) | supported | `set_sidebar_panel_visibility` | `sidebar_panels` | |
 | Settings | Attribute Editor tab | supported | `select_attribute_editor_tab` | `attribute_editor_tab` | |
 | Settings | Attribute Editor Pin Tab (disabled button) and read-only shape attributes | unsupported | | | |
@@ -696,7 +700,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Settings | Modeling Toolkit, HumanIK, Tool Settings panels, Animation and FX menu sets, selection presets | unsupported | | | |
 | Rigging | Create a session-only joint or chain; delete it through `delete_node` or `delete_selected` | supported | `create_joint` | `nodes.joint` | |
 | Settings | Preferences and Working Units | unsupported | | | |
-| Panels | Range Slider, Auto Key, tangents, Graph Editor, Dope Sheet, Layer Editor, Outliner filters | unsupported | | | |
+| Panels | Range Slider, Auto Key, tangents, Graph Editor, Dope Sheet, Animation Layers, Outliner filters | unsupported | | | |
 | Panels | Status line message text | supported | | `status_message` | |
 
 Outcome: the registered catalogue covers every implemented file, creation, selection, camera, tool, history, material, viewport and panel operation; no inventory row is marked `missing` now that #188 is closed. On Unix, new-scene Save As has a limited Maya ASCII `.ma` writer (#156); Maya acceptance is unverified and a reopened mesh `.ma` is editable and saveable in this editor. The catch-up stays open until the audited end-to-end inventory proves coverage. Issue #161 asks for camera pose: `inspect_scene` `camera` now also reports orientation (yaw/pitch), the vertical field of view and the clip planes. Restoring a saved view is now covered: `set_camera_pose` sets an absolute pose, and the native View > Default View row and Alt+Home dispatch `DefaultView`, also exposed as `default_camera_view`. Camera bookmarks (Maya's View > Bookmarks) remain a follow-up.
@@ -817,3 +821,28 @@ This source candidate includes native-event and official-SDK regression tests.
 Their execution, native framebuffer/desktop proof and current-parent publication
 remain separate completion gates until recorded below; source wiring alone is
 not verification.
+
+
+### Display layers (#61)
+
+`inspect_display_layers` returns `scene_token` and the named layers
+(`id`, `name`, `visible`, and the explicit member node IDs as decimal strings).
+Unlisted transforms belong to implicit layer 0. Use the current scene token and
+an `edit` payload with `edit_display_layer`:
+
+- `{"action":"create","members":[]}` creates an empty layer. Supply transform
+  node IDs to add those objects at creation.
+- `{"action":"assign","layer":1,"members":["2"]}` transfers those transforms
+  from their prior layers. Layer 0 moves the members to the default.
+- `{"action":"visibility","layer":1,"visible":false}` hides the layer.
+- `{"action":"delete","layer":1}` deletes the named layer and returns its members
+  to the default.
+
+Each change is undoable. The layer ID identifies the current layer and can be
+reused after it disappears, so refresh inspection after edits and undo.
+There are at most 32 named layers and 512 named-layer members in total.
+Membership is per transform and each instance uses the same visibility.
+Visibility inherits through transform ancestry. Local visibility is preserved.
+Inherited visibility affects view-based export as well as rendering and picking.
+Retained Maya scenes refuse edits. Save, Save As and recovery refuse while
+named layers exist. Delete the layers or undo their creation to write the scene.

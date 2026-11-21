@@ -182,6 +182,9 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
                 OperationError::Scene(NativeError::UnsupportedJoint(_)) => "unsupported_joint",
                 OperationError::Scene(NativeError::WorldOutOfRange) => "world_out_of_range",
+                OperationError::Scene(NativeError::InvalidDisplayLayer(_)) => {
+                    "invalid_display_layer"
+                }
                 OperationError::Scene(NativeError::InvalidFrame) => "invalid_frame",
                 OperationError::Scene(NativeError::InvalidPlaybackRange) => {
                     "invalid_playback_range"
@@ -974,10 +977,14 @@ mod tests {
                         | "get_recovery_status"
                         | "list_camera_bookmarks"
                         | "inspect_limits"
+                        | "inspect_display_layers"
                 ))
             );
             let args = match tool.name.as_ref() {
-                "inspect_scene" => json!({}),
+                "inspect_scene" | "inspect_display_layers" => json!({}),
+                "edit_display_layer" => {
+                    json!({"scene_token": token, "edit": {"action": "create", "members": []}})
+                }
                 "set_active_tool" => json!({"scene_token":token,"tool":"move"}),
                 "set_tool_space" => {
                     json!({"scene_token":token,"tool":"scale","space":"object"})

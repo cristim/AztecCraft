@@ -225,6 +225,7 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         Operation::ListCameraBookmarks
         | Operation::RecoveryStatus
         | Operation::InspectLimits
+        | Operation::InspectDisplayLayers
         | Operation::Inspect { .. }
         | Operation::InspectKeys { .. }
         | Operation::InspectUvs { .. }

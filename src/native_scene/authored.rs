@@ -48,6 +48,7 @@ pub(crate) enum AuthoredIneligible {
     SourcedScene,
     Curves,
     Joints,
+    DisplayLayers,
     Keys,
     /// A camera film back override: not saved to a Maya file yet (#458).
     CameraOverride,
@@ -112,6 +113,9 @@ pub(super) fn check_content_kind(
     }
     if scene.has_joints() {
         return Err(AuthoredIneligible::Joints);
+    }
+    if !scene.display_layers.is_empty() {
+        return Err(AuthoredIneligible::DisplayLayers);
     }
     if !scene.session_keys.is_empty() {
         return Err(AuthoredIneligible::Keys);

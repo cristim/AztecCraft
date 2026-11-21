@@ -1036,6 +1036,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::AutosaveNow,
         Operation::RecoveryStatus,
         Operation::InspectLimits,
+        Operation::InspectDisplayLayers,
+        Operation::EditDisplayLayer(azteccraft::native_scene::DisplayLayerEdit::Create {
+            members: Vec::new(),
+        }),
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
         Operation::SetView(crate::editor_operations::ViewPreset::Top),
         Operation::SetMenuSet {
@@ -2965,6 +2969,16 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             Operation::ListCameraBookmarks,
         )],
         Operation::InspectLimits => vec![sample("inspect_limits", Operation::InspectLimits)],
+        Operation::InspectDisplayLayers => vec![sample(
+            "inspect_display_layers",
+            Operation::InspectDisplayLayers,
+        )],
+        Operation::EditDisplayLayer(_) => vec![sample(
+            "edit_display_layer(create)",
+            Operation::EditDisplayLayer(azteccraft::native_scene::DisplayLayerEdit::Create {
+                members: Vec::new(),
+            }),
+        )],
         Operation::SetShadingMode(_) => vec![sample(
             "set_shading_mode(wireframe)",
             Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),

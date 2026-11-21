@@ -1605,7 +1605,7 @@ fn channel_box_lists_unsupported_sections_in_maya_order_without_changing_state()
         "INPUTS",
         "OUTPUTS",
         "Materials",
-        "Layers",
+        "Display Layers",
     ];
     for pair in order.windows(2) {
         assert!(y(pair[0]) < y(pair[1]), "{} before {}", pair[0], pair[1]);
@@ -1631,7 +1631,6 @@ fn channel_box_lists_unsupported_sections_in_maya_order_without_changing_state()
         names,
         [
             "INPUTS: not implemented yet",
-            "Layers: not implemented yet",
             "OUTPUTS: not implemented yet",
             "SHAPES: not implemented yet",
         ]
@@ -1700,42 +1699,10 @@ fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
     let delete = visible_text_rects(&output, "Delete selected");
     assert!(!delete.is_empty(), "Delete unreachable");
     assert!(
-        !visible_text_rects(&output, "Layers").is_empty(),
+        !visible_text_rects(&output, "Display Layers").is_empty(),
         "Layers unreachable"
     );
-    let stub = output
-        .platform_output
-        .accesskit_update
-        .as_ref()
-        .unwrap()
-        .nodes
-        .iter()
-        .find(|(_, node)| node.label() == Some("Layers: not implemented yet"))
-        .and_then(|(_, node)| node.bounds())
-        .map(|b| {
-            egui::Rect::from_min_max(
-                egui::pos2(b.x0 as f32, b.y0 as f32),
-                egui::pos2(b.x1 as f32, b.y1 as f32),
-            )
-        })
-        .expect("Layers stub");
-    // The stub's own label reads the same, so the tooltip is the extra copy that appears on hover.
-    let label_copies = visible_text_rects(&output, "Not implemented yet").len();
-    let mut tooltip = false;
-    for step in 0..8 {
-        let mut input = egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
-            time: Some(10.0 + f64::from(step) * 0.25),
-            events: vec![egui::Event::PointerMoved(stub.center())],
-            ..Default::default()
-        };
-        if let Some(viewport) = input.viewports.get_mut(&egui::ViewportId::ROOT) {
-            viewport.native_pixels_per_point = Some(1.0);
-        }
-        let hovered = ctx.run_ui(input, |ui| editor.render(ui));
-        tooltip |= visible_text_rects(&hovered, "Not implemented yet").len() > label_copies;
-    }
-    assert!(tooltip, "Layers stub tooltip not painted");
+    assert!(!visible_text_rects(&output, "Layers").is_empty());
     let at = delete[0].center();
     frame_with(
         &mut editor,
@@ -1768,7 +1735,10 @@ fn channel_box_is_blank_with_nothing_selected() {
     editor.select(None);
     assert!(editor.single_target().is_err());
     let (text, _) = channel_box_text(&mut editor);
-    assert_eq!(text, "Channel Box|Layers|Not implemented yet");
+    assert_eq!(
+        text,
+        "Channel Box|Display Layers|Layers|Playback, Display Type and Color|Animation Layers"
+    );
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("curve.ma");
     std::fs::write(&path, ascii_fixture::specimen()).unwrap();

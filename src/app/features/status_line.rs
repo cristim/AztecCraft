@@ -106,7 +106,7 @@ const SIDEBAR_TOGGLES: [StripButton; 5] = [
     StripButton {
         label: "Channel Box / Layer Editor",
         icon: UiIcon::SidebarChannelBox,
-        hover: "Show or hide the Channel Box (Layer Editor: not implemented yet)",
+        hover: "Show or hide the Channel Box and Display Layer Editor",
         panel: Some(SidebarPanel::ChannelBox),
     },
 ];
@@ -120,7 +120,7 @@ impl Editor {
     }
 
     /// What keeps a session display switch from applying now, if anything.
-    fn display_switch_refusal(&self) -> Option<&'static str> {
+    pub(in crate::app) fn display_switch_refusal(&self) -> Option<&'static str> {
         if self.files.is_closing() {
             Some(CLOSING_REASON)
         } else if self.files.is_modal() {

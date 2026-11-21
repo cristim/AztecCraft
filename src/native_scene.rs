@@ -6,6 +6,7 @@ pub mod binary;
 mod camera;
 mod component_move;
 mod curve;
+mod display_layers;
 mod group;
 mod import;
 mod manipulator_frame;
@@ -19,6 +20,7 @@ mod reparent;
 mod rotate_frame;
 mod scale_frame;
 mod session_joint;
+pub use display_layers::{DisplayLayer, DisplayLayerEdit, MAX_DISPLAY_LAYER_MEMBERS};
 mod session_keys;
 mod session_material;
 mod session_uv;
@@ -622,6 +624,7 @@ pub struct NativeScene {
     session_joints: SessionJoints,
     session_keys: SessionKeys,
     session_uvs: SessionUvs,
+    display_layers: std::collections::BTreeMap<u32, DisplayLayer>,
     /// Film back overrides of the built-in cameras (#458); not persisted yet.
     cameras: CameraStore,
     /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
@@ -787,6 +790,7 @@ impl PartialEq for NativeScene {
             && self.session_joints == other.session_joints
             && self.session_keys == other.session_keys
             && self.session_uvs == other.session_uvs
+            && self.display_layers == other.display_layers
             && self.cameras == other.cameras
             && self.removed == other.removed
     }
@@ -807,6 +811,7 @@ impl Default for NativeScene {
             session_joints: SessionJoints::default(),
             session_keys: SessionKeys::default(),
             session_uvs: SessionUvs::default(),
+            display_layers: Default::default(),
             cameras: CameraStore::default(),
             removed: Vec::new(),
             references: Vec::new(),
@@ -1239,7 +1244,7 @@ impl NativeScene {
             if !node.unsupported_transform.is_empty() {
                 return Err(NativeError::UnsupportedView("unproved transform effects"));
             }
-            visible &= node.view.visible()?;
+            visible &= node.view.visible()? && self.layer_member_visible(node.transform_id);
         }
         Ok(GeometryViewAdmission {
             visible,
@@ -1268,7 +1273,7 @@ impl NativeScene {
             if !node.unsupported_transform.is_empty() {
                 return Err(NativeError::UnsupportedView("unproved transform effects"));
             }
-            visible &= node.view.visible()?;
+            visible &= node.view.visible()? && self.layer_member_visible(node.transform_id);
         }
         Ok(visible)
     }
@@ -2385,6 +2390,7 @@ pub enum NativeError {
     InvalidShapeList(&'static str),
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
+    InvalidDisplayLayer(&'static str),
     InvalidSessionJoints,
     UnsupportedJoint(JointUnsupported),
     /// An edit that leaves a node's world geometry outside the range the view draws in (f32).
@@ -2497,6 +2503,7 @@ impl fmt::Display for NativeError {
             Self::SessionColorOutOfRange => {
                 f.write_str("session material colour channels must be within 0 through 1")
             }
+            Self::InvalidDisplayLayer(reason) => f.write_str(reason),
             Self::InvalidSessionMaterials => {
                 f.write_str("invalid session material table references")
             }

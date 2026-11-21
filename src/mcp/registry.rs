@@ -1,7 +1,7 @@
 use super::features::{
-    animation, camera_bookmarks, extrude, file, group, history, image_plane, inspect, manipulation,
-    material, move_vertices, naming_ops, node_edit, pivots, playblast, recovery, reduce, rigging,
-    selection, status_line, transform_ops, uv, view,
+    animation, camera_bookmarks, display_layers, extrude, file, group, history, image_plane,
+    inspect, manipulation, material, move_vertices, naming_ops, node_edit, pivots, playblast,
+    recovery, reduce, rigging, selection, status_line, transform_ops, uv, view,
 };
 use crate::editor_operations::{MAX_NAME_BYTES, RemoteRequest};
 use rmcp::model::{ErrorData, JsonObject, Tool, ToolAnnotations};
@@ -35,6 +35,7 @@ const FEATURES: &[&[ToolSpec]] = &[
     animation::TOOLS,
     uv::TOOLS,
     material::TOOLS,
+    display_layers::TOOLS,
     history::TOOLS,
     view::TOOLS,
     image_plane::TOOLS,
