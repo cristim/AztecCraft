@@ -96,6 +96,10 @@
   create(pyramid,invalid sides) => Err(Scene: invalid primitive options: number_of_sides must be a whole number from 3 to 128) | no state change
   create(prism,6 sides) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPrism1; name_field: "pCube1" -> "pPrism1"; can_redo: true -> false
   create(prism,invalid length) => Err(Scene: invalid primitive options: length must be finite and between 0.000001 and 1000000) | no state change
+  create(helix,2 coils) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pHelix1; name_field: "pCube1" -> "pHelix1"; can_redo: true -> false
+  create(helix,invalid coils) => Err(Scene: invalid primitive options: coils must be finite and between 0.000001 and 1000000) | no state change
+  create(soccer ball,side 2) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSoccerBall1; name_field: "pCube1" -> "pSoccerBall1"; can_redo: true -> false
+  create(soccer ball,invalid side) => Err(Scene: invalid primitive options: side_length must be finite and between 0.000001 and 1000000) | no state change
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | no state change
@@ -333,6 +337,10 @@
   create(pyramid,invalid sides) => Err(Scene: invalid primitive options: number_of_sides must be a whole number from 3 to 128) | no state change
   create(prism,6 sides) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPrism1; name_field: "pCube1" -> "pPrism1"; can_redo: true -> false
   create(prism,invalid length) => Err(Scene: invalid primitive options: length must be finite and between 0.000001 and 1000000) | no state change
+  create(helix,2 coils) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pHelix1; name_field: "pCube1" -> "pHelix1"; can_redo: true -> false
+  create(helix,invalid coils) => Err(Scene: invalid primitive options: coils must be finite and between 0.000001 and 1000000) | no state change
+  create(soccer ball,side 2) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSoccerBall1; name_field: "pCube1" -> "pSoccerBall1"; can_redo: true -> false
+  create(soccer ball,invalid side) => Err(Scene: invalid primitive options: side_length must be finite and between 0.000001 and 1000000) | no state change
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | no state change
@@ -564,6 +572,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -785,6 +797,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1006,6 +1022,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1227,6 +1247,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1448,6 +1472,10 @@
   create(pyramid,invalid sides) => Err(Scene: invalid primitive options: number_of_sides must be a whole number from 3 to 128) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(prism,6 sides) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPrism1; name_field: "pCube1" -> "pPrism1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(prism,invalid length) => Err(Scene: invalid primitive options: length must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create(helix,2 coils) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pHelix1; name_field: "pCube1" -> "pHelix1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(helix,invalid coils) => Err(Scene: invalid primitive options: coils must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create(soccer ball,side 2) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSoccerBall1; name_field: "pCube1" -> "pSoccerBall1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(soccer ball,invalid side) => Err(Scene: invalid primitive options: side_length must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1669,6 +1697,10 @@
   create(pyramid,invalid sides) => Err(Scene: invalid primitive options: number_of_sides must be a whole number from 3 to 128) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(prism,6 sides) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPrism1; name_field: "pCube1" -> "pPrism1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(prism,invalid length) => Err(Scene: invalid primitive options: length must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create(helix,2 coils) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pHelix1; name_field: "pCube1" -> "pHelix1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(helix,invalid coils) => Err(Scene: invalid primitive options: coils must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create(soccer ball,side 2) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSoccerBall1; name_field: "pCube1" -> "pSoccerBall1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(soccer ball,invalid side) => Err(Scene: invalid primitive options: side_length must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1890,6 +1922,10 @@
   create(pyramid,invalid sides) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(prism,6 sides) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(prism,invalid length) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(helix,2 coils) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(helix,invalid coils) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(soccer ball,side 2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(soccer ball,invalid side) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,round caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,max cap subdivisions) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,over-budget caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2111,6 +2147,10 @@
   create(pyramid,invalid sides) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(prism,6 sides) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(prism,invalid length) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(helix,2 coils) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(helix,invalid coils) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(soccer ball,side 2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(soccer ball,invalid side) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,round caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,max cap subdivisions) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,over-budget caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2332,6 +2372,10 @@
   create(pyramid,invalid sides) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(prism,6 sides) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(prism,invalid length) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(helix,2 coils) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(helix,invalid coils) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(soccer ball,side 2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(soccer ball,invalid side) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,round caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,max cap subdivisions) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,over-budget caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2553,6 +2597,10 @@
   create(pyramid,invalid sides) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(prism,6 sides) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(prism,invalid length) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(helix,2 coils) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(helix,invalid coils) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(soccer ball,side 2) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(soccer ball,invalid side) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,round caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,max cap subdivisions) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder,over-budget caps) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2774,6 +2822,10 @@
   create(pyramid,invalid sides) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(prism,6 sides) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(prism,invalid length) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(helix,2 coils) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(helix,invalid coils) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(soccer ball,side 2) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(soccer ball,invalid side) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cylinder,round caps) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cone,max cap subdivisions) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cylinder,over-budget caps) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2995,6 +3047,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3217,6 +3273,10 @@
   create(pyramid,invalid sides) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(prism,6 sides) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(prism,invalid length) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(helix,2 coils) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(helix,invalid coils) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(soccer ball,side 2) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(soccer ball,invalid side) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3439,6 +3499,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3660,6 +3724,10 @@
   create(pyramid,invalid sides) => Err(Scene: invalid primitive options: number_of_sides must be a whole number from 3 to 128) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(prism,6 sides) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPrism1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPrism1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(prism,invalid length) => Err(Scene: invalid primitive options: length must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create(helix,2 coils) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pHelix1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pHelix1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
+  create(helix,invalid coils) => Err(Scene: invalid primitive options: coils must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create(soccer ball,side 2) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSoccerBall1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pSoccerBall1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
+  create(soccer ball,invalid side) => Err(Scene: invalid primitive options: side_length must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3881,6 +3949,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4102,6 +4174,10 @@
   create(pyramid,invalid sides) => Err(Scene: invalid primitive options: number_of_sides must be a whole number from 3 to 128) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(prism,6 sides) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPrism1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPrism1"; can_redo: true -> false
   create(prism,invalid length) => Err(Scene: invalid primitive options: length must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create(helix,2 coils) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pHelix1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pHelix1"; can_redo: true -> false
+  create(helix,invalid coils) => Err(Scene: invalid primitive options: coils must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create(soccer ball,side 2) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSoccerBall1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pSoccerBall1"; can_redo: true -> false
+  create(soccer ball,invalid side) => Err(Scene: invalid primitive options: side_length must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -4323,6 +4399,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4544,6 +4624,10 @@
   create(pyramid,invalid sides) => Err(Scene: invalid primitive options: number_of_sides must be a whole number from 3 to 128) | no state change
   create(prism,6 sides) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPrism1; name_field: "pCube1" -> "pPrism1"; can_redo: true -> false
   create(prism,invalid length) => Err(Scene: invalid primitive options: length must be finite and between 0.000001 and 1000000) | no state change
+  create(helix,2 coils) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pHelix1; name_field: "pCube1" -> "pHelix1"; can_redo: true -> false
+  create(helix,invalid coils) => Err(Scene: invalid primitive options: coils must be finite and between 0.000001 and 1000000) | no state change
+  create(soccer ball,side 2) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSoccerBall1; name_field: "pCube1" -> "pSoccerBall1"; can_redo: true -> false
+  create(soccer ball,invalid side) => Err(Scene: invalid primitive options: side_length must be finite and between 0.000001 and 1000000) | no state change
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | no state change
@@ -4765,6 +4849,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4986,6 +5074,10 @@
   create(pyramid,invalid sides) => Err(Scene: invalid primitive options: number_of_sides must be a whole number from 3 to 128) | no state change
   create(prism,6 sides) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPrism1; name_field: "pCube1" -> "pPrism1"; can_redo: true -> false
   create(prism,invalid length) => Err(Scene: invalid primitive options: length must be finite and between 0.000001 and 1000000) | no state change
+  create(helix,2 coils) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pHelix1; name_field: "pCube1" -> "pHelix1"; can_redo: true -> false
+  create(helix,invalid coils) => Err(Scene: invalid primitive options: coils must be finite and between 0.000001 and 1000000) | no state change
+  create(soccer ball,side 2) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSoccerBall1; name_field: "pCube1" -> "pSoccerBall1"; can_redo: true -> false
+  create(soccer ball,invalid side) => Err(Scene: invalid primitive options: side_length must be finite and between 0.000001 and 1000000) | no state change
   create(cylinder,round caps) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone,max cap subdivisions) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cylinder,over-budget caps) => Err(Scene: invalid primitive options: 32896 faces exceed the limit of 20000) | no state change
@@ -5207,6 +5299,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5428,6 +5524,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5655,6 +5755,10 @@
   create(pyramid,invalid sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,6 sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,invalid length) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,2 coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,invalid coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,side 2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,invalid side) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5876,6 +5980,10 @@
   create(pyramid,invalid sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,6 sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,invalid length) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,2 coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,invalid coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,side 2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,invalid side) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6097,6 +6205,10 @@
   create(pyramid,invalid sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,6 sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,invalid length) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,2 coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,invalid coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,side 2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,invalid side) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6318,6 +6430,10 @@
   create(pyramid,invalid sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,6 sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,invalid length) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,2 coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,invalid coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,side 2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,invalid side) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6539,6 +6655,10 @@
   create(pyramid,invalid sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,6 sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,invalid length) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,2 coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,invalid coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,side 2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,invalid side) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6760,6 +6880,10 @@
   create(pyramid,invalid sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,6 sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,invalid length) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,2 coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,invalid coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,side 2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,invalid side) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6981,6 +7105,10 @@
   create(pyramid,invalid sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,6 sides) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(prism,invalid length) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,2 coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(helix,invalid coils) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,side 2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(soccer ball,invalid side) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,round caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,max cap subdivisions) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder,over-budget caps) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7202,6 +7330,10 @@
   create(pyramid,invalid sides) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(prism,6 sides) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(prism,invalid length) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(helix,2 coils) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(helix,invalid coils) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(soccer ball,side 2) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(soccer ball,invalid side) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder,round caps) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone,max cap subdivisions) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder,over-budget caps) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -7423,6 +7555,10 @@
   create(pyramid,invalid sides) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(prism,6 sides) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(prism,invalid length) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(helix,2 coils) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(helix,invalid coils) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(soccer ball,side 2) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(soccer ball,invalid side) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder,round caps) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone,max cap subdivisions) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder,over-budget caps) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -7645,6 +7781,10 @@
   create(pyramid,invalid sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,6 sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,invalid length) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,2 coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,invalid coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,side 2) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,invalid side) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7867,6 +8007,10 @@
   create(pyramid,invalid sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,6 sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,invalid length) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,2 coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,invalid coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,side 2) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,invalid side) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8089,6 +8233,10 @@
   create(pyramid,invalid sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,6 sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,invalid length) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,2 coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,invalid coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,side 2) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,invalid side) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8311,6 +8459,10 @@
   create(pyramid,invalid sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,6 sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,invalid length) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,2 coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,invalid coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,side 2) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,invalid side) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8639,6 +8791,10 @@
   create(pyramid,invalid sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,6 sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,invalid length) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,2 coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,invalid coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,side 2) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,invalid side) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8861,6 +9017,10 @@
   create(pyramid,invalid sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,6 sides) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(prism,invalid length) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,2 coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(helix,invalid coils) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,side 2) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(soccer ball,invalid side) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,round caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,max cap subdivisions) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder,over-budget caps) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -9083,6 +9243,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -9305,6 +9469,10 @@
   create(pyramid,invalid sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,6 sides) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(prism,invalid length) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,2 coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(helix,invalid coils) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,side 2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(soccer ball,invalid side) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,round caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,max cap subdivisions) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder,over-budget caps) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -9439,4 +9607,4 @@
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 8826
+cells: 8994
