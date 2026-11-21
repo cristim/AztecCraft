@@ -3,6 +3,7 @@ use crate::app::*;
 impl Editor {
     pub(in crate::app) fn sync_fields(&mut self) {
         self.material_draft = None;
+        self.session_color_draft = None;
         self.channel_intents = [false; 9];
         self.pivot_intents = [false; 6];
         self.name_intent = false;
@@ -83,6 +84,9 @@ impl Editor {
                 intent: false,
                 focus: material_edit_id(),
             });
+        }
+        if let Some(shape) = self.material_shape {
+            self.session_color_draft = self.new_session_color_draft(shape);
         }
     }
     pub(in crate::app) fn create(&mut self, primitive: Primitive) {

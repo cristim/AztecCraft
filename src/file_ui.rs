@@ -445,6 +445,7 @@ impl Editor {
         self.name_intent = false;
         self.material_shape = None;
         self.material_draft = None;
+        self.session_color_draft = None;
         self.attribute_editor_tab = None;
         self.camera = camera;
         self.view_history = Default::default();

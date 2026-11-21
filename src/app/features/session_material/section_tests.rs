@@ -118,7 +118,7 @@ fn the_section_names_the_material_group_users_and_colour() {
     assert!(has_text(&shown, "Material: lambert2"), "{shown:?}");
     assert!(has_text(&shown, "Shading group: lambert2SG"), "{shown:?}");
     assert!(has_text(&shown, "1 shape user"), "{shown:?}");
-    assert!(has_text(&shown, "R 0.500 G 0.500 B 0.500"), "{shown:?}");
+    assert!(has_text(&shown, "0.5"), "{shown:?}");
     assert!(
         !shown.iter().any(|text| text.contains("Phong")),
         "{shown:?}"

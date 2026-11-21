@@ -305,7 +305,11 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
     expect(
         "history execute",
         ".execute(",
-        &["dispatch_operation_guarded", "commit_pending"],
+        &[
+            "dispatch_operation_guarded",
+            "commit_pending",
+            "commit_session_color_draft",
+        ],
     );
     // A time change writes evaluated channels with no undo entry. Dispatch re-evaluates after Undo
     // and Redo, and write_time serves set_current_time, play and the playback tick.

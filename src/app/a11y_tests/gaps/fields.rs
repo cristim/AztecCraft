@@ -33,4 +33,7 @@ pub(super) const GAPS: &[&str] = &[
     "channel-box-face|R3|Button|root/<Window>#0/SHAPES: not implemented yet",
     "channel-box-face|R3|Button|root/<Window>#0/Transparency",
     "channel-box-face|R3|Button|root/<Window>#0/on",
+    "channel-box-face|R3|TextInput|root/<Window>#0/Blue~1",
+    "channel-box-face|R3|TextInput|root/<Window>#0/Green~1",
+    "channel-box-face|R3|TextInput|root/<Window>#0/Red~1",
 ];

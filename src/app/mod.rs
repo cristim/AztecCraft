@@ -52,6 +52,17 @@ impl MaterialDraft {
     }
 }
 
+/// A pending R/G/B edit of one session material. It keeps the original id and colour so a commit
+/// refuses when either changed meanwhile (ids are reused after undo).
+struct SessionColorDraft {
+    scene_token: Uuid,
+    shape: NativeId,
+    material: azteccraft::native_scene::SessionMaterialId,
+    original: [f64; 3],
+    text: [String; 3],
+    intent: bool,
+}
+
 #[derive(Clone, Copy)]
 enum SelectionModeIntent {
     Toggle,
@@ -116,6 +127,7 @@ pub struct Editor {
     name_intent: bool,
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
+    session_color_draft: Option<SessionColorDraft>,
     primitive_options: features::primitive_options::PrimitiveOptionsUi,
     joint_options: features::rigging::JointOptionsUi,
     extrude_options: features::extrude_options::ExtrudeOptionsUi,
@@ -189,6 +201,7 @@ impl Default for Editor {
             name_intent: false,
             material_shape: None,
             material_draft: None,
+            session_color_draft: None,
             primitive_options: Default::default(),
             joint_options: Default::default(),
             extrude_options: Default::default(),
@@ -386,6 +399,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
         features::rotate_step::scale_step_field_id(),
     ]
     .into_iter()
+    .chain((0..3).map(features::colour_edit_id))
     .chain((0..9).map(channel_edit_id))
     .chain((0..6).map(pivot_edit_id))
     .chain(features::primitive_options::option_field_ids())

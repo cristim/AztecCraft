@@ -1863,6 +1863,10 @@ impl Editor {
         self.material_draft
             .as_ref()
             .is_some_and(MaterialDraft::changed)
+            || self
+                .session_color_draft
+                .as_ref()
+                .is_some_and(SessionColorDraft::changed)
             || self.has_channel_draft()
     }
     /// A name, channel or pivot draft. Pivot drafts share the channel guards, so the remote
@@ -1962,6 +1966,18 @@ impl Editor {
             self.status = OperationError::BusyManipulation.to_string();
             self.error = true;
             return false;
+        }
+        if self
+            .session_color_draft
+            .as_ref()
+            .is_some_and(SessionColorDraft::changed)
+        {
+            if self.has_channel_draft() {
+                self.status = "Finish the channel edit before editing material data".into();
+                self.error = true;
+                return false;
+            }
+            return self.commit_session_color_draft();
         }
         if self
             .material_draft

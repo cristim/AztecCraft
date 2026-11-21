@@ -4563,8 +4563,30 @@ fn face_native_pending_mode_prevents_keyboard_and_channel_object_delete() {
         let before = editor.history.scene().clone();
         let token = editor.scene_token;
         let ctx = egui::Context::default();
-        let output = frame(&mut editor, &ctx, vec![]);
+        frame(&mut editor, &ctx, vec![]);
         if button {
+            // The Channel Box embeds the material controls, so the button can sit below the fold.
+            let over_channel_box = egui::pos2(1300.0, 500.0);
+            frame(
+                &mut editor,
+                &ctx,
+                vec![egui::Event::PointerMoved(over_channel_box)],
+            );
+            frame(
+                &mut editor,
+                &ctx,
+                vec![egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -400.0),
+                    phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Unknown,
+                    modifiers: egui::Modifiers::NONE,
+                }],
+            );
+            for _ in 0..30 {
+                frame(&mut editor, &ctx, vec![]);
+            }
+            let output = frame(&mut editor, &ctx, vec![]);
             let position = face_text_position(&output, "Delete selected");
             face_pointer_click(
                 &mut editor,

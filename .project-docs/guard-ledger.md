@@ -171,6 +171,14 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   manipulation is `BusyManipulation`, and the core refuses a retained source (`UnsupportedEdit`, `ReadOnlyFormat`).
   The native entry point first resolves one object with one direct shape and refuses otherwise before dispatch
   (status line only, no operation). Matrix cells are the existing `assign_session_material(...)` ones.
+- Native session-material colour edits are a draft (`SessionColorDraft`: three R/G/B fields in the material tab). Typing commits nothing;
+  Enter, focus leaving the three fields or `commit_pending` runs one `Command::SetSessionMaterialColor` directly through history (the Diffuse arm's route, so
+  it cannot re-enter `commit_pending`), refusing when the document, the material id or the colour changed since the draft began.
+  `has_draft` includes it, so remote `SetSessionMaterialColor` and the other draft-guarded operations return `BusyEditing` and keep it.
+  Tab between the fields keeps the draft; Enter or focus leaving all three commits them as one step. Material 0 gets no draft (fields
+  disabled, reason as hover text); a sourced scene shows the Phong section, so no colour fields exist, and the draft constructor refuses it
+  with the core reason. Matrix cells are the existing
+  `set_session_material_color(...)` ones, unchanged.
 - Lighting/Shading > Material Attributes (`show_material_attributes` in the same file) dispatches `SetSidebarPanelVisible` then
   `SelectAttributeEditorTab` through `native_operation_result`, so both keep their own guards; it first resolves one object with one
   direct shape that has a material tab and refuses otherwise (status line only). View state only: never dirty, no scene-token change.

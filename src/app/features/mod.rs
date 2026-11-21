@@ -23,6 +23,7 @@ mod session_material;
 
 pub(in crate::app) use group_edit::{GROUP_OPTIONS_REASON, UNGROUP_OPTIONS_REASON, group_chord};
 pub(in crate::app) use node_edit::NameStyle;
+pub(in crate::app) use session_material::colour_edit_id;
 pub(in crate::app) mod marquee;
 pub(in crate::app) mod primitive_options;
 pub(in crate::app) mod rigging;

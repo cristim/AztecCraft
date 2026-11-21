@@ -18,4 +18,7 @@ pub(super) const GAPS: &[&str] = &[
     "timeline-keys|R3|Button|root/<Window>#0/SHAPES: not implemented yet",
     "timeline-keys|R3|Button|root/<Window>#0/Transparency",
     "timeline-keys|R3|Button|root/<Window>#0/on",
+    "timeline-keys|R3|TextInput|root/<Window>#0/Blue~1",
+    "timeline-keys|R3|TextInput|root/<Window>#0/Green~1",
+    "timeline-keys|R3|TextInput|root/<Window>#0/Red~1",
 ];

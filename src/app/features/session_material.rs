@@ -126,10 +126,10 @@ impl Editor {
     }
 
     /// The session-material section of a material tab; `false` when `shape` has none (sourced
-    /// scenes, which show the Phong section instead). Colour editing arrives in a later slice,
-    /// so the swatch is a named image, not a control.
+    /// scenes, which show the Phong section instead). The swatch is a named image; the
+    /// R/G/B fields edit the colour.
     pub(in crate::app) fn session_material_section(
-        &self,
+        &mut self,
         ui: &mut egui::Ui,
         shape: NativeId,
     ) -> bool {
@@ -147,22 +147,24 @@ impl Editor {
                 .session_shading_groups()
                 .iter()
                 .find(|group| group.material() == id)
+                .map(|group| group.name().to_owned())
         });
         let users = id.map_or(0, |id| scene.session_material_shape_count(id));
-        ui.label(format!("Material: {}", lambert.name()));
+        let (name, color) = (lambert.name().to_owned(), lambert.color());
+        let shape = shape.id();
+        ui.label(format!("Material: {name}"));
         if let Some(group) = group {
-            ui.label(format!("Shading group: {}", group.name()));
+            ui.label(format!("Shading group: {group}"));
         }
         ui.label(format!(
             "{users} shape {}",
             if users == 1 { "user" } else { "users" }
         ));
-        let color = lambert.color();
         let [r, g, b] = color.map(azteccraft::view_scene::channel_to_u8);
-        let label = format!("Color, {}", lambert.name());
-        ui.horizontal(|ui| {
+        let label = format!("Color, {name}");
+        ui.horizontal_wrapped(|ui| {
             ui.label("Color");
-            // Not a button: recolouring has no native control yet, so the swatch is display only.
+            // The swatch only displays; the R/G/B fields below edit.
             let (rect, swatch) =
                 ui.allocate_exact_size(egui::vec2(48.0, 18.0), egui::Sense::hover());
             ui.painter()
@@ -170,10 +172,7 @@ impl Editor {
             swatch.widget_info(|| {
                 egui::WidgetInfo::labeled(egui::accesskit::Role::Image, true, label.as_str())
             });
-            ui.label(format!(
-                "R {:.3} G {:.3} B {:.3}",
-                color[0], color[1], color[2]
-            ));
+            self.session_color_fields(ui, shape);
         });
         for row in UNSUPPORTED_ROWS {
             ui.add_enabled(false, egui::Button::new(row))
@@ -247,6 +246,8 @@ impl Editor {
     }
 }
 
+mod colour;
+pub(in crate::app) use colour::colour_edit_id;
 #[cfg(test)]
 mod section_tests;
 #[cfg(test)]
