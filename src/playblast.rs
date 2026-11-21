@@ -199,9 +199,13 @@ fn whole_frame(value: f64) -> Result<i64, PlayblastError> {
     Ok(value as i64)
 }
 
+mod job;
 mod writer;
+pub use job::{FrameRenderer, JobProgress, PlayblastJob};
 pub use writer::{encode_png, install_frame};
 
+#[cfg(test)]
+mod job_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
