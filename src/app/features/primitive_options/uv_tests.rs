@@ -143,3 +143,26 @@ fn an_explicitly_named_create_also_builds_the_uv_set() {
     assert!(scene.uv_set(shape_of(&editor, 1)).is_some());
     scene.validate().unwrap();
 }
+
+#[test]
+fn every_native_create_path_builds_no_uv_set_until_the_checkbox_exists() {
+    // Menu and shelf clicks use `Editor::create`; the option box uses `create_from_dialog`.
+    // Both pin create_uvs to false until #453 T11 adds the Create UVs checkbox.
+    let mut editor = Editor::default();
+    for primitive in PRIMITIVES {
+        editor.create(primitive);
+        assert!(!editor.error, "{primitive:?}");
+        editor.open_primitive_options(primitive);
+        let mut dialog = editor.primitive_options.dialog.take().unwrap();
+        editor.create_from_dialog(&mut dialog);
+        assert!(!editor.error, "{primitive:?}: {:?}", dialog.message);
+    }
+    let scene = editor.history.scene();
+    assert_eq!(scene.shapes().len(), 2 * PRIMITIVES.len());
+    assert!(
+        scene
+            .shapes()
+            .iter()
+            .all(|s| scene.uv_set(s.id()).is_none())
+    );
+}
