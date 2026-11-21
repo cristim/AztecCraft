@@ -19,7 +19,8 @@ this file adds the artist-facing menu hierarchy and the non-menu entry surfaces.
 ## Notation
 
 IDs are stable path keys of this document, not Autodesk identifiers: global
-menus use the lowercase menu name, menu sets `set.<name>`, surfaces dotted
+menus use the lowercase menu name, menu sets `set.<name>`, modeling-set menu
+blocks `set.modeling.<menu>`, surfaces dotted
 paths (`panel.*`, `context.*`, `shell.*`). **Documented** means the cited page
 names the entry; it does not imply order, defaults, availability rules or
 completeness. **PROVISIONAL** means not established by a cited page.
@@ -154,11 +155,147 @@ not expanded here (follow the linked options pages).
 
 | ID | Menus named in the page's topic list | Source and boundary |
 | --- | --- | --- |
-| `set.modeling` (F2) | Mesh (whole-object actions), Edit Mesh (component actions), Mesh Tools (interactive tools; one active), Mesh Display, Curves, Surfaces, Deform, UV, Generate | [Modeling](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-A0E08BF2-0206-4518-8431-DC4E15AD4558.htm). Children of each menu are not listed. |
+| `set.modeling` (F2) | Mesh (whole-object actions), Edit Mesh (component actions), Mesh Tools (interactive tools; one active), Mesh Display, Curves, Surfaces, Deform, UV, Generate | [Modeling](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-A0E08BF2-0206-4518-8431-DC4E15AD4558.htm). The Mesh, Edit Mesh, Mesh Tools, Mesh Display, Curves, Surfaces and UV children are audited in the section below; Deform (owned by RIG) and Generate (owned by DYN) remain unaudited here. |
 | `set.rigging` (F3) | Skeleton, Skin, Deform, Constrain, Control | [Rigging](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-CharacterAnimation/files/GUID-E8BE786A-AA88-46FD-A402-FBCD8855368B.htm). The page also shows one image (not inspected). |
 | `set.animation` (F4) | Key, Playback, Audio, Visualize, Deform, Constrain | [Animation](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Animation/files/GUID-3CCAA3C8-A480-4CB7-A85E-F5AB17D3FB1F.htm). Same image caveat. |
 | `set.fx` (F5) | Not checked: PROVISIONAL | The menu-set page names the set and F5 only. |
 | `set.rendering` (F6) | Lighting/Shading, Texturing, Render, Stereo | [Rendering](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Rendering/files/GUID-E4D6B80A-B812-4776-91C8-E5229CBF989F.htm). Same image caveat. |
+
+## Modeling menu set menus (documented pages)
+
+One block per menu, transcribed from each menu's own page; ids are
+`set.modeling.<menu>`. Paths are quoted only where the page states them
+("Select Mesh > X >"); other grouping names on the pages (Mirror, Transfer,
+Optimize, Remesh, Tools, Vertex Color Sets, Vertex Bake Sets, Display
+Attributes, Per Instance Sharing, Components, Vertex, Edge, Face, Curve,
+Modify, Edit, Create, Cut/Sew, Editors) are page sections, not documented menu
+levels, and items under them are listed directly with nesting PROVISIONAL.
+Option boxes exist for most items (each page links options topics); option
+dialog contents are not expanded here. Family mapping (planning, not Autodesk
+text): Mesh, Edit Mesh, Mesh Tools, Mesh Display → MOD; Curves, Surfaces →
+CRV; UV → UVE.
+
+- `set.modeling.mesh` ([Mesh](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-797DD7AE-11D4-4399-8B31-BA0B67D33650.htm)):
+  Booleans submenu (page states Mesh > Booleans > <operation>; Union, Difference
+  (A - B), Difference (B - A), Intersection, Slice, Hole Punch, Cut Out, Split
+  Edges, each with its documented effect; Boolean Operation Options); Combine
+  (options; polyUnite node, Component Tags note); Separate (all shells, or
+  faces selected first); Conform (wraps vertices onto another surface;
+  options); Fill Hole (region bounded by three or more edges); Reduce
+  (polyReduce node, optionally UVs and vertex colors; paintable via
+  Mesh Tools > Paint Reduce Weights Tool; options); Smooth (options); Unsmooth
+  (polyUnsmooth; the page locates Unsmooth Options via Mesh > Smooth > option
+  box: PROVISIONAL oddity); Triangulate; Quadrangulate (options); Remesh
+  (options); Retopologize (Esc cancels; options); Mirror (options);
+  Symmetrize (needs topological symmetry); Clipboard Actions submenu (Copy
+  Attributes with options, Paste Attributes, Clear Clipboard with options);
+  Transfer Attributes (UV, color per vertex, vertex position; options);
+  Transfer Shading Sets (options); Transfer Vertex Order; Cleanup (options);
+  Smooth Proxy submenu (page states Mesh > Smooth Proxy > Subdiv Proxy /
+  Remove Subdiv Proxy Mirror; Subdiv Proxy keeps the original as connected
+  proxy; Crease Tool listed also at Mesh Tools > Crease Tool; Toggle Proxy
+  Display with Ctrl+' and Both Proxy and Subdiv Display with ~ are grouped
+  under Smooth Proxy on the page without stated paths: nesting PROVISIONAL;
+  Subdiv Proxy and Remove Subdiv Proxy Mirror have options).
+- `set.modeling.editmesh` ([Edit Mesh](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-8FF5F5FC-2065-438A-AFC8-65A17FA7842F.htm)):
+  Add Divisions (options; window contents follow the current component mode);
+  Bevel (options); Bridge (border edge pairs; options); Circularize (options);
+  Collapse (edges; for faces prefer Merge to Center); Connect (options);
+  Detach (vertex/face/edge behaviours; ignores unshared vertices); Extrude
+  (faces, edges, vertices; Keep Faces Together toggles via
+  Ctrl+Shift+right-click while the Show Manipulator shows; options); Merge
+  (threshold; options); Merge to Center; Transform (move, rotate, scale
+  components along their normals, history node; options); Flip; Symmetrize;
+  Average Vertices (options); Chamfer Vertices (options); Reorder Vertices;
+  Delete Edge/Vertex (Ctrl+Delete or Ctrl+Backspace); Edit Edge Flow
+  (options); Flip Triangle Edge; Spin Edge Backward; Spin Edge Forward (all
+  three also in the Shift+right-click Edge-mode marking menu as
+  Flip/Spin Edge); Assign Invisible Faces (options); Duplicate (faces;
+  options); Extract (options); Poke (options); Wedge (options); Project Curve
+  on Mesh (options); Split Mesh with Projected Curve (options). The page's
+  options-topic list additionally names Smart Bevel Options with a Smart
+  Bevel description without naming it as a menu entry: PROVISIONAL where it
+  lives (Bevel item or separate).
+- `set.modeling.meshtools` ([Mesh Tools](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-57E220F7-937B-4026-9BF3-5775D54EB594.htm)):
+  Show/Hide Modeling Toolkit; Append to Polygon (options); Connect tool
+  (options); Crease (options; Shift+right-click tip); Create Polygon
+  (options); Insert Edge Loop (options); Make Hole (options); Multi-Cut
+  (options); Offset Edge Loop (options); Paint Reduce Weights (options; works
+  with Mesh > Reduce); Paint Transfer Attributes (options); Quad Draw
+  (options); Sculpting Tools submenu (page states Mesh Tools > Sculpting
+  Tools > <tool name> > for the sculpt tool settings; the linked
+  [Sculpting shelf](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-820F611F-3380-4D33-AC69-EEC62A59109B.htm)
+  page lists the tools as Sculpt (Ctrl+1), Smooth (Ctrl+2), Relax (Ctrl+3),
+  Grab (Ctrl+4), Pinch (Ctrl+5), Flatten (Ctrl+6), Foamy (Ctrl+7), Spray
+  (Ctrl+8), Repeat (Ctrl+9), Imprint, Wax, Scrape, Fill, Knife, Smear,
+  Bulge); Slide Edge (options); Target Weld (options; same mesh only).
+- `set.modeling.meshdisplay` ([Mesh Display](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-57FBF97C-F60F-4D8A-8801-852B8B56D4EF.htm)):
+  Average (options), Conform, Reverse (options), Set to Face (options), Set
+  Vertex Normal (options), Harden Edge (Normal angle 0), Soften Edge (Normal
+  angle 180), Soften/Harden Edge (Method Angle or Texture Borders), Lock
+  Normals, Unlock Normals, Vertex Normal Edit Tool (options) under the page's
+  Normals section; Apply Color (options), Paint Vertex Color Tool (options);
+  Create Empty Set (options), Delete Current Set, Rename Current Set, Modify
+  Current Set (polyColorMod), Set Keyframe for Vertex Color, Color Set Editor
+  (options) under Vertex Color Sets; Prelight (Maya) (options), Assign New
+  Set, Assign Existing Set, Edit Assigned Set under Vertex Bake Sets; Toggle
+  Display Colors Attribute, Color Material Channel ([options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-04408333-F529-4193-9C38-E18A53BDFAB6.htm):
+  None, Ambient, Ambient+Diffuse, Diffuse (the page's default), Specular,
+  Emission; selecting CPV Modulate on a Layered Texture also ignores this
+  setting), Material Blend Setting ([options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-B62EED3D-CCE7-4A06-B057-856276653459.htm):
+  Overwrite, Add, Subtract, Multiply, Divide, Average, Modulate2X) under
+  Display Attributes; Select Shared Instances, Share Instances under
+  Per Instance Sharing. Section groupings other than Normals are page
+  sections without stated paths: nesting PROVISIONAL.
+- `set.modeling.curves` ([Curves](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-44AC128C-47DC-4751-8457-22CE823B6F97.htm)):
+  under the page's Modify section: Lock Length (hold l as momentary hotkey),
+  Unlock Length, Bend (options), Curl (options; page warns against applying
+  twice), Scale Curvature (options), Smooth (page writes the options path as
+  Curves > (Modify) Smooth), Straighten (options); under Edit: Duplicate
+  Surface Curves (options), Align (options), Add Points Tool, Attach, Detach,
+  Edit Curve Tool (Tangent Manip. Size), Move Seam, Open/Close (options),
+  Fillet (options), Cut (options), Intersect (options), Extend submenu (page
+  states Curves > Extend > Extend Curve and Curves > Extend > Extend Curve on
+  Surface, each with options), Insert Knot (options), Offset submenu
+  (Curves > Offset > Offset Curve / Offset Curve on Surface, each with
+  options), CV Hardness (options), Fit B-spline (options), Project Tangent
+  (options), Smooth (page writes Curves > (Edit) Smooth with its own options
+  page; two Smooth entries exist, one per section), Bezier Curves submenu
+  (Curves > Bezier Curves > Tangent Options: Smooth Anchor Tangents, Break
+  Anchor Tangents, Even Anchor Tangents, Uneven Tangents per the
+  [Bezier Curve Tangent Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-3CA09C8F-6D4C-459F-8123-EE435D3B8413.htm)
+  page; Curves > Bezier Curves > Anchor Presets: Bezier, Bezier Corner,
+  Corner per the [Bezier Curve Anchor
+  Presets](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-F2F18AE2-1005-40B3-9535-7EF756E7F6B0.htm)
+  page), Rebuild (options), Reverse Direction (options).
+- `set.modeling.surfaces` ([Surfaces](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-7251C28B-8198-4188-BBF2-A4C25F26A606.htm)):
+  under the page's Create section: Loft, Planar, Revolve, Extrude, Boundary,
+  Square, Bevel and Bevel Plus (each with options), Birail submenu (Surfaces >
+  Birail > Birail 1 Tool / Birail 2 Tool / Birail 3+ Tool); under Edit NURBS
+  Surfaces: Duplicate NURBS Patch (options), Align (options), Attach
+  (options), Attach Without Moving, Detach (options), Move Seam, Open/Close
+  (options), Intersect (options), Project Curve on Surface (options), Trim
+  Tool (options), Untrim (options), Extend (options), Insert Isoparms
+  (options), Offset (options), Round Tool (options), Stitch submenu (Surfaces
+  > Stitch > Stitch Surface Points / Stitch Edges Tool / Global Stitch, each
+  with options), Surface Fillet submenu (Circular Fillet, Freeform Fillet,
+  Fillet Blend Tool, each with options), Sculpt Geometry Tool (options page
+  shared with poly/subdiv sculpting), Surface Editing submenu (Surfaces >
+  Surface Editing > Surface Editing Tool, options), Booleans submenu (Union
+  Tool / Difference Tool / Intersection Tool; trims two surfaces; options),
+  Rebuild (options), Reverse Direction (options).
+- `set.modeling.uv` ([UV](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-3100AC8D-C82C-4F17-A556-39760FEE91AC.htm)):
+  under Editors: UV Editor, UV Set Editor (editor launchers); under Create:
+  Assign Checker Shader (default off), Automatic (options), Best Plane
+  Texturing Tool (page requires all faces selected or the Polygon mask),
+  Camera-Based (options), Contour Stretch (options), Normal-Based,
+  Cylindrical (options), Planar (options), Spherical (options); under
+  Cut/Sew: Auto Seams, Cut UV Edges (also in the UV Editor toolbar), Sew UV
+  Edges (also toolbar), Split UVs, Delete UVs, Merge UVs (options; preferred
+  over Sew for non-manifold shells), 3D Cut and Sew UV Tool (options; drag to
+  cut, Ctrl+drag to sew, Shift/Ctrl+Shift extend along the loop; the page
+  warns that Ctrl+Shift+S toggles the Keyframe tangent marking menu), 3D Grab
+  UV Tool (options).
 
 ## Menus outside the main bar
 
@@ -171,7 +308,7 @@ not expanded here (follow the linked options pages).
 | `shell.shelf`, `shell.sidebar` | Shelf tabs by category with common-task icons and custom shelves (Shift+Ctrl while choosing a menu item adds it); sidebar Modeling Toolkit, HumanIK, Attribute Editor, Tool Settings, Channel Box/Layer Editor, with docking and tabs. [Interface overview](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-F4FCE554-1FA5-447A-8835-63EB43D2690B.htm), [Shelves](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-4A21F741-C9AC-4AE5-897E-B6F8C68ADF90.htm) | No default shelf button list: gap. |
 | `shell.toolbox` | Select Q, Lasso and Paint Selection (no hotkey assigned), Move W, Rotate E, Scale R (each with a click marking menu), Last Used Y. [Tool Box](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-B345E162-0149-4E09-AC98-48DCFC227F33.htm) | Quick-layout buttons not covered. |
 | `shell.statusline` | Menu-set selector, selection mode and mask buttons, lock selection, Highlight Selection mode, snapping (grids, curves, points, Projected Center which overrides other modes, view planes), Make Live with recent-live list, construction input/output popup, Construction History toggle, Render View, render, IPR and render settings buttons, Hypershade, Input Box (Absolute default, Relative, Rename, Select by name). [Status line](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-86E5CEDA-4100-40AE-8F95-346206CF8456.htm) | Default groups, masks and icon order: runtime gap. |
-| `editor.*` | Editor-local menus, toolbars and options: not audited. | Gap, one audit per editor. |
+| `editor.*` | Editor-local menus, toolbars and options: not audited, except the UV Editor menu bar, audited as UVE-012 to UVE-026 in [06-uv-editing.md](parity-inventory/06-uv-editing.md). | Gap, one audit per editor (UV Editor menu bar done). |
 
 [Animation hotkeys](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-KeyboardShortcuts/files/GUID-0639ADA0-EBE5-4703-A874-92C80E4A0516.htm)
 is a context-specific shortcut list (Animation Operations, Playback Control,
@@ -190,10 +327,11 @@ confirms them.
 ## Completeness
 
 This is not a complete Maya UI inventory. Open gaps: Help menu; Edit entries
-past Unparent; FX menu set and the children of every menu-set menu; option
-dialog fields and defaults; dynamic submenus; panel menus; shelf defaults;
-editor and Outliner context menus; hotbox; plug-in menus; visual order,
-enablement and radial sectors. Absence here is not evidence of absence in Maya.
+past Unparent; the children of the Rigging, Animation, FX and Rendering
+menu-set menus; Modeling > Generate and Modeling > Deform; option dialog
+fields and defaults; dynamic submenus; panel menus; shelf defaults; editor
+and Outliner context menus; hotbox; plug-in menus; visual order, enablement
+and radial sectors. Absence here is not evidence of absence in Maya.
 Before any runtime-confirmed claim, record build and patch, OS, locale,
 workspace, preferences, menu set, selection and mode, panel and the loaded
 plug-in manifest. Appearing on this map upgrades no implementation status; see
