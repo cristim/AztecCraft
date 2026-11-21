@@ -5,7 +5,9 @@ use crate::native_scene::{
     Points, UvSet,
     admission::{self, Budget},
     authored::{self, AuthoredIneligible, UvPolicy, names},
-    session_material::{Lambert, MAX_SESSION_MATERIALS, ShadingGroup},
+    session_material::{
+        DEFAULT_LAMBERT_EXTRA, Lambert, LambertAttribute, MAX_SESSION_MATERIALS, ShadingGroup,
+    },
 };
 use std::{collections::HashSet, error::Error, fmt};
 
@@ -44,6 +46,21 @@ const LINK_SYNTAX_BYTES: usize =
     LINK_OPENER.len() + LINK_MID.len() + DEFAULT_GROUP.len() + LINK_END.len();
 const LAMBERT_OPENER: &str = "createNode lambert -n \"";
 const COLOR_OPENER: &str = "\tsetAttr \".c\" -type \"float3\" ";
+/// Written only when the value is not Maya's default black, in this order, after `.c`.
+const EXTRA_OPENERS: [(LambertAttribute, &str); 3] = [
+    (
+        LambertAttribute::Transparency,
+        "\tsetAttr \".it\" -type \"float3\" ",
+    ),
+    (
+        LambertAttribute::AmbientColor,
+        "\tsetAttr \".ambc\" -type \"float3\" ",
+    ),
+    (
+        LambertAttribute::Incandescence,
+        "\tsetAttr \".ic\" -type \"float3\" ",
+    ),
+];
 const GROUP_OPENER: &str = "createNode shadingEngine -n \"";
 const GROUP_RO: &str = "\tsetAttr \".ro\" yes;\n";
 const OC_OPENER: &str = "connectAttr \"";
@@ -57,6 +74,8 @@ const MATERIAL_SYNTAX_BYTES: usize = LAMBERT_OPENER.len()
     + 2 * CLOSER.len()
     + COLOR_OPENER.len()
     + 3 * UV_SCALAR_BYTES
+    // The three optional attributes are charged as if all were written.
+    + 3 * (COLOR_OPENER.len() + 3 * UV_SCALAR_BYTES)
     + GROUP_RO.len()
     + 2 * OC_OPENER.len()
     + OC_MID.len()
@@ -612,6 +631,16 @@ fn material_nodes(
         line.used = 0;
         line.format(format_args!("{COLOR_OPENER}{r} {g} {b};\n"))?;
         consume(&line.bytes[..line.used])?;
+        for (attribute, opener) in EXTRA_OPENERS {
+            let value = material.attribute(attribute);
+            if value == DEFAULT_LAMBERT_EXTRA {
+                continue;
+            }
+            let [r, g, b] = value.map(|channel| channel as f32);
+            line.used = 0;
+            line.format(format_args!("{opener}{r} {g} {b};\n"))?;
+            consume(&line.bytes[..line.used])?;
+        }
         for bytes in [GROUP_OPENER, group.name(), CLOSER, GROUP_RO] {
             consume(bytes.as_bytes())?;
         }

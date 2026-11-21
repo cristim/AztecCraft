@@ -23,6 +23,39 @@ pub const MAX_ASSIGN_SHAPES: usize = 1024;
 /// reference). Exactly representable in f32, so it passes `quantize_color` unchanged.
 pub const DEFAULT_LAMBERT_COLOR: [f64; 3] = [0.5; 3];
 
+/// Maya's lambert `transparency`, `ambientColor` and `incandescence` default (black; lambert
+/// node reference, 2027).
+pub const DEFAULT_LAMBERT_EXTRA: [f64; 3] = [0.0; 3];
+
+/// The RGB attributes of a lambert. `Color` is `color` (`c`); the others are `transparency`
+/// (`it`), `ambientColor` (`ambc`) and `incandescence` (`ic`). The docs state no range for them;
+/// 0 through 1 like `Color` is PROVISIONAL.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LambertAttribute {
+    Color,
+    Transparency,
+    AmbientColor,
+    Incandescence,
+}
+
+impl LambertAttribute {
+    pub const ALL: [Self; 4] = [
+        Self::Color,
+        Self::Transparency,
+        Self::AmbientColor,
+        Self::Incandescence,
+    ];
+    /// Maya's long attribute name.
+    pub fn maya_name(self) -> &'static str {
+        match self {
+            Self::Color => "color",
+            Self::Transparency => "transparency",
+            Self::AmbientColor => "ambientColor",
+            Self::Incandescence => "incandescence",
+        }
+    }
+}
+
 /// An index into the current table. It is valid only at the current history position: undoing a
 /// create frees its index for the next create, so callers must take ids from operation outcomes
 /// and never cache them across edits.
@@ -52,6 +85,9 @@ pub enum MaterialChoice {
 pub struct Lambert {
     pub(super) name: String,
     pub(super) color: [f64; 3],
+    pub(super) transparency: [f64; 3],
+    pub(super) ambient_color: [f64; 3],
+    pub(super) incandescence: [f64; 3],
 }
 
 impl Lambert {
@@ -61,6 +97,23 @@ impl Lambert {
     /// Linear RGB, each channel within 0 through 1.
     pub fn color(&self) -> [f64; 3] {
         self.color
+    }
+    /// Linear RGB of `attribute`, each channel within 0 through 1.
+    pub fn attribute(&self, attribute: LambertAttribute) -> [f64; 3] {
+        match attribute {
+            LambertAttribute::Color => self.color,
+            LambertAttribute::Transparency => self.transparency,
+            LambertAttribute::AmbientColor => self.ambient_color,
+            LambertAttribute::Incandescence => self.incandescence,
+        }
+    }
+    fn attribute_mut(&mut self, attribute: LambertAttribute) -> &mut [f64; 3] {
+        match attribute {
+            LambertAttribute::Color => &mut self.color,
+            LambertAttribute::Transparency => &mut self.transparency,
+            LambertAttribute::AmbientColor => &mut self.ambient_color,
+            LambertAttribute::Incandescence => &mut self.incandescence,
+        }
     }
 }
 
@@ -93,6 +146,9 @@ impl Default for SessionMaterials {
             materials: vec![Lambert {
                 name: "standardSurface1".into(),
                 color: SURFACE_BASE_RGB.map(|channel| f64::from(channel) / 255.0),
+                transparency: DEFAULT_LAMBERT_EXTRA,
+                ambient_color: DEFAULT_LAMBERT_EXTRA,
+                incandescence: DEFAULT_LAMBERT_EXTRA,
             }],
             groups: vec![ShadingGroup {
                 name: "initialShadingGroup".into(),
@@ -149,13 +205,19 @@ impl SessionMaterials {
             return Err(NativeError::InvalidSessionMaterials);
         }
         for material in &self.materials {
-            check_color(material.color)?;
+            for attribute in LambertAttribute::ALL {
+                check_color(material.attribute(attribute))?;
+            }
         }
         // Material 0's placeholder (83/255) is not f32-exact; it is locked and never written.
-        if self.materials[1..]
-            .iter()
-            .any(|material| material.color.map(|c| f64::from(c as f32) == c) != [true; 3])
-        {
+        if self.materials[1..].iter().any(|material| {
+            LambertAttribute::ALL.iter().any(|attribute| {
+                material
+                    .attribute(*attribute)
+                    .map(|c| f64::from(c as f32) == c)
+                    != [true; 3]
+            })
+        }) {
             return Err(NativeError::InvalidSessionMaterials);
         }
         if sourced && !self.assignments.is_empty() {
@@ -203,6 +265,9 @@ impl SessionMaterials {
         self.materials.push(Lambert {
             name: format!("lambert{suffix}"),
             color,
+            transparency: DEFAULT_LAMBERT_EXTRA,
+            ambient_color: DEFAULT_LAMBERT_EXTRA,
+            incandescence: DEFAULT_LAMBERT_EXTRA,
         });
         self.groups.push(ShadingGroup {
             name: format!("lambert{suffix}SG"),
@@ -364,16 +429,27 @@ impl NativeScene {
         material: SessionMaterialId,
         color: [f64; 3],
     ) -> Result<(), NativeError> {
+        self.set_session_material_attribute(material, LambertAttribute::Color, color)
+    }
+
+    /// Sets one RGB attribute of a created material. Material 0 is locked.
+    pub fn set_session_material_attribute(
+        &mut self,
+        material: SessionMaterialId,
+        attribute: LambertAttribute,
+        rgb: [f64; 3],
+    ) -> Result<(), NativeError> {
         self.structural_edit()?;
-        let color = quantize_color(color)?;
+        let rgb = quantize_color(rgb)?;
         if material.0 == 0 {
             return Err(NativeError::InitialSessionMaterialLocked);
         }
-        self.session_materials
+        *self
+            .session_materials
             .materials
             .get_mut(material.0)
             .ok_or(NativeError::UnknownSessionMaterial(material))?
-            .color = color;
+            .attribute_mut(attribute) = rgb;
         Ok(())
     }
 }

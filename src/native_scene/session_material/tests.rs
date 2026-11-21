@@ -689,3 +689,72 @@ fn shape_count_follows_assign_reassign_and_a_sourced_scene() {
     crate::native_scene::tests::retain(&mut scene, b"original", std::iter::once(0..8).collect());
     assert_eq!(scene.session_material_shape_count(initial), 0);
 }
+
+mod attributes {
+    use super::*;
+
+    const EXTRAS: [LambertAttribute; 3] = [
+        LambertAttribute::Transparency,
+        LambertAttribute::AmbientColor,
+        LambertAttribute::Incandescence,
+    ];
+
+    #[test]
+    fn new_materials_default_to_black_and_each_attribute_edits_alone() {
+        let (mut scene, _) = cube();
+        let id = scene.create_session_material([0.5; 3]).unwrap();
+        for attribute in EXTRAS {
+            assert_eq!(scene.session_materials()[1].attribute(attribute), [0.0; 3]);
+        }
+        for (n, attribute) in EXTRAS.into_iter().enumerate() {
+            let rgb = [0.1 * (n + 1) as f64, 0.25, 1.0];
+            scene
+                .set_session_material_attribute(id, attribute, rgb)
+                .unwrap();
+            let stored = scene.session_materials()[1].attribute(attribute);
+            assert_eq!(stored, rgb.map(|c| f64::from(c as f32)));
+        }
+        assert_eq!(scene.session_materials()[1].color(), [0.5; 3]);
+        assert_eq!(
+            scene.session_materials()[1].attribute(LambertAttribute::Color),
+            [0.5; 3]
+        );
+        scene.validate().unwrap();
+    }
+
+    #[test]
+    fn refusals_are_typed_and_change_nothing() {
+        let (mut scene, _) = cube();
+        let id = scene.create_session_material([0.5; 3]).unwrap();
+        let before = scene.clone();
+        for attribute in EXTRAS {
+            assert_eq!(
+                scene.set_session_material_attribute(id, attribute, [f64::NAN, 0.0, 0.0]),
+                Err(NativeError::NonFinite)
+            );
+            assert_eq!(
+                scene.set_session_material_attribute(id, attribute, [0.0, 1.5, 0.0]),
+                Err(NativeError::SessionColorOutOfRange)
+            );
+            assert_eq!(
+                scene.set_session_material_attribute(SessionMaterialId(0), attribute, [0.0; 3]),
+                Err(NativeError::InitialSessionMaterialLocked)
+            );
+            assert_eq!(
+                scene.set_session_material_attribute(SessionMaterialId(9), attribute, [0.0; 3]),
+                Err(NativeError::UnknownSessionMaterial(SessionMaterialId(9)))
+            );
+        }
+        assert_eq!(scene, before);
+    }
+
+    #[test]
+    fn validate_refuses_an_out_of_range_or_non_single_attribute() {
+        let (mut scene, _) = cube();
+        scene.create_session_material([0.5; 3]).unwrap();
+        scene.session_materials.materials[1].incandescence[0] = 2.0;
+        assert_eq!(scene.validate(), Err(NativeError::SessionColorOutOfRange));
+        scene.session_materials.materials[1].incandescence[0] = 0.1;
+        assert_eq!(scene.validate(), Err(NativeError::InvalidSessionMaterials));
+    }
+}
