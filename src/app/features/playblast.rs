@@ -7,9 +7,12 @@ use crate::app::Editor;
 use crate::editor_operations::{
     OperationError, OperationReply, PlayblastFormat, PlayblastRequest, ShadingMode,
 };
-use azteccraft::playblast::{FrameRenderer, PlayblastError, PlayblastJob, PlayblastPlan, SceneAt};
+use azteccraft::playblast::{
+    FrameRenderer, JobProgress, PlayblastError, PlayblastJob, PlayblastPlan, SceneAt,
+};
 use azteccraft::view_scene::{VIEW_BUDGET, ViewScene};
 use azteccraft::viewport::Camera;
+use eframe::egui;
 
 /// Builds the renderer of one job from its scene source, the viewport camera, the grid flag and
 /// the shading mode. Tests install a fake here; with `None` the window's renderer is used.
@@ -22,10 +25,6 @@ pub(in crate::app) type RendererFactory = Box<
     ) -> Result<Box<dyn FrameRenderer>, PlayblastError>,
 >;
 
-#[expect(
-    dead_code,
-    reason = "stepped by tick_playblast in the next commit (#460)"
-)]
 pub(in crate::app) struct Run {
     pub(in crate::app) job: PlayblastJob,
     pub(in crate::app) renderer: Box<dyn FrameRenderer>,
@@ -34,6 +33,8 @@ pub(in crate::app) struct Run {
 #[derive(Default)]
 pub(in crate::app) struct Playblast {
     pub(in crate::app) run: Option<Run>,
+    /// The latest progress, kept after the job ends; cleared when a document replaces the scene.
+    pub(in crate::app) last: Option<JobProgress>,
     pub(in crate::app) factory: Option<RendererFactory>,
 }
 
@@ -108,12 +109,38 @@ impl Editor {
             .playblast_renderer(source, self.grid_visible && request.show_ornaments)
             .map_err(refuse)?;
         let job = PlayblastJob::start(plan).map_err(refuse)?;
+        self.playblast.last = Some(JobProgress::Running {
+            done: 0,
+            total: frames,
+        });
         self.playblast.run = Some(Run { job, renderer });
         Ok(OperationReply::PlayblastStarted {
             frames,
             width,
             height,
         })
+    }
+
+    fn record_playblast(&mut self, progress: JobProgress) {
+        self.playblast.last = Some(progress);
+    }
+
+    /// Renders one frame of the running job. The job owns its scene snapshot, so a modal, a
+    /// pending close or a draft only stall it; it resumes afterwards.
+    pub(in crate::app) fn tick_playblast(&mut self, ctx: &egui::Context) {
+        if self.files.is_modal() || self.files.is_closing() || self.has_draft() {
+            return;
+        }
+        let Some(run) = &mut self.playblast.run else {
+            return;
+        };
+        let progress = run.job.step(run.renderer.as_mut());
+        if matches!(progress, JobProgress::Running { .. }) {
+            ctx.request_repaint();
+        } else {
+            self.playblast.run = None;
+        }
+        self.record_playblast(progress);
     }
 }
 

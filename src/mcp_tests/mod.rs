@@ -6,6 +6,7 @@ mod bridge;
 mod deadline;
 mod file_actions;
 mod hidden_editor;
+mod playblast;
 
 mod ascii_fixture {
     include!(concat!(

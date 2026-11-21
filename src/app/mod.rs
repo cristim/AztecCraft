@@ -364,6 +364,12 @@ impl eframe::App for Editor {
             self.process_mcp(ctx);
             // No tick runs while hidden, so `playing` must not claim otherwise.
             self.stop_playback();
+            // After process_mcp so a start request is ticked in the same pass.
+            #[cfg(any(test, feature = "mcp"))]
+            self.tick_playblast(ctx);
+        } else {
+            #[cfg(any(test, feature = "mcp"))]
+            self.tick_playblast(ctx);
         }
     }
 
