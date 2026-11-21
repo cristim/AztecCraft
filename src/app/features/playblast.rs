@@ -72,7 +72,6 @@ impl Editor {
         if let Some(factory) = &mut self.playblast.factory {
             return factory(scene, &camera, grid, shading);
         }
-        #[cfg(feature = "mcp")]
         if let Some(renderer) = &self.renderer {
             return renderer
                 .frame_renderer(scene, camera, grid, shading)

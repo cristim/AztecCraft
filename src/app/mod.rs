@@ -132,8 +132,8 @@ pub struct Editor {
     joint_options: features::rigging::JointOptionsUi,
     extrude_options: features::extrude_options::ExtrudeOptionsUi,
     timeline: features::timeline::Timeline,
-    #[cfg(any(test, feature = "mcp"))]
     playblast: features::playblast::Playblast,
+    playblast_ui: features::playblast_options::PlayblastUi,
     uv: features::uv::UvUi,
     native_input_pending: bool,
     /// The marking menu's interaction. Closed until the native wiring lands; the overlay gate
@@ -208,8 +208,8 @@ impl Default for Editor {
             joint_options: Default::default(),
             extrude_options: Default::default(),
             timeline: Default::default(),
-            #[cfg(any(test, feature = "mcp"))]
             playblast: Default::default(),
+            playblast_ui: Default::default(),
             uv: Default::default(),
             native_input_pending: false,
             marking_menu: Default::default(),
@@ -365,10 +365,8 @@ impl eframe::App for Editor {
             // No tick runs while hidden, so `playing` must not claim otherwise.
             self.stop_playback();
             // After process_mcp so a start request is ticked in the same pass.
-            #[cfg(any(test, feature = "mcp"))]
             self.tick_playblast(ctx);
         } else {
-            #[cfg(any(test, feature = "mcp"))]
             self.tick_playblast(ctx);
         }
     }
@@ -415,6 +413,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .chain(features::primitive_options::option_field_ids())
     .chain(features::rigging::joint_field_ids())
     .chain([features::extrude_options::thickness_field_id()])
+    .chain(features::playblast_options::field_ids())
     .chain(features::timeline::field_ids())
 }
 
