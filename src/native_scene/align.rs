@@ -245,3 +245,6 @@ fn axis_deltas(subjects: &[Subject], axis: usize, mode: AlignMode, to: AlignTo) 
     }
     deltas
 }
+
+#[cfg(test)]
+mod tests;
