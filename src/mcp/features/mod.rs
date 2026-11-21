@@ -9,6 +9,7 @@ pub(super) mod inspect;
 pub(super) mod manipulation;
 pub(super) mod material;
 pub(super) mod move_vertices;
+pub(super) mod naming_ops;
 pub(super) mod node_edit;
 pub(super) mod pivots;
 pub(super) mod playblast;
