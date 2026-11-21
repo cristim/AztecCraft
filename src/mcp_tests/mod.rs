@@ -170,6 +170,7 @@ mod official_client {
     mod scale_step;
     mod snap;
     mod torus;
+    mod transform_ops;
 
     mod component_move;
     mod create_uvs;
