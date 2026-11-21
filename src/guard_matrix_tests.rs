@@ -2909,6 +2909,16 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     tab: crate::editor_operations::AttributeEditorTab::Shape(t.shape),
                 },
             ),
+            // No image plane exists in the rig, so the tab is refused with a reason.
+            Sample {
+                pre: Pre::AttributeEditorDock,
+                ..sample(
+                    "select_attribute_editor_tab(image_plane,no_plane)",
+                    Operation::SelectAttributeEditorTab {
+                        tab: crate::editor_operations::AttributeEditorTab::ImagePlane,
+                    },
+                )
+            },
         ],
         Operation::Orbit { .. } => vec![sample(
             "orbit",
