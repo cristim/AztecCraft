@@ -48,6 +48,10 @@ impl FrameField {
                 .id(id)
                 .desired_width(52.0),
         );
+        if matches!(id, field if field == animation_start_id() || field == animation_end_id()) {
+            ui.ctx()
+                .accesskit_node_builder(response.id, |node| node.set_label(label));
+        }
         if response.has_focus() {
             self.editing = true;
             return None;
