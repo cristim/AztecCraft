@@ -354,6 +354,16 @@ pub(in crate::app) fn begin_error(error: ManipulationError) -> OperationError {
     }
 }
 
+/// What the tool settings controls asked for in one frame; `apply_settings_choice` dispatches it
+/// once drawing is done.
+#[derive(Default)]
+pub(in crate::app) struct SettingsChoice {
+    move_space: Option<MoveSpace>,
+    space: Option<ManipulationSpace>,
+    handle: Option<ToolHandle>,
+    apply: bool,
+}
+
 /// The handle a drag begins on: the enabled picks, never a disabled one.
 #[derive(Clone, Copy)]
 enum DragHandle {
@@ -1046,154 +1056,210 @@ impl Editor {
         }
     }
 
-    // The Object/World selector, axis choice and numeric field of the active tool.
+    // The Axis Orientation selector, axis choice and numeric field of the active tool, as a row
+    // above the viewport.
     pub(in crate::app) fn manipulation_options(&mut self, ui: &mut egui::Ui) {
         let tool = self.active_tool;
+        if tool == ActiveTool::Select {
+            return;
+        }
         let enabled = self.manipulation_unavailable().is_none();
-        if tool == ActiveTool::Move {
-            // The other Maya orientations are drawn disabled so their absence is visible.
-            let current = self.manipulation.move_space();
-            let mut chosen = None;
-            ui.horizontal(|ui| {
-                ui.label("Move tool");
-                ui.add_enabled_ui(enabled, |ui| {
-                    egui::ComboBox::from_id_salt("move_axis_orientation")
-                        .selected_text(move_space_name(current))
-                        .show_ui(ui, |ui| {
-                            for name in MOVE_ORIENTATIONS {
-                                if let Some(space) = move_space_entry(name) {
-                                    if ui.selectable_label(current == space, name).clicked() {
-                                        chosen = Some(space);
-                                    }
-                                } else {
-                                    ui.add_enabled(false, egui::Button::selectable(false, name))
-                                        .on_disabled_hover_text(
-                                            "unsupported: Move supports Object, World and Parent",
-                                        );
-                                }
-                            }
-                        });
-                });
-            });
-            if let Some(space) = chosen {
-                self.native_operation(Operation::SetMoveSpace { space });
-            }
-            return;
-        }
-        if !matches!(tool, ActiveTool::Rotate | ActiveTool::Scale) {
-            return;
-        }
-        let mut apply = false;
-        let mut chosen = None;
-        let mut chosen_handle = None;
+        let mut choice = SettingsChoice::default();
         ui.horizontal(|ui| {
             ui.label(format!("{} tool", tool_name(tool)));
             ui.add_enabled_ui(enabled, |ui| {
-                egui::ComboBox::from_id_salt("manipulation_space")
-                    .selected_text(space_name(self.manipulation.space(tool)))
-                    .show_ui(ui, |ui| {
-                        if tool == ActiveTool::Rotate {
-                            for (name, entry) in ROTATE_ORIENTATIONS {
-                                match entry {
-                                    Ok(space) => {
-                                        let current = self.manipulation.space(tool);
-                                        if ui.selectable_label(current == space, name).clicked() {
-                                            chosen = Some(space);
-                                        }
-                                    }
-                                    Err(reason) => {
-                                        ui.add_enabled(
-                                            false,
-                                            egui::Button::selectable(false, name),
-                                        )
-                                        .on_disabled_hover_text(reason);
-                                    }
-                                }
-                            }
-                            return;
-                        }
-                        for space in [
-                            ManipulationSpace::Object,
-                            ManipulationSpace::World,
-                            ManipulationSpace::Parent,
-                        ] {
-                            let current = self.manipulation.space(tool);
-                            if ui
-                                .selectable_label(current == space, space_name(space))
-                                .clicked()
-                            {
-                                chosen = Some(space);
-                            }
-                        }
-                        for name in SCALE_UNSUPPORTED_SPACES {
-                            ui.add_enabled(false, egui::Button::selectable(false, name))
-                                .on_disabled_hover_text(NOT_IMPLEMENTED_YET);
-                        }
-                    });
-                if tool == ActiveTool::Rotate {
-                    egui::ComboBox::from_id_salt("manipulation_axis")
-                        .selected_text(rotate_axis_name(self.manipulation.rotate_axis()))
-                        .show_ui(ui, |ui| {
-                            for axis in [RotateAxis::X, RotateAxis::Y, RotateAxis::Z] {
-                                if ui
-                                    .selectable_label(
-                                        self.manipulation.rotate_axis() == axis,
-                                        rotate_axis_name(axis),
-                                    )
-                                    .clicked()
-                                {
-                                    chosen_handle = Some(ToolHandle::RotateAxis(axis));
-                                }
-                            }
-                        });
-                } else {
-                    egui::ComboBox::from_id_salt("manipulation_axis")
-                        .selected_text(scale_handle_name(self.manipulation.scale_handle()))
-                        .show_ui(ui, |ui| {
-                            for handle in [
-                                ScaleHandle::X,
-                                ScaleHandle::Y,
-                                ScaleHandle::Z,
-                                ScaleHandle::Uniform,
-                            ] {
-                                if ui
-                                    .selectable_label(
-                                        self.manipulation.scale_handle() == handle,
-                                        scale_handle_name(handle),
-                                    )
-                                    .clicked()
-                                {
-                                    chosen_handle = Some(ToolHandle::ScaleHandle(handle));
-                                }
-                            }
-                        });
+                self.orientation_combo(ui, tool, &mut choice);
+                if tool != ActiveTool::Move {
+                    self.handle_combo(ui, tool, &mut choice);
+                    self.numeric_entry(ui, tool, &mut choice);
                 }
-                let hint = if tool == ActiveTool::Rotate {
-                    crate::app::inspect::angular_unit_name(&self.history.scene().units().angular)
-                        .to_owned()
-                } else {
-                    "factor".to_owned()
-                };
-                let response = ui.add(
-                    egui::TextEdit::singleline(&mut self.manipulation.numeric)
-                        .id(manipulation_value_id())
-                        .hint_text(hint.as_str())
-                        .desired_width(80.0),
-                );
-                let entered =
-                    response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
-                apply = ui.button("Apply").clicked() || entered;
             });
         });
-        if let Some(space) = chosen {
+        self.apply_settings_choice(tool, choice);
+        self.step_settings(ui, tool);
+    }
+
+    /// The Axis Orientation combo of the Move, Rotate or Scale tool. Maya's other orientations are
+    /// drawn disabled so their absence is visible. Returns the combo button's response.
+    pub(in crate::app) fn orientation_combo(
+        &self,
+        ui: &mut egui::Ui,
+        tool: ActiveTool,
+        choice: &mut SettingsChoice,
+    ) -> egui::Response {
+        if tool == ActiveTool::Move {
+            let current = self.manipulation.move_space();
+            return egui::ComboBox::from_id_salt("move_axis_orientation")
+                .selected_text(move_space_name(current))
+                .show_ui(ui, |ui| {
+                    for name in MOVE_ORIENTATIONS {
+                        if let Some(space) = move_space_entry(name) {
+                            if ui.selectable_label(current == space, name).clicked() {
+                                choice.move_space = Some(space);
+                            }
+                        } else {
+                            ui.add_enabled(false, egui::Button::selectable(false, name))
+                                .on_disabled_hover_text(
+                                    "unsupported: Move supports Object, World and Parent",
+                                );
+                        }
+                    }
+                })
+                .response;
+        }
+        let current = self.manipulation.space(tool);
+        egui::ComboBox::from_id_salt("manipulation_space")
+            .selected_text(space_name(current))
+            .show_ui(ui, |ui| {
+                if tool == ActiveTool::Rotate {
+                    for (name, entry) in ROTATE_ORIENTATIONS {
+                        match entry {
+                            Ok(space) => {
+                                if ui.selectable_label(current == space, name).clicked() {
+                                    choice.space = Some(space);
+                                }
+                            }
+                            Err(reason) => {
+                                ui.add_enabled(false, egui::Button::selectable(false, name))
+                                    .on_disabled_hover_text(reason);
+                            }
+                        }
+                    }
+                    return;
+                }
+                for space in [
+                    ManipulationSpace::Object,
+                    ManipulationSpace::World,
+                    ManipulationSpace::Parent,
+                ] {
+                    if ui
+                        .selectable_label(current == space, space_name(space))
+                        .clicked()
+                    {
+                        choice.space = Some(space);
+                    }
+                }
+                for name in SCALE_UNSUPPORTED_SPACES {
+                    ui.add_enabled(false, egui::Button::selectable(false, name))
+                        .on_disabled_hover_text(NOT_IMPLEMENTED_YET);
+                }
+            })
+            .response
+    }
+
+    /// The name the Axis Orientation combo shows for `tool`.
+    pub(in crate::app) fn orientation_name(&self, tool: ActiveTool) -> &'static str {
+        match tool {
+            ActiveTool::Move => move_space_name(self.manipulation.move_space()),
+            _ => space_name(self.manipulation.space(tool)),
+        }
+    }
+
+    /// The Rotate axis or Scale handle that numeric entry uses. Returns the combo's response.
+    pub(in crate::app) fn handle_combo(
+        &self,
+        ui: &mut egui::Ui,
+        tool: ActiveTool,
+        choice: &mut SettingsChoice,
+    ) -> egui::Response {
+        if tool == ActiveTool::Rotate {
+            let current = self.manipulation.rotate_axis();
+            return egui::ComboBox::from_id_salt("manipulation_axis")
+                .selected_text(rotate_axis_name(current))
+                .show_ui(ui, |ui| {
+                    for axis in [RotateAxis::X, RotateAxis::Y, RotateAxis::Z] {
+                        if ui
+                            .selectable_label(current == axis, rotate_axis_name(axis))
+                            .clicked()
+                        {
+                            choice.handle = Some(ToolHandle::RotateAxis(axis));
+                        }
+                    }
+                })
+                .response;
+        }
+        let current = self.manipulation.scale_handle();
+        egui::ComboBox::from_id_salt("manipulation_axis")
+            .selected_text(scale_handle_name(current))
+            .show_ui(ui, |ui| {
+                for handle in [
+                    ScaleHandle::X,
+                    ScaleHandle::Y,
+                    ScaleHandle::Z,
+                    ScaleHandle::Uniform,
+                ] {
+                    if ui
+                        .selectable_label(current == handle, scale_handle_name(handle))
+                        .clicked()
+                    {
+                        choice.handle = Some(ToolHandle::ScaleHandle(handle));
+                    }
+                }
+            })
+            .response
+    }
+
+    /// The name the axis or handle combo shows for `tool`.
+    pub(in crate::app) fn handle_name(&self, tool: ActiveTool) -> &'static str {
+        match tool {
+            ActiveTool::Rotate => rotate_axis_name(self.manipulation.rotate_axis()),
+            _ => scale_handle_name(self.manipulation.scale_handle()),
+        }
+    }
+
+    /// The numeric field and its Apply button; Enter in the field also applies. Returns the
+    /// field's response.
+    pub(in crate::app) fn numeric_entry(
+        &mut self,
+        ui: &mut egui::Ui,
+        tool: ActiveTool,
+        choice: &mut SettingsChoice,
+    ) -> egui::Response {
+        let hint = if tool == ActiveTool::Rotate {
+            crate::app::inspect::angular_unit_name(&self.history.scene().units().angular).to_owned()
+        } else {
+            "factor".to_owned()
+        };
+        let response = ui.add(
+            egui::TextEdit::singleline(&mut self.manipulation.numeric)
+                .id(manipulation_value_id())
+                .hint_text(hint.as_str())
+                .desired_width(80.0),
+        );
+        let entered =
+            response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
+        choice.apply = ui.button("Apply").clicked() || entered;
+        response
+    }
+
+    /// The numeric field's current text, for an accessible value.
+    pub(in crate::app) fn numeric_text(&self) -> &str {
+        &self.manipulation.numeric
+    }
+
+    /// Dispatches what the settings controls asked for this frame, after drawing, through the same
+    /// typed operations MCP uses.
+    pub(in crate::app) fn apply_settings_choice(
+        &mut self,
+        tool: ActiveTool,
+        choice: SettingsChoice,
+    ) {
+        if let Some(space) = choice.move_space {
+            self.native_operation(Operation::SetMoveSpace { space });
+        }
+        if let Some(space) = choice.space {
             self.native_operation(Operation::SetToolSpace { tool, space });
         }
-        if let Some(handle) = chosen_handle {
+        if let Some(handle) = choice.handle {
             self.native_operation(Operation::SetToolHandle(handle));
         }
-        if apply {
+        if choice.apply {
             self.apply_numeric_manipulation();
         }
+    }
+
+    /// The Step Snap row of the Rotate or Scale tool; nothing for the others.
+    pub(in crate::app) fn step_settings(&mut self, ui: &mut egui::Ui, tool: ActiveTool) {
         match tool {
             ActiveTool::Rotate => {
                 if let Some(degrees) = self.step_row(ui, StepKind::Rotate) {
