@@ -7,6 +7,7 @@ impl Editor {
         self.channel_intents = [false; 9];
         self.pivot_intents = [false; 6];
         self.name_intent = false;
+        self.outliner_rename_open = false;
         self.normalize_attribute_editor_tab();
         let scene = self.history.scene();
         self.selection
@@ -164,7 +165,11 @@ impl Editor {
         authoring: bool,
         style: NameStyle,
     ) -> bool {
-        let reason = self.authoring_refusal();
+        let reason = self.authoring_refusal().or_else(|| {
+            self.outliner_rename_open
+                .then(|| "Finish renaming in the Outliner".into())
+        });
+        let authoring = authoring && reason.is_none();
         let edit = egui::TextEdit::singleline(&mut self.name)
             .interactive(authoring)
             .id(name_edit_id());

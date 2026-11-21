@@ -11334,6 +11334,67 @@ fn selected_nodes(editor: &Editor) -> Vec<NodeId> {
 }
 
 #[test]
+fn outliner_enter_renames_through_the_shared_draft_and_undo() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    let original = editor
+        .history
+        .scene()
+        .node(ids[0])
+        .unwrap()
+        .name()
+        .to_owned();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let row = face_text_position(&output, &format!("◇  {original}"));
+    face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+    frame(
+        &mut editor,
+        &ctx,
+        vec![key_with(Key::Enter, egui::Modifiers::NONE)],
+    );
+    assert!(editor.outliner_rename_open);
+    frame(&mut editor, &ctx, vec![]);
+    frame(
+        &mut editor,
+        &ctx,
+        vec![
+            key_with(Key::A, egui::Modifiers::COMMAND),
+            egui::Event::Text("renamedInOutliner".into()),
+        ],
+    );
+    assert_eq!(editor.name, "renamedInOutliner");
+    assert!(editor.has_draft());
+    assert!(matches!(
+        remote(&mut editor, Operation::Undo),
+        Err(OperationError::BusyEditing)
+    ));
+    frame(
+        &mut editor,
+        &ctx,
+        vec![egui::Event::Key {
+            key: Key::Enter,
+            physical_key: None,
+            pressed: false,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }],
+    );
+    frame(
+        &mut editor,
+        &ctx,
+        vec![key_with(Key::Enter, egui::Modifiers::NONE)],
+    );
+    assert_eq!(
+        editor.history.scene().node(ids[0]).unwrap().name(),
+        "renamedInOutliner"
+    );
+    remote(&mut editor, Operation::Undo).unwrap();
+    assert_eq!(
+        editor.history.scene().node(ids[0]).unwrap().name(),
+        original
+    );
+}
+
+#[test]
 fn outliner_shift_adds_and_a_plain_click_replaces() {
     let (mut editor, ctx, ids) = outliner_rig();
     click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);

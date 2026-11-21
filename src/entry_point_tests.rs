@@ -233,6 +233,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "extrude_selected_face",
             "assign_material_to_selection",
             "show_material_attributes",
+            "outliner",
         ],
     );
     expect(
@@ -260,7 +261,6 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "native_reset_transformations",
             "native_freeze_transformations",
             "manipulation_options",
-            "outliner",
             "render",
             "select",
             "shortcuts",
