@@ -556,6 +556,7 @@ impl Editor {
             sidebar_panels: SidebarPanelsInspection {
                 channel_box: self.sidebar_panel_visible(SidebarPanel::ChannelBox),
                 attribute_editor: self.sidebar_panel_visible(SidebarPanel::AttributeEditor),
+                modeling_toolkit: self.sidebar_panel_visible(SidebarPanel::ModelingToolkit),
             },
             attribute_editor_tab: self
                 .sidebar_panel_visible(SidebarPanel::AttributeEditor)

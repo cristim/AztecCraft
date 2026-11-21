@@ -5937,9 +5937,9 @@ mod menu_bar_wire {
             .iter()
             .chain(MODELING_SET_MENUS.iter())
             .copied()
-            .filter(|label| *label != "UV")
+            .filter(|label| !matches!(*label, "UV" | "Mesh Tools"))
             .collect();
-        assert_eq!(placeholders.len(), 11);
+        assert_eq!(placeholders.len(), 10);
         for label in placeholders {
             let (mut editor, context) = setup();
             let output = frame(&mut editor, &context, vec![]);

@@ -187,3 +187,29 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+## Modeling Toolkit first slice (#64)
+
+The Maya 2027.2 [Modeling Toolkit](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-D4CD168A-34F2-465B-A39C-DE20B34E5535.htm)
+opens from the Status Line. The [Mesh Tools menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-57E220F7-937B-4026-9BF3-5775D54EB594.htm)
+also toggles it. [Selection modes](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-5278D52E-2F48-448E-B975-925A9B2C2A04.htm)
+documents the component buttons, Multi-Component and Ctrl-click conversion.
+[Selection options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-7EC09146-E5E8-449E-83D7-BFE7C780C32D.htm)
+documents Highlight Nearest Component enabled by default.
+[Toolkit commands](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-C8EC81A1-46B2-498C-A759-7DC304D8B687.htm)
+groups Mesh, Components and Tools and describes Extrude on faces, edges and vertices.
+The [Toolkit hotkeys](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-DAD42E62-3E23-4A00-93E9-4F4A193F3057.htm)
+describe selection and tool shortcuts, with no dedicated panel-toggle shortcut listed.
+
+Use the existing single right dock and shared typed sidebar setter. Support Object
+(an AztecCraft convenience), Vertex, Edge, Face and the existing single-face
+Extrude Options workflow. Disabled rows expose the unsupported subset. Panel
+placement, its Ctrl+A fallback to Attribute Editor and the Extrude Options
+entry are PROVISIONAL AztecCraft behavior. Keep tool settings in #491.
+MCP uses the existing panel setter and inspection, selection mode and face extrusion.
+
+Linux native check with a synthetic cube in an isolated Xwayland display:
+opened the panel from the Status Line, entered Face mode, picked a cube face
+and opened Extrude Options. Ctrl+A switched to Attribute Editor and Mesh
+Tools reopened the Toolkit while retaining Face mode. Captures were reviewed
+locally. No Maya comparison or other platform verification.

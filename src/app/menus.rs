@@ -576,10 +576,10 @@ impl Editor {
             match self.menu_set {
                 MenuSet::Modeling => {
                     for label in MODELING_SET_MENUS {
-                        if label == "UV" {
-                            self.uv_menu(ui);
-                        } else {
-                            placeholder_menu(ui, label);
+                        match label {
+                            "UV" => self.uv_menu(ui),
+                            "Mesh Tools" => self.mesh_tools_menu(ui),
+                            _ => placeholder_menu(ui, label),
                         }
                     }
                 }

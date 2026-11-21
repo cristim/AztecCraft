@@ -28,6 +28,7 @@ pub(in crate::app) use group_edit::{GROUP_OPTIONS_REASON, UNGROUP_OPTIONS_REASON
 pub(in crate::app) use node_edit::NameStyle;
 pub(in crate::app) use session_material::session_attribute_field_ids;
 pub(in crate::app) mod marquee;
+mod modeling_toolkit;
 pub(in crate::app) mod playblast;
 pub(in crate::app) mod playblast_options;
 pub(in crate::app) mod playblast_plate;
