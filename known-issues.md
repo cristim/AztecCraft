@@ -1987,3 +1987,16 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
   statements as unknown source data (S2d and S2e) so the file opens with its camera intact.
 - Follow-up F-458-3: a blocked camera shows only in the Open status line and `inspect_scene`;
   add an indicator in the Camera Attribute Editor and the Help Line once that tab exists.
+
+## Playblast option box and MCP test limits (#460)
+
+**Severity:** low
+**Area:** playblast, native UI, tests
+**Issue:** #460
+
+- The Playblast Options window has no Esc or Enter handling, like the Create primitive dialogs; Start and Close are
+  clicked.
+- The Windows > Playblast menu item stays enabled while a job runs: the window opens to show progress and Cancel, and
+  the "already running" reason appears on Start.
+- The official-client protocol tests use the fake renderer; only the lib-level `headless_gpu` tests exercise a real
+  adapter.

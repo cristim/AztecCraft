@@ -223,9 +223,20 @@ pub(in crate::app) mod fake {
 
     pub(in crate::app) type Seen = Arc<Mutex<Vec<(i64, Vec<glam::Vec3>)>>>;
 
+    /// What the job asked the renderer for: the grid flag of each renderer built and the
+    /// `(width, height)` of each frame drawn.
+    #[derive(Default)]
+    pub(in crate::app) struct Asked {
+        pub(in crate::app) grid: Vec<bool>,
+        pub(in crate::app) sizes: Vec<(u32, u32)>,
+    }
+
+    pub(in crate::app) type AskedLog = Arc<Mutex<Asked>>;
+
     struct FakeRenderer {
         scene: SceneAt,
         seen: Seen,
+        asked: Option<AskedLog>,
     }
 
     impl FrameRenderer for FakeRenderer {
@@ -235,6 +246,9 @@ pub(in crate::app) mod fake {
             width: u32,
             height: u32,
         ) -> Result<Vec<u8>, PlayblastError> {
+            if let Some(asked) = &self.asked {
+                asked.lock().unwrap().sizes.push((width, height));
+            }
             let view = (self.scene)(frame)?;
             let vertices = view
                 .instances()
@@ -249,10 +263,23 @@ pub(in crate::app) mod fake {
     }
 
     pub(in crate::app) fn factory(seen: Seen) -> RendererFactory {
-        Box::new(move |scene, _, _, _| {
+        build(seen, None)
+    }
+
+    /// Like `factory`, and records the grid flag and frame sizes it is asked for.
+    pub(in crate::app) fn recording_factory(seen: Seen, asked: AskedLog) -> RendererFactory {
+        build(seen, Some(asked))
+    }
+
+    fn build(seen: Seen, asked: Option<AskedLog>) -> RendererFactory {
+        Box::new(move |scene, _, grid, _| {
+            if let Some(asked) = &asked {
+                asked.lock().unwrap().grid.push(grid);
+            }
             Ok(Box::new(FakeRenderer {
                 scene,
                 seen: Arc::clone(&seen),
+                asked: asked.clone(),
             }))
         })
     }

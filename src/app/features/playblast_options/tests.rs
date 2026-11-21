@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::features::playblast::fake::{self, Seen};
+use crate::app::features::playblast::fake::{self, Asked, Seen};
 use eframe::egui::accesskit;
 
 const SIZE: egui::Vec2 = egui::vec2(1200.0, 800.0);
@@ -244,4 +244,82 @@ fn start_is_unavailable_while_a_file_prompt_is_open() {
     editor.native_operation(Operation::NewScene);
     assert!(editor.files.is_modal());
     assert!(editor.playblast_refusal().unwrap().contains("file prompt"));
+}
+
+#[test]
+fn percent_and_ornaments_reach_the_operation_and_the_renderer() {
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut editor = editor();
+    let asked = std::sync::Arc::new(std::sync::Mutex::new(Asked::default()));
+    editor.playblast.factory = Some(fake::recording_factory(
+        Seen::default(),
+        std::sync::Arc::clone(&asked),
+    ));
+    editor.open_playblast_options();
+    fill(&mut editor, dir.path(), 2);
+    let dialog = editor.playblast_ui.dialog.as_mut().unwrap();
+    dialog.percent = "50".into();
+    dialog.ornaments = false;
+    let sent = request(dialog).unwrap();
+    assert_eq!((sent.percent, sent.show_ornaments), (50, false));
+    press(&mut editor, &ctx, "Start");
+    for _ in 0..2000 {
+        run(&mut editor, &ctx);
+        if editor.inspect_playblast().state == "finished" {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    let inspected = editor.inspect_playblast();
+    assert_eq!(
+        (inspected.state, inspected.width, inspected.height),
+        ("finished", 4, 4)
+    );
+    let asked = asked.lock().unwrap();
+    assert_eq!(asked.grid, [false]);
+    assert_eq!(asked.sizes, [(4, 4); 2]);
+}
+
+#[test]
+fn the_default_option_box_asks_for_the_grid_at_full_size() {
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut editor = editor();
+    let asked = std::sync::Arc::new(std::sync::Mutex::new(Asked::default()));
+    editor.playblast.factory = Some(fake::recording_factory(
+        Seen::default(),
+        std::sync::Arc::clone(&asked),
+    ));
+    editor.open_playblast_options();
+    fill(&mut editor, dir.path(), 1);
+    press(&mut editor, &ctx, "Start");
+    for _ in 0..2000 {
+        run(&mut editor, &ctx);
+        if editor.inspect_playblast().state == "finished" {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    let asked = asked.lock().unwrap();
+    assert_eq!(asked.grid, [true]);
+    assert_eq!(asked.sizes, [(8, 8)]);
+}
+
+#[test]
+fn the_validation_error_is_exposed_as_an_alert() {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut editor = editor();
+    editor.open_playblast_options();
+    fill(&mut editor, std::path::Path::new("/"), 3);
+    editor.playblast_ui.dialog.as_mut().unwrap().percent = "0".into();
+    press(&mut editor, &ctx, "Start");
+    let output = run(&mut editor, &ctx);
+    assert!(
+        control(&output, accesskit::Role::Alert, "Percent must be 1 to 100").is_some(),
+        "the error has the alert role and its text as the name"
+    );
 }
