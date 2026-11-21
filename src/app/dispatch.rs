@@ -548,6 +548,14 @@ impl Editor {
         result
     }
 
+    fn camera_reply(&self, before: &Camera) -> OperationReply {
+        if self.camera == *before {
+            OperationReply::Unchanged
+        } else {
+            OperationReply::Changed
+        }
+    }
+
     fn dispatch_operation_guarded(
         &mut self,
         provenance: ManipulationProvenance,
@@ -1044,11 +1052,7 @@ impl Editor {
                     ViewPreset::Front => self.show_view(OrthographicView::Front)?,
                     ViewPreset::Side => self.show_view(OrthographicView::Side)?,
                 }
-                return Ok(if self.camera == before {
-                    OperationReply::Unchanged
-                } else {
-                    OperationReply::Changed
-                });
+                return Ok(self.camera_reply(&before));
             }
             Operation::SetMenuSet { set } => {
                 let changed = self.menu_set != set;
@@ -1608,11 +1612,7 @@ impl Editor {
                 self.camera
                     .set_pose(target.into(), distance, yaw, pitch)
                     .map_err(OperationError::CameraPose)?;
-                return Ok(if self.camera == before {
-                    OperationReply::Unchanged
-                } else {
-                    OperationReply::Changed
-                });
+                return Ok(self.camera_reply(&before));
             }
             Operation::SetCameraFilmBack(edit) => {
                 let changed = self
@@ -1656,11 +1656,7 @@ impl Editor {
                 self.camera
                     .box_dolly(rect, self.aspect)
                     .map_err(OperationError::Camera)?;
-                return Ok(if self.camera == before {
-                    OperationReply::Unchanged
-                } else {
-                    OperationReply::Changed
-                });
+                return Ok(self.camera_reply(&before));
             }
             Operation::Orbit { .. } if self.camera.projection() == Projection::Orthographic => {
                 return Err(OperationError::InvalidInput(
@@ -1676,11 +1672,7 @@ impl Editor {
                     _ => unreachable!(),
                 }
                 .map_err(OperationError::Camera)?;
-                return Ok(if self.camera == before {
-                    OperationReply::Unchanged
-                } else {
-                    OperationReply::Changed
-                });
+                return Ok(self.camera_reply(&before));
             }
             #[cfg(any(test, feature = "mcp"))]
             Operation::Inspect { page } => {
