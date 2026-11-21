@@ -7,7 +7,7 @@ installed Windows Maya 2027.3 batch process.
 ## Probe and environment
 
 The opt-in probe is [`scripts/maya-api-behavior-probe.py`](../scripts/maya-api-behavior-probe.py)
-(SHA-256 `42B4FDED5BC1D2D1A9D452D589113E6A2A351FE9D84B4208367838AF9D0D9C4D`).
+(SHA-256 `E5E6003DE77D483F6E54A672F634AC7E5D298F1FB7665E545A4A5B2D48CC7B56`).
 It creates a unique `MAYA_APP_DIR` for each run below the repository's ignored
 `target/maya-catalog/behavior-probe-appdir-<id>` before importing Maya, refuses
 an already-imported Maya runtime and a named/modified scene, and creates only
@@ -17,10 +17,10 @@ The source is a reusable audit affordance, not an AztecCraft feature.
 
 Two independent runs each used a unique scratch app directory, ran in the
 installed `mayapy`, and exited `0`. The parsed JSON contents of
-`target/maya-catalog/maya-api-behavior-probe-api-surfaces-1.json` and
-`target/maya-catalog/maya-api-behavior-probe-api-surfaces-2.json` matched. The
-first ignored capture alone has SHA-256
-`C77FC217DE2AAC2F58D50683E3B2606EE8CB9B8C4429C13D341B7B9071350407`. Focused
+`target/maya-catalog/maya-api-behavior-probe-node-editor-toggle-1.json` and
+`target/maya-catalog/maya-api-behavior-probe-node-editor-toggle-2.json` matched.
+The first ignored capture alone has SHA-256
+`584EFB14BBA3E42F33EBFFC61BD262946A6D3E7BAD0C18EFA18D172593B47E9F`. Focused
 assertions confirmed the version, single- and multi-edge topology, short-edge
 length and unchanged geometry, `shotLabel` defaults, and separate API 1.0/API
 2.0 wrapper results. Maya reported:
@@ -30,10 +30,10 @@ stdout, for example in PowerShell:
 
 ```powershell
 & 'C:\Program Files\Autodesk\Maya2027\bin\mayapy.exe' scripts/maya-api-behavior-probe.py |
-  Set-Content target/maya-catalog/maya-api-behavior-probe-api-surfaces-1.json -Encoding utf8
+  Set-Content target/maya-catalog/maya-api-behavior-probe-node-editor-toggle-1.json -Encoding utf8
 if ($LASTEXITCODE -ne 0) { throw "Maya probe failed: $LASTEXITCODE" }
 & 'C:\Program Files\Autodesk\Maya2027\bin\mayapy.exe' scripts/maya-api-behavior-probe.py |
-  Set-Content target/maya-catalog/maya-api-behavior-probe-api-surfaces-2.json -Encoding utf8
+  Set-Content target/maya-catalog/maya-api-behavior-probe-node-editor-toggle-2.json -Encoding utf8
 if ($LASTEXITCODE -ne 0) { throw "Maya probe failed: $LASTEXITCODE" }
 ```
 
@@ -52,8 +52,8 @@ Maya/runtime data only.
 | Loaded plug-in names | `cacheEvaluator`, `renderSetup` |
 
 The JSON reports remain local and ignored at
-`target/maya-catalog/maya-api-behavior-probe-api-surfaces-1.json` and
-`target/maya-catalog/maya-api-behavior-probe-api-surfaces-2.json`. This is one Maya
+`target/maya-catalog/maya-api-behavior-probe-node-editor-toggle-1.json` and
+`target/maya-catalog/maya-api-behavior-probe-node-editor-toggle-2.json`. This is one Maya
 build and one batch environment; it does not establish GUI behavior, unloaded
 plug-in behavior, other platforms, ABI compatibility, or Maya 2026 behavior.
 
@@ -113,6 +113,37 @@ method names `isNodeEditorPrimary` and `setNodeEditorPrimary` themselves were
 not exposed on that wrapper. These are API-specific wrapper observations on
 one Maya build and one attribute; no setter invocation, compiled C++ harness,
 ABI check, or claim about every member or release is included.
+
+### Synthetic dynamic-attribute toggle
+
+Autodesk's C++ [`MFnAttribute` reference](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/class_m_fn_attribute.html)
+marks `isNodeEditorPrimary()` and `setNodeEditorPrimary(bool)` as introduced in
+2027.3, states attributes are not Node Editor primary by default, and describes
+marked attributes as visible by default when the Node Editor's “Show Primary
+Attributes” option is enabled. The Python API 2.0
+[`MFnAttribute` reference](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/py_ref/class_open_maya_1_1_m_fn_attribute.html)
+documents `nodeEditorPrimary` as a property.
+
+The guarded probe creates a temporary `network` node and one named dynamic
+`double` attribute in the blank in-memory scene (the name is unique within that
+scene). It observes the
+initial flag with API 1.0 and API 2.0, sets true through API 1.0, reads true
+through both APIs, then sets false through the API 2.0 property and reads false
+through both APIs. It invokes no setter on a built-in or class attribute, saves
+no scene, and deletes only its synthetic node in `finally`.
+
+Two independent Maya 2027.3 batch runs completed the full sequence: initial
+state `false`, cross-API `true` after the API 1.0 setter, then cross-API
+`false` after the API 2.0 property setter. Both setter calls returned Python
+`None` without a reported exception; both cross-API reads showed the requested
+state. Cleanup attempted to reset through both available wrappers, reported no
+cleanup exceptions, deleted the synthetic node, and confirmed it was absent.
+It does not re-read the flag after reset attempts before deleting the node.
+The probe gates each step on the previous result and records incomplete steps
+and all cleanup errors. These observations establish only flag mutability and
+cross-wrapper observation on one Maya build and one dynamic attribute; they do
+not establish actual Node Editor visibility, filtering, or UI behavior, nor
+Maya 2026 behavior.
 
 ## `traxAudioTrack` empty-track batch observation
 

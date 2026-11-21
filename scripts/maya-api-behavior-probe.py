@@ -249,6 +249,110 @@ def _attribute_api(node):
     return observations
 
 
+def _node_editor_primary_toggle(cmds):
+    node = "aztecBehaviorProbeNodeEditorPrimary"
+    attribute_name = "probeValue"
+    result = {
+        "node": node, "attribute": attribute_name, "operations": {},
+        "scenario_status": "incomplete", "failed_step": None,
+        "cleanup_errors": [], "cleanup_node_remaining": None,
+    }
+    created = False
+    api1_attribute = None
+    api2_attribute = None
+    try:
+        cmds.createNode("network", name=node)
+        created = True
+        cmds.addAttr(node, longName=attribute_name, attributeType="double")
+
+        try:
+            from maya import OpenMaya as om1
+            selection1 = om1.MSelectionList()
+            selection1.add(node)
+            object_handle = om1.MObject()
+            selection1.getDependNode(0, object_handle)
+            api1_attribute = om1.MFnAttribute(
+                om1.MFnDependencyNode(object_handle).attribute(attribute_name)
+            )
+            result["api1_methods"] = {
+                "isNodeEditorPrimary": hasattr(api1_attribute, "isNodeEditorPrimary"),
+                "setNodeEditorPrimary": hasattr(api1_attribute, "setNodeEditorPrimary"),
+            }
+        except Exception as error:
+            result["operations"]["api1_resolve"] = {
+                "value": None, "exception_type": type(error).__name__
+            }
+
+        try:
+            from maya.api import OpenMaya as om2
+            selection2 = om2.MSelectionList()
+            selection2.add(node + "." + attribute_name)
+            api2_attribute = om2.MFnAttribute(selection2.getPlug(0).attribute())
+            result["api2_property_available"] = hasattr(api2_attribute, "nodeEditorPrimary")
+        except Exception as error:
+            result["operations"]["api2_resolve"] = {
+                "value": None, "exception_type": type(error).__name__
+            }
+
+        steps = [
+            ("initial_api1", api1_attribute.isNodeEditorPrimary if api1_attribute else None, False),
+            ("initial_api2", (lambda: api2_attribute.nodeEditorPrimary) if api2_attribute else None, False),
+            ("set_true_api1", (lambda: api1_attribute.setNodeEditorPrimary(True))
+             if api1_attribute and hasattr(api1_attribute, "setNodeEditorPrimary") else None, None),
+            ("after_true_api1", api1_attribute.isNodeEditorPrimary if api1_attribute else None, True),
+            ("after_true_api2", (lambda: api2_attribute.nodeEditorPrimary) if api2_attribute else None, True),
+            ("set_false_api2", None, None),
+            ("after_false_api1", api1_attribute.isNodeEditorPrimary if api1_attribute else None, False),
+            ("after_false_api2", (lambda: api2_attribute.nodeEditorPrimary) if api2_attribute else None, False),
+        ]
+        for label, call, expected in steps:
+            if label == "set_false_api2":
+                call = (lambda: setattr(api2_attribute, "nodeEditorPrimary", False)
+                        if api2_attribute and hasattr(api2_attribute, "nodeEditorPrimary")
+                        else (_ for _ in ()).throw(AttributeError("ApiUnavailable")))
+            if call is None:
+                result["operations"][label] = {"value": None, "exception_type": "ApiUnavailable"}
+                result["failed_step"] = label
+                break
+            outcome = _failure(call)
+            result["operations"][label] = outcome
+            if outcome["exception_type"] is not None or (expected is not None and outcome["value"] is not expected):
+                result["failed_step"] = label
+                break
+        if result["failed_step"] is None:
+            result["scenario_status"] = "complete"
+    except Exception as error:
+        result["exception_type"] = type(error).__name__
+    finally:
+        if created:
+            if api1_attribute is not None and hasattr(api1_attribute, "setNodeEditorPrimary"):
+                try:
+                    api1_attribute.setNodeEditorPrimary(False)
+                except Exception as error:
+                    result["cleanup_errors"].append({"api": "api1", "exception_type": type(error).__name__})
+            if api2_attribute is not None and hasattr(api2_attribute, "nodeEditorPrimary"):
+                try:
+                    api2_attribute.nodeEditorPrimary = False
+                except Exception as error:
+                    result["cleanup_errors"].append({"api": "api2", "exception_type": type(error).__name__})
+            try:
+                cmds.delete(node)
+            except Exception as error:
+                result["cleanup_errors"].append({"api": "cmds.delete", "exception_type": type(error).__name__})
+            try:
+                result["cleanup_node_remaining"] = bool(cmds.objExists(node))
+                if result["cleanup_node_remaining"]:
+                    result["cleanup_errors"].append({"api": "cmds.objExists", "exception_type": "NodeRemains"})
+            except Exception as error:
+                result["cleanup_node_remaining"] = None
+                result["cleanup_errors"].append({"api": "cmds.objExists", "exception_type": type(error).__name__})
+        result["cleanup_status"] = "complete" if not result["cleanup_errors"] else "error"
+        result["cleanup_exception_type"] = (
+            result["cleanup_errors"][0]["exception_type"] if result["cleanup_errors"] else None
+        )
+    return result
+
+
 def main():
     if any(name == "maya" or name.startswith("maya.") for name in sys.modules):
         raise RuntimeError("maya_already_imported")
@@ -306,6 +410,13 @@ def main():
             result["scenarios"]["shotLabel"] = _shot_label(cmds)
         except Exception as error:
             result["scenarios"]["shotLabel"] = {"exception_type": type(error).__name__}
+        try:
+            result["scenarios"]["node_editor_primary_toggle"] = _node_editor_primary_toggle(cmds)
+        except Exception as error:
+            result["scenarios"]["node_editor_primary_toggle"] = {
+                "exception_type": type(error).__name__,
+                "cleanup_exception_type": None,
+            }
         print(json.dumps(result, sort_keys=True))
     finally:
         if initialized:
