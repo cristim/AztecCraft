@@ -107,7 +107,7 @@ pub enum Command {
         color: [f64; 3],
     },
     AssignSessionMaterial {
-        shape: NativeId,
+        shapes: Vec<NativeId>,
         material: MaterialChoice,
     },
     SetSessionMaterialColor {
@@ -722,9 +722,9 @@ impl History {
             Command::CreateSessionMaterial { color } => {
                 EditOutcome::SessionMaterial(candidate.create_session_material(color)?)
             }
-            Command::AssignSessionMaterial { shape, material } => {
-                EditOutcome::SessionMaterial(candidate.assign_session_material(shape, material)?)
-            }
+            Command::AssignSessionMaterial { shapes, material } => EditOutcome::SessionMaterial(
+                candidate.assign_session_material_to_shapes(&shapes, material)?,
+            ),
             Command::SetSessionMaterialColor { material, color } => {
                 candidate.set_session_material_color(material, color)?;
                 EditOutcome::Changed

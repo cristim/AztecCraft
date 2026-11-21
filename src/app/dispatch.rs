@@ -982,8 +982,8 @@ impl Editor {
             }
             #[cfg(any(test, feature = "mcp"))]
             Operation::CreateSessionMaterial { color } => Command::CreateSessionMaterial { color },
-            Operation::AssignSessionMaterial { shape, material } => {
-                Command::AssignSessionMaterial { shape, material }
+            Operation::AssignSessionMaterial { shapes, material } => {
+                Command::AssignSessionMaterial { shapes, material }
             }
             #[cfg(any(test, feature = "mcp"))]
             Operation::SetSessionMaterialColor { material, color } => {

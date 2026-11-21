@@ -507,7 +507,7 @@ pub enum Operation {
     },
     /// Native: Lighting/Shading > Assign New Material and Assign Existing Material.
     AssignSessionMaterial {
-        shape: NativeId,
+        shapes: Vec<NativeId>,
         material: azteccraft::native_scene::MaterialChoice,
     },
     #[cfg(any(test, feature = "mcp"))]

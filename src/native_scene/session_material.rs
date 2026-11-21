@@ -15,6 +15,10 @@ use std::collections::{BTreeMap, HashSet};
 /// inspection budget test) so a full table never makes inspection `too_large`.
 pub const MAX_SESSION_MATERIALS: usize = 512;
 
+/// Bound on shapes in one assignment (PROVISIONAL: Maya's docs state no limit). It bounds the
+/// remote list and the work of one history step.
+pub const MAX_ASSIGN_SHAPES: usize = 1024;
+
 /// Colour of a newly created lambert: Maya's lambert `color` default (0.5 grey, 2027 node
 /// reference). Exactly representable in f32, so it passes `quantize_color` unchanged.
 pub const DEFAULT_LAMBERT_COLOR: [f64; 3] = [0.5; 3];
@@ -301,9 +305,34 @@ impl NativeScene {
         shape: NativeId,
         choice: MaterialChoice,
     ) -> Result<SessionMaterialId, NativeError> {
+        self.assign_session_material_to_shapes(&[shape], choice)
+    }
+
+    /// Assigns every listed shape in one edit, creating at most one material for
+    /// `MaterialChoice::New`. All-or-nothing: the list is validated (non-empty, within
+    /// [`MAX_ASSIGN_SHAPES`], no duplicates, every shape present) before the table changes.
+    pub fn assign_session_material_to_shapes(
+        &mut self,
+        shapes: &[NativeId],
+        choice: MaterialChoice,
+    ) -> Result<SessionMaterialId, NativeError> {
         self.structural_edit()?;
-        if !self.shapes.iter().any(|candidate| candidate.id == shape) {
-            return Err(NativeError::MissingShape(shape));
+        if shapes.is_empty() {
+            return Err(NativeError::InvalidShapeList("no shapes given"));
+        }
+        if shapes.len() > MAX_ASSIGN_SHAPES {
+            return Err(NativeError::InvalidShapeList("too many shapes"));
+        }
+        let mut seen = HashSet::new();
+        seen.try_reserve(shapes.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        for shape in shapes {
+            if !seen.insert(*shape) {
+                return Err(NativeError::InvalidShapeList("duplicate shape"));
+            }
+            if !self.shapes.iter().any(|candidate| candidate.id == *shape) {
+                return Err(NativeError::MissingShape(*shape));
+            }
         }
         // Field borrows rather than `authored::names(self)`, which would also borrow the
         // material table taken mutably below.
@@ -320,10 +349,12 @@ impl NativeScene {
                 (material, materials.groups.len() - 1)
             }
         };
-        if group == 0 {
-            materials.assignments.remove(&shape);
-        } else {
-            materials.assignments.insert(shape, group);
+        for shape in shapes {
+            if group == 0 {
+                materials.assignments.remove(shape);
+            } else {
+                materials.assignments.insert(*shape, group);
+            }
         }
         Ok(material)
     }

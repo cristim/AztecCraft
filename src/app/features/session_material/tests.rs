@@ -116,7 +116,7 @@ fn native_and_remote_assignment_give_equal_scenes() {
     remote(
         &mut other,
         Operation::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: new_lambert(),
         },
     )
@@ -229,7 +229,7 @@ fn remote_assignment_is_refused_for_a_draft_and_a_stale_token() {
     let mut editor = cube_editor();
     let shape = editor.session_material_target().unwrap();
     let operation = || Operation::AssignSessionMaterial {
-        shape,
+        shapes: vec![shape],
         material: new_lambert(),
     };
     let before = editor.history.scene().clone();

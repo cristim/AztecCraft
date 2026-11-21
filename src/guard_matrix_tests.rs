@@ -827,7 +827,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             color: [1.0, 0.0, 0.0],
         },
         Operation::AssignSessionMaterial {
-            shape: t.shape,
+            shapes: vec![t.shape],
             material: MaterialChoice::New {
                 color: [1.0, 0.0, 0.0],
             },
@@ -1473,7 +1473,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "assign_session_material(new)",
                 Operation::AssignSessionMaterial {
-                    shape: t.shape,
+                    shapes: vec![t.shape],
                     material: MaterialChoice::New {
                         color: [1.0, 0.0, 0.0],
                     },
@@ -1482,7 +1482,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "assign_session_material(initial)",
                 Operation::AssignSessionMaterial {
-                    shape: t.shape,
+                    shapes: vec![t.shape],
                     material: MaterialChoice::Existing(SessionMaterialId::from_index(0)),
                 },
             ),
@@ -3267,7 +3267,7 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
         Pre::AssignedMaterial => {
             if let Some(shape) = rig.editor.history.scene().shapes().first().map(|s| s.id()) {
                 let _ = rig.editor.history.execute(Command::AssignSessionMaterial {
-                    shape,
+                    shapes: vec![shape],
                     material: MaterialChoice::New {
                         color: [1.0, 0.0, 0.0],
                     },

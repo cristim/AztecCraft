@@ -143,6 +143,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     NativeError::UnsupportedEdit => "unsupported_edit",
                     NativeError::ReadOnlyFormat => "read_only_format",
                     NativeError::MissingShape(_) => "unknown_shape",
+                    NativeError::InvalidShapeList(_) => "invalid_shape_list",
                     NativeError::ResourceLimit => "session_material_limit",
                     _ => "scene_error",
                 },

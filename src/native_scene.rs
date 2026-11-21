@@ -64,8 +64,8 @@ pub use session_keys::{
 };
 use session_material::SessionMaterials;
 pub use session_material::{
-    DEFAULT_LAMBERT_COLOR, Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId,
-    ShadingGroup,
+    DEFAULT_LAMBERT_COLOR, Lambert, MAX_ASSIGN_SHAPES, MAX_SESSION_MATERIALS, MaterialChoice,
+    SessionMaterialId, ShadingGroup,
 };
 use session_uv::SessionUvs;
 pub use session_uv::{DEFAULT_UV_SET, UvProjectAxis, UvSet};
@@ -2370,6 +2370,8 @@ pub enum NativeError {
     ReadOnlyFormat,
     UnknownSessionMaterial(SessionMaterialId),
     SessionColorOutOfRange,
+    /// A multi-shape assignment list the scene refuses (empty, too long or repeating a shape).
+    InvalidShapeList(&'static str),
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
     InvalidSessionJoints,
@@ -2479,6 +2481,7 @@ impl fmt::Display for NativeError {
             Self::InitialSessionMaterialLocked => {
                 f.write_str("the initial session material keeps the viewport base fill")
             }
+            Self::InvalidShapeList(reason) => write!(f, "invalid shape list: {reason}"),
             Self::SessionColorOutOfRange => {
                 f.write_str("session material colour channels must be within 0 through 1")
             }

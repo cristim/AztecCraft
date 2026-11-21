@@ -21,7 +21,7 @@ fn real_editor(creation: &eframe::CreationContext<'_>) -> Editor {
     let id = editor.selected().unwrap();
     let shape = editor.history.scene().shapes().first().unwrap().id();
     let paint = Operation::AssignSessionMaterial {
-        shape,
+        shapes: vec![shape],
         material: azteccraft::native_scene::MaterialChoice::New {
             color: [1.0, 0.0, 0.0],
         },

@@ -101,7 +101,7 @@ fn parse_assign_session_material(arguments: JsonObject) -> Result<RemoteRequest,
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::AssignSessionMaterial {
-            shape: native_id(&args.shape_id)?,
+            shapes: vec![native_id(&args.shape_id)?],
             material,
         },
     ))

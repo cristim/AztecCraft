@@ -99,7 +99,7 @@ impl Editor {
             }
         };
         self.native_operation_result(Operation::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: choice,
         })
     }

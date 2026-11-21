@@ -2088,7 +2088,7 @@ fn headless_gpu_red_assigned_face_renders_red_dominant_and_undo_restores_grey() 
     assert_eq!(center(&mut gpu, history.scene()), [83, 83, 83, 255]);
     history
         .execute(Command::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: MaterialChoice::New {
                 color: [1.0, 0.0, 0.0],
             },
