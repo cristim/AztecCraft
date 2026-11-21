@@ -14,15 +14,15 @@ use azteccraft::image_plane::model::{
 use eframe::egui::{self, accesskit::Role};
 use std::path::{Path, PathBuf};
 
-const NAME: usize = 0;
-const OFFSET: usize = 1;
-const CACHE: usize = 2;
-const GAIN: usize = 3;
-const DEPTH: usize = 4;
-const WIDTH: usize = 5;
-const HEIGHT: usize = 6;
-const ORIGIN_X: usize = 7;
-const ORIGIN_Y: usize = 8;
+pub(super) const NAME: usize = 0;
+pub(super) const OFFSET: usize = 1;
+pub(super) const CACHE: usize = 2;
+pub(super) const GAIN: usize = 3;
+pub(super) const DEPTH: usize = 4;
+pub(super) const WIDTH: usize = 5;
+pub(super) const HEIGHT: usize = 6;
+pub(super) const ORIGIN_X: usize = 7;
+pub(super) const ORIGIN_Y: usize = 8;
 
 pub(super) fn png(dir: &Path, name: &str, width: u32, height: u32) -> PathBuf {
     let path = dir.join(name);
@@ -56,7 +56,7 @@ pub(super) fn tab_rig(dir: &Path) -> Rig {
     rig
 }
 
-fn mcp(
+pub(super) fn mcp(
     editor: &mut crate::app::Editor,
     edit: ImagePlaneEdit,
 ) -> Result<OperationReply, crate::editor_operations::OperationError> {
@@ -71,7 +71,7 @@ fn mcp(
 }
 
 /// Types `text` into text field `index` and blurs it.
-fn edit_text(rig: &mut Rig, index: usize, text: &str) {
+pub(super) fn edit_text(rig: &mut Rig, index: usize, text: &str) {
     rig.ctx.memory_mut(|m| m.request_focus(field_id(index)));
     rig.settle();
     rig.editor.plane_drafts[index] = text.to_owned();
@@ -80,7 +80,7 @@ fn edit_text(rig: &mut Rig, index: usize, text: &str) {
     rig.settle();
 }
 
-fn node_pos(rig: &Rig, role: Role, label: &str) -> egui::Pos2 {
+pub(super) fn node_pos(rig: &Rig, role: Role, label: &str) -> egui::Pos2 {
     rig.update()
         .nodes
         .iter()
@@ -91,13 +91,13 @@ fn node_pos(rig: &Rig, role: Role, label: &str) -> egui::Pos2 {
         .unwrap_or_else(|| panic!("no {role:?} named {label:?}"))
 }
 
-fn click_node(rig: &mut Rig, role: Role, label: &str) {
+pub(super) fn click_node(rig: &mut Rig, role: Role, label: &str) {
     let at = node_pos(rig, role, label);
     click_at(&mut rig.editor, &rig.ctx, SIZE, at);
     rig.settle();
 }
 
-fn plane(rig: &Rig) -> azteccraft::image_plane::model::ImagePlane {
+pub(super) fn plane(rig: &Rig) -> azteccraft::image_plane::model::ImagePlane {
     rig.editor.image_plane.as_ref().unwrap().plane.clone()
 }
 
