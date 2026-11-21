@@ -56,7 +56,7 @@ mod multi_selection;
 #[path = "tests/vertex_edge.rs"]
 mod vertex_edge;
 
-fn device_setup() -> (wgpu::Instance, wgpu::Adapter, wgpu::Device, wgpu::Queue) {
+pub(crate) fn device_setup() -> (wgpu::Instance, wgpu::Adapter, wgpu::Device, wgpu::Queue) {
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     let adapter =
@@ -1440,12 +1440,6 @@ impl Offscreen {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         });
-        let readback = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("viewport regression pixels"),
-            size: u64::from(self.size * self.size * 4),
-            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
         let color_view = color.create_view(&Default::default());
         let depth_view = depth.create_view(&Default::default());
         let mut encoder = self.device.create_command_encoder(&Default::default());
@@ -1538,43 +1532,8 @@ impl Offscreen {
             }
             output.textures_delta.clear();
         }
-        encoder.copy_texture_to_buffer(
-            wgpu::TexelCopyTextureInfo {
-                texture: &color,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            wgpu::TexelCopyBufferInfo {
-                buffer: &readback,
-                layout: wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(self.size * 4),
-                    rows_per_image: Some(self.size),
-                },
-            },
-            extent,
-        );
-        let submitted = self.queue.submit([encoder.finish()]);
-        let (send, receive) = mpsc::channel();
-        readback
-            .slice(..)
-            .map_async(wgpu::MapMode::Read, move |result| {
-                let _ = send.send(result);
-            });
-        self.device
-            .poll(wgpu::PollType::Wait {
-                submission_index: Some(submitted),
-                timeout: Some(Duration::from_secs(10)),
-            })
-            .unwrap();
-        receive
-            .recv_timeout(Duration::from_secs(10))
-            .unwrap()
-            .unwrap();
-        let pixels = readback.slice(..).get_mapped_range().unwrap().to_vec();
-        readback.unmap();
-        pixels
+        self.queue.submit([encoder.finish()]);
+        offscreen::read_back(&self.device, &self.queue, &color, [self.size; 2]).unwrap()
     }
 }
 

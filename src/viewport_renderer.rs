@@ -1127,5 +1127,8 @@ impl CallbackTrait for ViewportCallback {
 }
 
 #[cfg(test)]
+mod offscreen;
+
+#[cfg(test)]
 #[path = "viewport_renderer/tests.rs"]
 pub(crate) mod tests;
