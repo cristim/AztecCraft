@@ -124,6 +124,11 @@ impl Editor {
         .map_err(ExtrudeFailure::Refused)
     }
 
+    #[cfg(test)]
+    pub(in crate::app) fn extrude_window_open(&self) -> bool {
+        self.extrude_options.dialog.is_some()
+    }
+
     pub(in crate::app) fn open_extrude_options(&mut self) {
         if self.extrude_options.dialog.is_none() {
             self.extrude_options.dialog = Some(Dialog {
