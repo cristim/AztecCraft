@@ -25,6 +25,17 @@ pub(super) fn strip_row_padding(mapped: &[u8], width: u32, padded: u32) -> Vec<u
         .collect()
 }
 
+pub(super) fn check_size(
+    limits: &wgpu::Limits,
+    [width, height]: [u32; 2],
+) -> Result<(), RenderError> {
+    let edge = limits.max_texture_dimension_2d;
+    if width == 0 || height == 0 || width > edge || height > edge {
+        return Err(RenderError::ResourceLimit);
+    }
+    Ok(())
+}
+
 /// Copies an RGBA8 `texture` of `size` (width, height; it needs `COPY_SRC`) to the CPU as
 /// `width * height * 4` tight bytes. Waits for earlier submissions on `queue` first.
 pub(super) fn read_back(
@@ -35,13 +46,7 @@ pub(super) fn read_back(
 ) -> Result<Vec<u8>, RenderError> {
     let [width, height] = size;
     let limits = device.limits();
-    if width == 0
-        || height == 0
-        || width > limits.max_texture_dimension_2d
-        || height > limits.max_texture_dimension_2d
-    {
-        return Err(RenderError::ResourceLimit);
-    }
+    check_size(&limits, size)?;
     let padded = padded_bytes_per_row(width).ok_or(RenderError::ResourceLimit)?;
     let bytes = u64::from(padded) * u64::from(height);
     if bytes > limits.max_buffer_size {

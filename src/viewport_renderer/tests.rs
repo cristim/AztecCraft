@@ -566,6 +566,8 @@ pub(crate) fn renderer_handle() -> ViewportRenderer {
         },
         format: FORMAT,
         max_buffer_size: 1024 * 1024,
+        #[cfg(feature = "mcp")]
+        gpu: None,
         submission: Arc::default(),
     }
 }
@@ -1374,7 +1376,7 @@ impl Offscreen {
         }
     }
 
-    fn image(
+    pub(crate) fn image(
         &mut self,
         view: &ViewScene,
         camera: &Camera,
