@@ -237,7 +237,9 @@ fn dialog_body(
         .on_disabled_hover_text(MOVIE_REASON);
     ui.separator();
     if let Some(message) = &dialog.message {
-        ui.colored_label(Color32::from_rgb(255, 160, 130), message);
+        let error = ui.colored_label(Color32::from_rgb(255, 160, 130), message);
+        let enabled = error.enabled();
+        error.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Alert, enabled, message));
     }
     let text = progress_text(inspection);
     let fraction = match inspection.frames_total {

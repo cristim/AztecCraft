@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::features::playblast::fake::{self, Seen};
+use crate::app::features::playblast::fake::{self, Asked, Seen};
 use rmcp::model::ErrorCode;
 use rmcp::service::RunningService;
 
@@ -40,6 +40,11 @@ async fn rig() -> (Editor, egui::Context, Client, tokio::task::JoinHandle<()>) {
 #[tokio::test]
 async fn sdk_playblast_writes_numbered_pngs_and_reports_progress() {
     let (mut editor, context, client, server) = rig().await;
+    let asked = std::sync::Arc::new(std::sync::Mutex::new(Asked::default()));
+    editor.playblast.factory = Some(fake::recording_factory(
+        Seen::default(),
+        std::sync::Arc::clone(&asked),
+    ));
     let dir = tempfile::tempdir().unwrap();
     let token = editor.scene_token.to_string();
     let scene = editor.history.scene().clone();
@@ -89,6 +94,12 @@ async fn sdk_playblast_writes_numbered_pngs_and_reports_progress() {
         let info = reader.next_frame(&mut pixels).unwrap();
         assert_eq!((info.width, info.height), (32, 16));
         assert_eq!(&pixels[..4], &[frame, 0, 0, 255]);
+    }
+    // show_ornaments:false reaches the renderer as no grid, and percent 50 as a 32x16 frame.
+    {
+        let asked = asked.lock().unwrap();
+        assert_eq!(asked.grid, [false]);
+        assert_eq!(asked.sizes, [(32, 16); 3]);
     }
     assert_eq!(editor.history.scene(), &scene);
     assert_eq!(editor.scene_token.to_string(), token);

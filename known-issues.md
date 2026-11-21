@@ -1938,3 +1938,16 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
 - One tick renders one frame on the UI thread. A very large frame on a software adapter can freeze the window
   for seconds, and Cancel cannot interrupt a frame in flight; it takes effect before the next frame.
 - `width` and `height` are required: no viewport size is stored, so there is no default to take.
+
+## Playblast option box and MCP test limits (#460)
+
+**Severity:** low
+**Area:** playblast, native UI, tests
+**Issue:** #460
+
+- The Playblast Options window has no Esc or Enter handling, like the Create primitive dialogs; Start and Close are
+  clicked.
+- The Windows > Playblast menu item stays enabled while a job runs: the window opens to show progress and Cancel, and
+  the "already running" reason appears on Start.
+- The official-client protocol tests use the fake renderer; only the lib-level `headless_gpu` tests exercise a real
+  adapter.
