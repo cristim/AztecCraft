@@ -202,7 +202,11 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   `select_attribute_editor_tab(shape)` (Attribute Editor active) and
   `select_attribute_editor_tab(shape,panel_hidden)`. MCP reaches them as
   `set_sidebar_panel_visibility` (`panel` `attribute_editor`) and `select_attribute_editor_tab`,
-  covered cell by cell in `src/mcp_tests/official_client/attribute_editor.rs`.
+  covered cell by cell in `src/mcp_tests/official_client/attribute_editor.rs`. The Camera tab
+  (#458, `AttributeEditorTab::Camera`, MCP kind `camera`) belongs to the live camera like the Image
+  Plane tab but always resolves, so it needs no selection and no plane; it has one more matrix
+  sample, `select_attribute_editor_tab(camera)`, and a client test in
+  `src/mcp_tests/official_client/camera_tab.rs`.
 - The File menu and the Status Line file buttons share `file_actions` (`src/app/menus.rs`), the one
   native caller of `Operation::SaveScene`; New and Open go through `request_new` and `open_dialog`.
   Enable state, disabled reason and handler come from the same helper, so the guards are those of

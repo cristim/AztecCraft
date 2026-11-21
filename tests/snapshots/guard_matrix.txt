@@ -231,6 +231,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -491,6 +492,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -735,6 +737,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -977,6 +980,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1219,6 +1223,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -1461,6 +1466,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1703,6 +1709,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -1945,6 +1952,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -2187,6 +2195,7 @@
   select_attribute_editor_tab(shape) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2429,6 +2438,7 @@
   select_attribute_editor_tab(shape) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2671,6 +2681,7 @@
   select_attribute_editor_tab(shape) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2913,6 +2924,7 @@
   select_attribute_editor_tab(shape) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -3155,6 +3167,7 @@
   select_attribute_editor_tab(shape) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  select_attribute_editor_tab(camera) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   orbit => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   pan => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   dolly => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -3397,6 +3410,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3640,6 +3654,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | scene changed; attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2))); status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  select_attribute_editor_tab(camera) => Ok(changed) | scene changed; attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera); status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   orbit => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   pan => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   dolly => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3883,6 +3898,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4125,6 +4141,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | scene changed; attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2))); has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_attribute_editor_tab(camera) => Ok(changed) | scene changed; attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera); has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   orbit => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   pan => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   dolly => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -4367,6 +4384,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4609,6 +4627,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | scene changed; attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2))); has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_attribute_editor_tab(camera) => Ok(changed) | scene changed; attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera); has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   orbit => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   pan => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   dolly => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -4851,6 +4870,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5093,6 +5113,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -5335,6 +5356,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5577,6 +5599,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -5819,6 +5842,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6061,6 +6085,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6309,6 +6334,7 @@
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  select_attribute_editor_tab(camera) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6553,6 +6579,7 @@
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  select_attribute_editor_tab(camera) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6795,6 +6822,7 @@
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  select_attribute_editor_tab(camera) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7037,6 +7065,7 @@
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  select_attribute_editor_tab(camera) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7279,6 +7308,7 @@
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  select_attribute_editor_tab(camera) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7521,6 +7551,7 @@
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  select_attribute_editor_tab(camera) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7763,6 +7794,7 @@
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  select_attribute_editor_tab(camera) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -8005,6 +8037,7 @@
   select_attribute_editor_tab(shape) => Err(InvalidInput: Attribute Editor tab does not resolve for the selected node) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -8247,6 +8280,7 @@
   select_attribute_editor_tab(shape) => Err(InvalidInput: Attribute Editor tab does not resolve for the selected node) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -8490,6 +8524,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -8733,6 +8768,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -8976,6 +9012,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(3)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -9219,6 +9256,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(3)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -9568,6 +9606,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -9811,6 +9850,7 @@
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
   select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(InvalidInput: The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image) | no state change
+  select_attribute_editor_tab(camera) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Camera)
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -10054,6 +10094,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
@@ -10297,6 +10338,7 @@
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(image_plane,no_plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(camera) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -10327,4 +10369,4 @@
   set_image_plane(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   remove_image_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 9714
+cells: 9756

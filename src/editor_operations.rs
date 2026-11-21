@@ -41,13 +41,16 @@ pub enum MenuSet {
 
 /// An Attribute Editor tab. Each variant names its owner: the selected transform, or a direct
 /// mesh shape (its own tab, or the material connected to it). `ImagePlane` belongs to the live
-/// camera's session image plane (#459), so it needs a plane, not a selection.
+/// camera's session image plane (#459), so it needs a plane, not a selection. `Camera` belongs to
+/// the live camera's film back (#458): it needs neither a selection nor anything else, so it always
+/// resolves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AttributeEditorTab {
     Transform(NodeId),
     Shape(NativeId),
     Material(NativeId),
     ImagePlane,
+    Camera,
 }
 
 /// Which names `Operation::SearchReplaceNames` edits, after Maya's Search and Replace Names
@@ -1520,7 +1523,7 @@ pub struct SidebarPanelsInspection {
 #[cfg(any(test, feature = "mcp"))]
 pub struct AttributeEditorTabInspection {
     pub kind: &'static str,
-    /// The node or shape id; null for the image plane tab, which has no owner id.
+    /// The node or shape id; null for the image plane and camera tabs, which have no owner id.
     pub id: Option<String>,
 }
 #[derive(Debug, Serialize)]

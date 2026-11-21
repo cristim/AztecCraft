@@ -132,6 +132,7 @@ mod official_client {
     mod camera;
     mod camera_bookmarks;
     mod camera_film_back;
+    mod camera_tab;
     mod component_set;
     mod cylinder_cone;
     mod delete_selected;

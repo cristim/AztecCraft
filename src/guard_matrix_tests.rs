@@ -3021,6 +3021,16 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     },
                 )
             },
+            // The camera tab always resolves, so it is the one tab selectable in every rig.
+            Sample {
+                pre: Pre::AttributeEditorDock,
+                ..sample(
+                    "select_attribute_editor_tab(camera)",
+                    Operation::SelectAttributeEditorTab {
+                        tab: crate::editor_operations::AttributeEditorTab::Camera,
+                    },
+                )
+            },
         ],
         Operation::Orbit { .. } => vec![sample(
             "orbit",

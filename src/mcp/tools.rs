@@ -1924,6 +1924,7 @@ mod tests {
                     AttributeEditorTab::Shape(_) => 1,
                     AttributeEditorTab::Material(_) => 2,
                     AttributeEditorTab::ImagePlane => 3,
+                    AttributeEditorTab::Camera => 4,
                 }
             );
         }
@@ -1942,8 +1943,24 @@ mod tests {
                 tab: AttributeEditorTab::ImagePlane
             }
         ));
+        // The camera tab takes no id either.
+        let camera = parse_request(
+            "select_attribute_editor_tab",
+            json!({"scene_token": token, "tab": {"kind": "camera"}})
+                .as_object()
+                .unwrap()
+                .clone(),
+        )
+        .unwrap();
+        assert!(matches!(
+            camera.operation,
+            Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::Camera
+            }
+        ));
         for arguments in [
             json!({"scene_token": token, "tab": {"kind": "image_plane", "id": "7"}}),
+            json!({"scene_token": token, "tab": {"kind": "camera", "id": "7"}}),
             json!({"tab": {"kind": "shape", "id": "7"}}),
             json!({"scene_token": token}),
             json!({"scene_token": token, "tab": null}),

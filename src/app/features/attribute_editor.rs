@@ -46,6 +46,9 @@ impl Editor {
         if tab == AttributeEditorTab::ImagePlane {
             return self.image_plane.is_some();
         }
+        if tab == AttributeEditorTab::Camera {
+            return true;
+        }
         let Some(node) = self
             .selection_presentation()
             .0
@@ -54,7 +57,7 @@ impl Editor {
             return false;
         };
         match tab {
-            AttributeEditorTab::ImagePlane => false,
+            AttributeEditorTab::ImagePlane | AttributeEditorTab::Camera => false,
             AttributeEditorTab::Transform(id) => id == node.id(),
             AttributeEditorTab::Shape(shape) => self
                 .direct_shape_rank(node.transform_id(), shape)
@@ -70,11 +73,12 @@ impl Editor {
     /// The active tab: the stored one while it still resolves, else the selected transform's.
     /// `None` without a selected node.
     pub(in crate::app) fn effective_attribute_editor_tab(&self) -> Option<AttributeEditorTab> {
-        // The image plane tab belongs to the camera's plane, so it needs no selected node.
-        if self.attribute_editor_tab == Some(AttributeEditorTab::ImagePlane)
-            && self.attribute_editor_tab_resolves(AttributeEditorTab::ImagePlane)
+        // The image plane and camera tabs belong to the live camera, so they need no selected node.
+        if let Some(tab @ (AttributeEditorTab::ImagePlane | AttributeEditorTab::Camera)) =
+            self.attribute_editor_tab
+            && self.attribute_editor_tab_resolves(tab)
         {
-            return self.attribute_editor_tab;
+            return Some(tab);
         }
         let selected = self
             .selection_presentation()
@@ -176,10 +180,8 @@ impl Editor {
         let Some(active) = self.effective_attribute_editor_tab() else {
             self.plane_drafts_primed = false;
             ui.separator();
-            if self.image_plane.is_some() {
-                // No selected node: only the plane's tab can be shown.
-                self.attribute_editor_tabs(ui, None);
-            }
+            // No selected node: only the live camera's tabs can be shown.
+            self.attribute_editor_tabs(ui, None);
             ui.weak("Select an object to edit its attributes.");
             return;
         };
@@ -195,6 +197,11 @@ impl Editor {
     fn attribute_editor_body(&mut self, ui: &mut egui::Ui, active: AttributeEditorTab) {
         if active == AttributeEditorTab::ImagePlane {
             self.image_plane_section(ui);
+            return;
+        }
+        if active == AttributeEditorTab::Camera {
+            self.plane_drafts_primed = false;
+            self.camera_section(ui);
             return;
         }
         self.plane_drafts_primed = false;
@@ -221,7 +228,7 @@ impl Editor {
                 ui.label("Common Material Attributes");
                 self.material_section(ui, shape);
             }
-            AttributeEditorTab::ImagePlane => {}
+            AttributeEditorTab::ImagePlane | AttributeEditorTab::Camera => {}
         }
     }
 
@@ -369,6 +376,7 @@ impl Editor {
                 ));
             }
         }
+        tabs.push((AttributeEditorTab::Camera, "Camera".to_owned()));
         if self.image_plane.is_some() {
             tabs.push((AttributeEditorTab::ImagePlane, "Image Plane".to_owned()));
         }

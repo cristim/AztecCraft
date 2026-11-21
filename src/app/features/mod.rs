@@ -1,5 +1,6 @@
 pub(in crate::app) mod attribute_editor;
 pub(super) mod camera;
+mod camera_attributes;
 mod camera_bookmarks;
 mod component_move;
 mod export_common;

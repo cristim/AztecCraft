@@ -578,6 +578,10 @@ impl Editor {
                         kind: "image_plane",
                         id: None,
                     },
+                    AttributeEditorTab::Camera => AttributeEditorTabInspection {
+                        kind: "camera",
+                        id: None,
+                    },
                 }),
             depth_complete: gpu_healthy,
             clipping_complete: gpu_healthy,

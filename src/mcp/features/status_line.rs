@@ -77,6 +77,8 @@ enum TabKind {
     Material,
     /// The live camera's image plane (#459): takes no `id`; refused when there is no plane.
     ImagePlane,
+    /// The live camera's film back (#458): takes no `id`; always available.
+    Camera,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -84,7 +86,7 @@ enum TabKind {
 struct TabInput {
     kind: TabKind,
     /// Decimal id: the selected node for `transform`, a direct shape for `shape` and `material`.
-    /// Required for those three, and not allowed for `image_plane`.
+    /// Required for those three, and not allowed for `image_plane` or `camera`.
     id: Option<String>,
 }
 
@@ -113,6 +115,15 @@ fn parse_select_attribute_editor_tab(arguments: JsonObject) -> Result<RemoteRequ
                 ));
             }
             AttributeEditorTab::ImagePlane
+        }
+        TabKind::Camera => {
+            if args.tab.id.is_some() {
+                return Err(ErrorData::invalid_params(
+                    "tab.id is not allowed for the camera tab",
+                    None,
+                ));
+            }
+            AttributeEditorTab::Camera
         }
     };
     Ok(scoped(
@@ -164,7 +175,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "select_attribute_editor_tab",
-        description: "Select the Attribute Editor tab for the selected node: transform, a direct shape, or the material of a direct shape; only the first 16 direct shapes have tabs. The image_plane tab (kind image_plane, no id) belongs to the camera's image plane and needs no selection, only a plane (set_image_plane); it is refused without one. Session-only and idempotent; does not edit the scene. Refused unless attribute_editor is the active sidebar panel, and refused when the tab does not resolve for the current selection or names a shape beyond the 16th",
+        description: "Select the Attribute Editor tab for the selected node: transform, a direct shape, or the material of a direct shape; only the first 16 direct shapes have tabs. The image_plane tab (kind image_plane, no id) belongs to the camera's image plane and needs no selection, only a plane (set_image_plane); it is refused without one. The camera tab (kind camera, no id) shows the live camera's film back (set_camera_film_back) and needs neither a selection nor anything else. Session-only and idempotent; does not edit the scene. Refused unless attribute_editor is the active sidebar panel, and refused when the tab does not resolve for the current selection or names a shape beyond the 16th",
         schema: schema::<AttributeEditorTabArgs>,
         parse: parse_select_attribute_editor_tab,
         idempotent: true,
