@@ -1,7 +1,7 @@
 use super::*;
 use crate::app::features::playblast::fake::{self, Seen};
 use crate::editor_operations::{PlayblastFormat, PlayblastRequest};
-use azteccraft::playblast::PlayblastError;
+use azteccraft::playblast::{JobProgress, PlayblastError};
 
 fn request(directory: &std::path::Path) -> PlayblastRequest {
     PlayblastRequest {
@@ -32,6 +32,16 @@ fn editor(seen: &Seen) -> Editor {
     editor
 }
 
+fn pngs_only(dir: &std::path::Path) -> bool {
+    std::fs::read_dir(dir).unwrap().all(|entry| {
+        entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .ends_with(".png")
+    })
+}
+
 #[test]
 fn a_hidden_session_ticks_the_job_after_process_mcp_in_the_same_pass() {
     let dir = tempfile::tempdir().unwrap();
@@ -49,6 +59,28 @@ fn a_hidden_session_ticks_the_job_after_process_mcp_in_the_same_pass() {
         Ok(OperationReply::PlayblastStarted { frames: 30, .. })
     ));
     assert_eq!(seen.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn a_hidden_close_cancels_the_job_before_the_tick_and_leaves_only_complete_pngs() {
+    let dir = tempfile::tempdir().unwrap();
+    let context = egui::Context::default();
+    // A clean scene, so the close is approved without a save prompt.
+    let mut editor = Editor::default();
+    editor.playblast.factory = Some(fake::factory(Seen::default()));
+    editor
+        .apply_operation(Operation::Playblast(request(dir.path())))
+        .unwrap();
+    hidden_frame(&mut editor, &context, vec![]);
+    editor.request_close();
+    assert!(editor.files.is_closing());
+    hidden_frame(&mut editor, &context, vec![]);
+    assert!(editor.playblast.run.is_none());
+    assert!(matches!(
+        editor.playblast.last,
+        Some(JobProgress::Cancelled { .. })
+    ));
+    assert!(pngs_only(dir.path()));
 }
 
 #[test]

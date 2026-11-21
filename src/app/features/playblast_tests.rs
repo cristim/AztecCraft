@@ -120,6 +120,24 @@ fn a_session_without_a_renderer_reports_no_adapter() {
     );
 }
 
+#[test]
+fn cancel_reports_whether_a_job_was_running() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut editor = editor(&Seen::default());
+    assert!(matches!(
+        editor.apply_operation(Operation::CancelPlayblast).unwrap(),
+        OperationReply::Unchanged
+    ));
+    editor
+        .apply_operation(Operation::Playblast(request(dir.path())))
+        .unwrap();
+    assert!(matches!(
+        editor.apply_operation(Operation::CancelPlayblast).unwrap(),
+        OperationReply::Changed
+    ));
+    assert!(editor.playblast.run.is_none());
+}
+
 fn ticks(editor: &mut Editor, count: usize) {
     let ctx = egui::Context::default();
     for _ in 0..count {
@@ -283,6 +301,31 @@ fn an_unevaluable_frame_fails_the_job_with_a_typed_error_and_no_staged_file() {
 }
 
 #[test]
+fn cancel_mid_job_keeps_only_complete_numbered_pngs() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut editor = editor(&Seen::default());
+    let mut long = request(dir.path());
+    long.end = Some(40.0);
+    editor.apply_operation(Operation::Playblast(long)).unwrap();
+    ticks(&mut editor, 3);
+    editor.apply_operation(Operation::CancelPlayblast).unwrap();
+    assert!(matches!(
+        editor.playblast.last,
+        Some(JobProgress::Cancelled { .. })
+    ));
+    let names = listing(dir.path());
+    assert!(names.len() < 40);
+    assert!(
+        names
+            .iter()
+            .all(|name| name.starts_with("shot.") && name.ends_with(".png"))
+    );
+    for name in names {
+        decode(&dir.path().join(name));
+    }
+}
+
+#[test]
 fn a_modal_pauses_the_tick_and_the_job_resumes_after_it() {
     let dir = tempfile::tempdir().unwrap();
     let seen = Seen::default();
@@ -302,4 +345,53 @@ fn a_modal_pauses_the_tick_and_the_job_resumes_after_it() {
         })
         .unwrap();
     assert_eq!(run_to_end(&mut editor), JobProgress::Finished { total: 3 });
+}
+
+#[test]
+fn new_scene_cancels_the_job_and_forgets_its_report() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut editor = editor(&Seen::default());
+    let mut long = request(dir.path());
+    long.end = Some(40.0);
+    editor.apply_operation(Operation::Playblast(long)).unwrap();
+    ticks(&mut editor, 2);
+    editor.request_new();
+    let pending = editor.files.pending_inspection().unwrap();
+    editor
+        .apply_operation(Operation::ResolveFileAction {
+            pending_id: pending.id.parse().unwrap(),
+            decision: FileDecision::Discard,
+        })
+        .unwrap();
+    assert!(editor.playblast.run.is_none());
+    assert!(editor.playblast.last.is_none());
+    assert!(
+        listing(dir.path())
+            .iter()
+            .all(|name| name.ends_with(".png"))
+    );
+}
+
+#[test]
+fn an_approved_close_cancels_the_job_and_joins_its_writer() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut editor = Editor::default();
+    editor.playblast.factory = Some(fake::factory(Seen::default()));
+    let mut long = request(dir.path());
+    long.end = Some(40.0);
+    editor.apply_operation(Operation::Playblast(long)).unwrap();
+    ticks(&mut editor, 2);
+    editor.request_close();
+    assert!(editor.files.is_closing());
+    editor.handle_close(&egui::Context::default());
+    assert!(editor.playblast.run.is_none());
+    assert!(matches!(
+        editor.playblast.last,
+        Some(JobProgress::Cancelled { .. })
+    ));
+    assert!(
+        listing(dir.path())
+            .iter()
+            .all(|name| name.ends_with(".png"))
+    );
 }

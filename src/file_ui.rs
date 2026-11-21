@@ -418,6 +418,8 @@ impl Editor {
         path: Option<PathBuf>,
         camera: Camera,
     ) {
+        #[cfg(any(test, feature = "mcp"))]
+        self.reset_playblast();
         self.scene_token = Uuid::new_v4();
         self.files.saved = scene.clone();
         self.files.origin = origin;
@@ -679,6 +681,11 @@ impl Editor {
         }
     }
     pub(super) fn handle_close(&mut self, ctx: &egui::Context) {
+        // The close completes only after the playblast writer is joined, so it leaves no staged file.
+        #[cfg(any(test, feature = "mcp"))]
+        if self.files.close_approved {
+            self.cancel_playblast();
+        }
         let ready = self.close_ready();
         // A late `performClose:` event must never let eframe close the viewport itself while the
         // deferred AppKit reply owns the exit.
