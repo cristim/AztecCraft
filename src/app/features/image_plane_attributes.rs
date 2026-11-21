@@ -130,7 +130,125 @@ fn edit_for(index: usize, text: &str) -> Result<ImagePlaneEdit, String> {
     Ok(edit)
 }
 
+/// Notes under the rows (PROVISIONAL wording).
+pub(in crate::app) const SESSION_NOTE: &str = "Session only, not saved with the scene. The same image name does not reload a changed file: Remove Image Plane, then Import Image.";
+pub(in crate::app) const PERSPECTIVE_NOTE: &str = "No effect until the view is perspective";
+
+/// Disabled rows and why, in Maya's order. The issue numbers are the repo's own; the others say
+/// what is missing in plain words.
+pub(in crate::app) const UNSUPPORTED_ROWS: [(&str, &str); 8] = [
+    (
+        "Size",
+        "Placement inside the gate is not implemented: the plate always fits the film gate",
+    ),
+    (
+        "Offset",
+        "Placement inside the gate is not implemented: the plate always fits the film gate",
+    ),
+    (
+        "Rotate",
+        "Placement inside the gate is not implemented: the plate always fits the film gate",
+    ),
+    (
+        "Squeeze Correction",
+        "Squeeze correction is not implemented",
+    ),
+    ("Color Gain", "Colour gain is not implemented"),
+    ("Color Offset", "Colour offset is not implemented"),
+    ("Color Space", "document colour management is #49"),
+    (
+        "Depth Map",
+        "Depth maps need EXR images, which are not supported",
+    ),
+];
+pub(in crate::app) const RESOLUTION_GATE_REASON: &str = "needs the resolution gate, #55";
+
+/// A labelled read-only value: the AccessKit node carries the row name as its label and the text
+/// as its value, so a screen reader hears both.
+fn read_only_row(ui: &mut egui::Ui, name: &str, value: &str) {
+    ui.label(name);
+    let response = ui.label(value);
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        node.set_label(name);
+        node.set_value(value);
+    });
+    ui.end_row();
+}
+
+/// The Resolved Frame text, from the report `inspect_scene` reads too.
+pub(in crate::app) fn resolved_frame_text(report: &super::image_plane::PlateFrameReport) -> String {
+    let state = match report.error {
+        Some(code) => format!("failed: {code}"),
+        None => report.state.to_owned(),
+    };
+    let mut parts = Vec::new();
+    if let Some(frame) = report.resolved_frame {
+        parts.push(format!("frame {frame}"));
+    }
+    parts.push(
+        report
+            .file_name
+            .clone()
+            .unwrap_or_else(|| "no file".to_owned()),
+    );
+    parts.push(state);
+    parts.join(", ")
+}
+
 impl Editor {
+    /// Read-only values, the Fit to choice, the unsupported rows and the notes.
+    fn plane_info_rows(&self, ui: &mut egui::Ui, plane: &ImagePlane, size: (u32, u32)) {
+        let report = self.plate_frame_report(plane);
+        ui.separator();
+        egui::Grid::new("image_plane_info")
+            .num_columns(2)
+            .spacing([8.0, 5.0])
+            .show(ui, |ui| {
+                // Only a sequence has an image number (Maya's frame extension).
+                let number = if plane.use_frame_extension {
+                    "follows the time slider"
+                } else {
+                    "not used (single image)"
+                };
+                read_only_row(ui, "Image Number", number);
+                read_only_row(ui, "Image Size", &format!("{} x {} pixels", size.0, size.1));
+                read_only_row(ui, "Resolved Frame", &resolved_frame_text(&report));
+                ui.label("Fit to");
+                ui.horizontal(|ui| {
+                    // A read-only selected value, not a choice: every fit uses the film gate today.
+                    let film = ui.label(egui::RichText::new("Film Gate").strong());
+                    ui.ctx().accesskit_node_builder(film.id, |node| {
+                        node.set_role(egui::accesskit::Role::RadioButton);
+                        node.set_label("Film Gate");
+                        node.set_toggled(egui::accesskit::Toggled::True);
+                    });
+                    let gate = ui
+                        .add_enabled(false, egui::Button::new("Resolution Gate"))
+                        .on_disabled_hover_text(RESOLUTION_GATE_REASON);
+                    super::primitive_options::describe_unavailable(
+                        ui.ctx(),
+                        gate.id,
+                        RESOLUTION_GATE_REASON,
+                    );
+                });
+                ui.end_row();
+                for (name, reason) in UNSUPPORTED_ROWS {
+                    ui.label(name);
+                    let response = ui
+                        .add_enabled(false, egui::Button::new("Not available"))
+                        .on_disabled_hover_text(reason);
+                    ui.ctx().accesskit_node_builder(response.id, |node| {
+                        node.set_label(name);
+                    });
+                    super::primitive_options::describe_unavailable(ui.ctx(), response.id, reason);
+                    ui.end_row();
+                }
+            });
+        ui.separator();
+        ui.weak(SESSION_NOTE);
+        ui.weak(PERSPECTIVE_NOTE);
+    }
+
     /// The editable rows of the Image Plane tab.
     pub(in crate::app) fn image_plane_section(&mut self, ui: &mut egui::Ui) {
         let Some(ImagePlaneState { plane, image_size }) = self.image_plane.clone() else {
@@ -208,7 +326,7 @@ impl Editor {
                 ..Default::default()
             });
         }
-        // The Resolved File and Frame rows are P9b-2.
+        self.plane_info_rows(ui, &plane, image_size);
         for index in blurred {
             if self.plane_drafts[index] == current[index] {
                 continue;

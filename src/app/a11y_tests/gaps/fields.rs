@@ -1,7 +1,9 @@
-//! Recorded violations: fields.
+//! Recorded violations: fields. The Image Plane tab's scroll bar is the same unnamed egui scroll
+//! bar the transform tab records.
 
 pub(super) const GAPS: &[&str] = &[
     "attribute-editor-camera|R1|ScrollBar|root/<Window>#0/<ScrollBar>#0",
+    "attribute-editor-image-plane|R1|ScrollBar|root/<Window>#0/<ScrollBar>#0",
     "attribute-editor-transform|R1|ScrollBar|root/<Window>#0/<ScrollBar>#0",
     "attribute-editor-transform|R1|TextInput|channel_edit[0]",
     "attribute-editor-transform|R1|TextInput|channel_edit[1]",

@@ -753,29 +753,11 @@ impl Editor {
     /// Read-only view of the session image plane (#459): no file is opened, nothing is decoded and
     /// neither the plane nor any cache changes. Only the file name leaves, never the directory.
     fn inspect_image_plane(&self) -> Option<crate::editor_operations::ImagePlaneInspection> {
-        use azteccraft::image_plane::{
-            model::{PlateDisplayMode, PlateFit},
-            sequence::frame_path,
-        };
+        use azteccraft::image_plane::model::{PlateDisplayMode, PlateFit};
         let state = self.image_plane.as_ref()?;
         let plane = &state.plane;
-        let status = self.plate.status_of(self.plate_frame(plane));
+        let report = self.plate_frame_report(plane);
         let usage = self.plate.cache_usage();
-        let file_name = |path: &std::path::Path| {
-            path.file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-        };
-        let (resolved_frame, resolved_file_name) = if plane.use_frame_extension {
-            let frame = i64::from(self.timeline.current) + i64::from(plane.frame_offset);
-            (
-                Some(frame),
-                frame_path(&plane.image_name, frame)
-                    .ok()
-                    .and_then(|path| file_name(&path)),
-            )
-        } else {
-            (None, file_name(&plane.image_name))
-        };
         Some(crate::editor_operations::ImagePlaneInspection {
             settings: crate::editor_operations::ImagePlaneSettingsInspection {
                 use_frame_extension: plane.use_frame_extension,
@@ -811,20 +793,10 @@ impl Editor {
                 width: state.image_size.0,
                 height: state.image_size.1,
             },
-            frame_state: status.map_or(
-                if resolved_file_name.is_some() {
-                    "not_loaded"
-                } else {
-                    "missing"
-                },
-                super::features::image_plane::FrameStatus::name,
-            ),
-            frame_error: match status {
-                Some(super::features::image_plane::FrameStatus::Failed(code)) => Some(*code),
-                _ => None,
-            },
-            resolved_file_name,
-            resolved_frame,
+            frame_state: report.state,
+            frame_error: report.error,
+            resolved_file_name: report.file_name,
+            resolved_frame: report.resolved_frame,
             cache: crate::editor_operations::ImagePlaneCacheInspection {
                 frames: usage.0,
                 bytes: usage.1,

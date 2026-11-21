@@ -18,6 +18,7 @@ use azteccraft::{
         decode::{PlateError, PlateFrame},
         fit::plate_quad,
         model::ImagePlane,
+        sequence::frame_path,
         worker::{DecodeFn, FrameState, PlateSource, PlateStream, decode_from_disk},
     },
     viewport::Lens,
@@ -36,7 +37,6 @@ pub(in crate::app) enum FrameStatus {
 }
 
 impl FrameStatus {
-    #[cfg(any(test, feature = "mcp"))]
     pub(in crate::app) fn name(&self) -> &'static str {
         match self {
             Self::Loading => "loading",
@@ -197,6 +197,55 @@ impl PlateRuntime {
     }
 }
 
+/// What the editor knows about the frame the current time resolves to. The one source the
+/// Attribute Editor row and `inspect_scene` read, so the UI and MCP cannot disagree.
+pub(in crate::app) struct PlateFrameReport {
+    /// Current time plus `frame_offset` for a sequence; none for a single image.
+    pub(in crate::app) resolved_frame: Option<i64>,
+    /// The file name (no directory); none when the frame has no file.
+    pub(in crate::app) file_name: Option<String>,
+    /// `not_loaded`, `loading`, `ready`, `missing` or `failed`.
+    pub(in crate::app) state: &'static str,
+    pub(in crate::app) error: Option<&'static str>,
+}
+
+impl Editor {
+    pub(in crate::app) fn plate_frame_report(&self, plane: &ImagePlane) -> PlateFrameReport {
+        let name = |path: &std::path::Path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+        };
+        let (resolved_frame, file_name) = if plane.use_frame_extension {
+            let frame = self.plate_frame(plane);
+            (
+                Some(frame),
+                frame_path(&plane.image_name, frame)
+                    .ok()
+                    .and_then(|path| name(&path)),
+            )
+        } else {
+            (None, name(&plane.image_name))
+        };
+        let status = self.plate.status_of(self.plate_frame(plane));
+        PlateFrameReport {
+            state: status.map_or(
+                if file_name.is_some() {
+                    "not_loaded"
+                } else {
+                    "missing"
+                },
+                FrameStatus::name,
+            ),
+            error: match status {
+                Some(FrameStatus::Failed(code)) => Some(*code),
+                _ => None,
+            },
+            resolved_frame,
+            file_name,
+        }
+    }
+}
+
 impl Editor {
     /// The key frame of the plane at the current time: the timeline frame plus the offset for a
     /// sequence, 0 for a single image.
@@ -223,17 +272,16 @@ impl Editor {
     /// The text the status line shows for the plate; nothing while the frame is ready.
     pub(in crate::app) fn plate_status_text(&self) -> Option<String> {
         let plane = &self.image_plane.as_ref()?.plane;
-        let frame = self.plate_frame(plane);
-        let label = if plane.use_frame_extension {
-            format!("Plate frame {frame}")
-        } else {
-            "Plate".to_owned()
+        // The same report the Resolved Frame row and inspect_scene read.
+        let report = self.plate_frame_report(plane);
+        let label = match report.resolved_frame {
+            Some(frame) => format!("Plate frame {frame}"),
+            None => "Plate".to_owned(),
         };
-        match self.plate.status_of(frame)? {
-            FrameStatus::Ready => None,
-            FrameStatus::Loading => Some(format!("{label}: loading")),
-            FrameStatus::Missing => Some(format!("{label}: missing")),
-            FrameStatus::Failed(code) => Some(format!("{label}: failed: {code}")),
+        match (report.state, report.error) {
+            ("not_loaded" | "ready", _) => None,
+            ("failed", Some(code)) => Some(format!("{label}: failed: {code}")),
+            (state, _) => Some(format!("{label}: {state}")),
         }
     }
 
