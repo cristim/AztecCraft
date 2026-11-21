@@ -10,6 +10,7 @@ pub(super) mod material;
 pub(super) mod move_vertices;
 pub(super) mod node_edit;
 pub(super) mod pivots;
+pub(super) mod playblast;
 mod primitive_args;
 pub(super) mod recovery;
 pub(super) mod reduce;

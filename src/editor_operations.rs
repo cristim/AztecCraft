@@ -427,7 +427,6 @@ pub struct PlayblastRequest {
 #[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlayblastFormat {
-    #[cfg_attr(not(test), expect(dead_code, reason = "MCP tool pending (#460)"))]
     Png,
 }
 
@@ -721,11 +720,9 @@ pub enum Operation {
     },
     /// Starts a playblast job on a snapshot of the scene; never edits the scene or its history.
     #[cfg(any(test, feature = "mcp"))]
-    #[cfg_attr(not(test), expect(dead_code, reason = "MCP tool pending (#460)"))]
     Playblast(PlayblastRequest),
     /// Stops the running playblast, keeping the frames already written; `Unchanged` with none.
     #[cfg(any(test, feature = "mcp"))]
-    #[cfg_attr(not(test), expect(dead_code, reason = "MCP tool pending (#460)"))]
     CancelPlayblast,
     /// File > Import of a Maya `.ma` or `.mb` file: adds its meshes to the scene as one undo
     /// step, each name prefixed with `prefix` when given.

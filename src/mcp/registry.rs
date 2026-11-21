@@ -1,6 +1,6 @@
 use super::features::{
     animation, camera_bookmarks, extrude, file, group, history, inspect, manipulation, material,
-    move_vertices, node_edit, pivots, recovery, reduce, rigging, selection, status_line,
+    move_vertices, node_edit, pivots, playblast, recovery, reduce, rigging, selection, status_line,
     transform_ops, uv, view,
 };
 use crate::editor_operations::{MAX_NAME_BYTES, RemoteRequest};
@@ -39,6 +39,7 @@ const FEATURES: &[&[ToolSpec]] = &[
     camera_bookmarks::TOOLS,
     status_line::TOOLS,
     file::TOOLS,
+    playblast::TOOLS,
     recovery::TOOLS,
 ];
 
