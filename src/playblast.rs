@@ -44,6 +44,7 @@ pub enum PlayblastError {
     Io(io::ErrorKind),
     Unsupported(&'static str),
     Render(&'static str),
+    WriterPanicked,
 }
 
 impl fmt::Display for PlayblastError {
@@ -62,6 +63,7 @@ impl fmt::Display for PlayblastError {
             Self::Io(kind) => write!(f, "I/O failed: {kind}"),
             Self::Unsupported(what) => write!(f, "unsupported: {what}"),
             Self::Render(what) => write!(f, "render failed: {what}"),
+            Self::WriterPanicked => f.write_str("the writer thread panicked"),
         }
     }
 }
@@ -185,7 +187,12 @@ fn check_directory(directory: &Path) -> Result<(), PlayblastError> {
     if text.is_none() || directory.components().any(|c| c == Component::ParentDir) {
         return Err(PlayblastError::InvalidDirectory);
     }
-    // symlink_metadata: a symlinked directory is refused, not followed.
+    // Output must not depend on the process working directory.
+    if !directory.is_absolute() {
+        return Err(PlayblastError::InvalidDirectory);
+    }
+    // symlink_metadata: a symlinked final component is refused, not followed. Symlinks in
+    // ancestor components are allowed and followed.
     match std::fs::symlink_metadata(directory) {
         Ok(meta) if meta.is_dir() => Ok(()),
         _ => Err(PlayblastError::InvalidDirectory),

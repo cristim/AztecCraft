@@ -49,12 +49,24 @@ pub struct PlayblastJob {
     terminal: Option<JobProgress>,
 }
 
-pub(super) fn install_error(kind: io::ErrorKind, frame: i64) -> PlayblastError {
-    match kind {
+/// Raw OS codes that mean "no hard links here": Linux EPERM from vfat and similar, Windows
+/// ERROR_INVALID_FUNCTION (1) and ERROR_NOT_SUPPORTED (50).
+pub(super) fn no_hard_links(raw: i32, os: &str) -> bool {
+    match os {
+        "linux" => raw == 1,
+        "windows" => raw == 1 || raw == 50,
+        _ => false,
+    }
+}
+
+pub(super) fn install_error(error: &io::Error, frame: i64) -> PlayblastError {
+    let unsupported = error.kind() == io::ErrorKind::Unsupported
+        || error
+            .raw_os_error()
+            .is_some_and(|raw| no_hard_links(raw, std::env::consts::OS));
+    match error.kind() {
         io::ErrorKind::AlreadyExists => PlayblastError::DestinationExists { frame },
-        io::ErrorKind::Unsupported => {
-            PlayblastError::Unsupported("hard links are not available here")
-        }
+        _ if unsupported => PlayblastError::Unsupported("hard links are not available here"),
         kind => PlayblastError::Io(kind),
     }
 }
@@ -70,12 +82,22 @@ fn write_loop(
         if cancelled() {
             return;
         }
-        let result = encode_png(&item.rgba, size.0, size.1).and_then(|png| {
-            install_frame(&item.path, &png, &cancelled)
-                .map_err(|error| install_error(error.kind(), item.frame))
-        });
-        // An interrupted install is a cancel; the job reports it, not the writer.
-        if cancelled() || acks.send(result.clone()).is_err() || result.is_err() {
+        let png = match encode_png(&item.rgba, size.0, size.1) {
+            Ok(png) => png,
+            Err(error) => {
+                let _ = acks.send(Err(error));
+                return;
+            }
+        };
+        let result = match install_frame(&item.path, &png, &cancelled) {
+            Ok(()) => Ok(()),
+            // An interrupted install is a cancel; the job reports it, not the writer.
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => return,
+            Err(error) => Err(install_error(&error, item.frame)),
+        };
+        // An install that finished is acked even when a cancel arrived meanwhile.
+        let failed = result.is_err();
+        if acks.send(result).is_err() || failed {
             return;
         }
     }
@@ -84,6 +106,9 @@ fn write_loop(
 impl PlayblastJob {
     /// Refuses an occupied destination before any frame is rendered, then starts the writer.
     pub fn start(plan: PlayblastPlan) -> Result<Self, PlayblastError> {
+        // Ancestor symlinks are allowed; only the final component is checked, here again because
+        // it can change between planning and starting. Later swaps are caught by hard_link.
+        super::check_directory(&plan.directory)?;
         plan.check_no_collisions()?;
         let (work, queue) = sync_channel(QUEUE);
         let (ack_tx, acks) = channel();
@@ -197,7 +222,7 @@ impl PlayblastJob {
             .take()
             .is_some_and(|writer| writer.join().is_err());
         let error = self.collect();
-        error.or(panicked.then_some(PlayblastError::Render("writer thread panicked")))
+        error.or(panicked.then_some(PlayblastError::WriterPanicked))
     }
 }
 

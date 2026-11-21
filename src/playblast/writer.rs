@@ -6,7 +6,7 @@
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::PlayblastError;
@@ -31,31 +31,62 @@ pub fn encode_png(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, Playb
 }
 
 /// Writes `bytes` beside `target` under a staged name, then links it into place unless
-/// `cancelled()` says stop (`Interrupted`). The staged file is removed on every path.
+/// `cancelled()` says stop (`Interrupted`). The staged name is removed on every path, panics
+/// included. Not covered: no directory fsync follows `hard_link`, so a power loss right after
+/// can lose the new entry, and a killed process leaves its `.pb_tmp` behind.
 pub fn install_frame(target: &Path, bytes: &[u8], cancelled: &dyn Fn() -> bool) -> io::Result<()> {
+    install_with(
+        target,
+        bytes,
+        cancelled,
+        &|| STAGED.fetch_add(1, Ordering::Relaxed),
+        &|path: &Path| fs::remove_file(path),
+    )
+}
+
+/// A staged name that already exists (a leftover, or a reused PID) is skipped, never opened.
+const NAME_TRIES: u32 = 8;
+
+/// Removes the staged name when dropped; an unlink failure is ignored because after a
+/// successful install the frame is in place and the name is only a stray extra link.
+struct Staged<'a> {
+    path: PathBuf,
+    remove: &'a dyn Fn(&Path) -> io::Result<()>,
+}
+
+impl Drop for Staged<'_> {
+    fn drop(&mut self) {
+        let _ = (self.remove)(&self.path);
+    }
+}
+
+pub(super) fn install_with(
+    target: &Path,
+    bytes: &[u8],
+    cancelled: &dyn Fn() -> bool,
+    next_id: &dyn Fn() -> u64,
+    remove: &dyn Fn(&Path) -> io::Result<()>,
+) -> io::Result<()> {
     let dir = target.parent().ok_or(io::ErrorKind::InvalidInput)?;
-    let staged = dir.join(format!(
-        ".playblast-{}-{}.pb_tmp",
-        std::process::id(),
-        STAGED.fetch_add(1, Ordering::Relaxed)
-    ));
-    // create_new: a file that is not ours is never opened, so never removed below.
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&staged)?;
-    let result = file
-        .write_all(bytes)
-        .and_then(|()| file.sync_all())
-        .and_then(|()| {
-            if cancelled() {
-                return Err(io::ErrorKind::Interrupted.into());
+    // create_new: a file that is not ours is never opened, so never removed by the guard.
+    let (mut file, path) = (0..NAME_TRIES)
+        .find_map(|_| {
+            let path = dir.join(format!(
+                ".playblast-{}-{}.pb_tmp",
+                std::process::id(),
+                next_id()
+            ));
+            match OpenOptions::new().write(true).create_new(true).open(&path) {
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => None,
+                opened => Some(opened.map(|file| (file, path))),
             }
-            fs::hard_link(&staged, target)
-        });
-    drop(file);
-    let removed = fs::remove_file(&staged);
-    result?;
-    // The frame is in place; a failed unlink only leaves a stray staged name.
-    removed
+        })
+        .unwrap_or(Err(io::ErrorKind::Other.into()))?;
+    let staged = Staged { path, remove };
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    if cancelled() {
+        return Err(io::ErrorKind::Interrupted.into());
+    }
+    fs::hard_link(&staged.path, target)
 }

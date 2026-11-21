@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use std::path::Path;
 
-use super::job::install_error;
+use super::job::{install_error, no_hard_links};
 use super::writer_tests::names;
 use super::*;
 
@@ -164,16 +164,41 @@ fn a_writer_io_failure_is_reported_and_leaves_nothing() {
 
 #[test]
 fn install_errors_map_to_typed_errors() {
+    let map = |kind| install_error(&io::Error::from(kind), 7);
     assert_eq!(
-        install_error(io::ErrorKind::AlreadyExists, 7),
+        map(io::ErrorKind::AlreadyExists),
         PlayblastError::DestinationExists { frame: 7 }
     );
     assert!(matches!(
-        install_error(io::ErrorKind::Unsupported, 7),
+        map(io::ErrorKind::Unsupported),
         PlayblastError::Unsupported(_)
     ));
     assert_eq!(
-        install_error(io::ErrorKind::PermissionDenied, 7),
+        map(io::ErrorKind::PermissionDenied),
         PlayblastError::Io(io::ErrorKind::PermissionDenied)
+    );
+}
+
+#[test]
+fn hard_link_unsupported_raw_codes_are_matched_per_os() {
+    assert!(no_hard_links(1, "linux") && !no_hard_links(2, "linux"));
+    assert!(
+        no_hard_links(1, "windows") && no_hard_links(50, "windows") && !no_hard_links(5, "windows")
+    );
+    assert!(!no_hard_links(1, "macos"));
+}
+
+#[cfg(unix)]
+#[test]
+fn start_rechecks_a_directory_swapped_for_a_symlink() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let sub = dir.path().join("out");
+    std::fs::create_dir(&sub).unwrap();
+    let planned = plan(&sub, 1.0, 2.0);
+    std::fs::remove_dir(&sub).unwrap();
+    std::os::unix::fs::symlink(dir.path(), &sub).unwrap();
+    assert_eq!(
+        PlayblastJob::start(planned).err(),
+        Some(PlayblastError::InvalidDirectory)
     );
 }
