@@ -184,3 +184,6 @@ fn replace_in(name: &str, search: &str, replace: &str, match_case: bool) -> Opti
     out.push_str(&name[last..]);
     Some(out)
 }
+
+#[cfg(test)]
+mod tests;
