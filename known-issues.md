@@ -515,8 +515,12 @@ Plane on the camera); a Camera Attributes near-clip setting is the candidate, no
 The default lens is film-fit (development.md row 25). The viewport models the four film fits,
 lens squeeze (as an effective horizontal aperture), overscan, film offset, Film Fit Offset, pre
 and post scale, film roll, camera scale, Film Translate, Film Roll Pivot and Film Roll Order
-through `FilmBack` (the last four PROVISIONAL, row 25). Frame All and Frame Selected still
-ignore pre and post scale, roll, translate and pivot. Only the MCP `set_camera_film_back` edits
+through `FilmBack` (the last four PROVISIONAL, row 25). Frame All and Frame Selected aim at the screen centre, scale the
+sphere angle by the roll and scales, and widen the distance until every point is inside
+(PROVISIONAL). The sphere angle ignores overscan, but the widening projects through the real
+film, so an overscan below 1 also widens. When the widening cannot converge (rounding at
+extreme coordinates, or more than 1000 times the sphere distance) the framing silently keeps the
+sphere distance and may leave points outside the view; nothing reports it yet. Only the MCP `set_camera_film_back` edits
 the film back; the Attribute Editor Camera tab (#458) is not built, so no native control exists. Every film formula, the Fill threshold, the Fill default and treating the viewport
 aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about

@@ -212,3 +212,161 @@ fn an_overscan_below_one_now_widens_the_distance_to_the_real_visible_area() {
     assert!(camera.distance() > f32::from_bits(1085501432));
     assert!(max_ndc(&camera, &points, 1.0) <= 1.00001);
 }
+
+#[test]
+fn the_sphere_framing_alone_fits_a_scaled_film_on_axis() {
+    // Widening off: the sphere half angle must already carry the 2D scale. Pre scale 2 halves the
+    // tangent the sphere may fill: distance = sqrt(3) / sin(atan(ty / 2)) * margin, by hand.
+    for (scale, ratio) in [(2.0, 0.5), (0.5, 2.0)] {
+        let mut camera = Camera {
+            lens: Lens::Film(FilmBack {
+                pre_scale: scale,
+                ..FilmBack::DEFAULT
+            }),
+            ..Camera::default()
+        };
+        let points = cube();
+        camera
+            .frame_iter_widening(points.iter().copied(), 1.0, 0)
+            .unwrap();
+        let tan = TY_DEFAULT * ratio;
+        let expected = 3.0_f64.sqrt() / tan.atan().sin() * f64::from(DEFAULT_FRAME_MARGIN);
+        assert!(
+            (f64::from(camera.distance()) - expected).abs() < 1e-4 * expected,
+            "scale {scale}: {} vs {expected}",
+            camera.distance()
+        );
+        let reach = max_ndc(&camera, &points, 1.0);
+        assert!(
+            (min_reach()..=1.00001).contains(&reach),
+            "scale {scale}: reach {reach}"
+        );
+    }
+}
+
+const TY_DEFAULT: f64 = 0.9449 * 25.4 / 70.0;
+
+fn harsh(f: &mut FilmBack) {
+    f.film_roll_degrees = 60.0;
+    f.pre_scale = 2.0;
+    f.post_scale = 1.5;
+    f.film_translate = [0.8, -0.5];
+    f.film_roll_pivot = [0.7, 0.4];
+}
+
+/// Off-axis enough that the sphere framing alone leaves points outside (reach 1.18 at aspect 0.6).
+fn off_axis(f: &mut FilmBack) {
+    f.film_fit = FilmFit::Horizontal;
+    f.film_roll_order = FilmRollOrder::TranslateRotate;
+    f.film_roll_degrees = 75.0;
+    f.film_translate = [0.4, 0.6];
+}
+
+#[test]
+fn a_widening_that_does_not_converge_keeps_the_sphere_distance_and_aim() {
+    let make = |steps: usize| {
+        let mut film = FilmBack::DEFAULT;
+        off_axis(&mut film);
+        let mut camera = Camera {
+            lens: Lens::Film(film),
+            ..Camera::default()
+        };
+        camera
+            .frame_iter_widening(cube().into_iter(), 0.6, steps)
+            .unwrap();
+        camera
+    };
+    // Zero widening steps take the same path as a widening that never converges: the sphere
+    // distance and aim stand. This roll keeps the disc ratio at 1 (pixel-space rotation), so the
+    // sphere distance is sqrt(3) / sin(atan(tx)) * margin by hand, tx the horizontal half extent.
+    let sphere = make(0);
+    let tx: f64 = 1.4173 * 25.4 / 70.0;
+    let expected = 3.0_f64.sqrt() / tx.atan().sin() * f64::from(DEFAULT_FRAME_MARGIN);
+    assert!((f64::from(sphere.distance()) - expected).abs() < 1e-4 * expected);
+    assert!(max_ndc(&sphere, &cube(), 0.6) > 1.1);
+    let many = make(FRAME_REFINE_STEPS);
+    assert!(many.distance() > sphere.distance());
+    assert!(max_ndc(&many, &cube(), 0.6) <= 1.00001);
+    // The sphere framing keeps the aim: the centre sits at the screen centre.
+    let centre = sphere.project(Vec3::ZERO, 0.6).unwrap().unwrap();
+    assert!(centre.truncate().abs().max_element() < 1e-3, "{centre}");
+}
+
+#[test]
+fn extreme_and_degenerate_point_sets_still_frame() {
+    let shifted =
+        |z: f32| -> Vec<Vec3> { cube().iter().map(|p| *p + Vec3::new(0.0, 0.0, z)).collect() };
+    for edit in [(|_: &mut FilmBack| {}) as Edit, harsh] {
+        let lens = Lens::Film({
+            let mut film = FilmBack::DEFAULT;
+            edit(&mut film);
+            film
+        });
+        for points in [
+            shifted(1e15),
+            vec![Vec3::new(3.0, 4.0, 5.0)],
+            vec![Vec3::ZERO; 3],
+        ] {
+            let mut camera = Camera {
+                lens,
+                ..Camera::default()
+            };
+            camera.frame_points(&points, 1.5).unwrap();
+        }
+        // One point has zero radius: it frames at the minimum distance and is inside the view.
+        let mut camera = Camera {
+            lens,
+            ..Camera::default()
+        };
+        let point = [Vec3::new(3.0, 4.0, 5.0)];
+        camera.frame_points(&point, 1.5).unwrap();
+        assert!(max_ndc(&camera, &point, 1.5) <= 1.00001);
+    }
+}
+
+#[test]
+fn a_widening_beyond_its_range_gives_up_and_keeps_the_sphere_framing() {
+    let film = FilmBack {
+        film_translate: [MAX_NDC_SHIFT, 0.0],
+        ..FilmBack::DEFAULT
+    };
+    let camera = Camera {
+        lens: Lens::Film(film),
+        ..Camera::default()
+    };
+    let points = cube();
+    let mut sphere = camera.clone();
+    sphere
+        .frame_iter_widening(points.iter().copied(), 1.0, 0)
+        .unwrap();
+    let aim = film.window(1.0).tan_of_ndc(DVec2::ZERO);
+    let view = camera.view_matrix().inverse();
+    let side = view.x_axis.truncate() * aim.x as f32 + view.y_axis.truncate() * aim.y as f32;
+    let frame = |max_widening| FilmFrame {
+        camera: &sphere,
+        target: Vec3::ZERO,
+        side,
+        radius: 3.0_f32.sqrt(),
+        allowed: 1.0,
+        aspect: 1.0,
+        max_widening,
+    };
+    let start = sphere.distance();
+    assert!(
+        frame(MAX_FRAME_WIDENING)
+            .widened_distance(points.iter().copied(), start, FRAME_REFINE_STEPS)
+            .is_some_and(|distance| distance > start)
+    );
+    for max_widening in [1.0, 2.0] {
+        assert_eq!(
+            frame(max_widening).widened_distance(points.iter().copied(), start, FRAME_REFINE_STEPS),
+            None,
+            "{max_widening}"
+        );
+    }
+    // Non-finite points abort the widening instead of failing the framing.
+    assert_eq!(
+        frame(MAX_FRAME_WIDENING).widened_distance([Vec3::NAN].into_iter(), start, 3),
+        None
+    );
+}

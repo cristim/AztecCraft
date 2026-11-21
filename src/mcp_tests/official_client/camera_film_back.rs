@@ -538,3 +538,69 @@ async fn sdk_inspect_scene_reads_back_every_film_back_field_exactly() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_frame_all_and_frame_selected_keep_the_scene_inside_a_rolled_scaled_translated_film_back()
+ {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let set = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_camera_film_back",
+        json!({
+            "scene_token": token,
+            "film_roll_value": 60.0,
+            "pre_scale": 2.0,
+            "post_scale": 1.5,
+            "camera_scale": 1.3,
+            "film_translate_h": 0.8,
+            "film_translate_v": -0.5,
+            "horizontal_roll_pivot": 0.7,
+            "vertical_roll_pivot": 0.4,
+        }),
+    )
+    .await;
+    assert_eq!(set.structured_content.unwrap()["outcome"], "changed");
+    let scene = editor.history.scene().clone();
+    let view = azteccraft::view_scene::ViewScene::from_native(&scene, 256 * 1024 * 1024).unwrap();
+    let mut points = Vec::new();
+    for instance in view.instances() {
+        points.extend(instance.world_vertices().iter().copied());
+    }
+    assert!(!points.is_empty());
+    for tool in ["frame_all", "frame_selected"] {
+        let steps = editor.view_history.undo.len();
+        let outcome = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            tool,
+            json!({"scene_token": token}),
+        )
+        .await;
+        assert_ne!(outcome.is_error, Some(true), "{tool}");
+        // The existing wrapper records one view-history step per changed framing; Frame
+        // Selected after Frame All lands on the same camera and records none.
+        let recorded = editor.view_history.undo.len() - steps;
+        assert_eq!(recorded, usize::from(tool == "frame_all"), "{tool}");
+        for point in &points {
+            let ndc = editor
+                .camera
+                .project(*point, editor.aspect)
+                .unwrap()
+                .unwrap_or_else(|| panic!("{tool}: {point} is clipped"));
+            assert!(
+                ndc.truncate().abs().max_element() <= 1.00001,
+                "{tool}: {point} lands at {ndc}"
+            );
+        }
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
