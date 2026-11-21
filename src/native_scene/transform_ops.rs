@@ -3,16 +3,17 @@
 //! `makeIdentity -apply true`: the chosen channels of the node and of every transform below it
 //! are reset and their accumulated matrix is pushed into the mesh points beneath, so every point
 //! keeps its world position. The mesh stores no normals (they derive from the points and the
-//! edge smoothing), so a frozen mesh needs no separate normal work. PROVISIONAL: the Reset
+//! edge smoothing), so a frozen mesh needs no separate normal work. A partial freeze leaves the
+//! unchosen channels exactly as stored (like Maya) and bakes the difference into the points, which
+//! can include shear when scale stays non-uniform. PROVISIONAL: the Reset
 //! option defaults, the shear and rotate-order cases (#105) and the unsupported `-normal`,
 //! `-preserveNormals` and `-jointOrient` flags are not compared with Maya (#5).
-use super::reparent::{decompose, rotation_zyx};
 use super::{
-    MAX_TRANSFORM_DEPTH, MAX_TRANSFORM_PATHS, NativeError, NativeId, NativeScene, TransformExtras,
-    Units,
+    MAX_TRANSFORM_DEPTH, MAX_TRANSFORM_PATHS, NativeError, NativeId, NativeScene, ReparentRefusal,
+    TransformExtras, Units,
 };
 use crate::scene::{NodeId, SceneError};
-use glam::{DMat4, DVec3};
+use glam::DMat4;
 use std::collections::HashSet;
 use std::fmt;
 
@@ -43,10 +44,6 @@ impl TransformChannels {
     fn is_none(self) -> bool {
         !(self.translate || self.rotate || self.scale)
     }
-
-    fn is_all(self) -> bool {
-        self == Self::ALL
-    }
 }
 
 /// Why a reset or freeze was refused.
@@ -66,10 +63,8 @@ pub enum TransformRefusal {
     Curve,
     /// The accumulated matrix mirrors the mesh; Preserve Normals is not implemented.
     Reflection,
-    /// The accumulated matrix collapses the mesh or is not finite.
+    /// The accumulated matrix collapses the mesh (zero or near-singular scale) or is not finite.
     Degenerate,
-    /// A partial freeze needs the local matrix as translate, XYZ rotate and scale.
-    NotRepresentable,
 }
 
 impl fmt::Display for TransformRefusal {
@@ -87,9 +82,6 @@ impl fmt::Display for TransformRefusal {
                 "a negative scale mirrors the mesh; Preserve Normals is not implemented, so the freeze is refused"
             }
             Self::Degenerate => "the accumulated transform is zero-scaled or not finite",
-            Self::NotRepresentable => {
-                "a partial freeze needs translate, XYZ rotate and positive scale (no shear); freeze all three channels"
-            }
         })
     }
 }
@@ -100,8 +92,22 @@ impl From<TransformRefusal> for NativeError {
     }
 }
 
-/// Smallest determinant treated as a surviving mesh.
-const MIN_DETERMINANT: f64 = 1e-12;
+/// Shortest transformed axis treated as a surviving mesh (a uniform scale of 1e-4 passes).
+const MIN_AXIS_LENGTH: f64 = 1e-9;
+/// Smallest determinant relative to the product of the axis lengths: below it the axes are
+/// nearly coplanar and the mesh collapses, whatever its overall size.
+const MIN_VOLUME_RATIO: f64 = 1e-9;
+
+/// Whether `matrix` is finite and keeps a mesh three-dimensional, judged against its own scale.
+fn keeps_volume(matrix: DMat4) -> bool {
+    let lengths =
+        [matrix.x_axis, matrix.y_axis, matrix.z_axis].map(|axis| axis.truncate().length());
+    let determinant = matrix.determinant();
+    matrix.is_finite()
+        && determinant.is_finite()
+        && lengths.iter().all(|l| *l > MIN_AXIS_LENGTH)
+        && determinant.abs() > MIN_VOLUME_RATIO * lengths.iter().product::<f64>()
+}
 
 impl NativeScene {
     /// Writes the default of every chosen channel on each of `ids`; children move with their
@@ -175,7 +181,13 @@ impl NativeScene {
             return Err(SceneError::InvalidIds.into());
         }
         let roots: Vec<usize> = self
-            .top_most_with_parents(ids)?
+            .top_most_with_parents(ids)
+            .map_err(|error| match error {
+                NativeError::InvalidReparent(ReparentRefusal::Instanced) => {
+                    NativeError::from(TransformRefusal::Instanced)
+                }
+                other => other,
+            })?
             .into_iter()
             .map(|(index, _)| index)
             .collect();
@@ -234,45 +246,37 @@ impl NativeScene {
         {
             return Err(TransformRefusal::Instanced.into());
         }
-        let local = self
-            .internal_transform(node_id)?
-            .matrix()
-            .ok_or(NativeError::NonFinite)?;
+        let mut internal = self.internal_transform(node_id)?;
+        let local = internal.matrix().ok_or(NativeError::NonFinite)?;
         let effective = carry * local;
-        let (kept, values) = if channels.is_all() {
-            (
-                DMat4::IDENTITY,
-                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
-            )
-        } else {
-            let mut values = decompose(effective).ok_or(TransformRefusal::NotRepresentable)?;
-            for (on, base, default) in [
-                (channels.translate, 0, 0.0),
-                (channels.rotate, 3, 0.0),
-                (channels.scale, 6, 1.0),
-            ] {
-                if on {
-                    values[base..base + 3].fill(default);
-                }
+        // Only the chosen channels are reset; the others keep their stored bits. The baked matrix
+        // is whatever turns the kept local matrix back into the effective one, so every world
+        // position holds for any channel subset (it may carry shear when scale stays non-uniform).
+        let mut values = [None; 9];
+        for (on, base, default) in [
+            (channels.translate, 0, 0.0),
+            (channels.rotate, 3, 0.0),
+            (channels.scale, 6, 1.0),
+        ] {
+            if on {
+                values[base..base + 3].fill(Some(default));
+                let field = match base {
+                    0 => &mut internal.translation_cm,
+                    3 => &mut internal.rotation_radians,
+                    _ => &mut internal.scale,
+                };
+                *field = [default; 3];
             }
-            let matrix = DMat4::from_translation(DVec3::new(values[0], values[1], values[2]))
-                * rotation_zyx([
-                    values[3].to_radians(),
-                    values[4].to_radians(),
-                    values[5].to_radians(),
-                ])
-                * DMat4::from_scale(DVec3::new(values[6], values[7], values[8]));
-            (matrix, values)
-        };
+        }
+        let kept = internal.matrix().ok_or(NativeError::NonFinite)?;
         let baked = kept.inverse() * effective;
-        let determinant = baked.determinant();
-        if !baked.is_finite() || !determinant.is_finite() || determinant.abs() <= MIN_DETERMINANT {
+        if !keeps_volume(baked) {
             return Err(TransformRefusal::Degenerate.into());
         }
-        if determinant < 0.0 {
+        if baked.determinant() < 0.0 {
             return Err(TransformRefusal::Reflection.into());
         }
-        self.nodes[index].channels = self.replacement_channels(index, values.map(Some))?;
+        self.nodes[index].channels = self.replacement_channels(index, values)?;
         let children: Vec<NativeId> = self
             .dag
             .iter()

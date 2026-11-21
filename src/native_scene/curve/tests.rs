@@ -3,7 +3,7 @@ use crate::{native_scene::*, scene::Primitive};
 use glam::DVec3;
 use std::sync::Arc;
 
-pub(super) fn candidate() -> (NativeScene, crate::scene::NodeId) {
+pub(crate) fn candidate() -> (NativeScene, crate::scene::NodeId) {
     let (mut scene, node) = crate::native_scene::test_fixtures::cube();
     let id = scene.shapes[0].id;
     scene.shapes.clear();

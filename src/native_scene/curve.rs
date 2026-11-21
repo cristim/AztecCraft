@@ -377,4 +377,4 @@ fn finite_point(value: DVec3) -> Result<DVec3, NativeError> {
 #[cfg(test)]
 mod periodic_tests;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
