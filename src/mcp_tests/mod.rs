@@ -150,6 +150,7 @@ mod official_client {
     mod manipulator_size;
     mod marking_menu;
     mod marquee;
+    mod match_transformations;
     mod material;
     mod maya_import;
     mod move_vertices;
