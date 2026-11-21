@@ -187,3 +187,7 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+### World Move plane handles (#37)
+
+The [Maya 2027.2 Move Objects workflow](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-ABF1A141-7860-4234-889B-00278F20B9A3.htm) describes dragging a handle along two axes and calls the XZ handle green. [Move Tool settings](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9BCE8B23-6DA6-4C7F-B897-7E25D6E8A865.htm) and [manipOptions](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/manipOptions.html) cover orientation, plane display and offset. This slice adds primary-button XY, XZ and YZ in the World orientation of the Move tool (W). Screen size, edge-on omission, drag capture and failure handling are PROVISIONAL. A combined world displacement uses the existing selection, preview and undo paths. Component planes, Grid Snap, center handles, other orientations and display preferences remain unsupported.

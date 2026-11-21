@@ -226,9 +226,11 @@ impl Editor {
             Operation::AutosaveNow => None,
             // Native drags report their own live preview, which a remote preview does not drive.
             Operation::BeginMove { .. }
+            | Operation::BeginMovePlane { .. }
             | Operation::BeginRotate { .. }
             | Operation::BeginScale { .. }
             | Operation::UpdateMove { .. }
+            | Operation::UpdateMovePlane { .. }
             | Operation::UpdateManipulation { .. } => None,
             Operation::FinishMove {
                 finish: ManipulationFinish::Cancel,
@@ -432,6 +434,7 @@ impl Editor {
                 || !matches!(
                     request.operation,
                     Operation::UpdateMove { .. }
+                        | Operation::UpdateMovePlane { .. }
                         | Operation::UpdateManipulation { .. }
                         | Operation::FinishMove { .. }
                 ))
@@ -710,9 +713,11 @@ impl Editor {
                     | Operation::SetRotateStep { .. }
                     | Operation::SetScaleStep { .. }
                     | Operation::BeginMove { .. }
+                    | Operation::BeginMovePlane { .. }
                     | Operation::BeginRotate { .. }
                     | Operation::BeginScale { .. }
                     | Operation::UpdateMove { .. }
+                    | Operation::UpdateMovePlane { .. }
                     | Operation::UpdateManipulation { .. }
                     | Operation::FinishMove { .. }
                     | Operation::Select { .. }
@@ -890,6 +895,7 @@ impl Editor {
         if !matches!(
             operation,
             Operation::UpdateMove { .. }
+                | Operation::UpdateMovePlane { .. }
                 | Operation::UpdateManipulation { .. }
                 | Operation::FinishMove { .. }
                 | Operation::SetCurrentTime { .. }
@@ -933,6 +939,25 @@ impl Editor {
                     provenance,
                     expected_selection_generation,
                 );
+            }
+            Operation::BeginMovePlane {
+                target,
+                plane,
+                expected_selection_generation,
+            } => {
+                return self.begin_editor_move_plane(
+                    &target,
+                    plane,
+                    provenance,
+                    expected_selection_generation,
+                );
+            }
+            Operation::UpdateMovePlane {
+                id,
+                delta,
+                centimeters,
+            } => {
+                return self.update_editor_move_plane(id, delta, centimeters, provenance);
             }
             Operation::UpdateMove { id, distance } => {
                 return self.update_editor_move(id, distance, provenance);
