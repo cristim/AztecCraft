@@ -137,3 +137,112 @@ fn an_open_file_modal_blocks_the_assignment_and_keeps_the_scene() {
     ));
     assert_eq!(editor.history.scene(), &before);
 }
+
+use crate::app::features::attribute_editor::ui_tests::{many_shapes, open_with_attribute_editor};
+
+const UNSUPPORTED_EDIT: &str = "native ownership or edit effects are unsupported";
+
+#[test]
+fn disabled_reasons_are_pinned() {
+    let mut editor = Editor::default();
+    assert_eq!(
+        editor.session_material_disabled_reason().as_deref(),
+        Some("Select an object or face first")
+    );
+    editor.create(Primitive::Cube);
+    assert_eq!(editor.session_material_disabled_reason(), None);
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+    assert_eq!(
+        editor.session_material_disabled_reason().as_deref(),
+        Some(COMPONENT_REASON)
+    );
+}
+
+#[test]
+fn an_opened_binary_scene_refuses_assignment_with_the_typed_reason() {
+    let (mut editor, _directory) = open_with_attribute_editor("one.mb", &many_shapes(1));
+    assert_eq!(
+        editor.session_material_disabled_reason().as_deref(),
+        Some(UNSUPPORTED_EDIT)
+    );
+    let before = editor.history.scene().clone();
+    assert!(matches!(
+        editor.assign_material_to_selection(new_lambert()),
+        Err(OperationError::SessionMaterial(_))
+    ));
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn several_direct_shapes_have_no_assignment_target() {
+    let (mut editor, _directory) = open_with_attribute_editor("two.mb", &many_shapes(2));
+    assert!(matches!(
+        editor.session_material_target(),
+        Err(OperationError::InvalidInput(ref reason)) if reason == NO_SHAPE_REASON
+    ));
+    let before = editor.history.scene().clone();
+    assert!(editor.assign_material_to_selection(new_lambert()).is_err());
+    assert!(editor.error);
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_reopened_editor_written_ma_scene_stays_editable() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("reopened.ma");
+    cube_editor()
+        .apply_operation(Operation::SaveSceneAs { path: path.clone() })
+        .unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    editor.native_operation(Operation::SelectByRule(SelectRule::All));
+    assert_eq!(editor.session_material_disabled_reason(), None);
+    editor.assign_material_to_selection(new_lambert()).unwrap();
+    assert_eq!(editor.history.scene().session_materials().len(), 2);
+}
+
+#[test]
+fn a_pending_valid_draft_is_committed_by_the_native_assignment() {
+    let mut editor = cube_editor();
+    editor.name = "renamed".into();
+    editor.assign_material_to_selection(new_lambert()).unwrap();
+    assert!(!editor.has_draft());
+    assert_eq!(editor.history.scene().nodes()[0].name(), "renamed");
+    assert_eq!(shape_material(&editor), "lambert2");
+}
+
+#[test]
+fn remote_assignment_is_refused_for_a_draft_and_a_stale_token() {
+    let mut editor = cube_editor();
+    let shape = editor.session_material_target().unwrap();
+    let operation = || Operation::AssignSessionMaterial {
+        shape,
+        material: new_lambert(),
+    };
+    let before = editor.history.scene().clone();
+    editor.name = "draft name".into();
+    assert!(matches!(
+        remote(&mut editor, operation()),
+        Err(OperationError::BusyEditing)
+    ));
+    assert_eq!(
+        editor.name, "draft name",
+        "the remote refusal keeps the draft"
+    );
+    editor.name = editor.history.scene().nodes()[0].name().to_owned();
+    let result = editor.remote_operation(
+        RemoteRequest {
+            expected_scene_token: Some(uuid::Uuid::nil()),
+            operation: operation(),
+        },
+        &egui::Context::default(),
+    );
+    assert!(
+        matches!(result, Err(OperationError::StaleScene)),
+        "{result:?}"
+    );
+    assert_eq!(editor.history.scene(), &before);
+}

@@ -372,7 +372,10 @@ fn the_status_line_toggle_drives_the_attribute_editor_dock() {
 
 /// Opens `bytes` as `name` in a fresh editor, selects the first node and makes the Attribute
 /// Editor the active panel.
-fn open_with_attribute_editor(name: &str, bytes: &[u8]) -> (Editor, tempfile::TempDir) {
+pub(in crate::app) fn open_with_attribute_editor(
+    name: &str,
+    bytes: &[u8],
+) -> (Editor, tempfile::TempDir) {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join(name);
     std::fs::write(&path, bytes).unwrap();
@@ -541,7 +544,7 @@ fn an_open_popup_blocks_ctrl_a() {
 }
 
 /// One transform with `count` direct mesh shapes named `shape0`, `shape1`, ...
-fn many_shapes(count: usize) -> Vec<u8> {
+pub(in crate::app) fn many_shapes(count: usize) -> Vec<u8> {
     let mut children = binary_fixture::group(
         b"XFRM",
         &[

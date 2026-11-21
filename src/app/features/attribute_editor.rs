@@ -364,4 +364,4 @@ mod pivot_tests;
 mod tests;
 
 #[cfg(test)]
-mod ui_tests;
+pub(in crate::app) mod ui_tests;
