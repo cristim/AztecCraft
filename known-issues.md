@@ -10,19 +10,76 @@
   vertices yet (the numeric route is MCP `begin_manipulation` or `move_vertices`); a keyboard nudge of
   component Move is not designed. Owed under the accessibility rule (#465).
 
+## Component Move is implemented but not Maya-verified (#41)
+
+**Severity:** medium
+**Area:** manipulation, parity
+**Issue:** #41
+
+The Move tool drags picked vertices, edges and faces (native arrows and the remote lifecycle). No Maya
+numerics or screenshots were compared (#5); the parity row is MOD-119 (Partial). These choices are
+PROVISIONAL because the Maya 2027 Move pages are silent on them, and each is pinned by a test:
+
+- The arrows sit at the world bounding-box centre of the moved vertices, not their mean.
+- An edge moves both endpoints and a face every loop vertex, shared vertices once.
+- The undo entry is named "Move". Moving a shared (instanced) shape edits every instance; no app or MCP
+  route creates instances, so this is covered headless only.
+- Retain Component Spacing is trivially met (no soft select, rigid translate); Preserve UVs leaves session UVs
+  untouched.
+- A mirrored or skewed frame refuses in Object orientation as for Rotate and Scale handles.
+- Sets reaching more than 8192 vertices, Snap to grids, the Parent and Along Rotation Axis orientations,
+  scenes opened from `.mb` or `.ma` (their writers cannot carry edited points) and more than one object in
+  component selection all refuse with text.
+- Not built: soft select, Rotate and Scale of components, Component and Normal orientation, plane and centre
+  handles, Shift+drag extrude and Ctrl+Shift+drag slide (a Shift press starts nothing), Tweak mode, the W-hold
+  marking menu, pivot editing.
+
+## Component Move needs a real-window check (#41 T8)
+
+**Severity:** medium
+**Area:** manipulation, verification
+**Issue:** #41
+
+Headless egui and protocol tests cover the input, status and undo paths but not pixels, so no native
+window evidence exists yet. A later OCU run (background launch with `open -g`, a fresh authored scene,
+reviewed screenshots without private paths, build id and platform recorded in
+`.project-docs/native-verification.md`, no parity claim) must check:
+
+1. Cube, Vertex mode, click a corner, W: the arrows sit on that vertex; drag the X arrow about 100 px:
+   the corner moves along world X, status "World X Move (1 vertex)" then "Move committed"; undo restores,
+   redo reapplies.
+2. Esc mid-drag restores the cube with no undo entry; after a move and its undo, a cancelled drag leaves the
+   redo entry intact.
+3. Several vertices (build the set with MCP `modify_component_selection` or a multi-click once available):
+   the arrows sit at the bounding-box centre and all picked vertices move.
+4. Edge mode (F10): click an edge, drag an arrow: both endpoints move. Face mode (F11): click a face centre,
+   drag: its four corners move. The arrows sit at the edge midpoint and face centre.
+5. Object orientation: rotate the cube, set Move Axis Orientation to Object: the arrows align to the object
+   and the drag follows them; World: the arrows are world aligned.
+6. Object orientation under a non-uniformly scaled, rotated parent (MCP `set_transform` plus `parent_node`):
+   the vertex moves by the dragged world distance (read back with `inspect_vertices`); a mirrored frame shows
+   the "Move unavailable" text instead of arrows.
+7. Shift held while pressing an arrow starts nothing; E and R in Vertex mode still show the refusal text.
+8. A scene reopened from a saved authored `.mb` (the vendored `dummy_mesh.mb` does not open in the Editor, so
+   it cannot be used): F9, click a vertex, W: no arrows and "Move unavailable" with the source-bound reason.
+9. With nothing picked in a component mode the arrows are absent, the overlay names the missing pick, and a
+   click on the model still picks a component.
+10. MCP cross-check: `inspect_vertices` matches the screen, a stale `expected_selection_generation` is
+    refused, `move_vertices` with `space` `world` then undo.
+
 ## Huge coordinates save but cannot be reopened (pre-existing)
 
 **Severity:** low
 **Area:** persistence, viewport
 **Issue:** #41 (found while reviewing the vertex move slice; not caused by it)
 
-A scene whose geometry or transform reaches about 1e20 (a vertex moved there with `move_vertices`, or
-`set_transform` with scale 1e25) saves without error, but reopening the file fails with
+A scene whose geometry or transform reaches about 1e20 (a vertex moved there with `move_vertices` or a
+component Move drag, or `set_transform` with scale 1e25) saves without error, but reopening the file fails with
 `camera_error`, because the view and camera cannot represent the extent. The save side checks only that
 values are finite, not that the viewport can display them, and the failure appears at Open. Affects
-`set_transform` and every other way to reach such values, not only `move_vertices`. Not fixed in the
-vertex move slice; a fix needs either a coordinate bound at edit time or an Open that survives an
-unframeable scene.
+`set_transform` and every other way to reach such values, not only `move_vertices`. `world_out_of_range` now refuses `move_vertices` and component Move edits that leave the f32 drawing
+range at edit time, but values near 1e20 are still inside that range and still reach this. A fix needs
+either a tighter coordinate bound at edit time or an Open that survives an unframeable scene.
 
 ## OBJ import is a first slice (#22)
 
@@ -1010,8 +1067,8 @@ Rotate and Scale each keep their own Object/World selector, as Maya does. The se
 the axis choice and the numeric field are a row above the viewport standing in for the
 unsupported Tool Settings panel. Rotate lists Object, World, Component, Gimbal and Custom
 (Maya's order), the last three disabled with the owning issue named. Scale lists Object, World,
-Parent, then Gimbal, Normal, Custom and Component disabled. Move's row has only an Axis Orientation selector fixed at World: Object,
-Component, Parent, Normal, Along Rotation Axis, Along Live Object Axis and Custom (the
+Parent, then Gimbal, Normal, Custom and Component disabled. Move's row has only an Axis Orientation selector: World (default), Object and Parent are
+selectable and Component, Normal, Along Rotation Axis, Along Live Object Axis and Custom (the
 Maya 2026 Move Tool order) are listed disabled, and Move's other Tool Settings, axis
 choice and numeric field are absent. The MCP `update_manipulation` takes an absolute
 Rotate angle in the scene angular unit and the native numeric field takes degrees; both reach the core as degrees.

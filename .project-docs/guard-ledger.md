@@ -83,9 +83,12 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   checks, and `commit_pending`: native delete in a component mode reports this refusal even in the
   closing, move, modal, draft and text-focus states, and remote cells without an outer state guard
   (`read_only_ascii`, `binary_dirty`, `no_install`) report it instead of the read-only or ownership
-  error. The Move, Rotate and
-  Scale Face-mode refusal is in the shared target check
-  (`check_manipulation_target`, `src/app/features/manipulation_tool.rs "fn check_manipulation_target"`) and applies to both pipelines (`begin_move(face_mode)` cells). `begin_move(multi)` begins a Move of
+  error. The Rotate and
+  Scale refusal in component selection is in the shared target check
+  (`check_manipulation_target`, `src/app/features/manipulation_tool.rs "fn check_manipulation_target"`) and applies to both pipelines. Move in Vertex, Edge and Face selection drags the picked
+  components instead (`component_move_plan`, `src/app/features/component_move.rs`): with nothing picked `begin_move(face_mode)` reads "Move needs at least one selected face"; the
+  `begin_move(vertex_pick)`, `begin_move(edge_pick)` and `begin_move(face_pick)` cells show the remote pipeline requiring `expected_selection_generation` (`invalid_input` when missing, `stale_selection` when stale) while native needs none,
+  and `update_move(*_vertex_drag)` and `finish_move(*_vertex_drag)` show a drag begun by one provenance refused for the other ("manipulation belongs to another input source"). `begin_move(multi)` begins a Move of
   several selected objects with the lead as target and the current selection generation, in the Idle and StaleToken states (the multi-selection setup itself needs an editable editor)
   (`check_move_target`, `src/app/features/manipulation_tool.rs "fn check_move_target"`); the modal,
   draft, closing, dirty and scene-token guards run before it exactly as for `begin_move`. The
