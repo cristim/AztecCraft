@@ -322,3 +322,6 @@ impl ImagePlane {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;
