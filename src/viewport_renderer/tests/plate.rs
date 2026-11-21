@@ -399,3 +399,44 @@ fn headless_gpu_the_plate_follows_overscan_and_the_film_fit_offset_like_the_gate
         "inside the shifted gate",
     );
 }
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_the_editor_paint_path_carries_the_plate_to_the_pixels() {
+    // viewport_ui paint -> ViewportRenderer::callback -> Submission.plate -> GpuResources: an
+    // egui frame with a plate and an empty scene shows the plate (the app's path, P8).
+    let creation = creation_context(egui::Context::default());
+    let producer = ViewportRenderer::initialize(&creation).unwrap();
+    let mut gpu = Offscreen::from_context(&creation);
+    let empty = ViewScene::from_native(&NativeScene::default(), VIEW_BUDGET).unwrap();
+    let camera = Camera::default();
+    let draw = plate(PlateDisplayMode::Rgb, [200, 50, 20, 255], 1.0);
+    let frame = ui_frame(1.0, |ui| {
+        crate::viewport_ui::capture(ui, &camera, uuid::Uuid::nil())
+            .unwrap()
+            .unwrap()
+            .paint(
+                Some(&producer),
+                &camera,
+                &empty,
+                SelectionFeedback::Object(None),
+                false,
+                crate::editor_operations::ShadingMode::SmoothShadeAll,
+                Some(draw.clone()),
+            )
+            .unwrap();
+    });
+    let image = gpu.render(frame);
+    assert!(producer.terminal_error().is_none());
+    close(
+        pixel(&image, 64, 64),
+        [200, 50, 20],
+        1,
+        "plate through the paint path",
+    );
+    assert_eq!(
+        &pixel(&image, 10, 10)[..3],
+        &[31, 31, 31],
+        "outside the plate"
+    );
+}

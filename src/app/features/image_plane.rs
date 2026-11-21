@@ -81,6 +81,14 @@ pub(in crate::app) struct PlateRuntime {
 }
 
 impl PlateRuntime {
+    #[cfg(test)]
+    pub(in crate::app) fn with_decode(decode: DecodeFn) -> Self {
+        Self {
+            decode: Some(decode),
+            ..Self::default()
+        }
+    }
+
     /// Forgets the source and releases its frames (the plane was removed or replaced by New).
     fn clear(&mut self) {
         if self.source.take().is_some()
