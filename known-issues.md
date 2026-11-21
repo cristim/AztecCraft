@@ -1797,6 +1797,12 @@ release tails). Comparison against Maya remains pending. The session viewport le
 reads do not inspect imported Maya camera nodes. Session view history has a provisional cap of 50, button-gesture grouping and no persistence;
 Native bracket-key and View menu history round trips passed on the isolated Linux
 Wayland window; independent review/test evidence is recorded in the #452 plan.
+Ctrl+Alt+left box dolly is unverified on macOS: egui may deliver Ctrl+left-click as a secondary
+button there, so the chord needs a real macOS window check before it is called working.
+The View > Undo View Change and Redo View Change rows stay in the a11y gap list
+(`src/app/a11y_tests/gaps/menus.rs`): main has no production `describe_disabled` (only the
+a11y self-test helper), so an empty-history disabled reason cannot be exposed yet. Give them full
+AccessKit metadata when that helper lands (#465).
 
 ## Declared-unit conversion of a Move drag is not pinned outside centimetres
 

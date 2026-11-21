@@ -70,7 +70,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("close_undo_chunk", "`undoInfo -closeChunk`", "a chunk with no net change records no step"),
     ("undo_view_change", "View > Undo View Change / [", "50 session camera views (PROVISIONAL)"),
     ("redo_view_change", "View > Redo View Change / ]", "separate from scene Redo"),
-    ("default_camera_view", "`viewSet -home`", "provisional default perspective pose"),
+    ("default_camera_view", "`viewSet -home`", "PROVISIONAL: restores AztecCraft's own default perspective pose, which Maya does not document"),
     ("box_dolly_camera", "`dolly` / Ctrl+Alt+left marquee", "PROVISIONAL target-plane rectangle fit"),
     ("frame_selected", "`viewFit`", "`-fitFactor` only (sphere fit, PROVISIONAL range 0.01 to 1); no `-animate`"),
     ("frame_all", "`viewFit -allObjects`", "`-fitFactor` only (sphere fit, PROVISIONAL range 0.01 to 1); no `-animate`"),
