@@ -23,6 +23,7 @@ mod session_uv;
 mod source;
 mod source_removal;
 mod transform_extras;
+mod transform_ops;
 mod ungroup;
 pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
@@ -67,6 +68,7 @@ use session_uv::SessionUvs;
 pub use session_uv::{DEFAULT_UV_SET, UvProjectAxis, UvSet};
 use source::{ScalarOrigin, SourceFormat, SourceRetention, TransformField};
 pub use transform_extras::{InternalExtras, TransformAttributes, TransformExtras};
+pub use transform_ops::{TransformChannels, TransformRefusal};
 pub use ungroup::UngroupOptions;
 
 use crate::primitive_options::PrimitiveOptions;
@@ -2345,6 +2347,8 @@ pub enum NativeError {
     UnsupportedEdit,
     /// A parent or unparent the scene refuses; see `ReparentRefusal`.
     InvalidReparent(ReparentRefusal),
+    /// A reset or freeze of transformations the scene refuses; see `TransformRefusal`.
+    InvalidTransformEdit(TransformRefusal),
     UnsupportedDelete(DeleteUnsupported),
     /// One node of a delete of several refused; `reason` is that node's own refusal.
     DeleteMemberRefused {
@@ -2444,6 +2448,7 @@ impl fmt::Display for NativeError {
                 f.write_str("native ownership or edit effects are unsupported")
             }
             Self::InvalidReparent(reason) => reason.fmt(f),
+            Self::InvalidTransformEdit(reason) => reason.fmt(f),
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
             Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
             Self::InsertionAfterDelete => f.write_str(

@@ -58,7 +58,7 @@ const RECOMPOSE_TOLERANCE: f64 = 1e-9;
 /// Smallest scale or determinant treated as invertible.
 const MIN_SCALE: f64 = 1e-12;
 
-fn rotation_zyx(rotation: [f64; 3]) -> DMat4 {
+pub(super) fn rotation_zyx(rotation: [f64; 3]) -> DMat4 {
     DMat4::from_rotation_z(rotation[2])
         * DMat4::from_rotation_y(rotation[1])
         * DMat4::from_rotation_x(rotation[0])
@@ -66,7 +66,7 @@ fn rotation_zyx(rotation: [f64; 3]) -> DMat4 {
 
 /// `matrix` as `[translation, XYZ rotation in radians, scale]`, or `None` when it is not
 /// exactly `T * Rz * Ry * Rx * S` (shear, negative or zero scale, non-finite).
-fn decompose(matrix: DMat4) -> Option<[f64; 9]> {
+pub(super) fn decompose(matrix: DMat4) -> Option<[f64; 9]> {
     let translation = matrix.w_axis.truncate();
     let columns = [
         matrix.x_axis.truncate(),
