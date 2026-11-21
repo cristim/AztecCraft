@@ -510,6 +510,8 @@ mod group_persistence_tests;
 #[cfg(test)]
 mod pivot_ops_tests;
 #[cfg(test)]
+mod transform_menu_tests;
+#[cfg(test)]
 mod transform_ops_tests;
 
 #[cfg(test)]

@@ -757,10 +757,6 @@ pub enum Operation {
     /// Modify > Reset Transformations on the object selection: the chosen channels of every
     /// selected object return to 0 (translate, rotate) or 1 (scale), as one "Reset Transformations"
     /// undo step. Object and Hierarchy modes only.
-    #[cfg_attr(
-        not(any(test, feature = "mcp")),
-        expect(dead_code, reason = "first native caller is the Modify menu")
-    )]
     ResetTransformations {
         channels: TransformChannels,
         /// The `selection_generation` the caller inspected; see `ResetPivots`.
@@ -769,10 +765,6 @@ pub enum Operation {
     /// Modify > Freeze Transformations on the object selection: the chosen channels of each
     /// selected object and everything below it are pushed into the meshes, as one "Freeze
     /// Transformations" undo step. Object and Hierarchy modes only.
-    #[cfg_attr(
-        not(any(test, feature = "mcp")),
-        expect(dead_code, reason = "first native caller is the Modify menu")
-    )]
     FreezeTransformations {
         channels: TransformChannels,
         expected_selection_generation: Option<u64>,

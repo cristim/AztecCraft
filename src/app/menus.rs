@@ -565,7 +565,11 @@ impl Editor {
                 });
             });
             for label in &ALWAYS_ON_MENUS[CONTENT_MENUS..] {
-                placeholder_menu(ui, label);
+                if *label == "Modify" {
+                    self.modify_menu(ui, read_only_reason);
+                } else {
+                    placeholder_menu(ui, label);
+                }
             }
             match self.menu_set {
                 MenuSet::Modeling => {
