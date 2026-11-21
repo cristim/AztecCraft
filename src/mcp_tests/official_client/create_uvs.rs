@@ -183,6 +183,23 @@ async fn bad_create_uvs_values_and_the_platonic_refusal_leave_the_editor_unchang
         assert_eq!(editor.history.scene(), &scene);
         assert_eq!(state(&editor), before);
     }
+    for (primitive, name) in [("pyramid", "Pyramid"), ("prism", "Prism")] {
+        let refused = create(
+            &mut editor,
+            &context,
+            &client,
+            json!({"primitive": primitive, "create_uvs": true}),
+        )
+        .await;
+        assert_eq!(refused.is_error, Some(true), "{primitive}");
+        assert_eq!(code(&refused), "unsupported_uv_primitive", "{primitive}");
+        let message = refused.structured_content.as_ref().unwrap()["error"]["message"]
+            .as_str()
+            .unwrap();
+        assert!(message.contains(name), "{message}");
+        assert_eq!(editor.history.scene(), &scene);
+        assert_eq!(state(&editor), before);
+    }
     // Without create_uvs the Platonic solid still builds.
     let plain = create(
         &mut editor,
