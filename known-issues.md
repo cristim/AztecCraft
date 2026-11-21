@@ -1816,3 +1816,16 @@ Only the RMB mesh menu exists: eight dial zones (Vertex, Edge, Face, Object Mode
 - Only a sticky (clicked or Shift+F10) dial is pulled inside the viewport, by a fixed 120 point margin (PROVISIONAL, set by the label layout); a viewport smaller than the dial gets it centred and parts are cut off. A held dial is drawn and read at the press point, so within 120 points of an edge some of its labels are cut off (moving the dial under a flick would make the shown zone differ from the picked one).
 - Shift or Ctrl with RMB only sets the Help Line text "not implemented yet". While a text field has focus (a screen reader can move focus into one under an open menu) the menu ignores its keys and leaves them to the field.
 - Not covered by a test (found in review, left open): the "Marking menu choice ignored: the editor is busy" status (no way found to keep a field focused through a viewport press in a frame test), an opened read-only `.mb` scene still switching mode, and keys the hook took in a frame where a modal then opens mid-frame (a remote close request), which are dropped with the menu.
+
+## Freeze Transformations can bake shear and loses precision at extreme scale ratios
+
+**Severity:** low
+**Area:** transform, native scene
+**Issue:** #313 (Freeze Transformations slice)
+
+A partial freeze never rewrites the channels it does not freeze; it bakes `kept^-1 * effective` into the meshes
+below the node. When the scale stays non-uniform under a rotation (for example freezing only rotate at 45 degrees
+with scale 2,1,1) that matrix carries shear, so the mesh stores sheared points while world positions stay exact.
+The behavior is PROVISIONAL and not compared with Maya (#5). Point storage is f32, so world positions drift by
+about 4e-4 relative at a scale ratio of 1e3/1e-3; ordinary scales stay far below that. Mirrored nodes are refused
+whenever the scale is frozen (translate-only and rotate-only freezes of a mirrored node keep the mirror on the node).
