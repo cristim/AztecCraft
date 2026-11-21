@@ -104,3 +104,17 @@ fn headless_gpu_playblast_readback_refuses_empty_and_oversize() {
         );
     }
 }
+
+#[test]
+fn a_frame_whose_readback_exceeds_the_buffer_limit_is_refused_up_front() {
+    let limits = wgpu::Limits {
+        max_buffer_size: 512 * 60,
+        ..wgpu::Limits::default()
+    };
+    assert_eq!(check_size(&limits, [100, 60]), Ok(()));
+    assert_eq!(
+        check_size(&limits, [100, 61]),
+        Err(RenderError::ResourceLimit)
+    );
+    assert_eq!(check_size(&limits, [0, 1]), Err(RenderError::ResourceLimit));
+}

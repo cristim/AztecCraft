@@ -8,7 +8,7 @@ use super::*;
 const W: u32 = 3;
 const H: u32 = 2;
 
-type Hook = Box<dyn FnMut(i64)>;
+type Hook = Box<dyn FnMut(i64) + Send>;
 
 #[derive(Default)]
 struct Fake {
