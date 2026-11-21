@@ -214,6 +214,8 @@ impl Editor {
             | Operation::DefaultView
             | Operation::SetCameraPose { .. }
             | Operation::SetCameraFilmBack(_)
+            | Operation::SetImagePlane(_)
+            | Operation::RemoveImagePlane
             | Operation::CreateCameraBookmark { .. }
             | Operation::RenameCameraBookmark { .. }
             | Operation::DeleteCameraBookmark { .. }
@@ -252,7 +254,10 @@ impl Editor {
             | Operation::ExportObj { .. }
             | Operation::ResolveFileAction { .. } => None,
             #[cfg(any(test, feature = "mcp"))]
-            Operation::ExportGltf { .. } | Operation::ExportUsd { .. } => None,
+            Operation::ExportGltf { .. }
+            | Operation::ExportUsd { .. }
+            | Operation::Playblast(_)
+            | Operation::CancelPlayblast => None,
             _ => Some("Scene edited"),
         };
         StatusFeedback {
@@ -644,6 +649,10 @@ impl Editor {
         #[cfg(any(test, feature = "mcp"))]
         if let Operation::ExportGltf { path, .. } = &operation {
             super::features::gltf_export::validate_export_path(path)?;
+        }
+        #[cfg(any(test, feature = "mcp"))]
+        if matches!(operation, Operation::Playblast(_)) && self.files.is_modal() {
+            return Err(OperationError::BusyEditing);
         }
         #[cfg(any(test, feature = "mcp"))]
         if let Operation::ImportMaya { path, .. } = &operation {
@@ -1627,6 +1636,10 @@ impl Editor {
                 path,
                 selection_only,
             } => return self.export_usd(&path, selection_only, may_install),
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::Playblast(request) => return self.start_playblast(request),
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::CancelPlayblast => return Ok(self.cancel_playblast()),
 
             Operation::SetCameraPose {
                 target,
@@ -1650,6 +1663,17 @@ impl Editor {
                 } else {
                     OperationReply::Unchanged
                 });
+            }
+            Operation::SetImagePlane(edit) => {
+                let change =
+                    azteccraft::image_plane::ops::set_image_plane(&mut self.image_plane, &edit)
+                        .map_err(OperationError::ImagePlane)?;
+                return Ok(plate_reply(change));
+            }
+            Operation::RemoveImagePlane => {
+                return Ok(plate_reply(
+                    azteccraft::image_plane::ops::remove_image_plane(&mut self.image_plane),
+                ));
             }
             Operation::FrameAll { fit_factor } => {
                 let original = self.begin_fit(fit_factor)?;
@@ -2100,5 +2124,12 @@ impl Editor {
             self.error = false;
         }
         true
+    }
+}
+
+fn plate_reply(change: azteccraft::image_plane::model::PlateChange) -> OperationReply {
+    match change {
+        azteccraft::image_plane::model::PlateChange::Changed => OperationReply::Changed,
+        azteccraft::image_plane::model::PlateChange::Unchanged => OperationReply::Unchanged,
     }
 }

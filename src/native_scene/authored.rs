@@ -113,9 +113,6 @@ pub(super) fn check_content_kind(
     if scene.has_joints() {
         return Err(AuthoredIneligible::Joints);
     }
-    if scene.has_camera_overrides() {
-        return Err(AuthoredIneligible::CameraOverride);
-    }
     if !scene.session_keys.is_empty() {
         return Err(AuthoredIneligible::Keys);
     }

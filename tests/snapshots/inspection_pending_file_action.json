@@ -36,6 +36,7 @@
       },
       "focal_length_mm": 35.0,
       "fov_y_degrees": 37.79089026254695,
+      "image_plane": null,
       "native_gesture_active": false,
       "near_clip": 0.10000000149011612,
       "pitch_degrees": 22.918312146742387,
@@ -182,6 +183,15 @@
       "id": "<uuid>",
       "kind": "new",
       "source_changed": false
+    },
+    "playblast": {
+      "directory_name": null,
+      "frames_done": 0,
+      "frames_total": 0,
+      "height": 0,
+      "last_error": null,
+      "state": "idle",
+      "width": 0
     },
     "read_only_reason": null,
     "redo_label": null,
