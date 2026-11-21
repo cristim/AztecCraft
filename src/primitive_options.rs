@@ -178,7 +178,7 @@ pub enum PrimitiveOptions {
         axis: Axis,
     },
     Pyramid {
-        /// Edge of the base polygon (`-sideLength`).
+        /// Edge of the base polygon (`-sideLength`); PROVISIONAL (#5): edge versus radius is not documented.
         side_length: f64,
         /// Base sides (`-numberOfSides`). The range 3 to 128 is a PROVISIONAL (#5) safety bound.
         sides: u32,

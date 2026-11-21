@@ -165,7 +165,8 @@ option_structs! {
         radius: f64 = DEFAULT_PLATONIC_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
     }
     PyramidOptions => Pyramid {
-        /// Edge of the base polygon (Maya `-sideLength`, default 1).
+        /// Maya `-sideLength`, default 1, read as the base polygon edge (PROVISIONAL, #5: edge versus
+        /// radius is not documented).
         side_length: f64 = DEFAULT_PYRAMID_SIDE_LENGTH_CM, MIN_SIZE_CM, MAX_SIZE_CM;
         /// Base sides (Maya `-numberOfSides`, default 4). The 3 to 128 range is a PROVISIONAL
         /// AztecCraft safety bound (#5). The pyramid height (equal to `side_length`) and its
