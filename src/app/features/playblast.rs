@@ -5,7 +5,8 @@
 
 use crate::app::Editor;
 use crate::editor_operations::{
-    OperationError, OperationReply, PlayblastFormat, PlayblastRequest, ShadingMode,
+    OperationError, OperationReply, PlayblastFormat, PlayblastInspection, PlayblastRequest,
+    ShadingMode,
 };
 use azteccraft::playblast::{
     FrameRenderer, JobProgress, PlayblastError, PlayblastJob, PlayblastPlan, SceneAt,
@@ -25,6 +26,15 @@ pub(in crate::app) type RendererFactory = Box<
     ) -> Result<Box<dyn FrameRenderer>, PlayblastError>,
 >;
 
+/// What the inspection reports about the latest job besides its progress.
+struct Target {
+    directory_name: String,
+    width: u32,
+    height: u32,
+    total: u32,
+    done: u32,
+}
+
 pub(in crate::app) struct Run {
     pub(in crate::app) job: PlayblastJob,
     pub(in crate::app) renderer: Box<dyn FrameRenderer>,
@@ -35,6 +45,7 @@ pub(in crate::app) struct Playblast {
     pub(in crate::app) run: Option<Run>,
     /// The latest progress, kept after the job ends; cleared when a document replaces the scene.
     pub(in crate::app) last: Option<JobProgress>,
+    target: Option<Target>,
     pub(in crate::app) factory: Option<RendererFactory>,
 }
 
@@ -113,6 +124,17 @@ impl Editor {
             done: 0,
             total: frames,
         });
+        self.playblast.target = Some(Target {
+            directory_name: request
+                .directory
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            width,
+            height,
+            total: frames,
+            done: 0,
+        });
         self.playblast.run = Some(Run { job, renderer });
         Ok(OperationReply::PlayblastStarted {
             frames,
@@ -137,10 +159,40 @@ impl Editor {
     pub(in crate::app) fn reset_playblast(&mut self) {
         self.cancel_playblast();
         self.playblast.last = None;
+        self.playblast.target = None;
     }
 
     fn record_playblast(&mut self, progress: JobProgress) {
+        if let Some(target) = &mut self.playblast.target {
+            match &progress {
+                JobProgress::Running { done, .. } | JobProgress::Cancelled { done } => {
+                    target.done = *done;
+                }
+                JobProgress::Finished { total } => target.done = *total,
+                JobProgress::Failed(_) => {}
+            }
+        }
         self.playblast.last = Some(progress);
+    }
+
+    pub(in crate::app) fn inspect_playblast(&self) -> PlayblastInspection {
+        let (state, error) = match &self.playblast.last {
+            None => ("idle", None),
+            Some(JobProgress::Running { .. }) => ("running", None),
+            Some(JobProgress::Finished { .. }) => ("finished", None),
+            Some(JobProgress::Cancelled { .. }) => ("cancelled", None),
+            Some(JobProgress::Failed(error)) => ("failed", Some(error.to_string())),
+        };
+        let target = self.playblast.target.as_ref();
+        PlayblastInspection {
+            state,
+            frames_done: target.map_or(0, |target| target.done),
+            frames_total: target.map_or(0, |target| target.total),
+            width: target.map_or(0, |target| target.width),
+            height: target.map_or(0, |target| target.height),
+            directory_name: target.map(|target| target.directory_name.clone()),
+            last_error: error,
+        }
     }
 
     /// Renders one frame of the running job. The job owns its scene snapshot, so a modal, a

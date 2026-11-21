@@ -395,3 +395,54 @@ fn an_approved_close_cancels_the_job_and_joins_its_writer() {
             .all(|name| name.ends_with(".png"))
     );
 }
+
+#[test]
+fn the_inspection_follows_the_job_and_names_only_the_directory() {
+    let parent = tempfile::tempdir().unwrap();
+    let dir = parent.path().join("out_dir");
+    std::fs::create_dir(&dir).unwrap();
+    let mut editor = editor(&Seen::default());
+    let idle = editor.inspect_playblast();
+    assert_eq!(
+        (idle.state, idle.frames_total, idle.directory_name),
+        ("idle", 0, None)
+    );
+    editor
+        .apply_operation(Operation::Playblast(request(&dir)))
+        .unwrap();
+    let running = editor.inspect_playblast();
+    assert_eq!(
+        (running.state, running.frames_done, running.frames_total),
+        ("running", 0, 3)
+    );
+    assert_eq!((running.width, running.height), (8, 6));
+    assert_eq!(running.directory_name.as_deref(), Some("out_dir"));
+    run_to_end(&mut editor);
+    let finished = editor.inspect_playblast();
+    assert_eq!((finished.state, finished.frames_done), ("finished", 3));
+    let json = serde_json::to_string(&finished).unwrap();
+    assert!(!json.contains(parent.path().to_str().unwrap()));
+}
+
+#[test]
+fn the_inspection_reports_cancel_progress_and_a_typed_failure() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut editor = editor(&Seen::default());
+    let mut long = request(dir.path());
+    long.end = Some(40.0);
+    editor.apply_operation(Operation::Playblast(long)).unwrap();
+    ticks(&mut editor, 2);
+    editor.apply_operation(Operation::CancelPlayblast).unwrap();
+    let cancelled = editor.inspect_playblast();
+    assert_eq!((cancelled.state, cancelled.frames_total), ("cancelled", 40));
+    assert!(cancelled.last_error.is_none());
+    let other = tempfile::tempdir().unwrap();
+    let mut over = request(other.path());
+    let max = f64::from(azteccraft::native_scene::MAX_FRAME);
+    (over.start, over.end) = (Some(max), Some(max + 1.0));
+    editor.apply_operation(Operation::Playblast(over)).unwrap();
+    run_to_end(&mut editor);
+    let failed = editor.inspect_playblast();
+    assert_eq!(failed.state, "failed");
+    assert!(failed.last_error.unwrap().contains("cannot be evaluated"));
+}

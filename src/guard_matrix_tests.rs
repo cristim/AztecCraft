@@ -12,7 +12,8 @@
 use super::*;
 use crate::editor_operations::{
     ComponentKind, ComponentMoveSpace, FileDecision, ManipulationSpace, ManipulationValue,
-    MarqueeMode, MoveDistance, RemoteRequest, SelectRule, ToolHandle, TransformInput,
+    MarqueeMode, MoveDistance, PlayblastRequest, RemoteRequest, SelectRule, ToolHandle,
+    TransformInput,
 };
 use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
@@ -306,6 +307,8 @@ struct Targets {
     import: std::path::PathBuf,
     export_gltf: std::path::PathBuf,
     export_usd: std::path::PathBuf,
+    /// An existing directory for the playblast to write into.
+    playblast_dir: std::path::PathBuf,
     /// A `.ma` file no decoder accepts, so the cell reads the same on every platform.
     import_ma: std::path::PathBuf,
 }
@@ -426,6 +429,7 @@ fn targets(rig: &Rig) -> Targets {
         import: rig.directory.path().join("import.obj"),
         export_gltf: rig.directory.path().join("export.glb"),
         export_usd: rig.directory.path().join("export.usda"),
+        playblast_dir: rig.directory.path().to_path_buf(),
         import_ma: rig.directory.path().join("import.ma"),
     }
 }
@@ -742,6 +746,9 @@ fn build(state: State) -> Rig {
             may_install = false;
         }
     }
+    editor.playblast.factory = Some(crate::app::features::playblast::fake::factory(
+        Default::default(),
+    ));
     Rig {
         editor,
         context,
@@ -924,6 +931,8 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             path: t.export_usd.clone(),
             selection_only: false,
         },
+        Operation::Playblast(playblast_request(t.playblast_dir.clone())),
+        Operation::CancelPlayblast,
         Operation::ImportMaya {
             path: t.import_ma.clone(),
             prefix: None,
@@ -2876,8 +2885,32 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             },
         )],
         Operation::SetCameraFilmBack(_) => vec![sample("set_camera_film_back", film_back_edit())],
-        // Sampled in the commit that adds the playblast progress to the inspection.
-        Operation::Playblast(_) | Operation::CancelPlayblast => vec![],
+        Operation::Playblast(_) => vec![
+            sample(
+                "playblast(valid)",
+                Operation::Playblast(playblast_request(t.playblast_dir.clone())),
+            ),
+            sample(
+                "playblast(relative_dir)",
+                Operation::Playblast(playblast_request("relative".into())),
+            ),
+        ],
+        Operation::CancelPlayblast => vec![sample("cancel_playblast", Operation::CancelPlayblast)],
+    }
+}
+
+fn playblast_request(directory: std::path::PathBuf) -> PlayblastRequest {
+    PlayblastRequest {
+        directory,
+        name: "pb".into(),
+        start: Some(1.0),
+        end: Some(2.0),
+        width: Some(4),
+        height: Some(4),
+        percent: 100,
+        format: crate::editor_operations::PlayblastFormat::Png,
+        offscreen: true,
+        show_ornaments: true,
     }
 }
 
