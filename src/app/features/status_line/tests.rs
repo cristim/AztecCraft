@@ -269,6 +269,38 @@ fn open_combo_popup_blocks_shortcuts_and_disabled_sets_stay_disabled() {
 }
 
 #[test]
+fn customize_is_visible_but_cannot_change_the_menu_set() {
+    let (mut editor, context) = setup();
+    let output = strip_output(&mut editor, &context);
+    let combo = strip(&output).remove(0);
+    click(&mut editor, &context, combo.rect.center());
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let rows = controls(&output);
+    let customize = rows.iter().find(|row| row.label == "Customize").unwrap();
+    let rendering = rows.iter().find(|row| row.label == "Rendering").unwrap();
+    assert!(customize.disabled);
+    assert_eq!(customize.role, accesskit::Role::Button);
+    assert!(customize.rect.top() >= rendering.rect.bottom());
+    let update = output.platform_output.accesskit_update.unwrap();
+    let (_, node) = update
+        .nodes
+        .iter()
+        .find(|(id, _)| *id == customize.id)
+        .unwrap();
+    assert_eq!(
+        node.description(),
+        Some("Unavailable: Menu Set Editor is not implemented yet")
+    );
+    let before = snapshot(&editor);
+    let menu_set = editor.menu_set;
+    click(&mut editor, &context, customize.rect.center());
+    assert_eq!(editor.menu_set, menu_set);
+    assert_eq!(snapshot(&editor), before);
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![key(Key::Escape)]);
+    assert!(!egui::Popup::is_any_open(&context));
+}
+
+#[test]
 fn choosing_rigging_in_the_selector_switches_the_set_and_leaves_the_scene_alone() {
     let (mut editor, context) = setup();
     frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
