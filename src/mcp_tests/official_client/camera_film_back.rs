@@ -1,3 +1,4 @@
+use super::camera::inspected_camera;
 use super::*;
 use azteccraft::viewport::{FilmBack, FilmFit, Lens};
 
@@ -383,6 +384,109 @@ async fn sdk_set_camera_film_back_is_accepted_in_an_orthographic_view_without_ch
         .clone();
     assert_eq!(camera["projection"], "orthographic");
     assert_eq!(camera["view"], "top");
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_inspect_scene_reads_back_every_film_back_field_exactly() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+
+    let defaults = inspected_camera(&mut editor, &context, &client).await["film_back"].clone();
+    assert_eq!(
+        defaults,
+        json!({
+            "focal_length": 35.0,
+            "horizontal_film_aperture": 1.4173,
+            "vertical_film_aperture": 0.9449,
+            "film_fit": "fill",
+            "film_fit_offset": 0.0,
+            "horizontal_film_offset": 0.0,
+            "vertical_film_offset": 0.0,
+            "lens_squeeze_ratio": 1.0,
+            "overscan": 1.0,
+            "pre_scale": 1.0,
+            "post_scale": 1.0,
+            "film_roll_value": 0.0,
+            "display_film_gate": false,
+        })
+    );
+
+    // Every written value comes back bit-exact, in the written units and names.
+    let written = every_field(&token);
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_camera_film_back",
+        written.clone(),
+    )
+    .await;
+    let read = inspected_camera(&mut editor, &context, &client).await["film_back"].clone();
+    let mut expected = written;
+    expected.as_object_mut().unwrap().remove("scene_token");
+    assert_eq!(read, expected);
+    for (field, value) in expected.as_object().unwrap() {
+        if let Some(number) = value.as_f64() {
+            assert_eq!(
+                read[field].as_f64().unwrap().to_bits(),
+                number.to_bits(),
+                "{field}"
+            );
+        }
+    }
+
+    for (fit, name) in [
+        ("fill", "fill"),
+        ("vertical", "vertical"),
+        ("overscan", "overscan"),
+    ] {
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_camera_film_back",
+            json!({"scene_token": token, "film_fit": fit}),
+        )
+        .await;
+        let camera = inspected_camera(&mut editor, &context, &client).await;
+        assert_eq!(camera["film_back"]["film_fit"], name);
+    }
+
+    // A refused edit leaves the readback untouched; the legacy focal length field agrees.
+    let before = inspected_camera(&mut editor, &context, &client).await;
+    let refused = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_camera_film_back",
+        json!({"scene_token": token, "focal_length": -1.0}),
+    )
+    .await;
+    assert_eq!(code(&refused), "camera_error");
+    let after = inspected_camera(&mut editor, &context, &client).await;
+    assert_eq!(before["film_back"], after["film_back"]);
+    assert_eq!(
+        after["focal_length_mm"].as_f64().unwrap(),
+        after["film_back"]["focal_length"].as_f64().unwrap() as f32 as f64
+    );
+
+    // An orthographic view still reports the stored film back.
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_viewport_view",
+        json!({"scene_token": token, "view": "top"}),
+    )
+    .await;
+    let ortho = inspected_camera(&mut editor, &context, &client).await;
+    assert_eq!(ortho["projection"], "orthographic");
+    assert_eq!(ortho["film_back"], after["film_back"]);
+
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

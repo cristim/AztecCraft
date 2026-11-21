@@ -385,7 +385,7 @@ async fn headless_gpu_sdk_hidden_inspection_reads_live_terminal_health_without_u
     server.await.unwrap();
 }
 
-async fn inspected_camera(
+pub(super) async fn inspected_camera(
     editor: &mut Editor,
     context: &egui::Context,
     client: &rmcp::service::RunningService<RoleClient, ()>,
@@ -595,6 +595,7 @@ async fn sdk_camera_focal_length_is_unknown_for_a_field_of_view_only_lens() {
     let before = editor.history.scene().clone();
     let camera = inspected_camera(&mut editor, &context, &client).await;
     assert!(camera["focal_length_mm"].is_null());
+    assert!(camera["film_back"].is_null());
     assert_eq!(camera["center_of_interest_cm"], 12.0);
     assert_eq!(editor.scene_token, token);
     assert_eq!(editor.history.scene(), &before);

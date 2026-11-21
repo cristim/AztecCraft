@@ -665,6 +665,31 @@ impl Editor {
                 can_redo_view: !self.view_history.redo.is_empty(),
                 native_gesture_active: self.native_camera_drag,
                 focal_length_mm: self.camera.lens().focal_length_mm(),
+                film_back: match self.camera.lens() {
+                    azteccraft::viewport::Lens::Film(film) => {
+                        Some(crate::editor_operations::FilmBackInspection {
+                            focal_length: film.focal_mm,
+                            horizontal_film_aperture: film.aperture_in[0],
+                            vertical_film_aperture: film.aperture_in[1],
+                            film_fit: match film.film_fit {
+                                azteccraft::viewport::FilmFit::Fill => "fill",
+                                azteccraft::viewport::FilmFit::Horizontal => "horizontal",
+                                azteccraft::viewport::FilmFit::Vertical => "vertical",
+                                azteccraft::viewport::FilmFit::Overscan => "overscan",
+                            },
+                            film_fit_offset: film.film_fit_offset_in,
+                            horizontal_film_offset: film.film_offset_in[0],
+                            vertical_film_offset: film.film_offset_in[1],
+                            lens_squeeze_ratio: film.lens_squeeze,
+                            overscan: film.overscan,
+                            pre_scale: film.pre_scale,
+                            post_scale: film.post_scale,
+                            film_roll_value: film.film_roll_degrees,
+                            display_film_gate: film.display_film_gate,
+                        })
+                    }
+                    azteccraft::viewport::Lens::VerticalFov(_) => None,
+                },
                 center_of_interest_cm: self.camera.distance(),
                 target: self.camera.target().to_array(),
                 eye: self.camera.eye().to_array(),
@@ -938,8 +963,22 @@ mod lower_bound_tests {
     #[test]
     fn the_fixed_minimum_has_every_key_of_the_tightest_inspection() {
         // An empty default editor: every Option null, nothing selected, no nodes.
-        let editor = Editor::default();
+        // A field-of-view lens is the tightest: focal_length_mm and film_back are null.
+        let editor = Editor {
+            camera: azteccraft::viewport::Camera::new(
+                glam::Vec3::ZERO,
+                0.0,
+                0.0,
+                12.0,
+                0.7,
+                0.1,
+                100.0,
+            )
+            .unwrap(),
+            ..Editor::default()
+        };
         let real = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+        assert!(real["camera"]["film_back"].is_null());
         let minimum: serde_json::Value = serde_json::from_str(MIN_FIXED).unwrap();
         assert_eq!(key_structure(&minimum), key_structure(&real));
         let real_len = assert_lower_bound(&editor);

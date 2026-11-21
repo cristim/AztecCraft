@@ -1540,6 +1540,9 @@ pub struct CameraInspection {
     pub native_gesture_active: bool,
     /// Millimetres, unknown for an explicit field-of-view lens.
     pub focal_length_mm: Option<f32>,
+    /// The film back attributes in Maya's units as stored (f64, no rounding); null for an explicit
+    /// field-of-view lens. An orthographic view reports the stored film back though it ignores it.
+    pub film_back: Option<FilmBackInspection>,
     /// Session viewport eye-to-target distance, in internal centimetres.
     pub center_of_interest_cm: f32,
     pub target: [f32; 3],
@@ -1555,6 +1558,30 @@ pub struct CameraInspection {
     /// `perspective` or `orthographic`. An orthographic view shows `distance * tan(fov_y / 2)`
     /// as its half height (PROVISIONAL).
     pub projection: &'static str,
+}
+
+/// The camera film back as `set_camera_film_back` takes it: the same names and units.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct FilmBackInspection {
+    /// Millimetres.
+    pub focal_length: f64,
+    /// Inches.
+    pub horizontal_film_aperture: f64,
+    pub vertical_film_aperture: f64,
+    /// `fill`, `horizontal`, `vertical` or `overscan`.
+    pub film_fit: &'static str,
+    /// Inches.
+    pub film_fit_offset: f64,
+    pub horizontal_film_offset: f64,
+    pub vertical_film_offset: f64,
+    pub lens_squeeze_ratio: f64,
+    pub overscan: f64,
+    pub pre_scale: f64,
+    pub post_scale: f64,
+    /// Degrees.
+    pub film_roll_value: f64,
+    pub display_film_gate: bool,
 }
 
 /// The only native refusals a key command can report; any other failure has its own `OperationError`
@@ -1968,7 +1995,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"undo_queue":[],"redo_queue":[],"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
-    r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
+    r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"film_back":null,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
     r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
     r#""frames_per_second":0.0,"loop":"","key_count":0}}"#

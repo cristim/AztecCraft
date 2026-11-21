@@ -13,6 +13,21 @@
         8.25462818145752
       ],
       "far_clip": 10000.0,
+      "film_back": {
+        "display_film_gate": false,
+        "film_fit": "fill",
+        "film_fit_offset": 0.0,
+        "film_roll_value": 0.0,
+        "focal_length": 35.0,
+        "horizontal_film_aperture": 1.4173,
+        "horizontal_film_offset": 0.0,
+        "lens_squeeze_ratio": 1.0,
+        "overscan": 1.0,
+        "post_scale": 1.0,
+        "pre_scale": 1.0,
+        "vertical_film_aperture": 0.9449,
+        "vertical_film_offset": 0.0
+      },
       "focal_length_mm": 35.0,
       "fov_y_degrees": 37.849961153583806,
       "native_gesture_active": false,
