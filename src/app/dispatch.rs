@@ -790,6 +790,7 @@ impl Editor {
                     | Operation::SetMaterialDiffuse { .. }
                     | Operation::CreateSessionMaterial { .. }
                     | Operation::SetSessionMaterialColor { .. }
+                    | Operation::SetSessionMaterialAttribute { .. }
             )
         {
             return Err(OperationError::BusyEditing);
@@ -998,6 +999,16 @@ impl Editor {
             Operation::SetSessionMaterialColor { material, color } => {
                 Command::SetSessionMaterialColor { material, color }
             }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::SetSessionMaterialAttribute {
+                material,
+                attribute,
+                rgb,
+            } => Command::SetSessionMaterialAttribute {
+                material,
+                attribute,
+                rgb,
+            },
             Operation::SetCurrentTime { time } => return self.set_current_time(time),
             Operation::SetPlaybackRange { start, end } => {
                 return self.set_playback_range(start, end);
@@ -1794,6 +1805,7 @@ impl Editor {
             Command::CreateSessionMaterial { .. }
                 | Command::AssignSessionMaterial { .. }
                 | Command::SetSessionMaterialColor { .. }
+                | Command::SetSessionMaterialAttribute { .. }
         );
         let reparent_command = matches!(
             command,

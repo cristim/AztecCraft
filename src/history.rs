@@ -1,9 +1,9 @@
 use crate::{
     native_scene::{
-        ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest, MaterialChoice,
-        MayaImportPlan, NativeError, NativeId, NativeScene, NativeTransform, ObjImportPlan,
-        PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId, TransformChannels,
-        TransformTarget, UngroupOptions, UvProjectAxis,
+        ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest, LambertAttribute,
+        MaterialChoice, MayaImportPlan, NativeError, NativeId, NativeScene, NativeTransform,
+        ObjImportPlan, PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId,
+        TransformChannels, TransformTarget, UngroupOptions, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -114,6 +114,11 @@ pub enum Command {
         material: SessionMaterialId,
         color: [f64; 3],
     },
+    SetSessionMaterialAttribute {
+        material: SessionMaterialId,
+        attribute: LambertAttribute,
+        rgb: [f64; 3],
+    },
     ExtrudeFace {
         shape: NativeId,
         face_index: usize,
@@ -212,7 +217,8 @@ impl Command {
             Self::SetMaterialDiffuse { .. }
             | Self::CreateSessionMaterial { .. }
             | Self::AssignSessionMaterial { .. }
-            | Self::SetSessionMaterialColor { .. } => "Material".to_string(),
+            | Self::SetSessionMaterialColor { .. }
+            | Self::SetSessionMaterialAttribute { .. } => "Material".to_string(),
 
             Self::ExtrudeFace { .. } => "Extrude".to_string(),
             Self::MoveVertices { .. } => "Move".to_string(),
@@ -727,6 +733,14 @@ impl History {
             ),
             Command::SetSessionMaterialColor { material, color } => {
                 candidate.set_session_material_color(material, color)?;
+                EditOutcome::Changed
+            }
+            Command::SetSessionMaterialAttribute {
+                material,
+                attribute,
+                rgb,
+            } => {
+                candidate.set_session_material_attribute(material, attribute, rgb)?;
                 EditOutcome::Changed
             }
             Command::ExtrudeFace {

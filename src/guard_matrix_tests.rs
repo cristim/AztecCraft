@@ -20,10 +20,10 @@ use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::image_plane::model::ImagePlaneEdit;
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, MaterialChoice,
-    MoveSpace, NativeScene, PivotReset, ReduceTarget, ReparentKeep, RotateAxis, ScaleHandle,
-    SessionMaterialId, TransformChannels, TransformTarget, UngroupOptions, UvProjectAxis,
-    VertexSetTarget, VertexTarget, WorldAxis,
+    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, LambertAttribute,
+    MaterialChoice, MoveSpace, NativeScene, PivotReset, ReduceTarget, ReparentKeep, RotateAxis,
+    ScaleHandle, SessionMaterialId, TransformChannels, TransformTarget, UngroupOptions,
+    UvProjectAxis, VertexSetTarget, VertexTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PlatonicSolidKind, PrimitiveOptions};
 use azteccraft::viewport::FilmBackEdit;
@@ -836,6 +836,11 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             material: SessionMaterialId::from_index(1),
             color: [0.0, 1.0, 0.0],
         },
+        Operation::SetSessionMaterialAttribute {
+            material: SessionMaterialId::from_index(1),
+            attribute: LambertAttribute::Transparency,
+            rgb: [0.25, 0.5, 0.75],
+        },
         Operation::SetCurrentTime { time: 5.0 },
         Operation::SetPlaybackRange {
             start: 2.0,
@@ -1502,6 +1507,27 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     Operation::SetSessionMaterialColor {
                         material: SessionMaterialId::from_index(1),
                         color: [0.0, 1.0, 0.0],
+                    },
+                )
+            },
+        ],
+        Operation::SetSessionMaterialAttribute { .. } => vec![
+            sample(
+                "set_session_material_attribute(unknown)",
+                Operation::SetSessionMaterialAttribute {
+                    material: SessionMaterialId::from_index(1),
+                    attribute: LambertAttribute::Transparency,
+                    rgb: [0.25, 0.5, 0.75],
+                },
+            ),
+            Sample {
+                pre: Pre::SessionMaterial,
+                ..sample(
+                    "set_session_material_attribute(created)",
+                    Operation::SetSessionMaterialAttribute {
+                        material: SessionMaterialId::from_index(1),
+                        attribute: LambertAttribute::Transparency,
+                        rgb: [0.25, 0.5, 0.75],
                     },
                 )
             },

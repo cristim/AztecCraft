@@ -3716,6 +3716,59 @@
     }
   },
   {
+    "name": "set_session_material_attribute",
+    "description": "Set the linear RGB Transparency (transparency), Ambient Color (ambientColor) or Incandescence (incandescence) of a session material created in this session, default black, each channel 0 through 1 (stored in single precision: rounded to the nearest f32); the initial material 0 is locked. Stored, undoable and saved to an authored .ma when not black, but they do not yet change the viewport (PROVISIONAL). Use set_session_material_color for the colour. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "inputSchema": {
+      "$defs": {
+        "SessionMaterialAttribute": {
+          "description": "The lambert colour attributes besides `color`, by Maya's long names.",
+          "enum": [
+            "transparency",
+            "ambientColor",
+            "incandescence"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "$ref": "#/$defs/SessionMaterialAttribute"
+        },
+        "material_id": {
+          "type": "string"
+        },
+        "rgb": {
+          "description": "Linear RGB, each channel 0 through 1.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "material_id",
+        "attribute",
+        "rgb"
+      ],
+      "title": "SetSessionMaterialAttributeArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "delete_node",
     "description": "Delete an object and all its descendants through editor undo history; the form of Maya's delete command with no flags, applied to one node (PROVISIONAL: the documentation does not state the default of -hierarchy, so the subtree semantics are pinned by tests). A descendant transform that also hangs under a node outside the subtree is refused; a shape shared with such a node stays. Refused in Face, Vertex or Edge selection mode",
     "inputSchema": {

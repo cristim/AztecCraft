@@ -1001,6 +1001,9 @@ mod tests {
                 "set_session_material_color" => {
                     json!({"scene_token":token,"material_id":"1","color":[0.0,1.0,0.0]})
                 }
+                "set_session_material_attribute" => {
+                    json!({"scene_token":token,"material_id":"1","attribute":"transparency","rgb":[0.0,1.0,0.0]})
+                }
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
@@ -1096,6 +1099,22 @@ mod tests {
                 json!({"scene_token":token,"material_id":"01x","color":[0,0,0]}),
             ),
             (
+                "set_session_material_attribute",
+                json!({"scene_token":token,"material_id":"1","attribute":"opacity","rgb":[0,0,0]}),
+            ),
+            (
+                "set_session_material_attribute",
+                json!({"scene_token":token,"material_id":"1","attribute":"color","rgb":[0,0,0]}),
+            ),
+            (
+                "set_session_material_attribute",
+                json!({"scene_token":token,"material_id":"1","attribute":"transparency"}),
+            ),
+            (
+                "set_session_material_attribute",
+                json!({"scene_token":token,"material_id":"1","attribute":"transparency","rgb":"x"}),
+            ),
+            (
                 "set_session_material_color",
                 json!({"scene_token":token,"material_id":"007","color":[0,0,0]}),
             ),
@@ -1172,6 +1191,7 @@ mod tests {
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"
+                    | "set_session_material_attribute"
                     | "set_current_time"
                     | "delete_keys"
                     | "euler_filter"

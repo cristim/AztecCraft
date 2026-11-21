@@ -517,6 +517,14 @@ pub enum Operation {
         material: azteccraft::native_scene::SessionMaterialId,
         color: [f64; 3],
     },
+    /// Transparency, Ambient Color or Incandescence of a created material (#467); colour has
+    /// `SetSessionMaterialColor`.
+    #[cfg(any(test, feature = "mcp"))]
+    SetSessionMaterialAttribute {
+        material: azteccraft::native_scene::SessionMaterialId,
+        attribute: azteccraft::native_scene::LambertAttribute,
+        rgb: [f64; 3],
+    },
     /// Moves the current time to a whole frame and writes every keyed channel there. Not an undo
     /// step. A draft refuses it, because the write refreshes the fields.
     SetCurrentTime {

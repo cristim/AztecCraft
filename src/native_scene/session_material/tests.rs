@@ -692,6 +692,7 @@ fn shape_count_follows_assign_reassign_and_a_sourced_scene() {
 
 mod attributes {
     use super::*;
+    use crate::history::{Command, EditOutcome, History};
 
     const EXTRAS: [LambertAttribute; 3] = [
         LambertAttribute::Transparency,
@@ -756,5 +757,29 @@ mod attributes {
         assert_eq!(scene.validate(), Err(NativeError::SessionColorOutOfRange));
         scene.session_materials.materials[1].incandescence[0] = 0.1;
         assert_eq!(scene.validate(), Err(NativeError::InvalidSessionMaterials));
+    }
+
+    #[test]
+    fn history_is_one_undo_step_and_an_unchanged_value_is_a_no_op() {
+        let (scene, _) = cube();
+        let mut history = History::new(scene);
+        history
+            .execute(Command::CreateSessionMaterial { color: [0.5; 3] })
+            .unwrap();
+        let set = Command::SetSessionMaterialAttribute {
+            material: SessionMaterialId(1),
+            attribute: LambertAttribute::Transparency,
+            rgb: [0.25, 0.5, 0.75],
+        };
+        assert_eq!(history.execute(set.clone()), Ok(EditOutcome::Changed));
+        assert_eq!(history.execute(set), Ok(EditOutcome::Unchanged));
+        let read = |h: &History| {
+            h.scene().session_materials()[1].attribute(LambertAttribute::Transparency)
+        };
+        assert_eq!(read(&history), [0.25, 0.5, 0.75]);
+        assert!(history.undo());
+        assert_eq!(read(&history), [0.0; 3]);
+        assert!(history.redo());
+        assert_eq!(read(&history), [0.25, 0.5, 0.75]);
     }
 }

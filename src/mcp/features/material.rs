@@ -5,7 +5,7 @@ use crate::{
         registry::ToolSpec,
     },
 };
-use azteccraft::native_scene::{MaterialChoice, SessionMaterialId};
+use azteccraft::native_scene::{LambertAttribute, MaterialChoice, SessionMaterialId};
 use rmcp::{
     model::{ErrorData, JsonObject},
     schemars::{self, JsonSchema},
@@ -66,6 +66,28 @@ struct SetSessionMaterialColorArgs {
     scene_token: String,
     material_id: String,
     color: [f64; 3],
+}
+
+/// The lambert colour attributes besides `color`, by Maya's long names.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+enum SessionMaterialAttribute {
+    #[serde(rename = "transparency")]
+    Transparency,
+    #[serde(rename = "ambientColor")]
+    AmbientColor,
+    #[serde(rename = "incandescence")]
+    Incandescence,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SetSessionMaterialAttributeArgs {
+    scene_token: String,
+    material_id: String,
+    attribute: SessionMaterialAttribute,
+    /// Linear RGB, each channel 0 through 1.
+    rgb: [f64; 3],
 }
 
 fn material_id(value: &str) -> Result<SessionMaterialId, ErrorData> {
@@ -132,6 +154,23 @@ fn parse_set_session_material_color(arguments: JsonObject) -> Result<RemoteReque
     ))
 }
 
+fn parse_set_session_material_attribute(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: SetSessionMaterialAttributeArgs = decode(arguments)?;
+    let attribute = match args.attribute {
+        SessionMaterialAttribute::Transparency => LambertAttribute::Transparency,
+        SessionMaterialAttribute::AmbientColor => LambertAttribute::AmbientColor,
+        SessionMaterialAttribute::Incandescence => LambertAttribute::Incandescence,
+    };
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetSessionMaterialAttribute {
+            material: material_id(&args.material_id)?,
+            attribute,
+            rgb: args.rgb,
+        },
+    ))
+}
+
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "set_material_diffuse",
@@ -162,6 +201,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Set the linear RGB colour of a session material created in this session (stored in single precision: each channel is rounded to the nearest f32); the initial material 0 is locked. Saved to an authored .ma like the other session material state; unrelated to the saved Phong set_material_diffuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<SetSessionMaterialColorArgs>,
         parse: parse_set_session_material_color,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "set_session_material_attribute",
+        description: "Set the linear RGB Transparency (transparency), Ambient Color (ambientColor) or Incandescence (incandescence) of a session material created in this session, default black, each channel 0 through 1 (stored in single precision: rounded to the nearest f32); the initial material 0 is locked. Stored, undoable and saved to an authored .ma when not black, but they do not yet change the viewport (PROVISIONAL). Use set_session_material_color for the colour. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        schema: schema::<SetSessionMaterialAttributeArgs>,
+        parse: parse_set_session_material_attribute,
         idempotent: true,
         read_only: false,
     },
