@@ -1,3 +1,4 @@
+use crate::app::features::primitive_options::describe_unavailable;
 use crate::app::menus::CLOSING_REASON;
 use crate::app::{Editor, SelectionModeIntent};
 use crate::editor_operations::{MenuSet, Operation, SelectionMode, SidebarPanel};
@@ -15,6 +16,7 @@ const MENU_SETS: [(&str, Option<MenuSet>); 5] = [
     ("Rendering", Some(MenuSet::Rendering)),
 ];
 const MENU_SET_LABEL: &str = "Menu set";
+const MENU_SET_EDITOR_UNAVAILABLE: &str = "Menu Set Editor is not implemented yet";
 const MENU_SET_UNAVAILABLE: &str = "not implemented yet";
 const SELECTION_MODE_MENU_LABEL: &str = "Selection mode menu";
 const SELECTION_MODE_MENU_HOVER: &str = "Selection mode menu (presets): not implemented yet";
@@ -256,6 +258,11 @@ impl Editor {
                         (Some(_), None) => {}
                     }
                 }
+                ui.separator();
+                let customize = ui
+                    .add_enabled(false, egui::Button::new("Customize"))
+                    .on_disabled_hover_text(MENU_SET_EDITOR_UNAVAILABLE);
+                describe_unavailable(ui.ctx(), customize.id, MENU_SET_EDITOR_UNAVAILABLE);
             });
         let enabled = combo.response.enabled();
         combo.response.widget_info(|| {

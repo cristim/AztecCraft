@@ -31,6 +31,20 @@ every subcase.
 
 Tasks 2–8 have real callers: desktop authoring actions and scene file handling. Scene data remains separate from viewport caches so persistence and editing are testable without a window. Projected drawing is a fidelity spike, not a replacement for a depth-tested renderer.
 
+## Status Line menu-set customization entry (issue #66)
+
+Autodesk's [Maya 2027 Menu Set Editor page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-C14313A4-D814-4C2A-987E-F54B46FC7707.htm)
+puts Customize in the Status Line menu-set dropdown. It opens the Menu Set
+Editor, which supports named sets, menu assignment and ordering, and restoring
+default sets while keeping custom sets. The page gives no shortcut, exact row
+position or separator for Customize.
+
+This slice exposes Customize after the built-in sets (placement within the
+dropdown is PROVISIONAL). The disabled row explains that the editor is
+unavailable through hover and accessibility. Custom-set creation, editing,
+reset and persistence remain open. The existing menu-set operation and MCP
+inspection cover built-in selection. Customize has no operation or state.
+
 ## File > Export All / Export Selection as OBJ (issue #22)
 
 Maya 2026 research (cited and summarised, not copied):
