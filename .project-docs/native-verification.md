@@ -377,3 +377,15 @@ disabled option box, choose an `.obj` file in the panel, look at the selected im
 objects and undo them. The same applies to File > Export All and Export Selection (default
 name `untitled.obj`, `.obj` appended, occupied destination refused). The step list lives in
 `known-issues.md`; nothing here is a Maya comparison.
+
+## Linux synthetic OBJ resource measurements (#441)
+
+Measured the x86_64 debug build at `2d65489c1fb3a595e9cd658555bcbfa813f2ae06` on Omarchy 4.5.0, with Vulkan in an isolated X11/Xvfb window. Each sample used a fresh editor process and the guarded MCP `import_obj` operation. Read Linux `VmRSS` one second after initial inspection and again after a one-second post-import redraw and `inspect_limits` reply. The two measurements per case below are end-to-end RSS increases, including allocator, renderer and retained history. `view_bytes` is the editor's separate accounting estimate.
+
+| Nodes / triangles | OBJ bytes | Accounted view bytes | RSS increase in KiB |
+| --- | ---: | ---: | --- |
+| 16 / 2,048 | 100,515 | 314,424 | 6,420 / 6,308 |
+| 128 / 2,048 | 101,663 | 392,376 | 6,960 / 6,964 |
+| 16 / 8,192 | 431,028 | 1,223,736 | 10,100 / 12,212 |
+
+Each file used one root per OBJ object and independent triangles with three unique vertices apiece. The two 2,048-triangle files each reported 6,144 vertices and edges. The 8,192-triangle file reported 24,576 of each. Fixture SHA-256 values in table order were `2b5c6a869a3c4b506b0a68cff5451e944b246837c081a8df8004b1af7f233a92`, `c0c15331b56d21ba07a49f7339f4be1eb243bc0750b71123230d8fd02d338068` and `90a86a48383394fc7a541f0e4ad5a6cd95171445ffbcf212c0d0c0e3de1d5fe9`. These samples establish observed RSS increases for the stated workloads. Validating admission limits and separating per-node and per-face costs require wider evidence.
