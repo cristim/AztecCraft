@@ -1881,3 +1881,8 @@ edge (the page does not relate it to `-radius`, which is not offered; the page's
 orientation, point order, winding and the `pSoccerBall` name. Not built: helix `-direction`, `-roundCap`, `-subdivisionsCaps`, texture and
 the old-init behaviour, and Create UVs for both (refused with `unsupported_uv_primitive`; `create_uvs` stays off, default untouched). The
 in-app check is still pending.
+
+The helix self-intersects whenever the tube radius exceeds half the pitch (`height / coils`) or the helix radius, and nothing refuses it.
+The sourced defaults (3 coils, height 2, width 2, radius 0.4) already overlap: the closest non-adjacent turns are about 0.66 apart against
+a 0.8 tube diameter. Whether Maya's own default overlaps depends on what its `-width` and `-height` measure, which the pages do not say.
+The face count is capped (20000 faces, at most 128 divisions per ring) so a large coil count cannot exhaust memory.
