@@ -979,8 +979,15 @@ impl Editor {
                 target,
                 axis,
                 space,
+                expected_selection_generation,
             } => {
-                return self.begin_editor_rotate(&target, axis, space, provenance);
+                return self.begin_editor_rotate(
+                    &target,
+                    axis,
+                    space,
+                    provenance,
+                    expected_selection_generation,
+                );
             }
             Operation::BeginScale {
                 target,

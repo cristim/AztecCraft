@@ -169,6 +169,9 @@ enum BeginManipulationArgs {
         instance_path: Vec<String>,
         axis: AxisInput,
         space: SpaceInput,
+        /// The inspected selection generation. Required when rotating several selected objects.
+        #[serde(default)]
+        expected_selection_generation: Option<u64>,
     },
     Scale {
         scene_token: String,
@@ -384,12 +387,14 @@ fn parse_begin_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Erro
             instance_path,
             axis,
             space: input,
+            expected_selection_generation,
         } => (
             scene_token,
             Operation::BeginRotate {
                 target: target(&node_id, instance_path)?,
                 axis: rotate_axis(axis),
                 space: space(input),
+                expected_selection_generation,
             },
         ),
         BeginManipulationArgs::Scale {
@@ -561,7 +566,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "begin_manipulation",
-        description: "Begin one remote-owned Move (World axis), Rotate (Object or World space) or Scale (Object, World or Parent space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move or a Scale acts on the whole current selection with the named node as its lead (the last selected object), each object scaling about its own pivot by the same factor; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. Rotate still needs exactly one selected object. In Vertex, Edge or Face selection a move drags the unique vertices of the picked components of the selected object, a shared vertex once (World or Object orientation, no Snap to grids, at most 8192 vertices) and requires expected_selection_generation (a missing one is invalid_input); the generation moves with every object-selection, pick and selection-mode change and guards the selection, not geometry (an undo or redo that moves points does not change it); inspect_scene then reports the drag as kind move_components with component_kind and vertex_count and null channel fields",
+        description: "Begin one remote-owned Move (World axis), Rotate (Object or World space) or Scale (Object, World or Parent space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. Move, Rotate and Scale act on the whole current selection with the named node as its lead (the last selected object). Rotate and Scale apply the same angle or factor around each object's own pivot; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. In Vertex, Edge or Face selection a move drags the unique vertices of the picked components of the selected object, a shared vertex once (World or Object orientation, no Snap to grids, at most 8192 vertices) and requires expected_selection_generation (a missing one is invalid_input); the generation moves with every object-selection, pick and selection-mode change and guards the selection, not geometry (an undo or redo that moves points does not change it); inspect_scene then reports the drag as kind move_components with component_kind and vertex_count and null channel fields",
         schema: schema::<BeginManipulationArgs>,
         parse: parse_begin_manipulation,
         idempotent: false,

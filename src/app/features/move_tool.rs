@@ -157,6 +157,7 @@ fn edit_reply(outcome: EditOutcome) -> OperationReply {
 }
 
 impl Editor {
+    #[cfg(test)]
     pub(in crate::app) fn selected_move_target(&self) -> Result<TransformTarget, OperationError> {
         let (node, path) = self.single_target()?;
         Ok(TransformTarget {
@@ -523,7 +524,7 @@ impl Editor {
             if let Some(refusal) = mode_refusal(tool, self.selection_mode) {
                 Err(OperationError::InvalidInput(refusal))
             } else {
-                self.selected_move_target()
+                self.selected_move_lead()
             }
         };
         let target = match self.move_mode_refusal() {
@@ -531,11 +532,7 @@ impl Editor {
             None => self.selected_move_lead(),
         };
         let rotate_target = target_for("Rotate");
-        // Scale acts on the whole selection like Move: its target is the lead.
-        let scale_target = match mode_refusal("Scale", self.selection_mode) {
-            Some(refusal) => Err(OperationError::InvalidInput(refusal)),
-            None => self.selected_move_lead(),
-        };
+        let scale_target = target_for("Scale");
         let geometry = target
             .as_ref()
             .map_err(ToString::to_string)
@@ -605,7 +602,7 @@ impl Editor {
         let rotate_refusals = match (&rotate_target, rotate_space) {
             (Err(error), _) => Err(error.to_string()),
             (Ok(_), None) => Err(NO_ROTATE_PARENT.to_owned()),
-            (Ok(target), Some(rotate_space)) => Ok([
+            (Ok(_), Some(rotate_space)) => Ok([
                 (RotateAxis::X, "X axis"),
                 (RotateAxis::Y, "Y axis"),
                 (RotateAxis::Z, "Z axis"),
@@ -615,8 +612,8 @@ impl Editor {
                 (
                     name,
                     self.history
-                        .scene()
-                        .rotation_refusal(target, axis, rotate_space)
+                        .check_rotate(self.selection.members(), axis, rotate_space)
+                        .err()
                         .map(|error| error.to_string()),
                 )
             })

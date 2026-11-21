@@ -493,6 +493,7 @@ pub enum Operation {
         target: TransformTarget,
         axis: RotateAxis,
         space: ManipulationSpace,
+        expected_selection_generation: Option<u64>,
     },
     /// Begins a Scale of the selected objects with `target` as the lead; the generation rule is
     /// the one of `BeginMove`.

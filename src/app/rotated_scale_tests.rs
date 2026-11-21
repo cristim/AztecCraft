@@ -262,6 +262,7 @@ fn begin_rotate(
             target: TransformTarget { node: id, path },
             axis,
             space,
+            expected_selection_generation: None,
         },
     )
 }

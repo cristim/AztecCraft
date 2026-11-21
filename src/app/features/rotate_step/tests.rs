@@ -218,6 +218,7 @@ fn the_controls_are_disabled_with_a_reason_during_a_manipulation() {
             target,
             axis: RotateAxis::Z,
             space: ManipulationSpace::Object,
+            expected_selection_generation: None,
         })
         .unwrap();
     rig.settle();

@@ -1,8 +1,8 @@
 use super::{Command, EditOutcome, History};
 use crate::native_scene::{
     ChannelBaseline, ChannelEdits, MoveBeginError, MoveSpace, NativeError, NativeId, NativeScene,
-    RotateAxis, RotateFrame, RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported,
-    TransformTarget, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
+    RotateAxis, RotateFrame, RotateSpace, RotateUnsupported, ScaleFrame, ScaleHandle, ScaleSpace,
+    ScaleUnsupported, TransformTarget, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
 };
 use crate::scene::{NodeId, SceneError};
 use crate::view_scene::{ViewError, ViewScene};
@@ -171,8 +171,9 @@ enum ManipulationKind {
     },
     Rotate {
         axis: RotateAxis,
-        frame: RotateFrame,
-        baseline: ChannelBaseline,
+        space: RotateSpace,
+        movers: Vec<(RotateFrame, ChannelBaseline)>,
+        covered_lead: Option<ChannelBaseline>,
     },
     /// Like `Move`: every uncovered member's frame and baseline, the lead last unless covered.
     Scale {
@@ -211,9 +212,9 @@ impl ManipulationKind {
     fn state(&self) -> ManipulationKindState {
         match self {
             Self::Move { axis, .. } => ManipulationKindState::Move { axis: *axis },
-            Self::Rotate { axis, frame, .. } => ManipulationKindState::Rotate {
+            Self::Rotate { axis, space, .. } => ManipulationKindState::Rotate {
                 axis: *axis,
-                space: frame.space(),
+                space: *space,
             },
             Self::Scale { handle, space, .. } => ManipulationKindState::Scale {
                 handle: *handle,
@@ -240,7 +241,13 @@ impl ManipulationKind {
             } => covered_lead
                 .as_ref()
                 .or_else(|| movers.last().map(|mover| &mover.1)),
-            Self::Rotate { baseline, .. } => Some(baseline),
+            Self::Rotate {
+                movers,
+                covered_lead,
+                ..
+            } => covered_lead
+                .as_ref()
+                .or_else(|| movers.last().map(|mover| &mover.1)),
             Self::MoveComponents(_) => None,
         }
     }
@@ -254,10 +261,10 @@ impl ManipulationKind {
         declared: Option<f64>,
         last_good: f64,
     ) -> Result<(Undo, bool), NativeError> {
-        let values = match self {
+        match self {
             Self::MoveComponents(component) => {
                 let changed = component.preview(scene, parameter, last_good)?;
-                return Ok((Undo::Parameter(last_good), changed));
+                Ok((Undo::Parameter(last_good), changed))
             }
             Self::Move {
                 axis,
@@ -269,30 +276,29 @@ impl ManipulationKind {
                     .iter()
                     .map(|(frame, _)| frame.translation_in(*space, *axis, parameter))
                     .collect::<Result<Vec<_>, _>>()?;
-                return scene
+                scene
                     .preview_channels_many(movers.iter().map(|(_, baseline)| baseline).zip(values))
-                    .map(|(previous, changed)| (Undo::Channels(previous), changed));
+                    .map(|(previous, changed)| (Undo::Channels(previous), changed))
             }
-            Self::Rotate {
-                axis,
-                frame,
-                baseline,
-            } => (
-                baseline,
-                frame.rotation_declared(*axis, parameter, declared)?,
-            ),
+            Self::Rotate { axis, movers, .. } => {
+                let values = movers
+                    .iter()
+                    .map(|(frame, _)| frame.rotation_declared(*axis, parameter, declared))
+                    .collect::<Result<Vec<_>, _>>()?;
+                scene
+                    .preview_channels_many(movers.iter().map(|(_, baseline)| baseline).zip(values))
+                    .map(|(previous, changed)| (Undo::Channels(previous), changed))
+            }
             Self::Scale { handle, movers, .. } => {
                 let values = movers
                     .iter()
                     .map(|(frame, _)| frame.scale(*handle, parameter))
                     .collect::<Result<Vec<_>, _>>()?;
-                return scene
+                scene
                     .preview_channels_many(movers.iter().map(|(_, baseline)| baseline).zip(values))
-                    .map(|(previous, changed)| (Undo::Channels(previous), changed));
+                    .map(|(previous, changed)| (Undo::Channels(previous), changed))
             }
-        };
-        let (previous, changed) = scene.preview_channels(values.0, values.1)?;
-        Ok((Undo::Channels(vec![previous]), changed))
+        }
     }
 
     /// Takes back the preview that returned `undo`.
@@ -316,7 +322,9 @@ impl ManipulationKind {
             Self::Scale { movers, .. } => {
                 scene.restore_channels_many(movers.iter().map(|(_, baseline)| baseline))
             }
-            Self::Rotate { baseline, .. } => scene.restore_channels(baseline),
+            Self::Rotate { movers, .. } => {
+                scene.restore_channels_many(movers.iter().map(|(_, baseline)| baseline))
+            }
             Self::MoveComponents(component) => component.restore(scene),
         }
     }
@@ -351,13 +359,8 @@ impl ManipulationKind {
             Self::Scale { movers, .. } => {
                 scene.channel_changes_many(movers.iter().map(|(_, baseline)| baseline))
             }
-            Self::Rotate { baseline, .. } => {
-                let channels = scene.channel_changes(baseline)?;
-                Ok(if channels.iter().all(Option::is_none) {
-                    Vec::new()
-                } else {
-                    vec![(baseline.node(), channels)]
-                })
+            Self::Rotate { movers, .. } => {
+                scene.channel_changes_many(movers.iter().map(|(_, baseline)| baseline))
             }
         }
     }
@@ -608,6 +611,62 @@ fn plan_move(
     ))
 }
 
+/// Rotate each uncovered member around its own pivot.
+fn plan_rotate(
+    scene: &NativeScene,
+    targets: &[TransformTarget],
+    axis: RotateAxis,
+    space: RotateSpace,
+    lead: &TransformTarget,
+) -> Result<ManipulationBegin, ManipulationError> {
+    if let [target] = targets {
+        let frame = scene.begin_rotation(target, axis, space)?;
+        return Ok(ManipulationBegin::single(ManipulationKind::Rotate {
+            axis,
+            space,
+            movers: vec![frame],
+            covered_lead: None,
+        }));
+    }
+    let PlannedMembers {
+        movers,
+        member_bytes,
+    } = plan_members(
+        scene,
+        targets,
+        size_of::<(RotateFrame, ChannelBaseline)>(),
+        NativeError::UnsupportedRotate(RotateUnsupported::SharedInstances),
+        NativeError::UnsupportedRotate(RotateUnsupported::AlternatePathAncestor),
+    )?;
+    let mut frames = Vec::new();
+    frames
+        .try_reserve_exact(movers.len())
+        .map_err(|_| NativeError::ResourceLimit)?;
+    for target in &movers {
+        frames.push(
+            scene
+                .begin_rotation(target, axis, space)
+                .map_err(|error| member_error(scene, target.node, error))?,
+        );
+    }
+    let covered_lead = if movers.last().is_some_and(|last| last.node == lead.node) {
+        None
+    } else {
+        Some(scene.rotation_baseline(lead.node)?)
+    };
+    Ok(ManipulationBegin {
+        kind: ManipulationKind::Rotate {
+            axis,
+            space,
+            movers: frames,
+            covered_lead,
+        },
+        member_count: targets.len(),
+        covered_count: targets.len() - movers.len(),
+        member_bytes,
+    })
+}
+
 /// Frames, baselines and counts for a Scale of `targets` (the last is `lead`), or the first
 /// refusal. `handle` is `None` when only the frames are wanted (the availability check).
 fn plan_scale(
@@ -785,14 +844,39 @@ impl History {
         provenance: ManipulationProvenance,
         byte_budget: usize,
     ) -> Result<ManipulationId, ManipulationError> {
-        self.begin_manipulation(target, scene_token, provenance, byte_budget, |scene| {
-            let (frame, baseline) = scene.begin_rotation(target, axis, space)?;
-            Ok(ManipulationBegin::single(ManipulationKind::Rotate {
-                axis,
-                frame,
-                baseline,
-            }))
+        self.begin_rotate_many(
+            std::slice::from_ref(target),
+            axis,
+            space,
+            scene_token,
+            provenance,
+            byte_budget,
+        )
+    }
+
+    pub fn begin_rotate_many(
+        &mut self,
+        targets: &[TransformTarget],
+        axis: RotateAxis,
+        space: RotateSpace,
+        scene_token: Uuid,
+        provenance: ManipulationProvenance,
+        byte_budget: usize,
+    ) -> Result<ManipulationId, ManipulationError> {
+        let lead = targets.last().ok_or(NativeError::InvalidIdentity)?;
+        self.begin_manipulation(lead, scene_token, provenance, byte_budget, |scene| {
+            plan_rotate(scene, targets, axis, space, lead)
         })
+    }
+
+    pub fn check_rotate(
+        &self,
+        targets: &[TransformTarget],
+        axis: RotateAxis,
+        space: RotateSpace,
+    ) -> Result<(), ManipulationError> {
+        let lead = targets.last().ok_or(NativeError::InvalidIdentity)?;
+        plan_rotate(&self.scene, targets, axis, space, lead).map(|_| ())
     }
 
     /// Begins a scale in object or world space; `update_move` then takes the unitless factor.

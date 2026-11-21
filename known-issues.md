@@ -1550,7 +1550,7 @@ first. Whether Maya draws descendants of a selected group that way is unconfirme
 Slice 1 of #166 gives an ordered selection with a lead (Shift, Ctrl and Shift+Ctrl viewport clicks
 in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selection`). It acts on
 several objects for Move and Scale (native drag, and MCP `begin_manipulation` with `expected_selection_generation`, #325 slices B and C1);
-Rotate and Channel Box edits still refuse with `multiple_selection` until #325 slices C2 and D (the by-id MCP tools `delete_node`,
+Channel Box edits still refuse with `multiple_selection` until #325 slice D (the by-id MCP tools `delete_node`,
 `rename_node`, `set_transform` and `edit_node` still act on the node they name), and the marquee
 selects objects only (#30, see "Object marquee is a provisional subset"). The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing, and Frame Selected frames their union (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
@@ -1673,7 +1673,10 @@ two pages disagree on the pivot; the settings page names the default, so that is
 - S7: a remote begin with several objects selected needs `expected_selection_generation`; stale is
   `stale_selection`, a non-lead target `multiple_selection` (`sdk_scale_refuses_a_stale_generation_a_missing_one_and_a_non_lead_target`).
 - S8: not done: Scale Center Manip, plane handles (still disabled), and component-mode centre scaling.
-  Rotate still refuses several objects (slice C2).
+  Multi-object Rotate now applies the same angle about individual pivots (#455).
+  The Rotate Tool settings document this default. The separate workflow page
+  describes a common pivot. Lead-ring placement and selected-ancestor coverage
+  remain PROVISIONAL. Shared-pivot Manip is unsupported.
 
 ## Move of several selected objects: PROVISIONAL choices (#325 slice B)
 

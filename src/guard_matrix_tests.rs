@@ -804,6 +804,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             target: t.transform_target(),
             axis: RotateAxis::Y,
             space: ManipulationSpace::Object,
+            expected_selection_generation: None,
         },
         Operation::BeginScale {
             target: t.transform_target(),
@@ -1363,6 +1364,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     target: t.transform_target(),
                     axis: RotateAxis::Y,
                     space: ManipulationSpace::Object,
+                    expected_selection_generation: None,
                 },
             ),
             sample(
@@ -1371,6 +1373,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     target: t.transform_target(),
                     axis: RotateAxis::Y,
                     space: ManipulationSpace::World,
+                    expected_selection_generation: None,
                 },
             ),
             Sample {
@@ -1381,6 +1384,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         target: t.transform_target(),
                         axis: RotateAxis::Y,
                         space: ManipulationSpace::Object,
+                        expected_selection_generation: None,
                     },
                 )
             },
