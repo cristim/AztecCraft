@@ -3,6 +3,9 @@
 //! semantics), never read back from `FilmBack`.
 use super::*;
 
+const TX_DEFAULT: f64 = 1.4173 * 25.4 / 70.0;
+const TY_DEFAULT: f64 = 0.9449 * 25.4 / 70.0;
+
 fn film(edit: impl FnOnce(&mut FilmBack)) -> FilmBack {
     let mut film = FilmBack::DEFAULT;
     edit(&mut film);
@@ -22,6 +25,24 @@ fn next_up(v: f64) -> f64 {
 
 fn next_down(v: f64) -> f64 {
     f64::from_bits(v.to_bits() - 1)
+}
+
+/// NDC of the point at view-space tangent `tan`, ten units in front of the camera.
+fn ndc_of(camera: &Camera, aspect: f32, tan: [f64; 2]) -> [f64; 2] {
+    let depth = 10.0_f32;
+    let view = Vec3::new(tan[0] as f32 * depth, tan[1] as f32 * depth, -depth);
+    let world = camera.view_matrix().inverse().transform_point3(view);
+    let ndc = camera.project(world, aspect).unwrap().unwrap();
+    [f64::from(ndc.x), f64::from(ndc.y)]
+}
+
+fn close(actual: [f64; 2], expected: [f64; 2], what: &str) {
+    for axis in 0..2 {
+        assert!(
+            (actual[axis] - expected[axis]).abs() <= 2e-5,
+            "{what}: {actual:?} vs {expected:?}"
+        );
+    }
 }
 
 #[test]
@@ -139,4 +160,141 @@ fn an_edit_sets_only_the_named_new_fields() {
             ..FilmBack::DEFAULT
         }
     );
+}
+
+#[test]
+fn camera_scale_two_halves_the_extents_and_the_offset() {
+    // fl * cs: default Fill at aspect 2 is horizontal, half extents (tx, tx / 2) halved.
+    let scaled = camera(film(|f| f.camera_scale = 2.0));
+    let extents = {
+        let m = scaled.projection_matrix(2.0).unwrap();
+        [1.0 / f64::from(m.x_axis.x), 1.0 / f64::from(m.y_axis.y)]
+    };
+    assert!((extents[0] - TX_DEFAULT / 2.0).abs() < 1e-6, "{extents:?}");
+    assert!((extents[1] - TX_DEFAULT / 4.0).abs() < 1e-6, "{extents:?}");
+    // The offset in inches keeps its fraction of the gate: tan offset 0.1 * 25.4 / (35 * 2).
+    let offset = film(|f| {
+        f.camera_scale = 2.0;
+        f.film_offset_in = [0.1, -0.05];
+    });
+    let centre = offset.window(1.0).centre();
+    assert!((centre.x - 0.1 * 25.4 / 70.0).abs() < 1e-12);
+    assert!((centre.y + 0.05 * 25.4 / 70.0).abs() < 1e-12);
+    // The reported focal length is the attribute, not the scaled one.
+    assert_eq!(Lens::Film(offset).focal_length_mm(), Some(35.0));
+}
+
+#[test]
+fn film_translate_moves_the_axis_point_by_its_ndc_value_at_any_aspect() {
+    for aspect in [1.0_f32, 2.0, 0.5] {
+        let moved = camera(film(|f| f.film_translate = [0.5, -0.25]));
+        close(
+            ndc_of(&moved, aspect, [0.0, 0.0]),
+            [0.5, -0.25],
+            "translate",
+        );
+        // The pre scale does not touch the translate; the post scale multiplies it.
+        let pre = camera(film(|f| {
+            f.film_translate = [0.5, 0.0];
+            f.pre_scale = 2.0;
+        }));
+        close(ndc_of(&pre, aspect, [0.0, 0.0]), [0.5, 0.0], "pre scale");
+        let post = camera(film(|f| {
+            f.film_translate = [0.5, 0.0];
+            f.post_scale = 3.0;
+        }));
+        close(ndc_of(&post, aspect, [0.0, 0.0]), [1.5, 0.0], "post scale");
+    }
+}
+
+#[test]
+fn roll_about_a_pivot_has_hand_computed_images() {
+    let rolled = camera(film(|f| {
+        f.film_roll_degrees = 90.0;
+        f.film_roll_pivot = [0.5, 0.0];
+    }));
+    // Aspect 1: the pivot point is fixed and (0, 0) turns counter-clockwise about it.
+    let ty = TY_DEFAULT;
+    close(
+        ndc_of(&rolled, 1.0, [0.5 * ty, 0.0]),
+        [0.5, 0.0],
+        "pivot fixed",
+    );
+    close(ndc_of(&rolled, 1.0, [0.0, 0.0]), [0.5, -0.5], "a1 origin");
+    // Aspect 2 rotates in pixel space: (-0.5, 0) from the pivot is 1 pixel unit left, and its
+    // image is 1 pixel unit below, i.e. ndc (0.5, -1) (x is scaled by the aspect).
+    close(ndc_of(&rolled, 2.0, [0.0, 0.0]), [0.5, -1.0], "a2 origin");
+    let tx = TX_DEFAULT;
+    close(
+        ndc_of(&rolled, 2.0, [0.5 * tx, 0.0]),
+        [0.5, 0.0],
+        "a2 pivot fixed",
+    );
+}
+
+#[test]
+fn film_roll_order_picks_rotate_then_translate_or_the_reverse() {
+    let configure = |order| {
+        camera(film(|f| {
+            f.film_translate = [0.5, 0.0];
+            f.film_roll_degrees = 90.0;
+            f.pre_scale = 2.0;
+            f.post_scale = 3.0;
+            f.film_roll_order = order;
+        }))
+    };
+    close(
+        ndc_of(&configure(FilmRollOrder::RotateTranslate), 1.0, [0.0, 0.0]),
+        [1.5, 0.0],
+        "rotate then translate",
+    );
+    close(
+        ndc_of(&configure(FilmRollOrder::TranslateRotate), 1.0, [0.0, 0.0]),
+        [0.0, 1.5],
+        "translate then rotate",
+    );
+}
+
+#[test]
+fn the_film_gate_moves_with_the_translate() {
+    let neutral = film_gate_ndc(&FilmBack::DEFAULT, 1.5);
+    let moved = film_gate_ndc(&film(|f| f.film_translate = [0.5, -0.25]), 1.5);
+    for (a, b) in neutral.iter().zip(moved) {
+        assert!((b.x - a.x - 0.5).abs() < 1e-6 && (b.y - a.y + 0.25).abs() < 1e-6);
+    }
+}
+
+#[test]
+fn rays_invert_the_projection_with_every_new_attribute_set() {
+    let mut state = 0x2545_f491_4f6c_dd1d_u64;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        (state >> 11) as f64 / (1u64 << 53) as f64
+    };
+    for case in 0..60 {
+        let camera = camera(film(|f| {
+            f.camera_scale = 0.5 + next();
+            f.film_translate = [next() - 0.5, next() - 0.5];
+            f.film_roll_pivot = [next() - 0.5, next() - 0.5];
+            f.film_roll_degrees = next() * 360.0 - 180.0;
+            f.film_roll_order = if case % 2 == 0 {
+                FilmRollOrder::RotateTranslate
+            } else {
+                FilmRollOrder::TranslateRotate
+            };
+            f.pre_scale = 0.5 + next();
+            f.post_scale = 0.5 + next();
+        }));
+        let aspect = 0.5 + 2.0 * next() as f32;
+        let ndc = Vec2::new(next() as f32 * 1.6 - 0.8, next() as f32 * 1.6 - 0.8);
+        let ray = camera.captured_ray(ndc, aspect).unwrap();
+        let point = ray.origin + ray.direction * 20.0;
+        let back = camera.project(point, aspect).unwrap().unwrap();
+        assert!(
+            (back.truncate() - ndc).abs().max_element() < 2e-4,
+            "case {case}: {back:?} vs {ndc:?}"
+        );
+    }
 }
