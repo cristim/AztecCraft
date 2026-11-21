@@ -14,6 +14,8 @@ This inventory replaces the provisional [workflow seed](../inventory-seed.md) as
 
 ## Status vocabulary
 
+API catalog traceability seeds are kept in the separate, [non-scoring API-to-workflow crosswalk](../maya-api-workflow-crosswalk.md); it does not add rows or alter the 14-family denominator.
+
 Status describes documented behaviour only, never equivalence to Maya. The order is Missing < Visible-unsupported < Implemented-untested < Partial < Doc-conformant, and only Doc-conformant scores.
 
 | Status | Meaning |
@@ -59,7 +61,9 @@ UI element rows stay in ui-parity-inventory.md; family rows link to them by anch
 
 Each family file carries a header with the fields below, filled when it is expanded. This README records the shared rules.
 
-- Documentation pin: Maya 2027.2 help, with the fetch date per file.
+- Current documentation pin: Maya 2027.3; existing family files retain their
+  individually researched source versions and fetch dates. A 2027.2 citation
+  is not silently relabeled as 2027.3.
 - Repository SHA at which the Evidence column was checked.
 - Test platform or CI job for each cited test, in a `## Test platforms` table at the end of each expanded family file (README rules below).
 - A capability reachable only in a feature-gated build (for example `--features mcp`) is classed Partial at best, carries the tag `feature-gated: <feature>` (for example `feature-gated: mcp`), and its Evidence cell names the build that reaches it and says the default build has no user path.

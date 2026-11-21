@@ -43,18 +43,27 @@ runtime-evidence effort, not an implementation or parity claim.
    update-specific changes. Label update provenance unknown when no dated
    source establishes it. Do not treat absence from a catalog as an API
    removal.
-4. **Runtime evidence from the installed build.** Add an opt-in, read-only Maya
-   probe that records `about` version/build/API/environment facts, command
+   Autodesk identifies `maya.OpenMaya` as Python API 1.0 and
+   `maya.api.OpenMaya` as API 2.0, and says API 2.0 is less comprehensive.
+   The year-specific `py_ref` class catalogs are API 2.0, not API 1.0. No
+   official per-update Python API changelog or complete API 1.0 class/member
+   catalog for 2026 or 2027 has been established; treat API 1.0 runtime exports
+   as empirical name-level evidence only. See Autodesk's [Maya Python
+   Libraries](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Scripting/files/GUID-49701DA7-9224-424D-93F7-EC1DA779C99C.htm)
+   and [Python API 2.0
+   overview](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/py_ref/index.html).
+4. **Runtime evidence from the installed build.** Maintain an opt-in, read-only
+   Maya probe that records `about` version/build/API/environment facts, command
    names via `help("*", list=True)`, registered node types via
-   `ls(nodeTypes=True)`, and currently loaded plug-in registrations via
-   `pluginInfo`. The first opt-in probe is implemented in
-   `scripts/maya-api-runtime-probe.py` and captures the observed process
-   metadata and registrations. Query node attributes only for explicitly
-   scoped types using documented facilities such as `attributeInfo`. Do not
-   open user scenes, load/unload plug-ins, change preferences, or write outside
-   ignored target output. Record that the results describe one build, process
-   and loaded plug-in state; they cannot enumerate unloaded plug-ins or
-   establish entitlement, ABI compatibility or behavior.
+   `ls(nodeTypes=True)`, currently loaded plug-in registrations via
+   `pluginInfo`, and top-level exported names from Python API 1.0 and API 2.0
+   modules. The probe is implemented in `scripts/maya-api-runtime-probe.py`;
+   each run captures one process and local output. Module-level names are not
+   class-member coverage. Query node attributes only for explicitly scoped
+   types using documented facilities such as `attributeInfo`. Do not open user
+   scenes, load/unload plug-ins, change preferences, or write outside ignored
+   target output. These results cannot enumerate unloaded plug-ins or establish
+   entitlement, ABI compatibility or behavior.
 5. **Surface-by-surface detail audit.** Expand the name lists into documented
    semantics for MEL/`maya.cmds` (flags, modes, defaults, results), dependency
    nodes (attributes, types, defaults and constraints), C++ (classes,
@@ -68,6 +77,21 @@ runtime-evidence effort, not an implementation or parity claim.
    AztecCraft/MCP status; API symbol counts are never the workflow denominator.
    Record 2027.3 release-note features outside the core API separately, with
    component version and entitlement boundaries.
+   Examples on the page titled What's New in Maya 2027.3 include the Maya MCP
+   server tech preview, Autodesk Assistant updates, Dynamic Geometry Attributes,
+   USD Composition Editor/component updates, LookdevX Material Browser, Bifrost
+   3.3, Substance 3.1.1 OpenPBR support, MtoA 5.6.4, OCIO regex rules, MotionMaker
+   Deep Phase, and Smart Bevel enhancements. These are not all core Maya API
+   additions. Presence on this page records the page's
+   presentation, not proof that every listed feature or component version was
+   introduced in update 2027.3. Audit each cited workflow and owning component
+   before adding it to a family; do not infer update provenance from a year-level
+   2027 page.
+   The source is [What's New in Maya
+   2027.3](https://help.autodesk.com/view/MAYAUL/2027/ENU/?guid=GUID-E30563A9-74A3-4E4B-A955-CDDD25A562FD).
+   Candidate summaries and follow-up gaps are tracked in
+   [Maya 2027.3 update observations](maya-2027-3-update-observations.md);
+   they are not parity rows or completeness evidence.
 
 ## Evidence and completion rules
 

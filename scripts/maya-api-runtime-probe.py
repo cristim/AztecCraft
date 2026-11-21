@@ -8,6 +8,9 @@ timestamp):
 This captures one initialized standalone process and its currently loaded
 plugins. It does not enumerate unloaded plugins and does not establish ABI
 compatibility or command/node behavior.
+
+API snapshots list module-level exported names only; they do not cover class
+members, behavior, or ABI.
 """
 
 import json
@@ -64,6 +67,29 @@ def _plugin_field(cmds, plugin, flag):
     return _scalars(result)
 
 
+def _api_module_snapshot(module_name):
+    """Import one specified Maya API module and capture its public names."""
+    try:
+        module = __import__(module_name, fromlist=["*"])
+    except Exception as error:
+        return {
+            "module": module_name,
+            "import_status": "error",
+            "error_type": type(error).__name__,
+            "exported_names": [],
+            "count": 0,
+        }
+
+    names = sorted(name for name in dir(module) if not name.startswith("_"))
+    return {
+        "module": module_name,
+        "import_status": "ok",
+        "error_type": None,
+        "exported_names": names,
+        "count": len(names),
+    }
+
+
 def main():
     import maya.standalone
 
@@ -113,6 +139,17 @@ def main():
                     record[flag] = _plugin_field(cmds, plugin, flag)
                 plugins.append(record)
 
+        api_modules = [
+            _api_module_snapshot(module_name)
+            for module_name in (
+                "maya.OpenMaya",
+                "maya.api.OpenMaya",
+                "maya.api.OpenMayaAnim",
+                "maya.api.OpenMayaRender",
+                "maya.api.OpenMayaUI",
+            )
+        ]
+
         result = {
             "schema_version": 1,
             "capture_mode": "mayapy-standalone",
@@ -125,6 +162,7 @@ def main():
             "commands": commands,
             "node_types": node_types,
             "plugins": plugins,
+            "api_modules": api_modules,
         }
         print(json.dumps(result, sort_keys=True))
     finally:

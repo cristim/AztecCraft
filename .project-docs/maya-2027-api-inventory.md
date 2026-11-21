@@ -18,7 +18,9 @@ implements or is compatible with any Maya API.
   2026 runtime evidence is available.
 - Families are the project's 14 (see the
   [family inventory](parity-inventory/README.md)). A catalog symbol is not a
-  workflow and not a parity denominator row.
+   workflow and not a parity denominator row. See the partial, non-scoring
+   [API-to-workflow crosswalk](maya-api-workflow-crosswalk.md); it does not
+   alter the 14-family denominator.
 
 ## Source registry
 
@@ -27,7 +29,7 @@ implements or is compatible with any Maya API.
 | MEL and `maya.cmds` commands | [2027 year catalog](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Commands/index_all.html), [2026 year catalog](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/Commands/index_all.html) | Mutable year-level alphabetical catalog; mixes core commands and MEL scripts, with "New" and "Updated" markers | Name extraction only; not update snapshots; flags, modes and results on leaf pages are not reviewed |
 | Dependency nodes | [2027 year catalog](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Nodes/index_all.html), [2026 year catalog](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/Nodes/index_all.html) | Mutable year-level node catalog | Name extraction only; not update snapshots; attributes and defaults not reviewed |
 | C++ API classes | [2027 year catalog](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/annotated.html), [2026 year catalog](https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/cpp_ref/annotated.html) | Mutable year-level Doxygen catalog including `MHWRender`, function sets, iterators and plug-in base classes | Name extraction only; not update snapshots; members and signatures not reviewed |
-| C++ namespaces, modules, members | [namespaces](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/namespaces.html), [modules](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/modules.html), [members](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/functions.html) | Separate indexes for free functions and grouped API | Not reviewed on 2026-11-20 (PROVISIONAL) |
+| C++ namespaces, modules, members | [namespaces](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/namespaces.html), [modules](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/modules.html), [members](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/functions.html) | Separate indexes for free functions and grouped API | Indexes identified, but not systematically enumerated or reviewed (PROVISIONAL) |
 | Python API 2.0 | [2027 year catalog](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/py_ref/annotated.html), [2026 year catalog](https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/py_ref/annotated.html); [packages](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/py_ref/namespaces.html) | Mutable year-level Doxygen catalog; four documented packages: `OpenMaya`, `OpenMayaAnim`, `OpenMayaRender`, `OpenMayaUI` | Names only; not update snapshots; members not reviewed |
 | Python API 1.0 | [Maya Python libraries](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Scripting/files/GUID-49701DA7-9224-424D-93F7-EC1DA779C99C.htm), [Developer Help](https://help.autodesk.com/view/MAYADEV/2027/ENU/) | `maya.OpenMaya` is "Python API 1.0", `maya.api.OpenMaya` is "Python API 2.0" (more pythonic, less comprehensive), `maya.cmds` wraps MEL; PyMEL is third-party and not supported by Autodesk | No 1.0 symbol list enumerated; do not infer it from 2.0. The page's 2.0 reference link points at a 2025 path |
 
@@ -94,15 +96,20 @@ reported plug-in API version `20270300`; their reported versions were `1.0`.
 The command count comes from the installed runtime's `help("*", list=True)`
 enumeration and is not directly comparable to the 1,528 linked command entries
 in the Autodesk year-page catalog.
-The local JSON result and stderr capture are under ignored
-`target/maya-catalog/runtime-20261120.json` and
-`runtime-20261120.stderr.log`; neither is committed. The JSON contains the
-complete observed lists and registered plug-in entries.
+The same probe imported all five requested API modules successfully and
+enumerated public module-level names: `maya.OpenMaya` (API 1.0) 282;
+`maya.api.OpenMaya` 169; `OpenMayaAnim` 17; `OpenMayaRender` 93; and
+`OpenMayaUI` 52. These are observed exports for this process, not complete
+member inventories or evidence of API 1.0/2.0 behavioral parity.
+The complete local JSON result and stderr capture are under ignored
+`target/maya-catalog/runtime-20261120-pythonapis.json` and
+`runtime-20261120-pythonapis.stderr.log`; neither is committed.
 
 This is one standalone process on one Windows build. The two plug-ins are only
 those loaded in that process; this does not enumerate installed-but-unloaded
-plug-ins, all possible initialization states, API 1.0 symbols, ABI
-compatibility, semantic behavior or Maya 2026 compatibility. The script omits
+plug-ins or all possible initialization states. API 1.0 evidence is limited to
+top-level module names: it is not a class/member inventory or behavioral audit,
+and establishes neither ABI compatibility nor Maya 2026 compatibility. The script omits
 plug-in paths, scene data and exception messages; it does not load/unload
 plug-ins or open user scenes.
 
