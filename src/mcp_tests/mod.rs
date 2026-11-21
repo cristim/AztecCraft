@@ -124,6 +124,7 @@ mod official_client {
         ));
     }
 
+    mod align_objects;
     mod animation;
     mod ascii;
     mod attribute_editor;
