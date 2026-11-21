@@ -266,3 +266,7 @@ fn dialog_body(
     })
     .inner
 }
+
+#[cfg(test)]
+#[path = "playblast_options/tests.rs"]
+mod tests;
