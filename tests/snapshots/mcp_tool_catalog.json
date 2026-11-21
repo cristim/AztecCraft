@@ -672,7 +672,7 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder, cone, torus, platonic_solid, pyramid or prism in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the pyramid and prism side_length and number_of_sides (3 to 128) and the prism length, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; the top-level boolean create_uvs (default false) also creates the shape's map1 UVs with a PROVISIONAL AztecCraft layout (Maya's -createUVs has modes 0 to 4 and defaults to 3), is refused for platonic_solid, pyramid and prism with unsupported_uv_primitive, and UVs currently block saving to .mb and exporting glTF and USD until they carry UVs (OBJ export writes them, .ma save carries them); omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+    "description": "Create a cube, plane, sphere, cylinder, cone, torus, platonic_solid, pyramid or prism in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the pyramid and prism side_length and number_of_sides (3 to 128) and the prism length, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; the top-level boolean create_uvs (default false) also creates the shape's map1 UVs with a PROVISIONAL AztecCraft layout (Maya's -createUVs is an integer on most commands (a boolean on polyTorus) whose values and default differ per command, for example polyCube 0 to 4 default 3, polyCylinder 0 to 3 default 2, polySphere 0 to 2 default 2), is refused for platonic_solid, pyramid and prism with unsupported_uv_primitive, and UVs currently block saving to .mb and exporting glTF and USD until they carry UVs (OBJ export writes them, .ma save carries them); omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
     "inputSchema": {
       "$defs": {
         "ConeOptions": {
@@ -1085,7 +1085,7 @@
           "properties": {
             "create_uvs": {
               "default": false,
-              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` differs per command (polyCube 0 to 4, default 3); here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
               "type": "boolean"
             },
             "name": {
@@ -1116,7 +1116,7 @@
           "properties": {
             "create_uvs": {
               "default": false,
-              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` differs per command (polyPlane 0 to 2, default 1); here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
               "type": "boolean"
             },
             "name": {
@@ -1147,7 +1147,7 @@
           "properties": {
             "create_uvs": {
               "default": false,
-              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` differs per command (polySphere 0 to 2, default 2); here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
               "type": "boolean"
             },
             "name": {
@@ -1178,7 +1178,7 @@
           "properties": {
             "create_uvs": {
               "default": false,
-              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` differs per command (polyCylinder 0 to 3, default 2); here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
               "type": "boolean"
             },
             "name": {
@@ -1209,7 +1209,7 @@
           "properties": {
             "create_uvs": {
               "default": false,
-              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` differs per command (polyCone 0 to 3, default 2); here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
               "type": "boolean"
             },
             "name": {
@@ -1240,7 +1240,7 @@
           "properties": {
             "create_uvs": {
               "default": false,
-              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` differs per command (polyTorus is a boolean, default true); here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
               "type": "boolean"
             },
             "name": {
@@ -1271,7 +1271,7 @@
           "properties": {
             "create_uvs": {
               "default": false,
-              "description": "Always refused: the Platonic solids have no UV layout yet, so true is rejected with\nunsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.",
+              "description": "Always refused: the Platonic solids have no UV layout yet, so true is rejected with\nunsupported_uv_primitive and nothing is created. Maya's `-createUVs`: polyPlatonicSolid 0 to 4, default 4.",
               "type": "boolean"
             },
             "name": {
@@ -1302,7 +1302,7 @@
           "properties": {
             "create_uvs": {
               "default": false,
-              "description": "Always refused: the pyramid has no UV layout yet, so true is rejected with\nunsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.",
+              "description": "Always refused: the pyramid has no UV layout yet, so true is rejected with\nunsupported_uv_primitive and nothing is created. Maya's `-createUVs`: polyPyramid 0 to 3, default 2.",
               "type": "boolean"
             },
             "name": {
@@ -1333,7 +1333,7 @@
           "properties": {
             "create_uvs": {
               "default": false,
-              "description": "Always refused: the prism has no UV layout yet, so true is rejected with\nunsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.",
+              "description": "Always refused: the prism has no UV layout yet, so true is rejected with\nunsupported_uv_primitive and nothing is created. Maya's `-createUVs`: polyPrism 0 to 3, default 2.",
               "type": "boolean"
             },
             "name": {

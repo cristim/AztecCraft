@@ -908,8 +908,8 @@ The legacy quad-only JSON/OBJ scene refuses spheres with a typed error.
 (400 points, 800 edges, 400 quads, no poles). Defaults come from the polyTorus node page (2026 and 2027 pages agree; the command page was read for 2026 only, while reference.md pins 2027.2); the
 pages state no ranges or relation between the two radii, so a section radius larger than the
 radius is accepted (PROVISIONAL, self-intersecting). `twist` (degrees, any finite value, a uniform turn of every section; formula PROVISIONAL, policy row 54)
-is implemented in core, the MCP `twist` field and the Torus option box; Create UVs are not implemented and are not offered. Vertex order and winding are not claimed to match Maya.
-Edges are hard, there are no UVs or normals, and persistence follows the sphere. The Create >
+is implemented in core, the MCP `twist` field and the Torus option box; `create_uvs` builds a torus layout (see "Primitive UVs are provisional"). Vertex order and winding are not claimed to match Maya.
+Edges are hard, there are no normals, UVs exist only when `create_uvs` is set, and persistence follows the sphere. The Create >
 Polygon Primitives > Torus row and its option box (with a Twist field) are enabled; the in-app
 check is still pending.
 
@@ -920,7 +920,7 @@ takes icosahedron, octahedron, tetrahedron and cube. Radius, solid type and axis
 Platonic Solid option box. From the polyPlatonicSolid command page (2027): `-radius` default 1 and `-solidType` 0 to 3 with the
 dodecahedron the default. PROVISIONAL: the cube (the page lists four solids), radius read as the circumradius (the page does not relate
 `-radius` to `-sideLength`, which is not exposed), the `pPlatonic` node name, vertex and face order, winding (outward, not compared
-with Maya) and hard edges. Create UVs are not built for this primitive and stay off; Maya's `-createUVs` default is 4. The in-app
+with Maya) and hard edges. `create_uvs` is refused for this primitive (no UV layout, see "Primitive UVs are provisional"); Maya's polyPlatonicSolid `-createUVs` is 0 to 4 with default 4. The in-app
 check is still pending.
 
 ## Poly Pyramid and Prism are provisional (#466)
@@ -930,8 +930,8 @@ check is still pending.
 polyPrism (2023) command pages: `-numberOfSides`, `-sideLength` and `-axis`, plus `-length` for the prism. PROVISIONAL: the `side_length` meaning (base edge versus radius for the pyramid; polyPrism says "edge length of the prism"),
 the 2016 pyramid page gives 3 sides as the default, the 3 to 128 side-count range (the pages state none), the pyramid height (set equal
 to the side length; the pages give none), centring on the origin, the first point on +X, point order, winding (outward, not compared with
-Maya), hard edges and the `pPyramid` and `pPrism` node names. Not built: `-subdivisionsCaps` and `-subdivisionsHeight`, and Create UVs
-(they stay off and the Y planar placeholder serves if requested; Maya's `-createUVs` default is 2 on these pages). The in-app check is
+Maya), hard edges and the `pPyramid` and `pPrism` node names. Not built: `-subdivisionsCaps` and `-subdivisionsHeight`; `create_uvs` is refused for both
+(no UV layout, see "Primitive UVs are provisional"; Maya's polyPyramid and polyPrism `-createUVs` are 0 to 3 with default 2). The in-app check is
 still pending.
 
 ## Cylinder and cone caps are provisional (#453)
@@ -941,7 +941,37 @@ MCP and the Cylinder and Cone option boxes. Maya's options page states that the 
 cap subdivision of 1 or more; everything else is PROVISIONAL: the ring spacing (linear shrink), the
 quarter-circle dome (`r = R cos t`, `h = R sin t`, extending up to R beyond the cap plane, which
 grows the bounding box) and the vertex order. Maya's pages do not say whether the value counts rings
-or divisions. Create UVs are still not offered.
+or divisions; the upper bound of 128 is an AztecCraft safety bound (the pages state none). The sc 0
+mesh is unchanged by `round_cap`, which the options page documents.
+
+## Primitive UVs are provisional (#453)
+
+`create_uvs` (a boolean, default false; Maya's `-createUVs` is an integer on most commands (a boolean on polyTorus) whose values and default
+differ per command on the 2027 pages: polyCube 0 to 4 default 3, polyPlane 0 to 2 default 1,
+polySphere 0 to 2 default 2, polyCylinder and polyCone 0 to 3 default 2, polyTorus a boolean default
+true, polyPlatonicSolid 0 to 4 default 4, polyPyramid and polyPrism 0 to 3 default 2; the options page
+names "Normalize Collectively and Preserve Aspect Ratio" as the general default, which disagrees with
+the polyCube page) gives a new shape a session `map1`, built before the node is added.
+It is in core, MCP (`create_primitive`) and the native Create UVs checkbox, unchecked by default and
+remembered per option box. Every layout below is PROVISIONAL: Maya's pages state none, and Maya's
+default normalization is not matched.
+
+- Orientation: u follows the right-handed azimuth about the axis (not mirrored), so UV faces stay
+  counter-clockwise; the seam is at u 0 and 1, wrapped per face. Maya states none of this.
+- Sphere: v is latitude; the poles are sawtooth (the options page names "Sawtooth at poles" as the
+  sphere default). Torus: u by ring, v by section step. Plane: planar along its own normal.
+- Cylinder and cone: the side strip fills v 0 to 0.5 (the cone apex is sawtooth); each cap is a
+  planar disc of radius 0.25 in the upper half, at (0.25, 0.75) for the top and (0.75, 0.75) for
+  the bottom. The pages' "Preserve Aspect Ratio" is ignored.
+- Cube: a 3 x 2 atlas, one cell per side, each side normalised across its cell. This is not a Maya
+  mode: Maya's "normalize each face separately" (value 2) is documented only as mapping each face
+  separately, and where those faces land is not stated.
+- The Platonic solids, the Pyramid and the Prism have no layout: `create_uvs: true` is refused
+  (`unsupported_uv_primitive`, native checkbox disabled with the reason) and nothing is created.
+- Saving: a `.mb` save and glTF and USD export refuse a scene with UVs (`save_unwritable` reason
+  `session_uvs`, `export_unsupported`, remedy "use Delete UVs"); OBJ export writes them and an
+  authored `.ma` save carries them. UV > Delete UVs removes them.
+- The in-app check (#453 T13) is still pending.
 
 ## World-space Rotate
 

@@ -194,7 +194,7 @@ pub(super) enum CreateArgs {
         #[schemars(with = "CubeOptions")]
         options: Option<CubeOptions>,
         /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
-        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// Maya's `-createUVs` differs per command (polyCube 0 to 4, default 3); here it is a boolean that
         /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
         /// they carry UVs; OBJ export writes them and a .ma save carries them.
         #[serde(default)]
@@ -207,7 +207,7 @@ pub(super) enum CreateArgs {
         #[schemars(with = "PlaneOptions")]
         options: Option<PlaneOptions>,
         /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
-        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// Maya's `-createUVs` differs per command (polyPlane 0 to 2, default 1); here it is a boolean that
         /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
         /// they carry UVs; OBJ export writes them and a .ma save carries them.
         #[serde(default)]
@@ -220,7 +220,7 @@ pub(super) enum CreateArgs {
         #[schemars(with = "SphereOptions")]
         options: Option<SphereOptions>,
         /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
-        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// Maya's `-createUVs` differs per command (polySphere 0 to 2, default 2); here it is a boolean that
         /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
         /// they carry UVs; OBJ export writes them and a .ma save carries them.
         #[serde(default)]
@@ -233,7 +233,7 @@ pub(super) enum CreateArgs {
         #[schemars(with = "CylinderOptions")]
         options: Option<CylinderOptions>,
         /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
-        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// Maya's `-createUVs` differs per command (polyCylinder 0 to 3, default 2); here it is a boolean that
         /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
         /// they carry UVs; OBJ export writes them and a .ma save carries them.
         #[serde(default)]
@@ -246,7 +246,7 @@ pub(super) enum CreateArgs {
         #[schemars(with = "ConeOptions")]
         options: Option<ConeOptions>,
         /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
-        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// Maya's `-createUVs` differs per command (polyCone 0 to 3, default 2); here it is a boolean that
         /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
         /// they carry UVs; OBJ export writes them and a .ma save carries them.
         #[serde(default)]
@@ -259,7 +259,7 @@ pub(super) enum CreateArgs {
         #[schemars(with = "TorusOptions")]
         options: Option<TorusOptions>,
         /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
-        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// Maya's `-createUVs` differs per command (polyTorus is a boolean, default true); here it is a boolean that
         /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
         /// they carry UVs; OBJ export writes them and a .ma save carries them.
         #[serde(default)]
@@ -272,7 +272,7 @@ pub(super) enum CreateArgs {
         #[schemars(with = "PlatonicSolidOptions")]
         options: Option<PlatonicSolidOptions>,
         /// Always refused: the Platonic solids have no UV layout yet, so true is rejected with
-        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.
+        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs`: polyPlatonicSolid 0 to 4, default 4.
         #[serde(default)]
         create_uvs: bool,
     },
@@ -283,7 +283,7 @@ pub(super) enum CreateArgs {
         #[schemars(with = "PyramidOptions")]
         options: Option<PyramidOptions>,
         /// Always refused: the pyramid has no UV layout yet, so true is rejected with
-        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.
+        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs`: polyPyramid 0 to 3, default 2.
         #[serde(default)]
         create_uvs: bool,
     },
@@ -294,7 +294,7 @@ pub(super) enum CreateArgs {
         #[schemars(with = "PrismOptions")]
         options: Option<PrismOptions>,
         /// Always refused: the prism has no UV layout yet, so true is rejected with
-        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.
+        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs`: polyPrism 0 to 3, default 2.
         #[serde(default)]
         create_uvs: bool,
     },
