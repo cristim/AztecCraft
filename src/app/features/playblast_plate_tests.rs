@@ -3,7 +3,7 @@
 //! the snapshot semantics. The pixels are checked by the headless_gpu tests.
 use super::super::image_plane::{PlateRuntime, key_frame};
 use super::super::playblast::fake::{self, Asked, AskedLog, PlateSeen, Seen};
-use super::super::playblast::tests::{editor, request, run_to_end};
+use super::super::playblast::tests::{editor, request, run_to_end, ticks};
 use crate::app::Editor;
 use crate::editor_operations::Operation;
 use azteccraft::{
@@ -251,4 +251,81 @@ fn removing_the_plane_after_the_start_does_not_change_the_running_job() {
     run_to_end(&mut rig.editor);
     assert_eq!(plates(&rig.asked).len(), 3);
     assert!(plates(&rig.asked).iter().all(|(_, d)| d.is_some()));
+}
+
+fn without_plate(editor: &Editor) -> u32 {
+    editor.inspect_playblast().frames_without_plate
+}
+
+#[test]
+fn a_sequence_with_one_missing_frame_reports_exactly_one_frame_without_a_plate() {
+    let mut rig = rig(true, 0, &[(2, PlateError::Missing)]);
+    assert!(matches!(
+        start(&mut rig),
+        JobProgress::Finished { total: 3 }
+    ));
+    assert_eq!(without_plate(&rig.editor), 1);
+}
+
+#[test]
+fn a_template_without_digits_reports_every_frame_without_a_plate() {
+    let mut rig = rig(true, 0, &[]);
+    let plain = rig.dir.path().join("plate.png");
+    std::fs::copy(plane_png(rig.dir.path()), &plain).unwrap();
+    rig.editor
+        .apply_operation(Operation::SetImagePlane(ImagePlaneEdit {
+            image_name: Some(plain),
+            ..ImagePlaneEdit::default()
+        }))
+        .unwrap();
+    // The real decoder: a sequence template with no digits has no file for any frame.
+    rig.editor.plate = PlateRuntime::default();
+    assert!(matches!(
+        start(&mut rig),
+        JobProgress::Finished { total: 3 }
+    ));
+    assert_eq!(without_plate(&rig.editor), 3);
+    assert!(plates(&rig.asked).iter().all(|(_, drawn)| drawn.is_none()));
+}
+
+#[test]
+fn a_single_image_a_hidden_plane_and_no_plane_report_no_frame_without_a_plate() {
+    let mut single = rig(false, 0, &[]);
+    start(&mut single);
+    assert_eq!(without_plate(&single.editor), 0);
+
+    let mut hidden = rig(true, 0, &[]);
+    hidden
+        .editor
+        .apply_operation(Operation::SetImagePlane(ImagePlaneEdit {
+            display_mode: Some(PlateDisplayMode::None),
+            ..ImagePlaneEdit::default()
+        }))
+        .unwrap();
+    start(&mut hidden);
+    assert_eq!(without_plate(&hidden.editor), 0);
+
+    let mut bare = editor(&Seen::default());
+    bare.playblast.factory = Some(fake::factory(Seen::default()));
+    let out = tempfile::tempdir().unwrap();
+    bare.apply_operation(Operation::Playblast(request(out.path())))
+        .unwrap();
+    run_to_end(&mut bare);
+    assert_eq!(without_plate(&bare), 0);
+}
+
+#[test]
+fn the_count_is_visible_while_running_and_after_a_cancel() {
+    let mut rig = rig(true, 0, &[(1, PlateError::Missing)]);
+    let out = tempfile::tempdir().unwrap();
+    rig.editor
+        .apply_operation(Operation::Playblast(request(out.path())))
+        .unwrap();
+    assert_eq!(without_plate(&rig.editor), 0, "nothing rendered yet");
+    ticks(&mut rig.editor, 1);
+    assert_eq!(without_plate(&rig.editor), 1);
+    rig.editor
+        .apply_operation(Operation::CancelPlayblast)
+        .unwrap();
+    assert_eq!(without_plate(&rig.editor), 1);
 }

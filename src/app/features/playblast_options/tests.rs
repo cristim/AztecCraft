@@ -323,3 +323,25 @@ fn the_validation_error_is_exposed_as_an_alert() {
         "the error has the alert role and its text as the name"
     );
 }
+
+#[test]
+fn the_progress_text_names_frames_rendered_without_the_image_plane_image() {
+    let inspection = |state, frames_without_plate| PlayblastInspection {
+        state,
+        frames_done: 2,
+        frames_total: 3,
+        frames_without_plate,
+        width: 8,
+        height: 8,
+        directory_name: None,
+        last_error: None,
+    };
+    assert_eq!(
+        progress_text(&inspection("finished", 0)),
+        "Finished: 3 frames"
+    );
+    assert_eq!(
+        progress_text(&inspection("finished", 2)),
+        "Finished: 3 frames (2 without the image plane's image)"
+    );
+}

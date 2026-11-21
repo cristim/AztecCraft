@@ -17,10 +17,14 @@ use azteccraft::playblast::{
 use azteccraft::view_scene::{VIEW_BUDGET, ViewScene};
 use azteccraft::viewport::Camera;
 use eframe::egui;
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
 /// Builds the renderer of one job from its scene source, the plate source (`None` without an
-/// image plane), the viewport camera, the grid flag and the shading mode. Tests install a fake here; with `None` the window's renderer is used.
+/// image plane), the viewport camera, the grid flag and the shading mode. Tests install a fake
+/// here; with `None` the window's renderer is used.
 pub(in crate::app) type RendererFactory = Box<
     dyn FnMut(
         SceneAt,
@@ -38,11 +42,15 @@ struct Target {
     height: u32,
     total: u32,
     done: u32,
+    /// Rendered frames whose image plane had no plate image available.
+    without_plate: u32,
 }
 
 pub(in crate::app) struct Run {
     pub(in crate::app) job: PlayblastJob,
     pub(in crate::app) renderer: Box<dyn FrameRenderer>,
+    /// Written by the plate resolver inside `renderer`.
+    without_plate: Arc<AtomicU32>,
 }
 
 #[derive(Default)]
@@ -72,6 +80,7 @@ impl Editor {
         &mut self,
         scene: SceneAt,
         grid: bool,
+        without_plate: &Arc<AtomicU32>,
     ) -> Result<Box<dyn FrameRenderer>, PlayblastError> {
         let (camera, shading) = (self.camera.clone(), self.shading);
         let plate = self.image_plane.as_ref().map(|state| {
@@ -79,7 +88,12 @@ impl Editor {
                 .plate
                 .decoder()
                 .unwrap_or_else(|| Arc::new(decode_from_disk));
-            plate_at(state.plane.clone(), camera.clone(), decode)
+            plate_at(
+                state.plane.clone(),
+                camera.clone(),
+                decode,
+                Arc::clone(without_plate),
+            )
         });
         if let Some(factory) = &mut self.playblast.factory {
             return factory(scene, plate, &camera, grid, shading);
@@ -127,8 +141,13 @@ impl Editor {
         .map_err(refuse)?;
         let (frames, (width, height)) = (plan.frame_count(), plan.size());
         let source = scene_at(self.history.scene().clone());
+        let without_plate = Arc::new(AtomicU32::new(0));
         let renderer = self
-            .playblast_renderer(source, self.grid_visible && request.show_ornaments)
+            .playblast_renderer(
+                source,
+                self.grid_visible && request.show_ornaments,
+                &without_plate,
+            )
             .map_err(refuse)?;
         let job = PlayblastJob::start(plan).map_err(refuse)?;
         self.playblast.last = Some(JobProgress::Running {
@@ -145,8 +164,13 @@ impl Editor {
             height,
             total: frames,
             done: 0,
+            without_plate: 0,
         });
-        self.playblast.run = Some(Run { job, renderer });
+        self.playblast.run = Some(Run {
+            job,
+            renderer,
+            without_plate,
+        });
         Ok(OperationReply::PlayblastStarted {
             frames,
             width,
@@ -159,7 +183,7 @@ impl Editor {
         match self.playblast.run.take() {
             Some(mut run) => {
                 let progress = run.job.cancel();
-                self.record_playblast(progress);
+                self.record_playblast(progress, run.without_plate.load(Ordering::Relaxed));
                 OperationReply::Changed
             }
             None => OperationReply::Unchanged,
@@ -173,8 +197,9 @@ impl Editor {
         self.playblast.target = None;
     }
 
-    fn record_playblast(&mut self, progress: JobProgress) {
+    fn record_playblast(&mut self, progress: JobProgress, without_plate: u32) {
         if let Some(target) = &mut self.playblast.target {
+            target.without_plate = without_plate;
             match &progress {
                 JobProgress::Running { done, .. } | JobProgress::Cancelled { done } => {
                     target.done = *done;
@@ -199,6 +224,7 @@ impl Editor {
             state,
             frames_done: target.map_or(0, |target| target.done),
             frames_total: target.map_or(0, |target| target.total),
+            frames_without_plate: target.map_or(0, |target| target.without_plate),
             width: target.map_or(0, |target| target.width),
             height: target.map_or(0, |target| target.height),
             directory_name: target.map(|target| target.directory_name.clone()),
@@ -216,12 +242,13 @@ impl Editor {
             return;
         };
         let progress = run.job.step(run.renderer.as_mut());
+        let without_plate = run.without_plate.load(Ordering::Relaxed);
         if matches!(progress, JobProgress::Running { .. }) {
             ctx.request_repaint();
         } else {
             self.playblast.run = None;
         }
-        self.record_playblast(progress);
+        self.record_playblast(progress, without_plate);
     }
 }
 

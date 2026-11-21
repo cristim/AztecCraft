@@ -12,12 +12,17 @@
 //!   inside the gate (crop, coverage and fit rules unchanged). The area outside the gate keeps
 //!   the clear colour, as in the viewport.
 //! - A frame with no file (or a negative key frame) renders without a plate, like the viewport,
-//!   and the job continues. Any other failure (unreadable, corrupt, too large) stops the job
+//!   and the job continues; each such frame is counted (`frames_without_plate`) so the caller
+//!   learns it. A plane hidden by its display mode is a choice, not a missing plate, and is not
+//!   counted. Any other failure (unreadable, corrupt, too large) stops the job
 //!   with `PlayblastError::Plate`, because a deliverable must not silently lose its footage.
 //! - Frames are decoded synchronously on the UI tick, one per render, so none is skipped; the
 //!   previous key frame is reused (a single image decodes once).
 
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
 use azteccraft::{
     image_plane::{
@@ -35,7 +40,13 @@ use super::image_plane::key_frame;
 use crate::viewport_renderer::{PlateAt, PlateDraw};
 
 /// A resolver for `plane` seen through `camera`, both snapshots taken at the start of the job.
-pub(in crate::app) fn plate_at(plane: ImagePlane, camera: Camera, decode: DecodeFn) -> PlateAt {
+/// `without_plate` counts the frames resolved with no plate image available.
+pub(in crate::app) fn plate_at(
+    plane: ImagePlane,
+    camera: Camera,
+    decode: DecodeFn,
+    without_plate: Arc<AtomicU32>,
+) -> PlateAt {
     let source = PlateSource {
         template: plane.image_name.clone(),
         sequence: plane.use_frame_extension,
@@ -53,7 +64,10 @@ pub(in crate::app) fn plate_at(plane: ImagePlane, camera: Camera, decode: Decode
             held = None;
             match decode(&source, key) {
                 Ok(decoded) => held = Some((key, Arc::new(decoded))),
-                Err(PlateError::Missing) => return Ok(None),
+                Err(PlateError::Missing) => {
+                    without_plate.fetch_add(1, Ordering::Relaxed);
+                    return Ok(None);
+                }
                 Err(_) => return Err(PlayblastError::Plate { frame }),
             }
         }
