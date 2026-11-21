@@ -23,7 +23,11 @@
 - [Native MCP verification](mcp-native-verification.md): scoped macOS window/protocol evidence, combined icons and selection, and unresolved idle responsiveness.
 - [UI parity inventory](ui-parity-inventory.md): Maya 2026 UI surfaces mapped to AztecCraft status, MCP tools and a prioritized backlog.
 - [Maya 2027 menu map](maya-2027-menu-map.md): global menus, menu sets, panel, shell and marking-menu surfaces from the Maya 2027.2 Help with per-entry evidence and gaps (issue #6).
-- [Maya API catalog sources](maya-2027-api-inventory.md): official command, node, C++ and Python catalog sources, name counts and the 2026 to 2027 delta; not a runtime-compatibility claim (issue #6).
+- [Maya API catalog sources](maya-2027-api-inventory.md): versioned C++ change sources, mutable year-level API catalogs, source provenance and the limits of name-level comparisons (issue #6).
+- [Maya API-to-workflow crosswalk](maya-api-workflow-crosswalk.md): partial non-scoring API traceability seeds; does not alter the 14-family denominator.
+- [Maya API leaf audit](maya-api-leaf-audit.md): partial semantic review of selected 2027 command, node and API leaves, with runtime and 2026 evidence boundaries.
+- [Maya API audit plan](maya-api-audit-plan.md): version boundaries, local catalog snapshots, runtime evidence and completion gates; Maya 2026 remains the acceptance target (issue #6).
+- [Maya 2027.3 update observations](maya-2027-3-update-observations.md): source-backed update/workflow candidates, component boundaries and unresolved leaf semantics; not a parity claim.
 - [Contribution guidance](../CONTRIBUTING.md): local workflow, review evidence and publication restrictions.
 - [Known limitations](../known-issues.md): missing reference/denominator, desktop verification and compatibility evidence.
 - [Scripting threat model](scripting-threat-model.md): what may ever be executed, options evaluated, the owner-only decision and a staged first slice for scripting and plug-ins (issue #57).
