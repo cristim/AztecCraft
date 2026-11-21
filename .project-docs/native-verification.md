@@ -377,3 +377,9 @@ disabled option box, choose an `.obj` file in the panel, look at the selected im
 objects and undo them. The same applies to File > Export All and Export Selection (default
 name `untitled.obj`, `.obj` appended, occupied destination refused). The step list lives in
 `known-issues.md`; nothing here is a Maya comparison.
+
+## Linux interactive file-panel journey (#9)
+
+Ran the [default Linux x86_64 archive](https://github.com/cristim/AztecCraft/actions/runs/44890134828) at `927fcc5d869d65a2412c53e2b0886d10a73fac47` on Omarchy 4.5.0 with an isolated X11/Xvfb display and the GTK file portal. The archive SHA-256 matched the CI manifest (`6572bbbe64038678a4d6abead7805f361e37004158f348f10bca206cfc6e4b9d`). Native pointer and keyboard input created a default cube, edited Translate X to 2.5, undid and redid the edit, then used the Save As picker to write a Maya ASCII scene. A text check found `pCube1` and its `2.5 0 0` translation. The synthetic scene SHA-256 was `c9cdcf2e7a5faaf0c93dbbe22aa090ce2fc1fbd2b9a1f0b9cb70612dc1847f65`.
+
+Used New, opened the saved scene via the native Open picker, selected the cube and used File > Export All through the native export picker. Independent parsing of the OBJ found eight vertices and six faces with X bounds [2, 3] and Y and Z bounds [-0.5, 0.5]. OBJ SHA-256 `046f250a5b0557e6cabe0959e623162d4d310c4fd86f57f48d82f7efc4f8624a`. This run covers the Linux file panel journey for one synthetic authored scene. The macOS Open abort remains unresolved.
