@@ -267,7 +267,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "save_scene",
-        description: "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh .mb or .ma. Imported ASCII scenes remain read-only. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven; an authored .ma carries each shape's session map1 UVs and the session materials (the .mb writer carries neither and refuses them: use Delete UVs or Undo to save a .mb), and the UV layout in the file is unchecked against Maya",
+        description: "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh .mb or .ma. Imported ASCII scenes remain read-only. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven; an authored .ma carries each shape's session map1 UVs and the session materials (the .mb writer carries neither and refuses them: use Delete UVs to save a .mb), and the UV layout in the file is unchecked against Maya",
         schema: schema::<MutationArgs>,
         parse: parse_save_scene,
         idempotent: false,

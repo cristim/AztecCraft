@@ -2378,7 +2378,8 @@ pub enum NativeError {
     InvalidSessionUvs,
     DegenerateUvProjection,
     UnsupportedUvTopology,
-    /// `create_uvs` on a primitive with no UV layout (the Platonic solids, #453).
+    /// `create_uvs` on a primitive with no UV layout (currently the Platonic solids, the Pyramid and
+    /// the Prism, #453).
     UnsupportedUvPrimitive(Primitive),
     UvsBlockTopologyEdit,
     /// Mesh > Reduce refused its target or the mesh; see `ReduceRefusal`.

@@ -30,7 +30,7 @@ fn shape_of(editor: &Editor, index: usize) -> NativeId {
 
 #[test]
 fn create_uvs_false_builds_none_and_true_builds_a_matching_valid_set() {
-    // The Platonic solids refuse create_uvs (see the core and MCP tests).
+    // The Platonic solids, the Pyramid and the Prism refuse create_uvs (see the core and MCP tests).
     for primitive in PRIMITIVES
         .into_iter()
         .filter(|p| PrimitiveOptions::default_for(*p).has_uv_layout())
@@ -145,9 +145,9 @@ fn an_explicitly_named_create_also_builds_the_uv_set() {
 }
 
 #[test]
-fn every_native_create_path_builds_no_uv_set_until_the_checkbox_exists() {
+fn every_native_create_path_builds_no_uv_set_by_default_and_the_set_when_ticked() {
     // Menu and shelf clicks use `Editor::create`; the option box uses `create_from_dialog`.
-    // Both pin create_uvs to false until #453 T11 adds the Create UVs checkbox.
+    // Both build none while Create UVs is unchecked, which is the default.
     let mut editor = Editor::default();
     for primitive in PRIMITIVES {
         editor.create(primitive);
@@ -165,4 +165,22 @@ fn every_native_create_path_builds_no_uv_set_until_the_checkbox_exists() {
             .iter()
             .all(|s| scene.uv_set(s.id()).is_none())
     );
+
+    // Ticked: the option box builds the set for every primitive with a layout, and the Platonic
+    // solid stays free of UVs without an error.
+    let mut editor = Editor::default();
+    for primitive in PRIMITIVES {
+        editor.open_primitive_options(primitive);
+        let mut dialog = editor.primitive_options.dialog.take().unwrap();
+        dialog.extras.create_uvs = true;
+        editor.create_from_dialog(&mut dialog);
+        assert!(!editor.error, "{primitive:?}: {:?}", dialog.message);
+        let scene = editor.history.scene();
+        let has = scene.uv_set(scene.shapes().last().unwrap().id()).is_some();
+        assert_eq!(
+            has,
+            PrimitiveOptions::default_for(primitive).has_uv_layout(),
+            "{primitive:?}"
+        );
+    }
 }

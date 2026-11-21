@@ -142,6 +142,7 @@ fn focus_field(editor: &mut Editor, ctx: &egui::Context, index: usize) {
 const NO_EXTRAS: Extras = Extras {
     round_cap: false,
     solid: PlatonicSolidKind::Dodecahedron,
+    create_uvs: false,
 };
 
 #[test]
@@ -155,6 +156,7 @@ fn drafts_round_trip_to_the_defaults_for_every_primitive() {
             Extras {
                 round_cap: round_cap_of(&options),
                 solid: solid_of(&options),
+                create_uvs: false,
             },
         )
         .unwrap();
@@ -315,7 +317,6 @@ fn unfinished_controls_are_disabled_with_a_reason() {
         "Free",
         "Camera",
         "Interactive creation",
-        "Create UVs",
         "Exit on completion",
     ] {
         let control = find(&output, label).unwrap_or_else(|| panic!("{label}"));
@@ -1182,4 +1183,166 @@ fn torus_window_follows_the_escape_draft_and_modal_guards() {
     // With nothing else wanting it, Escape closes the window.
     run(&mut editor, &ctx, vec![key(Key::Escape)]);
     assert!(editor.primitive_options.dialog.is_none());
+}
+
+fn uvs_of_last(editor: &Editor) -> bool {
+    let scene = editor.history.scene();
+    scene.uv_set(scene.shapes().last().unwrap().id()).is_some()
+}
+
+#[test]
+fn create_uvs_is_unchecked_by_default_and_ticking_it_builds_and_remembers_the_set() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Cylinder);
+    let output = run(&mut editor, &ctx, vec![]);
+    let checkbox = find(&output, "Create UVs").expect("Create UVs");
+    assert!(!checkbox.disabled);
+    let hint = description_of(&output, "Create UVs").expect("hover text is the description");
+    assert!(
+        hint.contains("Delete UVs") && !hint.starts_with("Unavailable: "),
+        "{hint}"
+    );
+    assert!(
+        !editor
+            .primitive_options
+            .dialog
+            .as_ref()
+            .unwrap()
+            .extras
+            .create_uvs
+    );
+    // Unchecked builds none.
+    press(&mut editor, &ctx, "Create");
+    assert!(!uvs_of_last(&editor));
+    assert!(!editor.remembered_create_uvs(Primitive::Cylinder));
+    // Ticking it builds the set and remembers the choice.
+    click(&mut editor, &ctx, checkbox.rect.center());
+    assert!(
+        editor
+            .primitive_options
+            .dialog
+            .as_ref()
+            .unwrap()
+            .extras
+            .create_uvs
+    );
+    press(&mut editor, &ctx, "Create");
+    assert!(uvs_of_last(&editor));
+    assert!(editor.remembered_create_uvs(Primitive::Cylinder));
+    assert!(
+        !editor.remembered_create_uvs(Primitive::Cube),
+        "per primitive"
+    );
+    editor.history.scene().validate().unwrap();
+    // A plain menu or shelf click uses the remembered choice, and a reopened window shows it.
+    editor.create(Primitive::Cylinder);
+    assert!(uvs_of_last(&editor));
+    editor.primitive_options.dialog = None;
+    editor.open_primitive_options(Primitive::Cylinder);
+    assert!(
+        editor
+            .primitive_options
+            .dialog
+            .as_ref()
+            .unwrap()
+            .extras
+            .create_uvs
+    );
+    // Unticking and creating again builds none and forgets it.
+    let output = run(&mut editor, &ctx, vec![]);
+    click(
+        &mut editor,
+        &ctx,
+        find(&output, "Create UVs").unwrap().rect.center(),
+    );
+    press(&mut editor, &ctx, "Create");
+    assert!(!uvs_of_last(&editor));
+    assert!(!editor.remembered_create_uvs(Primitive::Cylinder));
+}
+
+#[test]
+fn the_boxes_without_a_uv_layout_show_create_uvs_disabled_with_its_reason_and_never_build_uvs() {
+    // The Platonic solid, the Pyramid and the Prism have no UV layout yet.
+    for primitive in [
+        Primitive::PlatonicSolid,
+        Primitive::Pyramid,
+        Primitive::Prism,
+    ] {
+        let (mut editor, ctx) = setup();
+        open_dialog(&mut editor, &ctx, primitive);
+        let output = run(&mut editor, &ctx, vec![]);
+        let checkbox = find(&output, "Create UVs").expect("Create UVs");
+        assert!(checkbox.disabled, "{primitive:?}");
+        assert_eq!(
+            description_of(&output, "Create UVs").as_deref(),
+            Some(
+                "Unavailable: Create UVs is not available for this primitive: it has no UV layout yet"
+            ),
+            "{primitive:?}"
+        );
+        click(&mut editor, &ctx, checkbox.rect.center());
+        assert!(
+            !editor
+                .primitive_options
+                .dialog
+                .as_ref()
+                .unwrap()
+                .extras
+                .create_uvs
+        );
+        press(&mut editor, &ctx, "Create");
+        assert_eq!(node_count(&editor), 1, "{primitive:?}");
+        assert!(!uvs_of_last(&editor));
+        assert!(!editor.error, "{}", editor.status);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn saving_a_uv_primitive_as_mb_shows_the_remedy_not_a_code() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Cube);
+    let output = run(&mut editor, &ctx, vec![]);
+    click(
+        &mut editor,
+        &ctx,
+        find(&output, "Create UVs").unwrap().rect.center(),
+    );
+    press(&mut editor, &ctx, "Create");
+    assert!(uvs_of_last(&editor));
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("uv.mb");
+    editor.native_operation(Operation::SaveSceneAs { path: path.clone() });
+    assert!(editor.error, "the refusal is shown as an error");
+    // The status line the user sees is the remedy in words, not a code.
+    assert!(
+        editor.status.contains("session UVs are not saved") && editor.status.contains("Delete UVs"),
+        "{}",
+        editor.status
+    );
+    assert!(!path.exists());
+}
+
+#[test]
+fn the_option_box_rows_keep_mayas_order() {
+    let (mut editor, ctx) = setup();
+    for primitive in [
+        Primitive::Cube,
+        Primitive::Cylinder,
+        Primitive::PlatonicSolid,
+    ] {
+        open_dialog(&mut editor, &ctx, primitive);
+        let output = run(&mut editor, &ctx, vec![]);
+        let top = |label: &str| {
+            find(&output, label)
+                .unwrap_or_else(|| panic!("{label}"))
+                .rect
+                .top()
+        };
+        assert!(
+            top("Interactive creation") < top("Create UVs")
+                && top("Create UVs") < top("Exit on completion"),
+            "{primitive:?}"
+        );
+    }
 }

@@ -30,7 +30,6 @@ pub(super) const GAPS: &[&str] = &[
     "window-planar-mapping|R3|RadioButton|root/<Window>#0/Planar Mapping Options/Camera",
     "window-primitive-options|R3|Button|root/<Window>#0/Polygon Cube Options/Camera",
     "window-primitive-options|R3|Button|root/<Window>#0/Polygon Cube Options/Free",
-    "window-primitive-options|R3|CheckBox|root/<Window>#0/Polygon Cube Options/Create UVs",
     "window-primitive-options|R3|CheckBox|root/<Window>#0/Polygon Cube Options/Exit on completion",
     "window-primitive-options|R3|CheckBox|root/<Window>#0/Polygon Cube Options/Interactive creation",
     "window-primitive-options|R5|Button|root/<Window>#0/Polygon Cube Options/X",

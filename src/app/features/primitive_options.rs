@@ -220,7 +220,9 @@ fn assemble(
     axis: Axis,
     extras: Extras,
 ) -> Result<PrimitiveOptions, String> {
-    let Extras { round_cap, solid } = extras;
+    let Extras {
+        round_cap, solid, ..
+    } = extras;
     let (size_labels, division_labels) = labels(primitive);
     if texts.len() != size_labels.len() + division_labels.len() {
         return Err("Option fields are out of sync; reopen the window".into());
@@ -329,6 +331,9 @@ pub(in crate::app) fn describe_unavailable(ctx: &egui::Context, id: egui::Id, re
     });
 }
 
+/// Hover text of the Create UVs checkbox. Maya's other `-createUVs` modes are not offered.
+const CREATE_UVS_HINT: &str = "Gives the new object UVs with an AztecCraft layout (PROVISIONAL). UVs currently block saving to .mb and exporting glTF and USD until they carry UVs; UV > Delete UVs removes them";
+
 /// Non-numeric choices the dialog keeps beside its text drafts.
 #[derive(Clone, Copy)]
 struct Extras {
@@ -336,6 +341,8 @@ struct Extras {
     round_cap: bool,
     /// Platonic Solid only.
     solid: PlatonicSolidKind,
+    /// Also give the new object UVs (#453); never set for a primitive without a UV layout.
+    create_uvs: bool,
 }
 
 struct Dialog {
@@ -348,6 +355,8 @@ struct Dialog {
 
 pub(in crate::app) struct PrimitiveOptionsUi {
     remembered: [PrimitiveOptions; 9],
+    /// Whether the last successful create from each option box had Create UVs ticked.
+    remembered_uvs: [bool; 9],
     dialog: Option<Dialog>,
     /// Any text field (dialog, name, channel, ...) held focus at the end of the last frame; egui
     /// clears focus before Escape runs, so the key still belongs to that field.
@@ -370,6 +379,7 @@ impl Default for PrimitiveOptionsUi {
     fn default() -> Self {
         Self {
             remembered: PRIMITIVES.map(PrimitiveOptions::default_for),
+            remembered_uvs: [false; 9],
             dialog: None,
             typing: false,
         }
@@ -414,6 +424,12 @@ impl Editor {
         self.primitive_options.remembered[slot(primitive)]
     }
 
+    /// Whether a plain menu or shelf click also gives the object UVs: the last successful create
+    /// from the option box had Create UVs ticked.
+    pub(in crate::app) fn remembered_create_uvs(&self, primitive: Primitive) -> bool {
+        self.primitive_options.remembered_uvs[slot(primitive)]
+    }
+
     /// Opens the window for `primitive`. One window at a time: another primitive replaces it.
     pub(in crate::app) fn open_primitive_options(&mut self, primitive: Primitive) {
         if self
@@ -432,6 +448,7 @@ impl Editor {
             extras: Extras {
                 round_cap: round_cap_of(&options),
                 solid: solid_of(&options),
+                create_uvs: self.primitive_options.remembered_uvs[slot(primitive)],
             },
             message: None,
         });
@@ -495,15 +512,18 @@ impl Editor {
         match assemble(dialog.primitive, &dialog.texts, dialog.axis, dialog.extras) {
             Err(message) => dialog.message = Some(message),
             Ok(options) => {
+                // A primitive without a UV layout never gets the flag (the checkbox is disabled).
+                let create_uvs = dialog.extras.create_uvs && options.has_uv_layout();
                 self.native_operation(Operation::Create {
                     primitive: dialog.primitive,
                     options: Some(options),
                     name: None,
-                    create_uvs: false,
+                    create_uvs,
                 });
                 // native_operation sets `error` on every Create outcome.
                 if !self.error {
                     self.primitive_options.remembered[slot(dialog.primitive)] = options;
+                    self.primitive_options.remembered_uvs[slot(dialog.primitive)] = create_uvs;
                     dialog.message = None;
                 } else {
                     dialog.message = Some(self.status.clone());
@@ -560,20 +580,33 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, read_only: Option<&str>) 
             ui.end_row();
         });
     ui.separator();
-    for (label, reason) in [
-        (
-            "Interactive creation",
-            crate::app::menus::INTERACTIVE_CREATION_REASON,
-        ),
-        ("Create UVs", "Meshes have no UVs yet"),
-        (
-            "Exit on completion",
-            crate::app::menus::EXIT_ON_COMPLETION_REASON,
-        ),
-    ] {
+    let unavailable = |ui: &mut egui::Ui, label: &str, reason: &str| {
         ui.add_enabled(false, egui::Checkbox::new(&mut false, label))
             .on_disabled_hover_text(reason);
+    };
+    // Maya's row order: Interactive creation, Create UVs, Exit on completion.
+    unavailable(
+        ui,
+        "Interactive creation",
+        crate::app::menus::INTERACTIVE_CREATION_REASON,
+    );
+    let has_layout = PrimitiveOptions::default_for(dialog.primitive).has_uv_layout();
+    let uvs = ui.add_enabled(
+        has_layout,
+        egui::Checkbox::new(&mut dialog.extras.create_uvs, "Create UVs"),
+    );
+    if has_layout {
+        uvs.on_hover_text(CREATE_UVS_HINT);
+    } else {
+        let reason = "Create UVs is not available for this primitive: it has no UV layout yet";
+        describe_unavailable(ui.ctx(), uvs.id, reason);
+        uvs.on_disabled_hover_text(reason);
     }
+    unavailable(
+        ui,
+        "Exit on completion",
+        crate::app::menus::EXIT_ON_COMPLETION_REASON,
+    );
     if matches!(dialog.primitive, Primitive::Cylinder | Primitive::Cone) {
         // The core accepts round_cap at 0 caps as a no-op; the box only offers it when it matters.
         let caps_on = dialog

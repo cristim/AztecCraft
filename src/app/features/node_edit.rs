@@ -90,7 +90,7 @@ impl Editor {
             primitive,
             options: Some(self.remembered_options(primitive)),
             name: None,
-            create_uvs: false,
+            create_uvs: self.remembered_create_uvs(primitive),
         });
     }
     pub(in crate::app) fn appearance_scope(
