@@ -78,11 +78,7 @@ fn refusals_name_the_reason_and_leave_the_scene_unchanged() {
 }
 
 fn two_cube_editor() -> Editor {
-    let mut editor = Editor::default();
-    editor.create(Primitive::Cube);
-    editor.create(Primitive::Cube);
-    editor.native_operation(Operation::SelectByRule(SelectRule::All));
-    editor
+    n_cube_editor(2)
 }
 
 fn shape_materials(editor: &Editor) -> Vec<String> {
@@ -369,4 +365,53 @@ fn remote_assignment_is_refused_for_a_draft_and_a_stale_token() {
         "{result:?}"
     );
     assert_eq!(editor.history.scene(), &before);
+}
+
+fn n_cube_editor(count: usize) -> Editor {
+    let mut editor = Editor::default();
+    for _ in 0..count {
+        editor.create(Primitive::Cube);
+    }
+    editor.native_operation(Operation::SelectByRule(SelectRule::All));
+    editor
+}
+
+#[test]
+fn exactly_the_cap_of_selected_shapes_assigns_as_one_undo_step() {
+    let mut editor = n_cube_editor(MAX_ASSIGN_SHAPES);
+    assert_eq!(editor.selection.len(), MAX_ASSIGN_SHAPES);
+    assert_eq!(
+        editor.session_material_targets().unwrap().len(),
+        MAX_ASSIGN_SHAPES
+    );
+    let before = editor.history.scene().clone();
+    editor.assign_material_to_selection(new_lambert()).unwrap();
+    let assigned = shape_materials(&editor);
+    assert_eq!(assigned.len(), MAX_ASSIGN_SHAPES);
+    assert!(assigned.iter().all(|name| name == "lambert2"));
+    editor.native_operation(Operation::Undo);
+    assert_eq!(editor.history.scene(), &before);
+    assert!(
+        shape_materials(&editor)
+            .iter()
+            .all(|name| name == "standardSurface1")
+    );
+}
+
+#[test]
+fn one_over_the_cap_refuses_natively_and_leaves_the_scene_unchanged() {
+    let mut editor = n_cube_editor(MAX_ASSIGN_SHAPES + 1);
+    assert_eq!(editor.selection.len(), MAX_ASSIGN_SHAPES + 1);
+    let before = editor.history.scene().clone();
+    let could_undo = editor.history.can_undo();
+    assert!(matches!(
+        editor.session_material_targets(),
+        Err(OperationError::InvalidInput(ref r)) if r == TOO_MANY_REASON
+    ));
+    assert!(matches!(
+        editor.assign_material_to_selection(new_lambert()),
+        Err(OperationError::InvalidInput(ref r)) if r == TOO_MANY_REASON
+    ));
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.history.can_undo(), could_undo);
 }
