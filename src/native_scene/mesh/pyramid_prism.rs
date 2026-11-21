@@ -1,8 +1,9 @@
 use super::{NativeMesh, axis::orient};
 use crate::primitive_options::Axis;
 
-/// Circumradius of a regular `sides`-gon with edge `side_length`. Maya's `-sideLength` is the
-/// edge of the base polygon (command pages, 2027).
+/// Circumradius of a regular `sides`-gon with edge `side_length`. PROVISIONAL (#5): reading
+/// `-sideLength` as the base polygon's edge is unverified; the pages consulted (2018 polyPyramid,
+/// 2023 polyPrism) do not settle edge versus radius for the pyramid.
 fn circumradius(side_length: f64, sides: u32) -> f64 {
     side_length / (2.0 * (std::f64::consts::PI / f64::from(sides)).sin())
 }

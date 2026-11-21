@@ -927,7 +927,7 @@ check is still pending.
 
 `create_primitive` with `pyramid` (default 4 sides, side length 1: 5 points, 8 edges, 5 faces) and `prism` (default 3 sides, side length
 2, length 2: 6 points, 9 edges, 5 faces) is in core, MCP and the Create > Polygon Primitives option boxes. From the polyPyramid (2018) and
-polyPrism (2023) command pages: `-numberOfSides`, `-sideLength` (the base edge) and `-axis`, plus `-length` for the prism. PROVISIONAL:
+polyPrism (2023) command pages: `-numberOfSides`, `-sideLength` and `-axis`, plus `-length` for the prism. PROVISIONAL: the `side_length` meaning (base edge versus radius for the pyramid; polyPrism says "edge length of the prism"),
 the 2016 pyramid page gives 3 sides as the default, the 3 to 128 side-count range (the pages state none), the pyramid height (set equal
 to the side length; the pages give none), centring on the origin, the first point on +X, point order, winding (outward, not compared with
 Maya), hard edges and the `pPyramid` and `pPrism` node names. Not built: `-subdivisionsCaps` and `-subdivisionsHeight`, and Create UVs

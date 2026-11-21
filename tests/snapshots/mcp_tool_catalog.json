@@ -983,7 +983,7 @@
             },
             "side_length": {
               "default": 1.0,
-              "description": "Edge of the base polygon (Maya `-sideLength`, default 1).",
+              "description": "Maya `-sideLength`, default 1, read as the base polygon edge (PROVISIONAL, #5: edge versus\nradius is not documented).",
               "format": "double",
               "maximum": 1000000.0,
               "minimum": 1e-6,
