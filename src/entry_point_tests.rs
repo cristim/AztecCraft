@@ -313,7 +313,8 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
     );
     // A time change writes evaluated channels with no undo entry. Dispatch re-evaluates after Undo
     // and Redo, and write_time serves set_current_time, play and the playback tick. scene_at
-    // advances the playblast's private scene clone, never the history.
+    // advances the playblast's private scene clone, never the history; the ledger matches function
+    // names only, so scene_at must touch nothing but that clone.
     expect(
         "history evaluate",
         ".apply_evaluated(",

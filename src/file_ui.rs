@@ -681,12 +681,13 @@ impl Editor {
         }
     }
     pub(super) fn handle_close(&mut self, ctx: &egui::Context) {
-        // The close completes only after the playblast writer is joined, so it leaves no staged file.
+        let ready = self.close_ready();
+        // Only a close that is ready to go out ends the job: a declined close or a failed
+        // delivery drops the approval and keeps it. Joining the writer leaves no staged file.
         #[cfg(any(test, feature = "mcp"))]
-        if self.files.close_approved {
+        if ready {
             self.cancel_playblast();
         }
-        let ready = self.close_ready();
         // A late `performClose:` event must never let eframe close the viewport itself while the
         // deferred AppKit reply owns the exit.
         let guarded = self.terminate.owed() || self.files.terminate_approved;
@@ -2660,3 +2661,7 @@ mod terminate_tests;
 #[cfg(test)]
 #[path = "app/shutdown_tests.rs"]
 mod shutdown_tests;
+
+#[cfg(test)]
+#[path = "app/features/playblast_close_tests.rs"]
+mod playblast_close_tests;

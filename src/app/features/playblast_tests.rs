@@ -348,6 +348,30 @@ fn a_modal_pauses_the_tick_and_the_job_resumes_after_it() {
 }
 
 #[test]
+fn a_pending_draft_pauses_the_tick_and_the_job_resumes_after_it_is_resolved() {
+    let dir = tempfile::tempdir().unwrap();
+    let seen = Seen::default();
+    let mut editor = editor(&seen);
+    editor
+        .apply_operation(Operation::Playblast(request(dir.path())))
+        .unwrap();
+    editor.name = "renamed in the field".into();
+    assert!(editor.has_draft() && !editor.files.is_modal() && !editor.files.is_closing());
+    ticks(&mut editor, 10);
+    assert!(seen.lock().unwrap().is_empty());
+    assert!(editor.playblast.run.is_some());
+    editor.name = editor
+        .history
+        .scene()
+        .node(editor.selected().unwrap())
+        .unwrap()
+        .name()
+        .to_owned();
+    assert!(!editor.has_draft());
+    assert_eq!(run_to_end(&mut editor), JobProgress::Finished { total: 3 });
+}
+
+#[test]
 fn new_scene_cancels_the_job_and_forgets_its_report() {
     let dir = tempfile::tempdir().unwrap();
     let mut editor = editor(&Seen::default());

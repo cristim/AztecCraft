@@ -383,6 +383,13 @@ replacement, node deletion, shape removal or when it stops resolving, and is rep
 or nothing is selected). Shape and material tabs drive the same single `material_shape`
 selection as the native Materials shape choice. Guards match `set_sidebar_panel_visibility`.
 
+`inspect_scene` `playblast` reports the playblast job (#460) with no token: `state` (`idle`, `running`,
+`finished`, `cancelled` or `failed`), `frames_done`, `frames_total`, `width`, `height` (0 while idle),
+`directory_name` (the final component of the output directory only, never its path; null while idle)
+and `last_error` (the typed failure text, which carries no path; null unless `failed`). A New or Open
+forgets the report and a close ends a running job. `width` and `height` are required because no
+viewport size is stored. See `known_issues` in `known-issues.md` for the pause and freeze limits.
+
 Example create arguments after inspection:
 
 ```json
@@ -659,6 +666,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Animation | Pre/post infinity per curve (constant, linear, cycle, cycle_relative, oscillate; one undo step, session-only, formulas PROVISIONAL) | supported | `set_infinity`, `inspect_keys` | `timeline.key_count` | Settings are `pre_infinity` and `post_infinity` on each `inspect_keys` key. No Graph Editor or Channel Box control (#52); no `.ma`/`.mb` round trip because keys are not saved (#461, #62) |
 | Animation | Playback range, play and stop | supported | `set_playback_range`, `play_timeline`, `stop_timeline` | `timeline` | |
 | Materials | Session materials (create, assign, colour; native UI: Assign New, Assign Existing and Material Attributes under Rendering > Lighting/Shading, one object per assignment, plus R/G/B colour fields in the Attribute Editor material tab; the same operations and guards as the tools) | supported | `create_session_material`, `assign_session_material`, `set_session_material_color` | `session_materials` | |
+| Animation | Playblast to a numbered PNG sequence (native start and cancel are `Operation::Playblast` and `CancelPlayblast`; no tool starts or cancels one yet, so only the job report is remote) | missing | | `playblast` | #460 |
 | Materials | Material rendering, shading networks, textures | unsupported | | | |
 | Viewport | Grid visibility | supported | `set_grid_visibility` | `grid_visible` | |
 | Viewport | Shading mode (Wireframe, Smooth Shade All) | supported | `set_shading_mode` | `shading` | |

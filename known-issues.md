@@ -1924,3 +1924,17 @@ The helix self-intersects whenever the tube radius exceeds half the pitch (`heig
 The sourced defaults (3 coils, height 2, width 2, radius 0.4) already overlap: the closest non-adjacent turns are about 0.66 apart against
 a 0.8 tube diameter. Whether Maya's own default overlaps depends on what its `-width` and `-height` measure, which the pages do not say.
 The face count is capped (20000 faces, at most 128 divisions per ring) so a large coil count cannot exhaust memory.
+
+## Playblast job limits (#460)
+
+**Severity:** low
+**Area:** playblast, editor loop
+**Issue:** #460
+
+- A process exit while a job runs (kill, crash, OS termination that skips the close guard) leaves a staged
+  `.pb_tmp` file next to the numbered PNGs. A close through the editor cancels and joins the writer first.
+- A draft, a modal or a pending close that never resolves pauses the job indefinitely; there is no timeout.
+  It resumes when the draft is committed or discarded, the modal is resolved or the close is declined.
+- One tick renders one frame on the UI thread. A very large frame on a software adapter can freeze the window
+  for seconds, and Cancel cannot interrupt a frame in flight; it takes effect before the next frame.
+- `width` and `height` are required: no viewport size is stored, so there is no default to take.

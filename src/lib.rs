@@ -14,6 +14,7 @@ pub mod mesh;
 pub mod move_handles;
 pub mod native_scene;
 pub mod obj;
+#[doc(hidden)]
 pub mod playblast;
 pub mod primitive_options;
 pub mod recovery;
