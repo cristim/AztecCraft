@@ -139,6 +139,11 @@ fn channels_of(
     }
 }
 
+/// "1 vertex", "8 vertices": the moved vertices in a component Move's status.
+fn vertex_count_text(count: usize) -> String {
+    format!("{count} {}", if count == 1 { "vertex" } else { "vertices" })
+}
+
 fn edit_reply(outcome: EditOutcome) -> OperationReply {
     match outcome {
         EditOutcome::Changed
@@ -1237,7 +1242,7 @@ impl Editor {
         }
         self.start_native_drag(NativeDrag::Move(drag), pointer.released)?;
         let noun = vertex_count.map_or(String::new(), |count| {
-            format!(" ({count} vertice{})", if count == 1 { "" } else { "s" })
+            format!(" ({})", vertex_count_text(count))
         });
         self.status = format!(
             "{} {} Move{noun}",
@@ -1349,6 +1354,8 @@ impl Editor {
 mod multi_tests;
 #[cfg(test)]
 mod snap_tests;
+#[cfg(test)]
+mod status_text_tests;
 #[cfg(test)]
 #[path = "move_tool/tests.rs"]
 pub(in crate::app) mod tests;
