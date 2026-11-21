@@ -511,6 +511,9 @@ mod image_plane_inspect_tests;
 mod image_plane_wiring_tests;
 
 #[cfg(test)]
+mod image_plane_menu_tests;
+
+#[cfg(test)]
 pub(in crate::app) mod overlay_gate_tests;
 
 #[cfg(test)]
