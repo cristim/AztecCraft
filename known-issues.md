@@ -1977,6 +1977,16 @@ are unique across the scene, stricter than Maya's sibling rule); an instanced no
 refused (`invalid_name_edit`) instead of succeeding silently; the undo labels. Only transforms are renamed (derived
 shape names follow); other node types are not in the scene model. Not compared with Maya (#5).
 
+Edge cases: a restricted node (one with restrictions or unsupported transform data, or a restricted shape) anywhere
+in the target set, in an ancestor or descendant chain of a target, or, with scope `all`, anywhere in the scene,
+returns `unsupported_edit` and blocks the whole edit (not only for sourced scenes). The derived shape names are
+planned with the node names, so uniqueness is checked on the final scene (nodes and shapes together) and the result
+does not depend on application order: a chain such as `aaa`, `aa` with `aa` to `a` applies, because the final names
+are unique; a node name that equals a derived shape name is `name_collision`. A search and replace cannot swap two
+names (one search, one replacement). A resulting node or derived shape name over 4096 bytes (the MCP name limit;
+the `.ma` writer has none) is `invalid_name`. Known gap, not widened here: a plain rename (`validate_new_name`)
+checks node names only, so it can still produce a node name equal to an existing shape name.
+
 ## Match Transformations refuses shear and cross-channel cases and is PROVISIONAL
 
 **Severity:** low
