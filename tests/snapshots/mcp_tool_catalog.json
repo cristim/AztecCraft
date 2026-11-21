@@ -672,7 +672,7 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder, cone, torus, platonic_solid, pyramid or prism in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the pyramid and prism side_length and number_of_sides (3 to 128) and the prism length, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; the top-level boolean create_uvs (default false) also creates the shape's map1 UVs with a PROVISIONAL AztecCraft layout (Maya's -createUVs is an integer on most commands (a boolean on polyTorus) whose values and default differ per command, for example polyCube 0 to 4 default 3, polyCylinder 0 to 3 default 2, polySphere 0 to 2 default 2), is refused for platonic_solid, pyramid and prism with unsupported_uv_primitive, and UVs currently block saving to .mb and exporting glTF and USD until they carry UVs (OBJ export writes them, .ma save carries them); omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+    "description": "Create a cube, plane, sphere, cylinder, cone, torus, platonic_solid, pyramid, prism, helix or soccer_ball in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the pyramid and prism side_length and number_of_sides (3 to 128), the prism length, the helix coils, height, width, radius, subdivisions_axis and subdivisions_coil, the soccer ball side_length, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; the top-level boolean create_uvs (default false) also creates the shape's map1 UVs with a PROVISIONAL AztecCraft layout (Maya's -createUVs is an integer on most commands (a boolean on polyTorus) whose values and default differ per command, for example polyCube 0 to 4 default 3, polyCylinder 0 to 3 default 2, polySphere 0 to 2 default 2), is refused for platonic_solid, pyramid, prism, helix and soccer_ball with unsupported_uv_primitive, and UVs currently block saving to .mb and exporting glTF and USD until they carry UVs (OBJ export writes them, .ma save carries them); omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
     "inputSchema": {
       "$defs": {
         "ConeOptions": {
@@ -844,6 +844,69 @@
           },
           "type": "object"
         },
+        "HelixOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "coils": {
+              "default": 3.0,
+              "description": "Turns (Maya `-coils`, default 3). The range is a PROVISIONAL AztecCraft safety bound (#5).",
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "height": {
+              "default": 2.0,
+              "description": "Extent of the tube centreline along the axis (Maya `-height`, default 2); PROVISIONAL reading.",
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "radius": {
+              "default": 0.4,
+              "description": "Radius of the tube (Maya `-radius`, default 0.4).",
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "subdivisions_axis": {
+              "default": 8,
+              "description": "Points around the tube (Maya `-subdivisionsAxis`, default 8).",
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            },
+            "subdivisions_coil": {
+              "default": 50,
+              "description": "Segments along the whole helix (Maya `-subdivisionsCoil`, default 50); PROVISIONAL: total, not per coil.",
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "width": {
+              "default": 2.0,
+              "description": "Diameter of the circle the centreline follows (Maya `-width`, default 2); PROVISIONAL reading.",
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
         "PlaneOptions": {
           "additionalProperties": false,
           "properties": {
@@ -984,6 +1047,29 @@
             "side_length": {
               "default": 1.0,
               "description": "Maya `-sideLength`, default 1, read as the base polygon edge (PROVISIONAL, #5: edge versus\nradius is not documented).",
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "SoccerBallOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "side_length": {
+              "default": 1.0,
+              "description": "Edge length of the truncated icosahedron (Maya polyPrimitive `-sideLength`, default 1);\nPROVISIONAL: the page does not relate it to `-radius`, which is not exposed. The `axis`\nfield is likewise a PROVISIONAL AztecCraft orientation.",
               "format": "double",
               "maximum": 1000000.0,
               "minimum": 1e-6,
@@ -1347,6 +1433,68 @@
             },
             "primitive": {
               "const": "prism",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "create_uvs": {
+              "default": false,
+              "description": "Always refused: the helix has no UV layout yet, so true is rejected with\nunsupported_uv_primitive and nothing is created. Maya's `-createUVs`: polyHelix 0 to 3, default 2.",
+              "type": "boolean"
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/HelixOptions"
+            },
+            "primitive": {
+              "const": "helix",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "create_uvs": {
+              "default": false,
+              "description": "Always refused: the soccer ball has no UV layout yet, so true is rejected with\nunsupported_uv_primitive and nothing is created. Maya's polyPrimitive `-createUVs` takes 0 to 4.",
+              "type": "boolean"
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/SoccerBallOptions"
+            },
+            "primitive": {
+              "const": "soccer_ball",
               "type": "string"
             },
             "scene_token": {

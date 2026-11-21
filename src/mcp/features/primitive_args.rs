@@ -4,14 +4,16 @@
 use azteccraft::{
     primitive_options::{
         Axis, DEFAULT_AXIS, DEFAULT_AXIS_DIVISIONS, DEFAULT_CUBE_DIVISIONS, DEFAULT_CUBE_SIZE_CM,
-        DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS, DEFAULT_HEIGHT_CM, DEFAULT_PLANE_DIVISIONS,
+        DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS, DEFAULT_HEIGHT_CM, DEFAULT_HELIX_COILS,
+        DEFAULT_HELIX_HEIGHT_CM, DEFAULT_HELIX_RADIUS_CM, DEFAULT_HELIX_SUB_AXIS,
+        DEFAULT_HELIX_SUB_COIL, DEFAULT_HELIX_WIDTH_CM, DEFAULT_PLANE_DIVISIONS,
         DEFAULT_PLANE_SIZE_CM, DEFAULT_PLATONIC_RADIUS_CM, DEFAULT_PRISM_LENGTH_CM,
         DEFAULT_PRISM_SIDE_LENGTH_CM, DEFAULT_PRISM_SIDES, DEFAULT_PYRAMID_SIDE_LENGTH_CM,
         DEFAULT_PYRAMID_SIDES, DEFAULT_RADIUS_CM, DEFAULT_ROUND_CAP, DEFAULT_SECTION_RADIUS_CM,
-        DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_SUB_CAPS, DEFAULT_TORUS_HEIGHT_DIVISIONS,
-        DEFAULT_TORUS_TWIST_DEG, MAX_DIVISIONS, MAX_SIZE_CM, MIN_AXIS_DIVISIONS, MIN_CAP_DIVISIONS,
-        MIN_DIVISIONS, MIN_SIZE_CM, MIN_SPHERE_HEIGHT_DIVISIONS, PlatonicSolidKind,
-        PrimitiveOptions,
+        DEFAULT_SOCCER_BALL_SIDE_LENGTH_CM, DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_SUB_CAPS,
+        DEFAULT_TORUS_HEIGHT_DIVISIONS, DEFAULT_TORUS_TWIST_DEG, MAX_DIVISIONS, MAX_SIZE_CM,
+        MIN_AXIS_DIVISIONS, MIN_CAP_DIVISIONS, MIN_DIVISIONS, MIN_SIZE_CM,
+        MIN_SPHERE_HEIGHT_DIVISIONS, PlatonicSolidKind, PrimitiveOptions,
     },
     scene::Primitive,
 };
@@ -182,6 +184,26 @@ option_structs! {
         /// AztecCraft safety bound (#5).
         number_of_sides: u32 = DEFAULT_PRISM_SIDES, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
     }
+    HelixOptions => Helix {
+        /// Turns (Maya `-coils`, default 3). The range is a PROVISIONAL AztecCraft safety bound (#5).
+        coils: f64 = DEFAULT_HELIX_COILS, MIN_SIZE_CM, MAX_SIZE_CM;
+        /// Extent of the tube centreline along the axis (Maya `-height`, default 2); PROVISIONAL reading.
+        height: f64 = DEFAULT_HELIX_HEIGHT_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+        /// Diameter of the circle the centreline follows (Maya `-width`, default 2); PROVISIONAL reading.
+        width: f64 = DEFAULT_HELIX_WIDTH_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+        /// Radius of the tube (Maya `-radius`, default 0.4).
+        radius: f64 = DEFAULT_HELIX_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+        /// Points around the tube (Maya `-subdivisionsAxis`, default 8).
+        subdivisions_axis: u32 = DEFAULT_HELIX_SUB_AXIS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
+        /// Segments along the whole helix (Maya `-subdivisionsCoil`, default 50); PROVISIONAL: total, not per coil.
+        subdivisions_coil: u32 = DEFAULT_HELIX_SUB_COIL, MIN_DIVISIONS, MAX_DIVISIONS;
+    }
+    SoccerBallOptions => SoccerBall {
+        /// Edge length of the truncated icosahedron (Maya polyPrimitive `-sideLength`, default 1);
+        /// PROVISIONAL: the page does not relate it to `-radius`, which is not exposed. The `axis`
+        /// field is likewise a PROVISIONAL AztecCraft orientation.
+        side_length: f64 = DEFAULT_SOCCER_BALL_SIDE_LENGTH_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+    }
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -295,6 +317,28 @@ pub(super) enum CreateArgs {
         options: Option<PrismOptions>,
         /// Always refused: the prism has no UV layout yet, so true is rejected with
         /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs`: polyPrism 0 to 3, default 2.
+        #[serde(default)]
+        create_uvs: bool,
+    },
+    Helix {
+        scene_token: String,
+        name: Option<String>,
+        #[serde(default, deserialize_with = "present")]
+        #[schemars(with = "HelixOptions")]
+        options: Option<HelixOptions>,
+        /// Always refused: the helix has no UV layout yet, so true is rejected with
+        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs`: polyHelix 0 to 3, default 2.
+        #[serde(default)]
+        create_uvs: bool,
+    },
+    SoccerBall {
+        scene_token: String,
+        name: Option<String>,
+        #[serde(default, deserialize_with = "present")]
+        #[schemars(with = "SoccerBallOptions")]
+        options: Option<SoccerBallOptions>,
+        /// Always refused: the soccer ball has no UV layout yet, so true is rejected with
+        /// unsupported_uv_primitive and nothing is created. Maya's polyPrimitive `-createUVs` takes 0 to 4.
         #[serde(default)]
         create_uvs: bool,
     },
@@ -475,6 +519,41 @@ impl CreateArgs {
                     axis: o.axis.into(),
                 }),
             ),
+            Self::Helix {
+                scene_token,
+                name,
+                options,
+                create_uvs,
+            } => (
+                scene_token,
+                name,
+                create_uvs,
+                Primitive::Helix,
+                options.map(|o| PrimitiveOptions::Helix {
+                    coils: o.coils,
+                    height: o.height,
+                    width: o.width,
+                    radius: o.radius,
+                    sub_axis: o.subdivisions_axis,
+                    sub_coil: o.subdivisions_coil,
+                    axis: o.axis.into(),
+                }),
+            ),
+            Self::SoccerBall {
+                scene_token,
+                name,
+                options,
+                create_uvs,
+            } => (
+                scene_token,
+                name,
+                create_uvs,
+                Primitive::SoccerBall,
+                options.map(|o| PrimitiveOptions::SoccerBall {
+                    side_length: o.side_length,
+                    axis: o.axis.into(),
+                }),
+            ),
         };
         if let Some(options) = &options {
             options
@@ -602,6 +681,24 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(PrismOptions::default()),
+                create_uvs: false,
+            },
+        );
+        check(
+            Primitive::Helix,
+            CreateArgs::Helix {
+                scene_token: t(),
+                name: None,
+                options: Some(HelixOptions::default()),
+                create_uvs: false,
+            },
+        );
+        check(
+            Primitive::SoccerBall,
+            CreateArgs::SoccerBall {
+                scene_token: t(),
+                name: None,
+                options: Some(SoccerBallOptions::default()),
                 create_uvs: false,
             },
         );
