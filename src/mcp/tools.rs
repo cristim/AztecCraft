@@ -968,6 +968,9 @@ mod tests {
                 "edit_node" => json!({"scene_token":token,"node_id":"1"}),
                 "set_pivots" => json!({"scene_token":token,"node_id":"1"}),
                 "reset_pivots" => json!({"scene_token":token,"mode":"zero"}),
+                "reset_transformations" | "freeze_transformations" => {
+                    json!({"scene_token":token})
+                }
                 "parent_node" => json!({"scene_token":token,"node_id":"1","world":true}),
                 "group_selection" | "ungroup_selection" => json!({"scene_token":token}),
                 "set_material_diffuse" => json!({"scene_token":token,"shape_id":"2","value":1.25}),
@@ -1152,6 +1155,8 @@ mod tests {
                     | "set_camera_film_back"
                     | "set_pivots"
                     | "reset_pivots"
+                    | "reset_transformations"
+                    | "freeze_transformations"
                     | "list_camera_bookmarks"
                     | "apply_camera_bookmark"
             );

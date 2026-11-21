@@ -16,5 +16,6 @@ pub(super) mod reduce;
 pub(super) mod rigging;
 pub(super) mod selection;
 pub(super) mod status_line;
+pub(super) mod transform_ops;
 pub(super) mod uv;
 pub(super) mod view;

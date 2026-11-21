@@ -2424,6 +2424,102 @@
     }
   },
   {
+    "name": "reset_transformations",
+    "description": "Modify > Reset Transformations on every selected object, in one undo entry named Reset Transformations: the chosen channels (translate, rotate, scale; all true by default) return to 0, 0 and 1. Children are not compensated and follow their parent. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_transform_edit for no channel, a joint or a keyed object; a Maya ASCII scene is read-only (read_only_format). All or nothing, with the scene and history untouched on any refusal. Match Transformations and the Joint orient, Lock Normals and Preserve Normals options are unsupported (PROVISIONAL: option defaults and shear and rotate-order cases are not compared with Maya)",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_selection_generation": {
+          "default": null,
+          "description": "The `selection_generation` that `inspect_scene` reported. With several objects selected\nthe value is required, and a value that no longer matches the selection is refused.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "rotate": {
+          "default": true,
+          "description": "Include Rotate (default true).",
+          "type": "boolean"
+        },
+        "scale": {
+          "default": true,
+          "description": "Include Scale (default true).",
+          "type": "boolean"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "translate": {
+          "default": true,
+          "description": "Include Translate (default true).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "TransformationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "freeze_transformations",
+    "description": "Modify > Freeze Transformations on every selected object, in one undo entry named Freeze Transformations: the chosen channels (translate, rotate, scale; all true by default) of each selected object and every transform below it are reset to their defaults and pushed into the meshes beneath, so every point keeps its world position. A partial freeze needs translate, XYZ rotate and positive scale; otherwise freeze all three. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_transform_edit for no channel, a joint, a keyed object, an instanced object, non-default pivots or transform extras, a curve below the object, a mirroring (negative) or zero scale, or a partial freeze that cannot be decomposed; a Maya ASCII scene or a sourced scene is refused (read_only_format, unsupported_edit). All or nothing, with the scene and history untouched on any refusal. Normals are derived from the points, so Lock and Preserve Normals and Joint orient are unsupported (PROVISIONAL, not compared with Maya makeIdentity)",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_selection_generation": {
+          "default": null,
+          "description": "The `selection_generation` that `inspect_scene` reported. With several objects selected\nthe value is required, and a value that no longer matches the selection is refused.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "rotate": {
+          "default": true,
+          "description": "Include Rotate (default true).",
+          "type": "boolean"
+        },
+        "scale": {
+          "default": true,
+          "description": "Include Scale (default true).",
+          "type": "boolean"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "translate": {
+          "default": true,
+          "description": "Include Translate (default true).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "TransformationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "extrude_face",
     "description": "Extrude one current canonical quad along its local normal by distance in declared scene units. Requires node, shape and full root-to-shape path; shared-shape edits affect every instance. Zero distance changes topology; imported structural edits remain unsupported. A result whose world geometry leaves the f32 range the viewport draws is refused with world_out_of_range. All or nothing: the scene and undo stack are untouched on any refusal",
     "inputSchema": {
