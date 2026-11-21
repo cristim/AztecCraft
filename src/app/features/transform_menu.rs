@@ -1,6 +1,7 @@
-//! Modify > Reset Transformations and Freeze Transformations on the object selection (#313). The
-//! rows dispatch the same `Operation`s as MCP `reset_transformations` and `freeze_transformations`
-//! with all three channels; the option boxes and Match Transformations are not built, so their
+//! Modify > Reset, Freeze and Match Transformations on the object selection (#313). The rows
+//! dispatch the same `Operation`s as MCP `reset_transformations`, `freeze_transformations` and
+//! `match_transformations` with all three channels (Match: the last selected is the target; Maya's
+//! pages call it the "source", so the naming is inverted); the option boxes are not built, so their
 //! rows are visibly disabled with a reason. Maya's Lock and Preserve Normals and Joint orient
 //! options are unbuilt too (PROVISIONAL; the native mesh stores no normals).
 use crate::app::*;
@@ -8,8 +9,8 @@ use azteccraft::native_scene::TransformChannels;
 
 pub(in crate::app) const RESET_OPTIONS_REASON: &str = "Reset Transformations options are not implemented; all of Translate, Rotate and Scale are reset; see #313";
 pub(in crate::app) const FREEZE_OPTIONS_REASON: &str = "Freeze Transformations options are not implemented; Translate, Rotate and Scale are frozen; Joint orient, Lock Normals and Preserve Normals are unbuilt; see #313";
-pub(in crate::app) const MATCH_TRANSFORMATIONS_REASON: &str =
-    "Match Transformations is not implemented yet; see #313";
+pub(in crate::app) const MATCH_OPTIONS_REASON: &str = "Match Transformations options are not implemented; Translate, Rotate and Scale are matched in world space (PROVISIONAL); Match Pivots and bounding box sizes are unbuilt; see #313";
+const MATCH_NEEDS_TWO: &str = "Select at least two objects; the last selected is the target";
 
 impl Editor {
     pub(in crate::app) fn native_reset_transformations(&mut self) {
@@ -42,9 +43,23 @@ impl Editor {
             ),
             None if self.selection.is_empty() => "Select an object first".to_owned(),
             None => {
-                "Joints cannot be reset or frozen here (unsupported); deselect the joint".to_owned()
+                "Joints cannot be reset, frozen or matched here (unsupported); deselect the joint"
+                    .to_owned()
             }
         })
+    }
+
+    pub(in crate::app) fn native_match_transformations(&mut self) {
+        self.native_operation(Operation::MatchTransformations {
+            channels: TransformChannels::ALL,
+            expected_selection_generation: None,
+        });
+    }
+
+    /// Why the Match row is disabled: the Reset and Freeze reasons, plus one object is not enough.
+    fn match_row_reason(&self, read_only: Option<&str>) -> Option<String> {
+        self.transform_rows_reason(read_only)
+            .or_else(|| (self.selection.len() < 2).then(|| MATCH_NEEDS_TWO.to_owned()))
     }
 
     pub(in crate::app) fn modify_menu(&mut self, ui: &mut egui::Ui, read_only: Option<&str>) {
@@ -94,14 +109,40 @@ impl Editor {
                     }
                 }
             }
-            let row = ui
-                .add_enabled(false, egui::Button::new("Match Transformations"))
-                .on_disabled_hover_text(MATCH_TRANSFORMATIONS_REASON);
-            features::primitive_options::describe_unavailable(
-                ui.ctx(),
-                row.id,
-                MATCH_TRANSFORMATIONS_REASON,
-            );
+            let reason = self.match_row_reason(read_only);
+            let clicked = ui
+                .horizontal(|ui| {
+                    let row = ui
+                        .add_enabled(reason.is_none(), egui::Button::new("Match Transformations"));
+                    let row = match &reason {
+                        Some(reason) => {
+                            features::primitive_options::describe_unavailable(
+                                ui.ctx(),
+                                row.id,
+                                reason,
+                            );
+                            row.on_disabled_hover_text(reason)
+                        }
+                        None => row,
+                    };
+                    let option_box = features::primitive_options::option_box(
+                        ui,
+                        "Match Transformations option box",
+                        false,
+                        Some(MATCH_OPTIONS_REASON),
+                    );
+                    features::primitive_options::describe_unavailable(
+                        ui.ctx(),
+                        option_box.id,
+                        MATCH_OPTIONS_REASON,
+                    );
+                    row.clicked()
+                })
+                .inner;
+            if clicked {
+                ui.close();
+                self.native_match_transformations();
+            }
         });
     }
 }
