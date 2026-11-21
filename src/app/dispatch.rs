@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(any(test, feature = "mcp"))]
+use crate::editor_operations::NameScope;
 use crate::editor_operations::{
     ComponentKind, ComponentMoveSpace, MAX_COMPONENT_INDICES, MAX_MOVED_VERTICES,
 };
@@ -619,6 +621,17 @@ impl Editor {
                 "Reset, Freeze and Match Transformations on {noun} selection are unsupported; switch to Object or Hierarchy selection"
             )));
         }
+        #[cfg(any(test, feature = "mcp"))]
+        if let Some(noun) = self.selection_mode.component_noun()
+            && matches!(
+                operation,
+                Operation::PrefixHierarchyNames { .. } | Operation::SearchReplaceNames { .. }
+            )
+        {
+            return Err(OperationError::InvalidInput(format!(
+                "Prefix Hierarchy Names and Search and Replace Names on {noun} selection are unsupported; switch to Object or Hierarchy selection"
+            )));
+        }
         self.guard_move_dispatch(&operation, provenance)?;
         if self.files.is_closing() {
             return Err(OperationError::BusyEditing);
@@ -775,6 +788,8 @@ impl Editor {
             && matches!(
                 operation,
                 Operation::Rename { .. }
+                    | Operation::PrefixHierarchyNames { .. }
+                    | Operation::SearchReplaceNames { .. }
                     | Operation::SetTransform { .. }
                     | Operation::EditNode { .. }
                     | Operation::Reparent { .. }
@@ -1338,6 +1353,41 @@ impl Editor {
                 let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
                 Command::FreezeTransformations { ids, channels }
             }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::PrefixHierarchyNames {
+                prefix,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::PrefixHierarchyNames { ids, prefix }
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::SearchReplaceNames {
+                scope,
+                search,
+                replace,
+                match_case,
+                expected_selection_generation,
+            } => {
+                let ids = if scope == NameScope::All {
+                    self.check_generation(expected_selection_generation)?;
+                    self.history
+                        .scene()
+                        .nodes()
+                        .iter()
+                        .map(|n| n.id())
+                        .collect()
+                } else {
+                    self.selected_object_ids(expected_selection_generation, provenance)?
+                };
+                Command::SearchReplaceNames {
+                    ids,
+                    hierarchy: scope == NameScope::Hierarchy,
+                    search,
+                    replace,
+                    match_case,
+                }
+            }
             Operation::MatchTransformations {
                 channels,
                 expected_selection_generation,
@@ -1796,6 +1846,10 @@ impl Editor {
                 | Command::FreezeTransformations { .. }
                 | Command::MatchTransformations { .. }
         );
+        let naming_command = matches!(
+            command,
+            Command::PrefixHierarchyNames { .. } | Command::SearchReplaceNames { .. }
+        );
         let key_command = matches!(
             command,
             Command::SetKeys { .. }
@@ -1820,6 +1874,9 @@ impl Editor {
             if transform_command && error != azteccraft::native_scene::NativeError::BusyManipulation
             {
                 return OperationError::Transform(error);
+            }
+            if naming_command && error != azteccraft::native_scene::NativeError::BusyManipulation {
+                return OperationError::Naming(error);
             }
             if reparent_command && error != azteccraft::native_scene::NativeError::BusyManipulation
             {

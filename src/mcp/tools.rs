@@ -134,6 +134,15 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     NativeError::NonFinite => "invalid_input",
                     _ => "scene_error",
                 },
+                OperationError::Naming(error) => match error {
+                    NativeError::ReadOnlyFormat => "read_only_format",
+                    NativeError::UnsupportedEdit => "unsupported_edit",
+                    NativeError::InvalidNameEdit(_) => "invalid_name_edit",
+                    NativeError::InvalidName => "invalid_name",
+                    NativeError::NameCollision => "name_collision",
+                    NativeError::ResourceLimit => "resource_limit",
+                    _ => "scene_error",
+                },
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {

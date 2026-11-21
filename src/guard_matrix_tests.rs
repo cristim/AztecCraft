@@ -12,7 +12,7 @@
 use super::*;
 use crate::editor_operations::{
     ComponentKind, ComponentMoveSpace, FileDecision, ManipulationSpace, ManipulationValue,
-    MarqueeMode, MoveDistance, PlayblastRequest, RemoteRequest, SelectRule, ToolHandle,
+    MarqueeMode, MoveDistance, NameScope, PlayblastRequest, RemoteRequest, SelectRule, ToolHandle,
     TransformInput,
 };
 use azteccraft::history::{Command, UndoQueue};
@@ -1075,6 +1075,17 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::MatchTransformations {
             channels: TransformChannels::ALL,
+            expected_selection_generation: None,
+        },
+        Operation::PrefixHierarchyNames {
+            prefix: "pre_".into(),
+            expected_selection_generation: None,
+        },
+        Operation::SearchReplaceNames {
+            scope: NameScope::Selected,
+            search: "Cube".into(),
+            replace: "Box".into(),
+            match_case: true,
             expected_selection_generation: None,
         },
         // Differs from the rig's default camera so a Changed outcome is observable.
@@ -2645,6 +2656,71 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     "match_transformations(face_mode)",
                     Operation::MatchTransformations {
                         channels: TransformChannels::ALL,
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
+        Operation::PrefixHierarchyNames { .. } => vec![
+            sample(
+                "prefix_hierarchy_names(single)",
+                Operation::PrefixHierarchyNames {
+                    prefix: "pre_".into(),
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "prefix_hierarchy_names(multi)",
+                    Operation::PrefixHierarchyNames {
+                        prefix: "pre_".into(),
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "prefix_hierarchy_names(face_mode)",
+                    Operation::PrefixHierarchyNames {
+                        prefix: "pre_".into(),
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
+        Operation::SearchReplaceNames { .. } => vec![
+            sample(
+                "search_replace_names(selected)",
+                Operation::SearchReplaceNames {
+                    scope: NameScope::Selected,
+                    search: "Cube".into(),
+                    replace: "Box".into(),
+                    match_case: true,
+                    expected_selection_generation: None,
+                },
+            ),
+            sample(
+                "search_replace_names(all)",
+                Operation::SearchReplaceNames {
+                    scope: NameScope::All,
+                    search: "Cube".into(),
+                    replace: "Box".into(),
+                    match_case: true,
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "search_replace_names(face_mode)",
+                    Operation::SearchReplaceNames {
+                        scope: NameScope::Hierarchy,
+                        search: "Cube".into(),
+                        replace: "Box".into(),
+                        match_case: true,
                         expected_selection_generation: None,
                     },
                 )

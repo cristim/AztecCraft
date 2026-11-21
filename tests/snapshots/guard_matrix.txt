@@ -247,6 +247,12 @@
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
   match_transformations(multi) => Ok(changed) | scene changed
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
+  prefix_hierarchy_names(multi) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; selection_rest: pPlane1@1 -> pre_pPlane1@1; name_field: "pCube1" -> "pre_pCube1"
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(all) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -498,6 +504,12 @@
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
   match_transformations(multi) => Ok(changed) | scene changed
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
+  prefix_hierarchy_names(multi) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; selection_rest: pPlane1@1 -> pre_pPlane1@1; name_field: "pCube1" -> "pre_pCube1"
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(all) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -732,6 +744,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -966,6 +983,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1200,6 +1222,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -1434,6 +1461,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1668,6 +1700,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  search_replace_names(all) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -1902,6 +1939,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  search_replace_names(all) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -2136,6 +2178,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_image_plane(valid) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2370,6 +2417,11 @@
   freeze_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  prefix_hierarchy_names(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(selected) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_image_plane(valid) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2604,6 +2656,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_image_plane(valid) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2838,6 +2895,11 @@
   freeze_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  prefix_hierarchy_names(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(selected) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  search_replace_names(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_image_plane(valid) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -3072,6 +3134,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  search_replace_names(all) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_camera_film_back => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_image_plane(valid) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -3306,6 +3373,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3541,6 +3613,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  search_replace_names(all) => Err(Naming: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_camera_film_back => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_image_plane(valid) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; image_plane: none -> 2x2
@@ -3776,6 +3853,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4010,6 +4092,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(all) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_film_back => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_image_plane(valid) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; image_plane: none -> 2x2
@@ -4244,6 +4331,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4478,6 +4570,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(all) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_film_back => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_image_plane(valid) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; image_plane: none -> 2x2
@@ -4712,6 +4809,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4946,6 +5048,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(all) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -5180,6 +5287,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5414,6 +5526,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(all) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -5648,6 +5765,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5882,6 +6004,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6123,6 +6250,12 @@
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6357,6 +6490,11 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6591,6 +6729,11 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6825,6 +6968,11 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7059,6 +7207,11 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7293,6 +7446,11 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7527,6 +7685,11 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  search_replace_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7761,6 +7924,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
+  search_replace_names(all) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -7995,6 +8163,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
+  search_replace_names(all) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -8230,6 +8403,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(all) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -8465,6 +8643,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(all) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -8700,6 +8883,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(all) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -8935,6 +9123,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(all) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -9276,6 +9469,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(all) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -9511,6 +9709,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(all) => Err(Naming: native ownership or edit effects are unsupported) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -9746,6 +9949,11 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -9981,6 +10189,11 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  search_replace_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -9988,4 +10201,4 @@
   set_image_plane(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   remove_image_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 9375
+cells: 9588

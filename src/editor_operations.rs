@@ -48,6 +48,17 @@ pub enum AttributeEditorTab {
     Material(NativeId),
 }
 
+/// Which names `Operation::SearchReplaceNames` edits, after Maya's Search and Replace Names
+/// scopes: the selected objects, the selection with everything below it, or every object.
+#[cfg(any(test, feature = "mcp"))]
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NameScope {
+    Selected,
+    Hierarchy,
+    All,
+}
+
 /// Which objects `Operation::SelectByRule` selects, after Maya's Select menu rows. All selects
 /// every transform instance, Hierarchy adds the descendants of the selection (the lead stays the
 /// lead) and Inverse swaps selected and unselected. In Hierarchy selection mode All and Inverse
@@ -803,6 +814,27 @@ pub enum Operation {
     /// the last selected is the "target", so the naming is inverted (no behavior change).
     MatchTransformations {
         channels: TransformChannels,
+        expected_selection_generation: Option<u64>,
+    },
+    /// Modify > Prefix Hierarchy Names on the object selection: `prefix` is prepended to the name
+    /// of every selected object and of every transform below it (each once), as one "Prefix
+    /// Hierarchy Names" undo step. Object and Hierarchy modes only.
+    #[cfg(any(test, feature = "mcp"))]
+    #[cfg_attr(not(test), allow(dead_code))]
+    PrefixHierarchyNames {
+        prefix: String,
+        expected_selection_generation: Option<u64>,
+    },
+    /// Modify > Search and Replace Names: every occurrence of `search` in the names of the
+    /// scope's objects becomes `replace`, as one "Search and Replace Names" undo step. `All`
+    /// needs no selection. Object and Hierarchy modes only.
+    #[cfg(any(test, feature = "mcp"))]
+    #[cfg_attr(not(test), allow(dead_code))]
+    SearchReplaceNames {
+        scope: NameScope,
+        search: String,
+        replace: String,
+        match_case: bool,
         expected_selection_generation: Option<u64>,
     },
     /// Edit > Group on the object selection: the top-most selected objects become the children
@@ -1843,6 +1875,8 @@ pub enum OperationError {
     Reparent(NativeError),
     /// A reset or freeze the core refused; the MCP layer reports a typed code.
     Transform(NativeError),
+    /// A prefix or search and replace of names the core refused; the MCP layer reports a typed code.
+    Naming(NativeError),
     NoSelection,
     /// Edit > Repeat with no repeatable operation recorded in this session.
     NothingToRepeat,
@@ -2001,7 +2035,7 @@ impl fmt::Display for OperationError {
             Self::Keys(refusal) => refusal.native().fmt(f),
             Self::Pivot(error) => error.fmt(f),
             Self::Reparent(error) => error.fmt(f),
-            Self::Transform(error) => error.fmt(f),
+            Self::Transform(error) | Self::Naming(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face first"),
             Self::NothingToRepeat => f.write_str("No repeatable command yet"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
