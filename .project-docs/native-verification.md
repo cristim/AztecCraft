@@ -377,3 +377,9 @@ disabled option box, choose an `.obj` file in the panel, look at the selected im
 objects and undo them. The same applies to File > Export All and Export Selection (default
 name `untitled.obj`, `.obj` appended, occupied destination refused). The step list lives in
 `known-issues.md`; nothing here is a Maya comparison.
+
+## Linux X11 UI scaling (#410)
+
+Ran the [Linux x86_64 CI archive](https://github.com/cristim/AztecCraft/actions/runs/44890134828) built at `927fcc5d869d65a2412c53e2b0886d10a73fac47` on Omarchy 4.5.0, kernel 7.2.15, with an isolated 2560 x 1800 Xvfb display. Set winit's `WINIT_X11_SCALE_FACTOR` for each launch. Window sizes were 1440 x 900, 2160 x 1350 and 2560 x 1800 at 100%, 150% and 200%, respectively. At 200% the display limited the physical window width. The Cube button's visible outline was approximately 72, 108 and 144 pixels wide.
+
+At each scale, the menu bar, shelf labels and original glyphs were readable in the captured window. Clicking the scaled Cube button created a synthetic `pCube1`, shown in the Outliner or Channel Box. Screenshots were reviewed locally. This covers startup X11 scaling at the stated resolution. Fractional Wayland, macOS Retina, Windows, live scale changes and a persisted preference remain open.
