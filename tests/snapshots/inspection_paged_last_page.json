@@ -186,6 +186,15 @@
       "truncated": false
     },
     "pending_action": null,
+    "playblast": {
+      "directory_name": null,
+      "frames_done": 0,
+      "frames_total": 0,
+      "height": 0,
+      "last_error": null,
+      "state": "idle",
+      "width": 0
+    },
     "read_only_reason": null,
     "redo_label": null,
     "references": [],

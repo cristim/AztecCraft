@@ -1164,6 +1164,7 @@ pub struct SceneInspection {
     pub status_message: Option<String>,
     pub camera: CameraInspection,
     pub timeline: TimelineInspection,
+    pub playblast: PlayblastInspection,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<PageInspection>,
 }
@@ -1180,6 +1181,20 @@ pub struct TimelineInspection {
     #[serde(rename = "loop")]
     pub loop_mode: &'static str,
     pub key_count: usize,
+}
+
+/// The playblast job, of a fixed size. `state` is idle, running, finished, failed or cancelled;
+/// only the final component of the output directory is named, never its path.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct PlayblastInspection {
+    pub state: &'static str,
+    pub frames_done: u32,
+    pub frames_total: u32,
+    pub width: u32,
+    pub height: u32,
+    pub directory_name: Option<String>,
+    pub last_error: Option<String>,
 }
 
 /// Most keys in one `inspect_keys` reply. A key takes at most about 110 bytes of JSON, so a page
@@ -2068,7 +2083,9 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"film_back":null,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
     r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
-    r#""frames_per_second":0.0,"loop":"","key_count":0}}"#
+    r#""frames_per_second":0.0,"loop":"","key_count":0},"#,
+    r#""playblast":{"state":"","frames_done":0,"frames_total":0,"width":0,"height":0,"#,
+    r#""directory_name":null,"last_error":null}}"#
 );
 
 /// Guaranteed lower bound of the serialized `SceneInspection` for the scene alone: the fixed part

@@ -719,6 +719,7 @@ impl Editor {
                 },
             },
             timeline: self.inspect_timeline(),
+            playblast: self.inspect_playblast(),
         })
     }
 }

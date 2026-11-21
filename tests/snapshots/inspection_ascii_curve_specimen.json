@@ -194,6 +194,15 @@
       }
     ],
     "pending_action": null,
+    "playblast": {
+      "directory_name": null,
+      "frames_done": 0,
+      "frames_total": 0,
+      "height": 0,
+      "last_error": null,
+      "state": "idle",
+      "width": 0
+    },
     "read_only_reason": "Maya ASCII scenes are read-only in this version",
     "redo_label": null,
     "references": [],
