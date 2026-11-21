@@ -8,7 +8,7 @@ use std::fmt;
 use std::path::Path;
 
 use super::decode::{PlateError, probe_file};
-use super::model::{ImagePlane, ImagePlaneEdit, ImagePlaneError, PlateChange};
+use super::model::{Coverage, ImagePlane, ImagePlaneEdit, ImagePlaneError, PlateChange};
 
 /// The file-tool path rule (`mcp.md`): 1 to 4096 UTF-8 bytes, no NUL.
 pub const MAX_IMAGE_NAME_BYTES: usize = 4096;
@@ -26,6 +26,8 @@ pub struct ImagePlaneState {
 pub enum ImagePlaneOpError {
     /// An edit that names no field.
     EmptyEdit,
+    /// `coverage` and `coverage_parts` in one edit.
+    CoverageConflict,
     NameNotUtf8,
     NameHasNul,
     NameLength,
@@ -39,6 +41,9 @@ impl fmt::Display for ImagePlaneOpError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EmptyEdit => f.write_str("name at least one image plane field to set"),
+            Self::CoverageConflict => {
+                f.write_str("name a whole coverage or some of its numbers, not both")
+            }
             Self::NameNotUtf8 => f.write_str("image_name must be valid UTF-8"),
             Self::NameHasNul => f.write_str("image_name must not contain a NUL character"),
             Self::NameLength => write!(
@@ -104,6 +109,9 @@ pub fn set_image_plane(
     if let Some(name) = &edit.image_name {
         check_image_name(name)?;
     }
+    if !edit.coverage_parts.is_empty() && edit.coverage.is_some() {
+        return Err(ImagePlaneOpError::CoverageConflict);
+    }
     match state {
         None => {
             let name = edit
@@ -112,7 +120,8 @@ pub fn set_image_plane(
                 .ok_or(ImagePlaneError::ImageNameMissing)?;
             let info = probe_file(name)?;
             let image_size = (info.width, info.height);
-            let plane = ImagePlane::create(edit, image_size)?;
+            let edit = merge_coverage(edit, None, image_size);
+            let plane = ImagePlane::create(&edit, image_size)?;
             *state = Some(ImagePlaneState { plane, image_size });
             Ok(PlateChange::Changed)
         }
@@ -129,13 +138,41 @@ pub fn set_image_plane(
                 None => current.image_size,
             };
             let mut plane = current.plane.clone();
-            let change = plane.apply(edit, image_size)?;
+            let edit = merge_coverage(edit, current.plane.coverage, image_size);
+            let change = plane.apply(&edit, image_size)?;
             if change == PlateChange::Changed {
                 *current = ImagePlaneState { plane, image_size };
             }
             Ok(change)
         }
     }
+}
+
+/// Turns `coverage_parts` into a whole coverage: the stored coverage (or the full image when none
+/// is stored) with the named numbers replaced. The model then checks the result against the image.
+fn merge_coverage(
+    edit: &ImagePlaneEdit,
+    stored: Option<Coverage>,
+    image_size: (u32, u32),
+) -> ImagePlaneEdit {
+    let parts = edit.coverage_parts;
+    let mut merged = edit.clone();
+    merged.coverage_parts = Default::default();
+    if !parts.is_empty() {
+        let base = stored.unwrap_or(Coverage {
+            origin_x: 0,
+            origin_y: 0,
+            width: image_size.0,
+            height: image_size.1,
+        });
+        merged.coverage = Some(Some(Coverage {
+            origin_x: parts.origin_x.unwrap_or(base.origin_x),
+            origin_y: parts.origin_y.unwrap_or(base.origin_y),
+            width: parts.width.unwrap_or(base.width),
+            height: parts.height.unwrap_or(base.height),
+        }));
+    }
+    merged
 }
 
 /// Removes the plane; Unchanged when there was none.

@@ -955,10 +955,10 @@ pub enum Operation {
     /// reads the first frame's header (at most 1 MiB); PROVISIONAL: the same name again is
     /// Unchanged and does not reload the file (remove the plane or change the name to reload).
     /// Unchanged is judged numerically; an empty edit is refused.
-    #[cfg_attr(not(test), allow(dead_code))] // P6a (the MCP tool) is the first non-test caller
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     SetImagePlane(ImagePlaneEdit),
     /// Removes the image plane; Unchanged when there is none.
-    #[cfg_attr(not(test), allow(dead_code))] // P6a (the MCP tool) is the first non-test caller
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     RemoveImagePlane,
 }
 

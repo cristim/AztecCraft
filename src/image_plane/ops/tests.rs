@@ -6,7 +6,9 @@ use super::{
     set_image_plane,
 };
 use crate::image_plane::decode::{MAX_PLATE_FILE_BYTES, PlateError, PlateFormat};
-use crate::image_plane::model::{Coverage, ImagePlaneEdit, ImagePlaneError, PlateChange, PlateFit};
+use crate::image_plane::model::{
+    Coverage, CoverageParts, ImagePlaneEdit, ImagePlaneError, PlateChange, PlateFit,
+};
 
 fn write_png(dir: &Path, name: &str, width: u32, height: u32) -> PathBuf {
     let path = dir.join(name);
@@ -340,4 +342,76 @@ fn error_text_never_contains_a_path_for_any_variant() {
     ] {
         assert!(!error.to_string().contains('/'), "{error}");
     }
+}
+
+fn parts(
+    origin_x: Option<u32>,
+    origin_y: Option<u32>,
+    width: Option<u32>,
+    height: Option<u32>,
+) -> ImagePlaneEdit {
+    ImagePlaneEdit {
+        coverage_parts: CoverageParts {
+            origin_x,
+            origin_y,
+            width,
+            height,
+        },
+        ..ImagePlaneEdit::default()
+    }
+}
+
+#[test]
+fn partial_coverage_merges_with_the_full_image_when_none_is_stored_and_with_the_stored_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut state, _) = with_plane(dir.path()); // 4 x 2
+    // None stored: the full image (0, 0, 4, 2) with the width replaced.
+    assert_eq!(
+        set_image_plane(&mut state, &parts(None, None, Some(2), None)),
+        Ok(PlateChange::Changed)
+    );
+    let c = state.as_ref().unwrap().plane.coverage.unwrap();
+    assert_eq!((c.origin_x, c.origin_y, c.width, c.height), (0, 0, 2, 2));
+    // Stored: only the named numbers move.
+    set_image_plane(&mut state, &parts(Some(2), None, None, Some(1))).unwrap();
+    let c = state.as_ref().unwrap().plane.coverage.unwrap();
+    assert_eq!((c.origin_x, c.origin_y, c.width, c.height), (2, 0, 2, 1));
+    // The same numbers again are Unchanged.
+    assert_eq!(
+        set_image_plane(&mut state, &parts(Some(2), None, None, None)),
+        Ok(PlateChange::Unchanged)
+    );
+}
+
+#[test]
+fn a_partial_coverage_outside_the_image_is_refused_and_changes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut state, _) = with_plane(dir.path());
+    let before = state.clone();
+    for edit in [
+        parts(Some(1), None, None, None),
+        parts(None, None, Some(5), None),
+        parts(None, Some(1), None, None),
+        parts(None, None, Some(0), None),
+    ] {
+        assert!(matches!(
+            set_image_plane(&mut state, &edit),
+            Err(ImagePlaneOpError::Model(_))
+        ));
+        assert_eq!(state, before);
+    }
+}
+
+#[test]
+fn a_whole_coverage_and_its_parts_in_one_edit_conflict() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut state, _) = with_plane(dir.path());
+    let before = state.clone();
+    let mut edit = parts(None, None, Some(2), None);
+    edit.coverage = Some(None);
+    assert_eq!(
+        set_image_plane(&mut state, &edit),
+        Err(ImagePlaneOpError::CoverageConflict)
+    );
+    assert_eq!(state, before);
 }
