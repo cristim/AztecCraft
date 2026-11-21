@@ -172,10 +172,10 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   The native entry point first resolves one object with one direct shape and refuses otherwise before dispatch
   (status line only, no operation). Matrix cells are the existing `assign_session_material(...)` ones.
 - Native session-material colour edits are a draft (`SessionColorDraft`: three R/G/B fields in the material tab). Typing commits nothing;
-  Enter, focus leaving the three fields or `commit_pending` runs one `Command::SetSessionMaterialColor` directly through history (the Diffuse arm's route, so
+  Enter, the end of a slider drag, focus leaving the fields or `commit_pending` runs one `Command::SetSessionMaterialColor` directly through history (the Diffuse arm's route, so
   it cannot re-enter `commit_pending`), refusing when the document, the material id or the colour changed since the draft began.
   `has_draft` includes it, so remote `SetSessionMaterialColor` and the other draft-guarded operations return `BusyEditing` and keep it.
-  Tab between the fields keeps the draft; Enter or focus leaving all three commits them as one step. Material 0 gets no draft (fields
+  Tab between the fields keeps the draft; Enter, the end of a slider drag or focus leaving all six controls commits them as one step. Material 0 gets no draft (fields
   disabled, reason as hover text); a sourced scene shows the Phong section, so no colour fields exist, and the draft constructor refuses it
   with the core reason. Matrix cells are the existing
   `set_session_material_color(...)` ones, unchanged.

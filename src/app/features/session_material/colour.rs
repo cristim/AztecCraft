@@ -143,6 +143,15 @@ impl Editor {
         let mut focused = false;
         let mut reverted = false;
         let mut touched = false;
+        let fallback = self
+            .session_color_draft
+            .as_ref()
+            .map_or([0.0; 3], |draft| draft.original);
+        let gesture_open = self
+            .session_color_draft
+            .as_ref()
+            .is_some_and(SessionColorDraft::changed);
+        let pointer_down = ui.input(|input| input.pointer.any_down());
         ui.add_enabled_ui(editable && self.session_color_draft.is_some(), |ui| {
             {
                 for (index, name) in ["Red", "Green", "Blue"].into_iter().enumerate() {
@@ -167,6 +176,47 @@ impl Editor {
                     if response.has_focus() || response.lost_focus() {
                         reverted |= ui.input(|input| input.key_pressed(Key::Escape));
                     }
+                    // The slider edits the same draft text. egui clamps the shown value itself and
+                    // reports a change only for a user gesture, so out-of-range text is kept,
+                    // and a whole gesture is one history step (commit when it ends).
+                    let mut value = text[index]
+                        .trim()
+                        .parse::<f64>()
+                        .ok()
+                        .filter(|value| value.is_finite())
+                        .unwrap_or(fallback[index]);
+                    ui.spacing_mut().slider_width = 48.0;
+                    let slider = ui.add(
+                        egui::Slider::new(&mut value, 0.0..=1.0)
+                            .show_value(false)
+                            .step_by(0.0),
+                    );
+                    let slider = match &reason {
+                        Some(reason) => slider.on_disabled_hover_text(reason),
+                        None => slider,
+                    };
+                    let slider_label = format!("{name} slider");
+                    slider.widget_info(|| {
+                        egui::WidgetInfo::slider(true, value, slider_label.as_str())
+                    });
+                    // Esc reverts, also in the middle of a drag (egui then ends the drag and the
+                    // slider has lost focus, so the open gesture is detected from the button).
+                    let escaped = ui.input(|input| input.key_pressed(Key::Escape))
+                        && (slider.has_focus()
+                            || slider.lost_focus()
+                            || (pointer_down && gesture_open));
+                    if escaped {
+                        reverted = true;
+                    } else if slider.changed() {
+                        text[index] = channel_text(value);
+                        touched = true;
+                    }
+                    apply |= slider.drag_stopped();
+                    if slider.has_focus() {
+                        apply |= ui.input(|input| input.key_pressed(Key::Enter));
+                    }
+                    blurred |= slider.lost_focus();
+                    focused |= slider.has_focus();
                 }
             }
         });
