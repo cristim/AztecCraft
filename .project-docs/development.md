@@ -620,7 +620,7 @@ recovery, autosave, history and camera persistence remain pending.
 index offsets and winding reversed for reflected transforms. Object names use
 UTF-8 percent encoding to avoid whitespace/directive injection. Export is staged
 to a new destination through `craft-atomic` and preserves occupied paths. It
-exports geometry only, without UVs, normals or materials. File > Export All and
+exports geometry and per-corner UVs (`vt`, `f v/vt`), without normals or materials. File > Export All and
 Export Selection and MCP `export_obj` use the native-scene writer `obj::export_native_new`.
 OBJ import is `obj::import` (see `plan.md` and `known-issues.md`).
 

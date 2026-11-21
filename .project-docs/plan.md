@@ -9,7 +9,7 @@ Navigation and API-catalog evidence from the Maya 2027.2 documentation is in the
 Final objective: a Maya-identical Rust desktop application. Work in incremental commits. Historically the user required verified 80–90% coverage of **all Maya 2026 functionality, including simulation, rendering, scripting, and plugin compatibility** before the first GitHub push. The subsequent explicit instruction to push/merge to `main` supersedes that first-push restriction and authorizes early prototype publication. The full-functionality target and exact parity remain unmet acceptance requirements. Expand and pin the complete workflow inventory before reporting any percentage, without redefining it as a small modeling subset.
 
 The integrated prototype contains scene edits, command history, validated JSON
-documents, geometry-only OBJ export, native shell and projected viewport.
+documents, OBJ export (geometry and UVs), native shell and projected viewport.
 New/Open/Save As and File > Export All / Export Selection (OBJ) are connected to the UI.
 Native file-dialog interaction, cross-platform packaging and Maya reference
 comparison still need verification. The numbered tasks below retain the original
@@ -84,21 +84,25 @@ summarising fetch, so a reviewer should open them before the PROVISIONAL list is
 Slice: File > Import... reads an OBJ and adds one root transform plus one mesh shape per `o` or
 `g` group (Multiple Objects semantics), in one undo step, through `Operation::ImportObj` shared
 with MCP `import_obj`. Accepted: `v`, `f` with 3 or more corners (all index forms, negative
-indices), `o`, `g`, comments. Recognised and dropped, counted: normals, UVs, materials and other
-non-geometry records. Refused with a typed error, never silently lost: free-form geometry, unknown
-keywords, overlapping groups, bad indices, degenerate faces, non-finite or oversized numbers, files
-with no face, and anything the viewport would refuse to display (concave or holed faces with 5 or
+indices), `o`, `g`, `vt` (an object keeps UVs only when every corner has one; reply counts
+`uv_objects` and `uv_dropped_objects`), comments. Recognised and dropped, counted: normals,
+materials and other non-geometry records. Refused with a typed error, never silently lost:
+free-form geometry, unknown keywords, overlapping groups, bad indices, degenerate faces,
+non-finite or oversized numbers, files with no face, and anything the viewport would refuse to display (concave or holed faces with 5 or
 more corners). Import into an opened `.mb` or `.ma` is refused, as Create is.
 
 PROVISIONAL (no page states them; each is pinned by a named test and listed in `known-issues.md`):
-units of OBJ numbers; normals, UV and `.mtl` handling; negative indices; triangles and n-gons;
+units of OBJ numbers; normals and `.mtl` handling, the all-corners-or-none UV rule; negative
+indices; triangles and n-gons;
 object naming and clash suffixes; face winding; unused vertices; whether the imported nodes are
 selected afterwards; the undo label "Import"; the Multiple/Single default; coordinate and size
 limits (`MAX_*` in `src/obj/import.rs`, rows in "Application policy constants"). Out of slice:
-the option box, Group, Single Object with sets, UV/normal/material import, other formats.
+the option box, Group, Single Object with sets, normal/material import, other formats.
 
-Status: implemented for #22's first slice (reader, scene import, history command, File > Import...,
-MCP `import_obj`, round-trip tests). INT-016 is Partial and the option box is INT-040 (Missing).
+Status: implemented for #22 (reader, scene import with UVs, history command, File > Import...,
+MCP `import_obj`, UV export and import, round-trip tests). The native file-panel check (T7) is
+pending: see the checklist in `known-issues.md`, "OBJ import is a first slice". INT-016 is
+Partial and the option box is INT-040 (Missing); its follow-up issue is opened at T7.
 
 ## Verification and review
 

@@ -15,7 +15,7 @@ Fixtures: synthetic scenes created in the running window; no private assets.
 | File → Open | Worked (native panel) |
 | File → Save | Disabled, as expected at `bcc0cc1`: Save needed a scene opened from Maya Binary on Unix, and this run used only scenes created in the window (#156). Saving an opened `.mb` was not exercised. |
 | File → Save As | Disabled for the same reason. Save As for a new scene arrived later in #242 and is not covered by this record. |
-| File → Export | Disabled (as documented; GUI Export still disabled) |
+| File → Export | Disabled at that commit (GUI Export did not exist yet; it has since been added, see Remaining verification) |
 | File → Close | Worked |
 | Edit → Undo / Redo / Delete | Worked |
 | Create: Cube / Plane / Sphere / Cylinder / Cone | All worked |
@@ -181,7 +181,7 @@ complement the automated core and UI-event tests with native application evidenc
 
 - Windows and Linux native interaction and package launch checks remain pending.
 - Full interactive file-panel navigation remains pending.
-- GUI OBJ Export now exists, but no native export journey has been recorded; it remains pending.
+- GUI OBJ Export and Import exist with UV support, but no native journey has been recorded for either file panel; the checklist is in `known-issues.md` ("OBJ import is a first slice", #22 T7).
 - New icon work and subsequent modeling/MCP changes need verification against their own builds.
 - Maya reference comparison, the complete functionality denominator and the original 80–90% full-functionality target remain unfulfilled. Overall Maya coverage is unmeasured.
 
@@ -365,7 +365,7 @@ screenshots are not committed.
 | --- | --- |
 | IME composition, macOS text shortcuts (Cmd+A/C/V/Z in the name heading) and VoiceOver reading of the Channel Box heading and stubs | pending (needs a human) |
 
-## File > Import as OBJ (#22): native check pending
+## File > Import as OBJ and Export (#22): native check pending
 
 At the commit that adds File > Import..., the entry is covered by a headless frame test
 (`the_file_menu_lists_import_before_export_and_run_import_dispatches_the_operation`: the
@@ -374,4 +374,6 @@ the status line) and the operation by actual Editor protocol tests. It has not b
 in a native window: no native window was launched, the file panel was not opened and no
 imported object was seen on screen. A native check would open the File menu, hover the
 disabled option box, choose an `.obj` file in the panel, look at the selected imported
-objects and undo them. This is not a Maya comparison.
+objects and undo them. The same applies to File > Export All and Export Selection (default
+name `untitled.obj`, `.obj` appended, occupied destination refused). The step list lives in
+`known-issues.md`; nothing here is a Maya comparison.

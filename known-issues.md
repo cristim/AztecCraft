@@ -129,8 +129,29 @@ parity with Maya is claimed and nothing was compared with Maya's OBJ reader (#5)
   coordinates up to 1e12 (rows 34 to 42 of the policy table in `.project-docs/development.md`).
 - **Cleanup.** The 256 MiB view budget now has one definition (`VIEW_BUDGET`); test-only copies in
   `src/viewport_renderer/tests.rs` remain.
-- **Not natively verified.** The File menu entry is covered by a headless frame test and the
-  operation by Editor protocol tests; the file panel was not exercised in a native window.
+- **UV round trip.** Export then import keeps every corner's UV bit for bit in f32 (cube, plane,
+  sphere, transformed, mirrored and cone scenes, mixed UV states, Undo and Redo), checked against the
+  source scene as well as the written file: `tests/obj_import_roundtrip.rs` (`mod uv`) and
+  `sdk_uv_round_trip_through_export_obj_import_obj_inspect_uvs_and_undo`. This is AztecCraft to
+  AztecCraft only; nothing was compared with Maya's reader or writer (#5).
+- **Not natively verified (#22 T7).** The File menu entries are covered by headless frame tests and the
+  operations by Editor protocol tests; neither OS file panel was exercised in a native window. Checklist
+  for an in-app run with a held panel (OCU `choose_file`) or one manual step, launched with `open -g`:
+  1. File menu: Import..., Export All..., Export Selection... are listed in that order; the three
+     option boxes are disabled and their hover says they are not implemented; Export Selection is
+     disabled with an empty selection and says why.
+  2. Create a cube and keep it selected, then UV menu > Planar (default axis; a cube has extent on
+     every axis) or MCP `project_uv_planar`, then File > Export Selection...: the panel title, the
+     pre-filled name `untitled.obj`, typing `box` yields `box.obj`. Export to a name that already exists:
+     on macOS the save panel asks to replace first and the app never sees that name unless the panel
+     is confirmed; after confirming, the status starts with "Export destination already exists; choose
+     a new file name" and the file is untouched. A fresh name ends with the status "Exported 1
+     object(s), 8 vertices and 6 faces to OBJ". Open the file in a text viewer: 24 `vt` lines and
+     `f a/b` rows.
+  3. File > Import... that file: the status line reports "UVs on 1 object(s)", the new object is selected,
+     Edit > Undo removes it, Redo restores it.
+  4. Record screenshots and what was not seen in `.project-docs/native-verification.md`; whether the
+     Windows and GTK panels append `.obj` themselves stays PROVISIONAL until run there.
 
 ## File references: declarations are read-only data (#440)
 
@@ -1230,13 +1251,15 @@ descendants, each instance once, in scene order rather than selection order (PRO
 the docs give no export order). Maya's options page says the parents of selected nodes are
 also exported; a parent's own mesh is not written here unless it is selected, so that is
 unmet. Normals, materials, smoothing groups, curves and Maya's OBJ Export Options are not
-written or offered (the option boxes are disabled). A shape with session UVs writes one `vt` per corner and `f v/vt` rows, mirrored instances reversed together; a mixed file of plain and mapped objects is valid OBJ but some readers dislike it (PROVISIONAL), and scenes opened from .ma/.mb hold no session UVs, so they write no `vt`. Export never overwrites an
-existing file. The view of the whole scene is built first, so one mesh the viewport
+written or offered (the option boxes are disabled). A shape with session UVs writes one `vt` per corner and `f v/vt` rows, mirrored instances reversed together; a mixed file of plain and mapped objects is valid OBJ but some readers dislike it (PROVISIONAL), and scenes opened from .ma/.mb hold no session UVs, so they write no `vt` (only an authored `.ma`
+reopen attaches UVs again, `src/native_scene/ascii/document.rs`). The Export rows stay enabled while a
+close is pending and dispatch then refuses them with `BusyEditing` (MCP `busy_editing`). Export never
+overwrites an existing file. The view of the whole scene is built first, so one mesh the viewport
 cannot display (for example a concave n-gon) fails every export, including Export
 Selection of another object. The Windows save dialog may first ask whether to
 replace an existing file; confirming still fails with "destination already exists"
 and the file is left untouched. The output has not been compared with
-Maya's objExport plug-in; OBJ import is unsupported. An export with no faces at all is refused
+Maya's objExport plug-in. The Export panel defaults to `untitled.obj` and appends `.obj` unless the extension already is obj (the app does this; MCP stays strict). An export with no faces at all is refused
 (`nothing_to_export`); in a mixed export an instance without faces is still written as an `o`
 group with only its vertices and counted in `objects` (PROVISIONAL: vertex-only objects are
 valid OBJ, and the Maya docs do not say what objExport writes for a mesh without faces).
