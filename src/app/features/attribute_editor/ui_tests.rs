@@ -140,7 +140,19 @@ fn ctrl_a_target_follows_the_transition_table() {
     assert_eq!(ctrl_a_target(Some(CB)), AE);
     assert_eq!(ctrl_a_target(Some(AE)), CB);
     assert_eq!(ctrl_a_target(None), AE);
-    for (current, target) in [(Some(CB), AE), (Some(AE), CB), (None, AE)] {
+    assert_eq!(
+        ctrl_a_target(Some(crate::editor_operations::SidebarPanel::ToolSettings)),
+        AE
+    );
+    for (current, target) in [
+        (Some(CB), AE),
+        (Some(AE), CB),
+        (None, AE),
+        (
+            Some(crate::editor_operations::SidebarPanel::ToolSettings),
+            AE,
+        ),
+    ] {
         let mut editor = Editor {
             sidebar_dock: current,
             ..Editor::default()

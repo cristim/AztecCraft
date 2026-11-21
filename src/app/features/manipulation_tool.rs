@@ -5,7 +5,7 @@ use crate::app::features::rotate_step::StepKind;
 use crate::app::{Editor, NOT_IMPLEMENTED_YET};
 use crate::editor_operations::{
     ActiveTool, ManipulationSpace, ManipulationValue, NO_ROTATE_PARENT, Operation, OperationError,
-    OperationReply, SelectionMode, ToolHandle,
+    OperationReply, SelectionMode, SidebarPanel, ToolHandle,
 };
 use azteccraft::{
     history::{
@@ -1057,10 +1057,11 @@ impl Editor {
     }
 
     // The Axis Orientation selector, axis choice and numeric field of the active tool, as a row
-    // above the viewport.
+    // above the viewport. The Tool Settings panel draws the same controls, so the row is hidden
+    // while that panel is shown (one set of widget ids per frame).
     pub(in crate::app) fn manipulation_options(&mut self, ui: &mut egui::Ui) {
         let tool = self.active_tool;
-        if tool == ActiveTool::Select {
+        if tool == ActiveTool::Select || self.sidebar_panel_visible(SidebarPanel::ToolSettings) {
             return;
         }
         let enabled = self.manipulation_unavailable().is_none();

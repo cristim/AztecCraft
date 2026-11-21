@@ -1,4 +1,5 @@
-//! The Rotate and Scale tools' Step Snap rows in the Tool Box: an Off/Relative combo and the
+//! The Rotate and Scale tools' Step Snap rows, in the settings row above the viewport or the Tool
+//! Settings panel (#491): an Off/Relative combo and the
 //! increment (degrees, or the scale factor). They dispatch `Operation::SetRotateStep` and
 //! `Operation::SetScaleStep`, the operations `set_rotate_step` and `set_scale_step` use, so the
 //! editor state is the one MCP reads and writes. Maya names: `manipRotateContext` and

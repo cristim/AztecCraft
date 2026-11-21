@@ -165,12 +165,15 @@ impl Editor {
 /// Most shape tabs drawn; a scene can parent an unbounded number of shapes to one transform.
 pub(in crate::app) const MAX_SHAPE_TABS: usize = 16;
 
-/// Ctrl+A target: Channel Box and Attribute Editor swap, and a hidden dock opens the Attribute
-/// Editor. The result goes through `SetSidebarPanelVisible`, so the transition table decides.
+/// Ctrl+A target: Channel Box and Attribute Editor swap, and a hidden dock or the Tool Settings
+/// (PROVISIONAL: the hotkey pages only name the two editors) open the Attribute Editor. The result
+/// goes through `SetSidebarPanelVisible`, so the transition table decides.
 pub(in crate::app) fn ctrl_a_target(dock: Option<SidebarPanel>) -> SidebarPanel {
     match dock {
         Some(SidebarPanel::AttributeEditor) => SidebarPanel::ChannelBox,
-        Some(SidebarPanel::ChannelBox) | None => SidebarPanel::AttributeEditor,
+        Some(SidebarPanel::ChannelBox | SidebarPanel::ToolSettings) | None => {
+            SidebarPanel::AttributeEditor
+        }
     }
 }
 

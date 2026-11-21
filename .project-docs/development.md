@@ -834,7 +834,8 @@ choice and a numeric field with Apply (Enter also applies). The Rotate list foll
 Component (#41), Gimbal (#38) and Custom (#38) are disabled with a hover text naming the
 owning issue. Parent and Normal are not Rotate entries. The Scale list is Object, World
 and Parent, then Gimbal, Normal, Custom and Component disabled with the hover text "Not
-implemented yet". The row stands in for the unsupported Tool Settings panel.
+implemented yet". The Tool Settings panel (#491, `tool_settings.rs`) draws the same controls
+through the same operations; the row is hidden while that panel is shown.
 
 A ring or box drag begins `BeginRotate` or `BeginScale` and previews through
 `UpdateManipulation` (degrees or a unitless factor), then commits through `FinishMove`.

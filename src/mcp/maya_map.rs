@@ -97,7 +97,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("apply_camera_bookmark", "`cameraView -e -setCamera`", "instant, no `-animate` interpolation; pose only, fov and clip planes untouched"),
     ("set_snap_mode", "`snapMode -grid`", "grid only (PROVISIONAL: absolute landing of the lead pivot on the drawn grid, which is 1 cm in every scene unit for now (#454), Move only, refused at begin when the axis is off the world grid; no curve, point, view-plane or step snapping); off by default (PROVISIONAL, docs state none)"),
     ("set_menu_set", "`setMenuMode`", "Modeling, Rigging and Rendering only; session-only (PROVISIONAL)"),
-    ("set_sidebar_panel_visibility", "`workspaceControl -e -visible`", "fixed dock; the 2027 attribute editor page was not found (PROVISIONAL)"),
+    ("set_sidebar_panel_visibility", "`workspaceControl -e -visible`", "fixed one-panel dock; the 2027 attribute editor page was not found and the Tool Settings page does not say where the panel docks (PROVISIONAL)"),
     ("select_attribute_editor_tab", "no equivalent", "Maya has no command for choosing an Attribute Editor tab (PROVISIONAL)"),
     ("open_scene", "`file -open`", "dirty confirmation is a separate `resolve_file_action` step; Maya uses `-force`"),
     ("save_scene", "`file -save`", "Maya binary, or authored Maya ASCII with its session UVs"),

@@ -100,8 +100,8 @@ const SIDEBAR_TOGGLES: [StripButton; 5] = [
     StripButton {
         label: "Tool Settings",
         icon: UiIcon::SidebarToolSettings,
-        hover: "Tool Settings: not implemented yet",
-        panel: None,
+        hover: "Show or hide the Tool Settings (double-click a Tool Box tool also opens them)",
+        panel: Some(SidebarPanel::ToolSettings),
     },
     StripButton {
         label: "Channel Box / Layer Editor",

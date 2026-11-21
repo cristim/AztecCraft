@@ -191,6 +191,12 @@ impl Editor {
                     {
                         self.native_operation(Operation::SetActiveTool(tool));
                     }
+                    // Maya 2027 Tool Settings page: double-clicking a Tool Box tool opens its
+                    // settings. The first click of the pair already selected the tool; the panel
+                    // switch takes the Status Line toggles' deferred path.
+                    if tool.is_some() && response.double_clicked() {
+                        self.sidebar_panel_request = Some((SidebarPanel::ToolSettings, true));
+                    }
                 }
             });
         egui::Panel::left("outliner")
@@ -218,6 +224,14 @@ impl Editor {
                     .size_range(230.0..=400.0)
                     .show(ui, |ui| {
                         ui.add_enabled_ui(sidebar_enabled, |ui| self.attribute_editor(ui));
+                    });
+            }
+            Some(SidebarPanel::ToolSettings) => {
+                egui::Panel::right("tool_settings")
+                    .default_size(255.0)
+                    .size_range(230.0..=400.0)
+                    .show(ui, |ui| {
+                        ui.add_enabled_ui(sidebar_enabled, |ui| self.tool_settings(ui));
                     });
             }
             None => {}

@@ -36,6 +36,7 @@ pub(in crate::app) mod rotate_step;
 mod selection;
 mod status_line;
 pub(in crate::app) mod timeline;
+pub(in crate::app) mod tool_settings;
 mod transform_menu;
 #[cfg(any(test, feature = "mcp"))]
 pub(super) mod usd_export;

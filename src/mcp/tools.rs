@@ -1845,7 +1845,8 @@ mod tests {
             json!({"scene_token": token, "panel": "channel_box", "visible": "true"}),
             json!({"scene_token": token, "panel": "channel_box", "visible": false, "extra": 1}),
             json!({"scene_token": token, "panel": "attributeEditor", "visible": false}),
-            json!({"scene_token": token, "panel": "tool_settings", "visible": false}),
+            json!({"scene_token": token, "panel": "modeling_toolkit", "visible": false}),
+            json!({"scene_token": token, "panel": "toolSettings", "visible": false}),
             json!({"scene_token": token, "panel": "ChannelBox", "visible": false}),
             json!({"scene_token": token, "panel": null, "visible": false}),
             json!({"scene_token": "invalid", "panel": "channel_box", "visible": false}),
@@ -1897,6 +1898,21 @@ mod tests {
                 visible: true
             }
         ));
+        for visible in [false, true] {
+            let request = parse_request(
+                "set_sidebar_panel_visibility",
+                json!({"scene_token": token, "panel": "tool_settings", "visible": visible})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap();
+            assert!(matches!(
+                request.operation,
+                Operation::SetSidebarPanelVisible { panel: SidebarPanel::ToolSettings, visible: actual }
+                    if actual == visible
+            ));
+        }
         let tool = catalog()
             .into_iter()
             .find(|tool| tool.name == "select_attribute_editor_tab")
