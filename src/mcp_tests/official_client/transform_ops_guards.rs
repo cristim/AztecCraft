@@ -228,3 +228,47 @@ async fn an_opened_maya_ascii_scene_is_read_only_for_both_tools() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn freezing_an_instanced_transform_or_below_it_is_a_typed_transform_refusal() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let mut scene = azteccraft::native_scene::NativeScene::default();
+    let [x1, x2, a, b] =
+        ["x1", "x2", "a", "b"].map(|name| scene.create(Primitive::Cube, name).unwrap());
+    scene.set_parents_for_test(a, &[x1, x2]).unwrap();
+    scene.set_parents_for_test(b, &[a]).unwrap();
+    editor.history = azteccraft::history::History::new(scene);
+    for node in [a, b, x1] {
+        let path = editor
+            .history
+            .scene()
+            .transform_paths()
+            .unwrap()
+            .into_iter()
+            .find(|path| path.node == node)
+            .unwrap();
+        editor.set_selection_members_for_test(vec![path]);
+        editor.sync_fields();
+        let scene = editor.history.scene().clone();
+        let refused = tool(
+            &mut editor,
+            &context,
+            &client,
+            "freeze_transformations",
+            json!({}),
+        )
+        .await;
+        assert_eq!(code(&refused), "invalid_transform_edit", "{node:?}");
+        let message = refused.structured_content.as_ref().unwrap()["error"]["message"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert!(message.contains("frozen"), "{message}");
+        assert!(!message.contains("reparent"), "{message}");
+        assert_eq!(editor.history.scene(), &scene);
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

@@ -1,6 +1,7 @@
 use super::*;
 use crate::native_scene::group::tests::{bits, cube, set};
 use crate::native_scene::{ALL_CHANNELS, ReparentKeep, test_fixtures};
+use glam::DVec3;
 
 const TOLERANCE: f64 = 1e-4;
 
@@ -322,3 +323,5 @@ fn refusals_leave_the_scene_untouched() {
     );
     assert_eq!(duplicate, scene);
 }
+
+mod coverage;

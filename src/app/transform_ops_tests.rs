@@ -362,3 +362,28 @@ fn a_native_operation_is_refused_under_a_modal_dialog() {
         assert_eq!(baseline(&editor), before);
     }
 }
+
+#[test]
+fn undoing_a_later_edit_then_the_freeze_restores_the_original_exactly() {
+    let (mut editor, ids) = posed(2);
+    let original = editor.history.scene().clone();
+    assert!(matches!(
+        editor.apply_operation(freeze(ALL, None)),
+        Ok(OperationReply::Changed)
+    ));
+    let frozen = editor.history.scene().clone();
+    editor
+        .apply_operation(Operation::EditNode {
+            id: ids[1].node,
+            name: None,
+            translation: [Some(7.0), None, None],
+            rotation_degrees: [None; 3],
+            scale: [None; 3],
+        })
+        .unwrap();
+    assert_ne!(editor.history.scene(), &frozen);
+    assert!(editor.history.undo());
+    assert_eq!(editor.history.scene(), &frozen);
+    assert!(editor.history.undo());
+    assert_eq!(editor.history.scene(), &original);
+}
