@@ -8,12 +8,13 @@
 //! can include shear when scale stays non-uniform. PROVISIONAL: the Reset
 //! option defaults, the shear and rotate-order cases (#105) and the unsupported `-normal`,
 //! `-preserveNormals` and `-jointOrient` flags are not compared with Maya (#5).
+use super::reparent::{decompose, rotation_zyx};
 use super::{
     MAX_TRANSFORM_DEPTH, MAX_TRANSFORM_PATHS, NativeError, NativeId, NativeScene, ReparentRefusal,
     TransformExtras, Units,
 };
 use crate::scene::{NodeId, SceneError};
-use glam::DMat4;
+use glam::{DMat4, DVec3};
 use std::collections::HashSet;
 use std::fmt;
 
@@ -65,23 +66,37 @@ pub enum TransformRefusal {
     Reflection,
     /// The accumulated matrix collapses the mesh (zero or near-singular scale) or is not finite.
     Degenerate,
+    /// Match Transformations needs at least one object to move and a target.
+    TooFewObjects,
+    /// The target lies below an object that would move, so moving it would move the target.
+    TargetInsideMoved,
+    /// The wanted world transform needs shear, a mirror or a channel change the stored TRS
+    /// channels cannot hold exactly (for example rotation below a non-uniformly scaled parent).
+    NotRepresentable,
 }
 
 impl fmt::Display for TransformRefusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::EmptySet => "no objects or no transform channels were given",
-            Self::Keyed => "an animated (keyed) object cannot be reset or frozen",
-            Self::Joint => "joints cannot be reset or frozen here (unsupported)",
+            Self::Keyed => "an animated (keyed) object cannot be reset, frozen or matched",
+            Self::Joint => "joints cannot be reset, frozen or matched here (unsupported)",
             Self::NotPlain => {
-                "freezing needs default pivots and transform extras on the object and everything below it"
+                "freezing or matching needs default pivots and transform extras on the objects involved (and, for a freeze, on everything below them)"
             }
-            Self::Instanced => "instanced objects cannot be frozen",
+            Self::Instanced => "instanced objects cannot be frozen or matched",
             Self::Curve => "a curve below the object cannot be frozen; only meshes are baked",
             Self::Reflection => {
                 "a negative scale mirrors the mesh; Preserve Normals is not implemented, so the freeze is refused"
             }
             Self::Degenerate => "the accumulated transform is zero-scaled or not finite",
+            Self::TooFewObjects => "select at least two objects; the last selected is the target",
+            Self::TargetInsideMoved => {
+                "the target (last selected) is below a selected object that would move"
+            }
+            Self::NotRepresentable => {
+                "the target transform cannot be matched exactly with the chosen channels (shear, mirroring or a non-uniformly scaled parent)"
+            }
         })
     }
 }
@@ -300,6 +315,146 @@ impl NativeScene {
         Ok(())
     }
 }
+
+impl NativeScene {
+    /// Modify > Match Transformations: every object of `ids` except the last (the target) gets
+    /// the target's world translate, rotate and scale, limited to the chosen channels; unchosen
+    /// channels keep their stored bits. Children are not compensated. Objects are processed
+    /// shallowest first so a moved descendant is matched against its moved parent. All or
+    /// nothing: the work runs on a copy. PROVISIONAL: world space and pivot-free objects only,
+    /// the Match Pivots and bounding-box options are unbuilt, not compared with Maya (#5).
+    pub fn match_transformations(
+        &mut self,
+        ids: &[NodeId],
+        channels: TransformChannels,
+    ) -> Result<(), NativeError> {
+        let mut candidate = self.clone();
+        candidate.match_in_place(ids, channels)?;
+        candidate.validate()?;
+        candidate.transform_paths()?;
+        *self = candidate;
+        Ok(())
+    }
+
+    fn match_in_place(
+        &mut self,
+        ids: &[NodeId],
+        channels: TransformChannels,
+    ) -> Result<(), NativeError> {
+        self.structural_edit()?;
+        if self.units != Units::default() {
+            return Err(NativeError::UnsupportedEdit);
+        }
+        if ids.is_empty() || channels.is_none() {
+            return Err(TransformRefusal::EmptySet.into());
+        }
+        let mut seen = HashSet::new();
+        if !ids.iter().all(|id| seen.insert(*id)) {
+            return Err(SceneError::InvalidIds.into());
+        }
+        let Some((&target, moved)) = ids.split_last().filter(|(_, moved)| !moved.is_empty()) else {
+            return Err(TransformRefusal::TooFewObjects.into());
+        };
+        let target_index = self.editable_node(target)?;
+        self.refuse_plain_target(target_index, true)?;
+        let target_path = self.sole_target(target)?.path;
+        let mut order = Vec::with_capacity(moved.len());
+        for id in moved {
+            let index = self.editable_node(*id)?;
+            self.refuse_plain_target(index, true)?;
+            let path = self.sole_target(*id)?.path;
+            if target_path.contains(&self.nodes[index].transform_id) {
+                return Err(TransformRefusal::TargetInsideMoved.into());
+            }
+            order.push((path.len(), *id));
+        }
+        order.sort_by_key(|(depth, _)| *depth);
+        let goal = self.path_world(&target_path)?;
+        for (_, id) in order {
+            self.match_one(id, goal, channels)?;
+        }
+        Ok(())
+    }
+
+    /// Writes only the chosen channels of `id` so its world transform takes those components
+    /// of `goal`, and refuses unless the rewritten node then reproduces the wanted world.
+    fn match_one(
+        &mut self,
+        id: NodeId,
+        goal: DMat4,
+        channels: TransformChannels,
+    ) -> Result<(), NativeError> {
+        let index = self.editable_node(id)?;
+        let path = self.sole_target(id)?.path;
+        let parent = self.path_world(&path[..path.len() - 1])?;
+        if !keeps_volume(parent) {
+            return Err(TransformRefusal::Degenerate.into());
+        }
+        let desired = if channels == TransformChannels::ALL {
+            goal
+        } else {
+            let now =
+                decompose(self.path_world(&path)?).ok_or(TransformRefusal::NotRepresentable)?;
+            let want = decompose(goal).ok_or(TransformRefusal::NotRepresentable)?;
+            let pick = |on: bool, base: usize| if on { want } else { now }[base..base + 3].to_vec();
+            let (t, r, s) = (
+                pick(channels.translate, 0),
+                pick(channels.rotate, 3),
+                pick(channels.scale, 6),
+            );
+            DMat4::from_translation(DVec3::new(t[0], t[1], t[2]))
+                * rotation_zyx([r[0].to_radians(), r[1].to_radians(), r[2].to_radians()])
+                * DMat4::from_scale(DVec3::new(s[0], s[1], s[2]))
+        };
+        let wanted = parent.inverse() * desired;
+        let local = if channels.rotate || channels.scale {
+            decompose(wanted).ok_or(TransformRefusal::NotRepresentable)?
+        } else if wanted.is_finite() {
+            let t = wanted.w_axis;
+            [t.x, t.y, t.z, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+        } else {
+            return Err(NativeError::NonFinite);
+        };
+        let mut values = [None; 9];
+        for (on, base) in [
+            (channels.translate, 0),
+            (channels.rotate, 3),
+            (channels.scale, 6),
+        ] {
+            if on {
+                for slot in base..base + 3 {
+                    values[slot] = Some(local[slot]);
+                }
+            }
+        }
+        self.nodes[index].channels = self.replacement_channels(index, values)?;
+        let result = self.path_world(&path)?;
+        let size = [desired.x_axis, desired.y_axis, desired.z_axis]
+            .iter()
+            .fold(1.0_f64, |m, c| m.max(c.truncate().length()));
+        let reach = desired.w_axis.truncate().abs().max_element().max(1.0);
+        let linear_ok = [
+            (result.x_axis, desired.x_axis),
+            (result.y_axis, desired.y_axis),
+            (result.z_axis, desired.z_axis),
+        ]
+        .iter()
+        .all(|(a, b)| (a.truncate() - b.truncate()).abs().max_element() <= EXACT_TOLERANCE * size);
+        let origin_ok = (result.w_axis - desired.w_axis)
+            .truncate()
+            .abs()
+            .max_element()
+            <= EXACT_TOLERANCE * reach.max(size);
+        if linear_ok && origin_ok {
+            Ok(())
+        } else {
+            Err(TransformRefusal::NotRepresentable.into())
+        }
+    }
+}
+
+/// Relative tolerance for accepting a rewritten node as the world transform it was meant to take.
+const EXACT_TOLERANCE: f64 = 1e-9;
 
 #[cfg(test)]
 mod tests;
