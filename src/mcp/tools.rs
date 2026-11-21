@@ -1058,6 +1058,8 @@ mod tests {
                 "export_obj" | "import_obj" => json!({"scene_token":token,"path":"scene.obj"}),
                 "export_gltf" => json!({"scene_token":token,"path":"scene.glb"}),
                 "export_usd" => json!({"scene_token":token,"path":"scene.usda"}),
+                "playblast" => json!({"scene_token":token,"width":32,"height":32,
+                    "output_directory":std::env::temp_dir()}),
                 "import_maya_scene" => json!({"scene_token":token,"path":"scene.ma"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
