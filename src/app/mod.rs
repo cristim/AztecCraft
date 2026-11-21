@@ -509,6 +509,8 @@ mod group_ops_tests;
 mod group_persistence_tests;
 #[cfg(test)]
 mod pivot_ops_tests;
+#[cfg(test)]
+mod transform_ops_tests;
 
 #[cfg(test)]
 mod parent_fixture_tests;
