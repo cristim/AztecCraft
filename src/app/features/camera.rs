@@ -386,6 +386,54 @@ mod view_history_tests {
     }
 
     #[test]
+    fn a_drag_ending_with_motion_in_the_release_frame_stays_one_view() {
+        use crate::app::tests::frame;
+        let mut editor = Editor::default();
+        let ctx = egui::Context::default();
+        for _ in 0..4 {
+            frame(&mut editor, &ctx, vec![]);
+        }
+        let initial = editor.camera.clone();
+        let alt = egui::Modifiers::ALT;
+        let p = egui::pos2(600.0, 400.0);
+        let button = |pos, pressed| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: alt,
+        };
+        frame(
+            &mut editor,
+            &ctx,
+            vec![
+                egui::Event::ModifiersChanged(alt),
+                egui::Event::PointerMoved(p),
+                button(p, true),
+            ],
+        );
+        frame(
+            &mut editor,
+            &ctx,
+            vec![egui::Event::PointerMoved(p + egui::vec2(20.0, 10.0))],
+        );
+        frame(
+            &mut editor,
+            &ctx,
+            vec![egui::Event::PointerMoved(p + egui::vec2(30.0, 15.0))],
+        );
+        assert_eq!(editor.view_history.undo.len(), 1);
+        let end = p + egui::vec2(40.0, 20.0);
+        frame(
+            &mut editor,
+            &ctx,
+            vec![egui::Event::PointerMoved(end), button(end, false)],
+        );
+        assert_eq!(editor.view_history.undo.len(), 1);
+        editor.apply_operation(Operation::UndoView).unwrap();
+        assert_eq!(editor.camera, initial);
+    }
+
+    #[test]
     fn bracket_keys_dispatch_view_history() {
         let mut editor = Editor::default();
         let initial = editor.camera.clone();
