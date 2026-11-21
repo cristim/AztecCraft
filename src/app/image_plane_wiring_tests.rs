@@ -341,3 +341,55 @@ fn playback_holds_the_previous_frame_while_the_next_loads() {
     assert_eq!(editor.plate_draw().unwrap().key.frame, 2);
     assert!(editor.plate_status_text().is_none());
 }
+
+#[test]
+fn renaming_the_plate_drops_the_old_frame_until_the_new_source_decodes() {
+    let dir_a = tempfile::tempdir().unwrap();
+    let dir_b = tempfile::tempdir().unwrap();
+    let first_a = sequence(dir_a.path());
+    let first_b = sequence(dir_b.path());
+    let release = Arc::new((Mutex::new(false), Condvar::new()));
+    let gate = release.clone();
+    let blocked = first_b.clone();
+    // Frames of the first sequence decode at once; the second sequence waits for the release.
+    let decode: DecodeFn = Arc::new(move |source: &PlateSource, frame: i64| {
+        if source.template == blocked {
+            let mut open = gate.0.lock().unwrap();
+            while !*open {
+                open = gate.1.wait(open).unwrap();
+            }
+        }
+        Ok(PlateFrame {
+            width: 2,
+            height: 2,
+            rgba: vec![(frame as u8) * 40; 16],
+        })
+    });
+    let mut editor = editor_with_plane(&first_a, 0);
+    editor.plate = super::features::image_plane::PlateRuntime::with_decode(decode);
+    let ctx = egui::Context::default();
+    settle(&mut editor, &ctx);
+    let old = editor.plate_draw().unwrap();
+    editor
+        .apply_operation(Operation::SetImagePlane(ImagePlaneEdit {
+            image_name: Some(first_b),
+            ..ImagePlaneEdit::default()
+        }))
+        .unwrap();
+    // The tick that applies the rename starts a new source generation: the old file's frame must
+    // not stay on screen while the new one loads.
+    assert!(editor.update_plate(&ctx));
+    assert!(
+        editor.plate_draw().is_none(),
+        "the old source's frame is gone"
+    );
+    assert_eq!(
+        editor.plate_status_text().unwrap(),
+        "Plate frame 1: loading"
+    );
+    *release.0.lock().unwrap() = true;
+    release.1.notify_all();
+    settle(&mut editor, &ctx);
+    let new = editor.plate_draw().unwrap();
+    assert_ne!(new.key.generation, old.key.generation);
+}
