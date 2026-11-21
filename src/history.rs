@@ -99,6 +99,21 @@ pub enum Command {
         ids: Vec<NodeId>,
         channels: TransformChannels,
     },
+    /// Prefixes the names of `ids` and everything below them as one undo step; any refusal leaves
+    /// the scene and history untouched.
+    PrefixHierarchyNames {
+        ids: Vec<NodeId>,
+        prefix: String,
+    },
+    /// Replaces `search` in the names of `ids` (and everything below them with `hierarchy`) as one
+    /// undo step; any refusal leaves the scene and history untouched.
+    SearchReplaceNames {
+        ids: Vec<NodeId>,
+        hierarchy: bool,
+        search: String,
+        replace: String,
+        match_case: bool,
+    },
     SetMaterialDiffuse {
         shape: NativeId,
         value: f64,
@@ -209,6 +224,9 @@ impl Command {
             Self::ResetTransformations { .. } => "Reset Transformations".to_string(),
             Self::FreezeTransformations { .. } => "Freeze Transformations".to_string(),
             Self::MatchTransformations { .. } => "Match Transformations".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::PrefixHierarchyNames { .. } => "Prefix Hierarchy Names".to_string(),
+            Self::SearchReplaceNames { .. } => "Search and Replace Names".to_string(),
             Self::SetMaterialDiffuse { .. }
             | Self::CreateSessionMaterial { .. }
             | Self::AssignSessionMaterial { .. }
@@ -709,6 +727,20 @@ impl History {
             }
             Command::MatchTransformations { ids, channels } => {
                 candidate.match_transformations(&ids, channels)?;
+                EditOutcome::Changed
+            }
+            Command::PrefixHierarchyNames { ids, prefix } => {
+                candidate.prefix_hierarchy_names(&ids, &prefix)?;
+                EditOutcome::Changed
+            }
+            Command::SearchReplaceNames {
+                ids,
+                hierarchy,
+                search,
+                replace,
+                match_case,
+            } => {
+                candidate.search_replace_names(&ids, hierarchy, &search, &replace, match_case)?;
                 EditOutcome::Changed
             }
             Command::SetMaterialDiffuse { shape, value } => {
