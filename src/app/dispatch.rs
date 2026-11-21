@@ -652,6 +652,14 @@ impl Editor {
                 return Err(OperationError::BusyEditing);
             }
         }
+        // The name rules (length, NUL, extension) run before a pending draft is committed, like the
+        // OBJ import path check, so a refused name never touches the draft.
+        if let Operation::SetImagePlane(edit) = &operation
+            && let Some(name) = &edit.image_name
+        {
+            azteccraft::image_plane::ops::check_image_name(name)
+                .map_err(OperationError::ImagePlane)?;
+        }
         #[cfg(any(test, feature = "mcp"))]
         if let Operation::ExportUsd { path, .. } = &operation {
             super::features::usd_export::validate_export_path(path)?;
