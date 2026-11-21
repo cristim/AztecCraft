@@ -145,6 +145,20 @@ async fn sdk_set_image_plane_argument_errors_are_protocol_errors_with_no_mutatio
         json!({"scene_token": text, "coverage_x": 4_294_967_296_i64}),
         json!({"scene_token": text, "coverage_origin_y": 1.5}),
         json!({"scene_token": text, "depth": 1e300}),
+        // Range rules run on the f64 before narrowing: negative huge values, zero, negatives and
+        // values that would round to zero are all refused as sent.
+        json!({"scene_token": text, "depth": -1e300}),
+        json!({"scene_token": text, "depth": -f64::MAX}),
+        json!({"scene_token": text, "depth": f64::MAX}),
+        json!({"scene_token": text, "depth": 0}),
+        json!({"scene_token": text, "depth": -1}),
+        json!({"scene_token": text, "depth": 1e-50}),
+        json!({"scene_token": text, "alpha_gain": -1e-50}),
+        json!({"scene_token": text, "alpha_gain": -1e300}),
+        json!({"scene_token": text, "alpha_gain": -f64::MAX}),
+        json!({"scene_token": text, "alpha_gain": f64::MAX}),
+        json!({"scene_token": text, "alpha_gain": -0.001}),
+        json!({"scene_token": text, "alpha_gain": 1000.000001}),
         json!({"scene_token": text, "alpha_gain": "1"}),
         json!({"scene_token": text, "fit": "Best"}),
         json!({"scene_token": text, "display_mode": "color"}),
@@ -174,11 +188,6 @@ async fn sdk_set_image_plane_argument_errors_are_protocol_errors_with_no_mutatio
         (json!({"frame_offset": -1_000_001}), "frame_offset"),
         (json!({"frame_cache": 0}), "frame_cache"),
         (json!({"frame_cache": 1001}), "frame_cache"),
-        (json!({"depth": 0}), "depth"),
-        (json!({"depth": -1}), "depth"),
-        (json!({"alpha_gain": -0.001}), "alpha_gain"),
-        (json!({"alpha_gain": 1000.001}), "alpha_gain"),
-        (json!({"fit": "fill", "alpha_gain": 2000}), "alpha_gain"),
     ] {
         let mut arguments = arguments;
         arguments["scene_token"] = json!(text);
@@ -187,6 +196,62 @@ async fn sdk_set_image_plane_argument_errors_are_protocol_errors_with_no_mutatio
         assert!(message(&r).contains(field), "{arguments}: {}", message(&r));
         assert_eq!(editor.image_plane, before, "{arguments}");
     }
+    // The error text names the field; a positive value too small for an f32 says so.
+    for (arguments, expected) in [
+        (json!({"depth": 1e-50}), "depth is too small"),
+        (json!({"depth": -1e300}), "depth must be"),
+        (json!({"alpha_gain": -1e-50}), "alpha_gain must be"),
+    ] {
+        let mut arguments = arguments;
+        arguments["scene_token"] = json!(text);
+        let rejected = call_response(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_image_plane",
+            arguments.clone(),
+        )
+        .await;
+        let Err(rmcp::ServiceError::McpError(error)) = rejected else {
+            panic!("expected a JSON-RPC error for {arguments}");
+        };
+        assert!(
+            error.message.contains(expected),
+            "{arguments}: {}",
+            error.message
+        );
+        assert_eq!(editor.image_plane, before);
+    }
+    // Boundaries just inside: the smallest f32 depth, and a sub-f32 alpha gain, which stores 0.
+    let smallest = set(
+        &mut editor,
+        &context,
+        &client,
+        json!({"scene_token": text, "depth": 1e-45}),
+    )
+    .await;
+    assert_eq!(outcome(&smallest), "changed");
+    assert_eq!(
+        editor.image_plane.as_ref().unwrap().plane.depth,
+        f32::from_bits(1)
+    );
+    let tiny = set(
+        &mut editor,
+        &context,
+        &client,
+        json!({"scene_token": text, "alpha_gain": 1e-50}),
+    )
+    .await;
+    assert_eq!(outcome(&tiny), "changed");
+    assert_eq!(editor.image_plane.as_ref().unwrap().plane.alpha_gain, 0.0);
+    let top = set(
+        &mut editor,
+        &context,
+        &client,
+        json!({"scene_token": text, "depth": f64::from(f32::MAX), "alpha_gain": 1000.0}),
+    )
+    .await;
+    assert_eq!(outcome(&top), "changed");
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
