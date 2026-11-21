@@ -2135,3 +2135,18 @@ PROVISIONAL and pinned by a test (rows 68 to 72 of the policy constants table in
   exposed meanwhile as real text in the status line ("Plate frame N: loading", "missing", "failed: <code>"), in the
   Image Plane tab's Resolved Frame row and in `inspect_scene`; the line "image plane: <file>, frame N, <state>" is
   added when T7 lands.
+
+## Align Objects is PROVISIONAL (#313)
+
+**Severity:** low
+**Area:** native scene, MCP
+**Issue:** #313
+
+- The fetched Maya 2027 pages (Snap Align Objects Options and Align objects) name Min, Mid, Max, Dist and Stack, the
+  Align To choices (Selection Average, Last Selected Object) and world axes, but not how rotated or scaled objects'
+  boxes are computed, any defaults, how Dist distributes or the undo label. The box here is the world axis-aligned box
+  of every mesh point at or below the object, Dist keeps the outermost objects (by box centre) and equalises the gaps
+  between boxes, and the undo label is "Align Objects". None of this is compared with Maya (#5).
+- Unbuilt: Stack, the options dialog (the Modify row is disabled), the Align Tool and Snap Align (SCN-054, SCN-056),
+  and the Selection Min, Selection Max and World Origin references. A selection holding an object below another
+  selected object is refused rather than ordered. Aligning twice can move an object by rounding (about 1e-15).

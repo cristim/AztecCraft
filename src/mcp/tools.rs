@@ -1023,6 +1023,7 @@ mod tests {
                 "reset_transformations" | "freeze_transformations" | "match_transformations" => {
                     json!({"scene_token":token})
                 }
+                "align_objects" => json!({"scene_token":token,"x":"min"}),
                 "prefix_hierarchy_names" => json!({"scene_token":token,"prefix":"a_"}),
                 "search_replace_names" => {
                     json!({"scene_token":token,"search":"a","replace":"b"})
@@ -1251,6 +1252,7 @@ mod tests {
                     | "reset_transformations"
                     | "freeze_transformations"
                     | "match_transformations"
+                    | "align_objects"
                     | "list_camera_bookmarks"
                     | "apply_camera_bookmark"
             );

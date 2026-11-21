@@ -833,13 +833,6 @@ pub enum Operation {
     /// Objects" undo step. The last selected is the reference of `AlignTo::LastSelected`. Object
     /// and Hierarchy modes only.
     #[cfg(any(test, feature = "mcp"))]
-    #[cfg_attr(
-        not(test),
-        allow(
-            dead_code,
-            reason = "first caller is the align_objects MCP tool, added next"
-        )
-    )]
     AlignObjects {
         options: AlignOptions,
         expected_selection_generation: Option<u64>,

@@ -2716,6 +2716,74 @@
     }
   },
   {
+    "name": "align_objects",
+    "description": "Modify > Snap Align Objects > Align Objects on the object selection, in one undo entry named Align Objects: the selected objects move along the WORLD axes so their world bounding boxes line up. The box of an object is the axis-aligned world box of every mesh point at or below it. Per axis x, y and z choose none (default, the axis is untouched), min (the box side closest to 0 on that axis), mid (the box centres), max (the side farthest from 0) or dist (the outermost objects by box centre stay and the gaps between the boxes become equal). align_to (default selection_average) is the reference for min, mid and max: the average of the selected boxes' value, or last_selected, the last selected object's box, which does not move; dist ignores it. Only each moved object's translate channels are written (through its parent's inverse, so rotated or scaled parents are fine); rotate and scale keep their bits and children follow their parent. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_transform_edit for fewer than two objects, all three axes none, a joint, a keyed object, an instanced object, non-default pivots or transform extras, an object with no mesh below it (no bounding box), a curve below an object, a selected object below another selected object, a zero-scaled parent, or a result the stored translate cannot hold exactly; a Maya ASCII scene or a sourced scene is refused (read_only_format, unsupported_edit), and so is a scene with non-default units (unsupported_edit). All or nothing, with the scene and history untouched on any refusal. Stack, the selection min and max and world origin references and the Align Tool are unsupported. PROVISIONAL (#5, not compared with Maya): the fetched Maya 2027 Align Objects pages do not state how rotated or scaled objects' boxes are computed, any defaults or how dist distributes, so the world box of the mesh points, the defaults and the dist rule are this editor's choice",
+    "inputSchema": {
+      "$defs": {
+        "AlignModeInput": {
+          "enum": [
+            "none",
+            "min",
+            "mid",
+            "max",
+            "dist"
+          ],
+          "type": "string"
+        },
+        "AlignToInput": {
+          "enum": [
+            "selection_average",
+            "last_selected"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "align_to": {
+          "$ref": "#/$defs/AlignToInput",
+          "description": "The reference for min, mid and max: selection_average (default) or last_selected."
+        },
+        "expected_selection_generation": {
+          "default": null,
+          "description": "The `selection_generation` that `inspect_scene` reported. With several objects selected\nthe value is required, and a value that no longer matches the selection is refused.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "x": {
+          "$ref": "#/$defs/AlignModeInput",
+          "description": "What the world X axis does: none (default), min, mid, max or dist."
+        },
+        "y": {
+          "$ref": "#/$defs/AlignModeInput",
+          "description": "What the world Y axis does: none (default), min, mid, max or dist."
+        },
+        "z": {
+          "$ref": "#/$defs/AlignModeInput",
+          "description": "What the world Z axis does: none (default), min, mid, max or dist."
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "AlignObjectsArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "prefix_hierarchy_names",
     "description": "Modify > Prefix Hierarchy Names on the object selection, in one undo entry named Prefix Hierarchy Names: prefix is prepended verbatim (no separator) to the name of every selected object and of every transform below it, each node once (an instanced node is renamed once; its name is shared by all its paths). Derived shape names follow. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_name_edit for an empty prefix, invalid_name when a resulting name would not be a valid identifier (letters, digits and underscore, not starting with a digit), name_collision when a resulting name is already taken or two resulting names would be equal (clashes are refused, never made unique); a Maya ASCII scene or a sourced scene is refused (read_only_format, unsupported_edit). A restricted node (one the scene cannot edit) among the targets, or anywhere in an ancestor or descendant chain of a target (every scope, so also all), refuses the whole edit as unsupported_edit. Derived shape names take part in the uniqueness check, independent of order; a resulting name or derived shape name over 4096 bytes is invalid_name. All or nothing, with the scene and history untouched on any refusal. Not idempotent: calling it twice prefixes twice. PROVISIONAL, not compared with Maya: its pages do not state the separator or clash handling",
     "inputSchema": {

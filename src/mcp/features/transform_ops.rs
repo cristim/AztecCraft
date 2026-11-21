@@ -5,7 +5,7 @@ use crate::{
         registry::ToolSpec,
     },
 };
-use azteccraft::native_scene::TransformChannels;
+use azteccraft::native_scene::{AlignMode, AlignOptions, AlignTo, TransformChannels};
 use rmcp::{
     model::{ErrorData, JsonObject},
     schemars::{self, JsonSchema},
@@ -78,6 +78,77 @@ fn parse_match(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     ))
 }
 
+#[derive(Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum AlignModeInput {
+    None,
+    Min,
+    Mid,
+    Max,
+    Dist,
+}
+
+#[derive(Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum AlignToInput {
+    SelectionAverage,
+    LastSelected,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct AlignObjectsArgs {
+    scene_token: String,
+    /// What the world X axis does: none (default), min, mid, max or dist.
+    #[serde(default = "no_align")]
+    x: AlignModeInput,
+    /// What the world Y axis does: none (default), min, mid, max or dist.
+    #[serde(default = "no_align")]
+    y: AlignModeInput,
+    /// What the world Z axis does: none (default), min, mid, max or dist.
+    #[serde(default = "no_align")]
+    z: AlignModeInput,
+    /// The reference for min, mid and max: selection_average (default) or last_selected.
+    #[serde(default = "average")]
+    align_to: AlignToInput,
+    /// The `selection_generation` that `inspect_scene` reported. With several objects selected
+    /// the value is required, and a value that no longer matches the selection is refused.
+    #[serde(default)]
+    expected_selection_generation: Option<u64>,
+}
+
+fn no_align() -> AlignModeInput {
+    AlignModeInput::None
+}
+
+fn average() -> AlignToInput {
+    AlignToInput::SelectionAverage
+}
+
+fn parse_align(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: AlignObjectsArgs = decode(arguments)?;
+    let mode = |input: AlignModeInput| match input {
+        AlignModeInput::None => AlignMode::None,
+        AlignModeInput::Min => AlignMode::Min,
+        AlignModeInput::Mid => AlignMode::Mid,
+        AlignModeInput::Max => AlignMode::Max,
+        AlignModeInput::Dist => AlignMode::Dist,
+    };
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::AlignObjects {
+            options: AlignOptions {
+                modes: [mode(args.x), mode(args.y), mode(args.z)],
+                to: match args.align_to {
+                    AlignToInput::SelectionAverage => AlignTo::SelectionAverage,
+                    AlignToInput::LastSelected => AlignTo::LastSelected,
+                },
+            },
+            expected_selection_generation: args.expected_selection_generation,
+        },
+    ))
+}
+
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "reset_transformations",
@@ -100,6 +171,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Modify > Match Transformations on the object selection, in one undo entry named Match Transformations: every selected object except the last selected (the target, the lead) takes the target's WORLD transform for the chosen channels (translate, rotate, scale; all true by default), written as new local channels under each object's parent. Unchosen channels keep their stored bits. Children are not compensated and move with their parent. Objects are matched shallowest first, so a selected descendant of a selected object also ends on the target. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_transform_edit for fewer than two objects, no channel (all three false, unlike the native none-chosen-means-all path), a target below a selected object, a joint, a keyed object, an instanced object, non-default pivots or transform extras on the target or a moved object, a zero-scaled parent, or a result the stored translate, rotate and scale channels cannot hold exactly (shear, mirroring, or a rotation under a non-uniformly scaled parent that would also need a different scale: refused, never approximated); a Maya ASCII scene or a sourced scene is refused (read_only_format, unsupported_edit), and so is a scene with non-default units (unsupported_edit). All or nothing, with the scene and history untouched on any refusal. Match Pivots and bounding-box matching are unsupported (PROVISIONAL, not compared with Maya matchTransform: the docs do not state world versus local space or child handling)",
         schema: schema::<TransformationArgs>,
         parse: parse_match,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "align_objects",
+        description: "Modify > Snap Align Objects > Align Objects on the object selection, in one undo entry named Align Objects: the selected objects move along the WORLD axes so their world bounding boxes line up. The box of an object is the axis-aligned world box of every mesh point at or below it. Per axis x, y and z choose none (default, the axis is untouched), min (the box side closest to 0 on that axis), mid (the box centres), max (the side farthest from 0) or dist (the outermost objects by box centre stay and the gaps between the boxes become equal). align_to (default selection_average) is the reference for min, mid and max: the average of the selected boxes' value, or last_selected, the last selected object's box, which does not move; dist ignores it. Only each moved object's translate channels are written (through its parent's inverse, so rotated or scaled parents are fine); rotate and scale keep their bits and children follow their parent. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_transform_edit for fewer than two objects, all three axes none, a joint, a keyed object, an instanced object, non-default pivots or transform extras, an object with no mesh below it (no bounding box), a curve below an object, a selected object below another selected object, a zero-scaled parent, or a result the stored translate cannot hold exactly; a Maya ASCII scene or a sourced scene is refused (read_only_format, unsupported_edit), and so is a scene with non-default units (unsupported_edit). All or nothing, with the scene and history untouched on any refusal. Stack, the selection min and max and world origin references and the Align Tool are unsupported. PROVISIONAL (#5, not compared with Maya): the fetched Maya 2027 Align Objects pages do not state how rotated or scaled objects' boxes are computed, any defaults or how dist distributes, so the world box of the mesh points, the defaults and the dist rule are this editor's choice",
+        schema: schema::<AlignObjectsArgs>,
+        parse: parse_align,
         idempotent: true,
         read_only: false,
     },
