@@ -146,3 +146,6 @@ pub fn remove_image_plane(state: &mut Option<ImagePlaneState>) -> PlateChange {
         PlateChange::Unchanged
     }
 }
+
+#[cfg(test)]
+mod tests;
