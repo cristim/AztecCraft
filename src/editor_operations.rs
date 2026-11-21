@@ -53,7 +53,6 @@ pub enum AttributeEditorTab {
 /// Which names `Operation::SearchReplaceNames` edits, after Maya's Search and Replace Names
 /// scopes: the selected objects, the selection with everything below it, or every object.
 #[cfg(any(test, feature = "mcp"))]
-#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NameScope {
     Selected,
@@ -830,7 +829,6 @@ pub enum Operation {
     /// of every selected object and of every transform below it (each once), as one "Prefix
     /// Hierarchy Names" undo step. Object and Hierarchy modes only.
     #[cfg(any(test, feature = "mcp"))]
-    #[cfg_attr(not(test), allow(dead_code))]
     PrefixHierarchyNames {
         prefix: String,
         expected_selection_generation: Option<u64>,
@@ -839,7 +837,6 @@ pub enum Operation {
     /// scope's objects becomes `replace`, as one "Search and Replace Names" undo step. `All`
     /// needs no selection. Object and Hierarchy modes only.
     #[cfg(any(test, feature = "mcp"))]
-    #[cfg_attr(not(test), allow(dead_code))]
     SearchReplaceNames {
         scope: NameScope,
         search: String,

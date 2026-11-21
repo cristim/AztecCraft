@@ -500,6 +500,31 @@ mod tests {
     }
 
     #[test]
+    fn naming_refusals_report_their_codes_and_the_rest_scene_error() {
+        let code = |error| {
+            let result = tool_reply(Err(OperationError::Naming(error)));
+            serde_json::to_value(&result).unwrap()["structuredContent"]["error"]["code"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        for (error, expected) in [
+            (NativeError::ReadOnlyFormat, "read_only_format"),
+            (NativeError::UnsupportedEdit, "unsupported_edit"),
+            (
+                NativeError::InvalidNameEdit(azteccraft::native_scene::NamingRefusal::EmptyPrefix),
+                "invalid_name_edit",
+            ),
+            (NativeError::InvalidName, "invalid_name"),
+            (NativeError::NameCollision, "name_collision"),
+            (NativeError::ResourceLimit, "resource_limit"),
+            (NativeError::NonFinite, "scene_error"),
+        ] {
+            assert_eq!(code(error), expected);
+        }
+    }
+
+    #[test]
     fn pivot_refusals_report_their_codes_and_the_rest_scene_error() {
         let code = |error| {
             let result = tool_reply(Err(OperationError::Pivot(error)));
@@ -997,6 +1022,10 @@ mod tests {
                 "reset_pivots" => json!({"scene_token":token,"mode":"zero"}),
                 "reset_transformations" | "freeze_transformations" | "match_transformations" => {
                     json!({"scene_token":token})
+                }
+                "prefix_hierarchy_names" => json!({"scene_token":token,"prefix":"a_"}),
+                "search_replace_names" => {
+                    json!({"scene_token":token,"search":"a","replace":"b"})
                 }
                 "parent_node" => json!({"scene_token":token,"node_id":"1","world":true}),
                 "group_selection" | "ungroup_selection" => json!({"scene_token":token}),
