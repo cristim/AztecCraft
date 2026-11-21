@@ -4,10 +4,12 @@ use super::{
     TransformExtras, Units, UvSet,
     admission::Budget,
     authored::BUILTINS,
+    camera::{FILM_ATTRIBUTES, SceneCamera, fit_from_id, order_from_id},
     curve::{CurveForm, CurveSource},
     source::{SourceFormat, SourceRetention},
 };
 pub use crate::maya_ascii::{AsciiError, ErrorKind};
+use crate::viewport::{FilmBack, FilmRollOrder};
 use crate::{
     maya_ascii::{
         Work,
@@ -67,12 +69,47 @@ fn literal_equal(a: &[u8], b: &[u8], work: &mut Work) -> Result<bool, AsciiError
     }
 }
 
+/// A camera's film back attributes as read. `reals` is indexed by the position in
+/// `FILM_ATTRIBUTES`; the fit, order and gate slots stay unused there.
+#[derive(Clone, Copy, Default)]
+struct CameraParse {
+    reals: [f64; 19],
+    fit: i32,
+    order: i32,
+    gate: bool,
+}
+
+const FF: usize = 3;
+const DFG: usize = 13;
+const FRV: usize = 12;
+const FRO: usize = 18;
+/// `fl` keeps its original camera bit; the others take bits above the camera channel bits.
+const FL_BIT: u32 = 8;
+const FILM_BITS: u32 = {
+    let mut bits = 0;
+    let mut slot = 0;
+    while slot < 19 {
+        bits |= film_bit(slot);
+        slot += 1;
+    }
+    bits
+};
+
+const fn film_bit(slot: usize) -> u32 {
+    if slot == 0 { FL_BIT } else { 1 << (11 + slot) }
+}
+
+fn film_slot(attribute: &str) -> Option<usize> {
+    let name = attribute.strip_prefix('.')?;
+    FILM_ATTRIBUTES.iter().position(|known| *known == name)
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Transform(usize),
     Curve(usize),
     Mesh(usize),
-    Camera,
+    Camera(SceneCamera),
     LightLinker,
     LayerManager,
     DisplayLayer,
@@ -343,6 +380,8 @@ struct Builder<'a, 'b> {
     connections: u8,
     relationships: u8,
     default_links: usize,
+    /// The film back attributes read per camera, assembled by `finish_cameras`.
+    camera_parse: [CameraParse; 4],
 }
 
 impl Builder<'_, '_> {
@@ -368,6 +407,55 @@ impl Builder<'_, '_> {
             return Err(error(ErrorKind::Unsupported, c.offset));
         }
         record.attributes |= bit;
+        Ok(())
+    }
+    /// Turns each camera's complete film back statement into the scene's store. A file that states
+    /// only `fl` (a Maya default camera) keeps its prior meaning; a partial or invalid statement
+    /// refuses the file; an unknown `filmRollOrder` id blocks the camera and the source keeps it.
+    fn finish_cameras(&mut self) -> Result<(), AsciiError> {
+        let stated: Vec<(SceneCamera, u32)> = self
+            .owners
+            .iter()
+            .filter_map(|owner| match owner.kind {
+                Kind::Camera(camera) => Some((camera, owner.attributes & FILM_BITS)),
+                _ => None,
+            })
+            .collect();
+        for (camera, bits) in stated {
+            if bits & !FL_BIT == 0 {
+                continue;
+            }
+            if bits != FILM_BITS {
+                return Err(error(ErrorKind::Unsupported, 0));
+            }
+            let p = self.camera_parse[camera.index()];
+            let fit = fit_from_id(p.fit).ok_or_else(|| error(ErrorKind::Unsupported, 0))?;
+            let r = &p.reals;
+            let film = FilmBack {
+                focal_mm: r[0],
+                aperture_in: [r[1], r[2]],
+                film_fit: fit,
+                film_fit_offset_in: r[4],
+                film_offset_in: [r[5], r[6]],
+                lens_squeeze: r[7],
+                pre_scale: r[10],
+                post_scale: r[11],
+                film_roll_degrees: r[FRV],
+                overscan: r[8],
+                display_film_gate: p.gate,
+                camera_scale: r[9],
+                film_translate: [r[14], r[15]],
+                film_roll_pivot: [r[16], r[17]],
+                film_roll_order: order_from_id(p.order).unwrap_or(FilmRollOrder::RotateTranslate),
+            };
+            film.validate()
+                .map_err(|_| error(ErrorKind::Malformed, 0))?;
+            if order_from_id(p.order).is_some() {
+                self.scene.state_camera_film_back(camera, film);
+            } else {
+                self.scene.block_camera(camera);
+            }
+        }
         Ok(())
     }
     fn next_native_id(&self) -> Result<NativeId, AsciiError> {
@@ -532,7 +620,10 @@ impl Builder<'_, '_> {
                 {
                     return Err(error(ErrorKind::Unsupported, c.offset));
                 }
-                Kind::Camera
+                Kind::Camera(
+                    SceneCamera::from_shape_name(name)
+                        .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?,
+                )
             }
             ("lightLinker", "lightLinker1") if shared && parent.is_none() => Kind::LightLinker,
             ("displayLayerManager", "layerManager") if !shared && parent.is_none() => {
@@ -589,20 +680,23 @@ impl Builder<'_, '_> {
         c.work.charge(mul(BUILTINS.len(), add(1, raw.len())?)?)?;
         let name = raw
             .strip_prefix(':')
-            .filter(|name| BUILTINS[..13].contains(name))
+            .filter(|name| {
+                BUILTINS[..13].contains(name) || SceneCamera::from_shape_name(name).is_some()
+            })
             .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
         c.done()?;
         if let Some(index) = self.find(name, c.work)? {
             self.selected = Some(index);
             return Ok(());
         }
+        let kind = SceneCamera::from_shape_name(name).map_or(Kind::Builtin, Kind::Camera);
         if self.owners.len() == self.owners.capacity() {
             return Err(resource());
         }
         self.selected = Some(self.owners.len());
         self.owners.push(Owner {
             name: add(token.span.start, 1)?..token.span.end,
-            kind: Kind::Builtin,
+            kind,
             attributes: 0,
             uuid: None,
             keyability: false,
@@ -819,7 +913,7 @@ impl Builder<'_, '_> {
                     _ => return Err(error(ErrorKind::Unsupported, c.offset)),
                 }
             }
-            Kind::Camera => {
+            Kind::Camera(camera) => {
                 let bit = match attribute {
                     ".v" => {
                         if flags.size.is_some()
@@ -839,7 +933,10 @@ impl Builder<'_, '_> {
                     }
                     ".fl" | ".coi" | ".ow" => {
                         flags.plain(c)?;
-                        c.number()?;
+                        let value = c.number()?;
+                        if attribute == ".fl" {
+                            self.camera_parse[camera.index()].reals[0] = value;
+                        }
                         match attribute {
                             ".fl" => 8,
                             ".coi" => 16,
@@ -855,6 +952,23 @@ impl Builder<'_, '_> {
                             ".man" => 256,
                             _ => 512,
                         }
+                    }
+                    other if film_slot(other).is_some() => {
+                        flags.plain(c)?;
+                        let slot = film_slot(other)
+                            .ok_or_else(|| error(ErrorKind::Malformed, c.offset))?;
+                        // Degrees are the plain unit only when the file declares them.
+                        if slot == FRV && self.scene.units.angular != AngularUnit::Degree {
+                            return Err(error(ErrorKind::Unsupported, c.offset));
+                        }
+                        let parse = &mut self.camera_parse[camera.index()];
+                        match slot {
+                            FF => parse.fit = c.integer()?,
+                            FRO => parse.order = c.integer()?,
+                            DFG => parse.gate = c.boolean()?,
+                            _ => parse.reals[slot] = c.number()?,
+                        }
+                        film_bit(slot)
                     }
                     _ => return Err(error(ErrorKind::Unsupported, c.offset)),
                 };
@@ -1309,6 +1423,7 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
         connections: 0,
         relationships: 0,
         default_links: 0,
+        camera_parse: [CameraParse::default(); 4],
     };
     for statement in &statements {
         let mut c = Cursor {
@@ -1331,6 +1446,7 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
     if builder.scene.units.linear != LinearUnit::Centimeter && !builder.scene.curves.is_empty() {
         return Err(error(ErrorKind::Unsupported, 0));
     }
+    builder.finish_cameras()?;
     let uvs = builder.finish_meshes()?;
     let materials = builder.finish_materials()?;
     validation_admission(&builder.scene, records, builder.budget, &mut work)?;
@@ -1353,6 +1469,8 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
     })
 }
 
+#[cfg(test)]
+mod camera_tests;
 #[cfg(test)]
 mod degree_tests;
 mod document;

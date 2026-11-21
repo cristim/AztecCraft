@@ -26,6 +26,12 @@ impl SceneCamera {
         }
     }
 
+    pub(super) fn from_shape_name(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|camera| camera.shape_name() == name)
+    }
+
     pub(super) fn index(self) -> usize {
         match self {
             Self::Persp => 0,
@@ -59,11 +65,31 @@ pub(super) fn fit_id(fit: FilmFit) -> i32 {
     }
 }
 
+pub(super) fn fit_from_id(id: i32) -> Option<FilmFit> {
+    [
+        FilmFit::Fill,
+        FilmFit::Horizontal,
+        FilmFit::Vertical,
+        FilmFit::Overscan,
+    ]
+    .into_iter()
+    .find(|fit| fit_id(*fit) == id)
+}
+
 pub(super) fn order_id(order: FilmRollOrder) -> i32 {
     match order {
         FilmRollOrder::RotateTranslate => 0,
         FilmRollOrder::TranslateRotate => 1,
     }
+}
+
+pub(super) fn order_from_id(id: i32) -> Option<FilmRollOrder> {
+    [
+        FilmRollOrder::RotateTranslate,
+        FilmRollOrder::TranslateRotate,
+    ]
+    .into_iter()
+    .find(|order| order_id(*order) == id)
 }
 
 /// The per-camera overrides and the cameras a file stated in a way the editor cannot carry.
@@ -121,6 +147,17 @@ impl NativeScene {
         }
         self.cameras.films[camera.index()] = (!film.same_bits(&FilmBack::DEFAULT)).then_some(film);
         Ok(())
+    }
+
+    /// A file's complete statement of a camera, kept even when it equals the defaults so that
+    /// saving the file again does not drop it.
+    pub(super) fn state_camera_film_back(&mut self, camera: SceneCamera, film: FilmBack) {
+        self.cameras.films[camera.index()] = Some(film);
+    }
+
+    /// A camera a file stated with a value the editor cannot carry.
+    pub(super) fn block_camera(&mut self, camera: SceneCamera) {
+        self.cameras.blocked[camera.index()] = true;
     }
 
     pub(super) fn camera_override(&self, camera: SceneCamera) -> Option<FilmBack> {
