@@ -305,7 +305,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                         P::Unsupported(_) => "playblast_unsupported",
                         P::NoAdapter => "playblast_no_adapter",
                         P::Io(_) | P::WriterPanicked => "playblast_io",
-                        P::Render(_) | P::Evaluate { .. } => "playblast_render",
+                        P::Render(_) | P::Evaluate { .. } | P::Plate { .. } => "playblast_render",
                     }
                 }
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",

@@ -3,23 +3,28 @@
 //! clone is advanced frame by frame (strictly ascending), and every keyed channel is rewritten
 //! at each frame, so no value carries over from an earlier one.
 
+use super::playblast_plate::plate_at;
 use crate::app::Editor;
 use crate::editor_operations::{
     OperationError, OperationReply, PlayblastFormat, PlayblastInspection, PlayblastRequest,
     ShadingMode,
 };
+use crate::viewport_renderer::PlateAt;
+use azteccraft::image_plane::worker::decode_from_disk;
 use azteccraft::playblast::{
     FrameRenderer, JobProgress, PlayblastError, PlayblastJob, PlayblastPlan, SceneAt,
 };
 use azteccraft::view_scene::{VIEW_BUDGET, ViewScene};
 use azteccraft::viewport::Camera;
 use eframe::egui;
+use std::sync::Arc;
 
-/// Builds the renderer of one job from its scene source, the viewport camera, the grid flag and
-/// the shading mode. Tests install a fake here; with `None` the window's renderer is used.
+/// Builds the renderer of one job from its scene source, the plate source (`None` without an
+/// image plane), the viewport camera, the grid flag and the shading mode. Tests install a fake here; with `None` the window's renderer is used.
 pub(in crate::app) type RendererFactory = Box<
     dyn FnMut(
         SceneAt,
+        Option<PlateAt>,
         &Camera,
         bool,
         ShadingMode,
@@ -69,12 +74,19 @@ impl Editor {
         grid: bool,
     ) -> Result<Box<dyn FrameRenderer>, PlayblastError> {
         let (camera, shading) = (self.camera.clone(), self.shading);
+        let plate = self.image_plane.as_ref().map(|state| {
+            let decode = self
+                .plate
+                .decoder()
+                .unwrap_or_else(|| Arc::new(decode_from_disk));
+            plate_at(state.plane.clone(), camera.clone(), decode)
+        });
         if let Some(factory) = &mut self.playblast.factory {
-            return factory(scene, &camera, grid, shading);
+            return factory(scene, plate, &camera, grid, shading);
         }
         if let Some(renderer) = &self.renderer {
             return renderer
-                .frame_renderer(scene, camera, grid, shading)
+                .frame_renderer(scene, plate, camera, grid, shading)
                 .map(|renderer| Box::new(renderer) as Box<dyn FrameRenderer>);
         }
         Err(PlayblastError::NoAdapter)
@@ -229,12 +241,21 @@ pub(in crate::app) mod fake {
     pub(in crate::app) struct Asked {
         pub(in crate::app) grid: Vec<bool>,
         pub(in crate::app) sizes: Vec<(u32, u32)>,
+        /// Per rendered frame: the key frame and first texel of the plate it resolved (`None`:
+        /// no plate drawn). Empty without a plate source.
+        pub(in crate::app) plates: Vec<PlateSeen>,
+        /// Whether each renderer was built with a plate source.
+        pub(in crate::app) had_plate_source: Vec<bool>,
     }
+
+    /// A rendered frame and the `(key frame, first texel)` of the plate drawn for it, if any.
+    pub(in crate::app) type PlateSeen = (i64, Option<(i64, [u8; 4])>);
 
     pub(in crate::app) type AskedLog = Arc<Mutex<Asked>>;
 
     struct FakeRenderer {
         scene: SceneAt,
+        plate: Option<PlateAt>,
         seen: Seen,
         asked: Option<AskedLog>,
     }
@@ -250,6 +271,13 @@ pub(in crate::app) mod fake {
                 asked.lock().unwrap().sizes.push((width, height));
             }
             let view = (self.scene)(frame)?;
+            if let (Some(plate), Some(asked)) = (&mut self.plate, &self.asked) {
+                let drawn = plate(frame, [width, height])?.map(|draw| {
+                    let texel = draw.frame.rgba[..4].try_into().unwrap_or_default();
+                    (draw.key.frame, texel)
+                });
+                asked.lock().unwrap().plates.push((frame, drawn));
+            }
             let vertices = view
                 .instances()
                 .first()
@@ -272,12 +300,15 @@ pub(in crate::app) mod fake {
     }
 
     fn build(seen: Seen, asked: Option<AskedLog>) -> RendererFactory {
-        Box::new(move |scene, _, grid, _| {
+        Box::new(move |scene, plate, _, grid, _| {
             if let Some(asked) = &asked {
-                asked.lock().unwrap().grid.push(grid);
+                let mut asked = asked.lock().unwrap();
+                asked.grid.push(grid);
+                asked.had_plate_source.push(plate.is_some());
             }
             Ok(Box::new(FakeRenderer {
                 scene,
+                plate,
                 seen: Arc::clone(&seen),
                 asked: asked.clone(),
             }))
