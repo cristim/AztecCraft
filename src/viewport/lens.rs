@@ -13,8 +13,10 @@ pub const MIN_FILM_SCALE: f64 = 1e-6;
 /// largest half extent (PROVISIONAL, row 56): the z column of the projection stays finite at
 /// aspects from 1e-3 to 1e3.
 pub const MAX_OFFSET_TAN: f64 = 1e5;
-/// Largest Film Translate or Film Roll Pivot component, in NDC (PROVISIONAL, row 56): ten times
-/// the largest half extent of the offset bound, so the projection's z column stays finite.
+/// Largest Film Translate or Film Roll Pivot component, in NDC (PROVISIONAL, row 56): ours, the
+/// same 1e5 as `MAX_OFFSET_TAN`. The f32 projection stays finite at viewport aspects from 1e-3 to
+/// 1e3 with every component at this cap (the roll scales a pivot by the aspect), so the cap is a
+/// sanity bound, not a finiteness requirement.
 pub const MAX_NDC_SHIFT: f64 = 1e5;
 /// Bounds of the symmetric half extent in tangent space at aspect 1, overscan excluded
 /// (PROVISIONAL, row 56): about 0.006 degrees to 89.994 degrees of half angle.
@@ -426,10 +428,13 @@ impl FilmWindow {
     fn ndc_of_tan(&self, tan: DVec2) -> DVec2 {
         let m = self.linear();
         let uv = (tan - self.centre) / self.half;
-        DVec2::new(
+        let ndc = DVec2::new(
             m[0][0] * uv.x + m[0][1] * uv.y,
             m[1][0] * uv.x + m[1][1] * uv.y,
-        ) + self.shift()
+        );
+        // At neutral values the shift is +0.0, which turns a -0.0 sum into +0.0: equal as a number
+        // and not reachable by a gate corner (never exactly zero), so no bit pin can see it.
+        ndc + self.shift()
     }
 
     /// Analytic inverse of `ndc_of_tan`: the tangent-space point a pixel looks at.

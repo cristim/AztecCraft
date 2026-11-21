@@ -45,17 +45,144 @@ fn close(actual: [f64; 2], expected: [f64; 2], what: &str) {
     }
 }
 
+/// Bit patterns of `projection_matrix` and `film_gate_ndc` computed from the code before the
+/// camera scale, translate and pivot existed (two films: the default and one with every older
+/// attribute set). Neutral new fields must reproduce them exactly, including the -0.0 entries.
 #[test]
-fn the_new_fields_default_to_neutral() {
-    let film = FilmBack::DEFAULT;
-    assert_eq!(film.camera_scale, 1.0);
-    assert_eq!(film.film_translate, [0.0, 0.0]);
-    assert_eq!(film.film_roll_pivot, [0.0, 0.0]);
-    assert_eq!(film.film_roll_order, FilmRollOrder::RotateTranslate);
+fn neutral_new_fields_reproduce_the_pre_s1_matrices_and_gate_bit_for_bit() {
+    let busy = |f: &mut FilmBack| {
+        f.film_offset_in = [0.1, -0.05];
+        f.film_roll_degrees = 30.0;
+        f.lens_squeeze = 1.5;
+        f.overscan = 1.2;
+        f.pre_scale = 1.1;
+        f.post_scale = 0.9;
+        f.film_fit = FilmFit::Horizontal;
+        f.film_fit_offset_in = 0.02;
+    };
+    let cameras = [Camera::default(), camera(film(busy))];
+    let projections: [(usize, f32, [u32; 16]); 8] = [
+        (
+            0,
+            0.5_f32,
+            [
+                1085974976, 0, 0, 0, 2147483648, 1077586368, 0, 0, 0, 0, 3212836948, 3212836864, 0,
+                0, 3184315731, 0,
+            ],
+        ),
+        (
+            0,
+            1_f32,
+            [
+                1077586368, 0, 0, 0, 2147483648, 1077586368, 0, 0, 0, 0, 3212836948, 3212836864, 0,
+                0, 3184315731, 0,
+            ],
+        ),
+        (
+            0,
+            1.5_f32,
+            [
+                1073276053, 0, 0, 0, 2147483648, 1077586800, 0, 0, 0, 0, 3212836948, 3212836864, 0,
+                0, 3184315731, 0,
+            ],
+        ),
+        (
+            0,
+            2_f32,
+            [
+                1073276053, 0, 0, 0, 2147483648, 1081664661, 0, 0, 0, 0, 3212836948, 3212836864, 0,
+                0, 3184315731, 0,
+            ],
+        ),
+        (
+            1,
+            0.5_f32,
+            [
+                1064114738, 1049158687, 0, 0, 3205030943, 1055726130, 0, 0, 1038504740, 1016845584,
+                3212836948, 3212836864, 0, 0, 3184315731, 0,
+            ],
+        ),
+        (
+            1,
+            1_f32,
+            [
+                1064114738, 1057547295, 0, 0, 3205030943, 1064114738, 0, 0, 1038504740, 1025234192,
+                3212836948, 3212836864, 0, 0, 3184315731, 0,
+            ],
+        ),
+        (
+            1,
+            1.5_f32,
+            [
+                1064114738, 1062032942, 0, 0, 3205030943, 1068618662, 0, 0, 1038504740, 1030340504,
+                3212836948, 3212836864, 0, 0, 3184315731, 0,
+            ],
+        ),
+        (
+            1,
+            2_f32,
+            [
+                1064114738, 1065935903, 0, 0, 3205030943, 1072503346, 0, 0, 1038504740, 1033622800,
+                3212836948, 3212836864, 0, 0, 3184315731, 0,
+            ],
+        ),
+    ];
+    for (index, aspect, expected) in projections {
+        let matrix = cameras[index].projection_matrix(aspect).unwrap();
+        assert_eq!(
+            matrix.to_cols_array().map(f32::to_bits),
+            expected,
+            "camera {index} aspect {aspect}"
+        );
+    }
+    let gates: [(f32, [[u32; 2]; 4]); 4] = [
+        (
+            0.5_f32,
+            [
+                [3204840338, 3200144845],
+                [1063768977, 1025960755],
+                [1057617114, 1052210129],
+                [3210992201, 3177052942],
+            ],
+        ),
+        (
+            1_f32,
+            [
+                [3204840338, 3208533453],
+                [1063768977, 1034349363],
+                [1057617114, 1060598737],
+                [3210992201, 3185441550],
+            ],
+        ),
+        (
+            1.5_f32,
+            [
+                [3204840338, 3213803610],
+                [1063768977, 1039818956],
+                [1057617114, 1065981661],
+                [3210992201, 3190193226],
+            ],
+        ),
+        (
+            2_f32,
+            [
+                [3204840338, 3216922061],
+                [1063768977, 1042737971],
+                [1057617114, 1068987345],
+                [3210992201, 3193830158],
+            ],
+        ),
+    ];
+    let busy_film = film(busy);
+    for (aspect, expected) in gates {
+        let gate = film_gate_ndc(&busy_film, aspect).map(|v| [v.x.to_bits(), v.y.to_bits()]);
+        assert_eq!(gate, expected, "gate aspect {aspect}");
+    }
 }
 
 #[test]
 fn each_new_field_is_refused_by_name_and_accepted_at_its_boundary() {
+    assert_eq!(MAX_NDC_SHIFT, 1e5);
     type Setter = fn(&mut FilmBack, f64);
     let shifts: [(&str, Setter); 4] = [
         ("film_translate_h", |f, v| f.film_translate[0] = v),
@@ -102,6 +229,56 @@ fn each_new_field_is_refused_by_name_and_accepted_at_its_boundary() {
             Ok(()),
             "camera_scale {good}"
         );
+    }
+}
+
+#[test]
+fn the_offset_bound_uses_the_effective_focal_length() {
+    // Focal 25.4 mm: a 1e5 inch offset is exactly the bound at scale 1 and one step over at
+    // scale 0.5 (effective focal 12.7 mm doubles the tangent), while scale 2 halves it.
+    let at = |scale: f64, offset: f64| {
+        film(|f| {
+            f.focal_mm = 25.4;
+            f.camera_scale = scale;
+            f.film_offset_in = [0.0, offset];
+        })
+        .validate()
+    };
+    assert_eq!(at(1.0, 1e5), Ok(()));
+    assert_eq!(at(0.5, 1e5), Err(InvalidFilmBack("vertical_film_offset")));
+    assert_eq!(at(2.0, 2e5), Ok(()));
+    assert_eq!(
+        at(2.0, 2.0 * next_up(1e5)),
+        Err(InvalidFilmBack("vertical_film_offset"))
+    );
+}
+
+#[test]
+fn accepted_extreme_shifts_still_build_a_finite_projection_at_extreme_aspects() {
+    for fit in [
+        FilmFit::Fill,
+        FilmFit::Horizontal,
+        FilmFit::Vertical,
+        FilmFit::Overscan,
+    ] {
+        for order in [
+            FilmRollOrder::RotateTranslate,
+            FilmRollOrder::TranslateRotate,
+        ] {
+            let extreme = film(|f| {
+                f.film_fit = fit;
+                f.film_roll_order = order;
+                f.film_translate = [MAX_NDC_SHIFT, -MAX_NDC_SHIFT];
+                f.film_roll_pivot = [-MAX_NDC_SHIFT, MAX_NDC_SHIFT];
+                f.film_roll_degrees = 33.0;
+                f.post_scale = MAX_FILM_SCALE;
+            });
+            assert_eq!(extreme.validate(), Ok(()), "{fit:?} {order:?}");
+            for aspect in [1e-3_f32, 1e3] {
+                let matrix = camera(extreme).projection_matrix(aspect).unwrap();
+                assert!(matrix.is_finite(), "{fit:?} {order:?} at aspect {aspect}");
+            }
+        }
     }
 }
 
@@ -266,6 +443,7 @@ fn the_film_gate_moves_with_the_translate() {
 
 #[test]
 fn rays_invert_the_projection_with_every_new_attribute_set() {
+    // Round trip through f32 matrices: within 2e-4 in NDC, not exact.
     let mut state = 0x2545_f491_4f6c_dd1d_u64;
     let mut next = move || {
         state ^= state << 13;
