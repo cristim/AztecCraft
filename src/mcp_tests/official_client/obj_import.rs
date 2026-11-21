@@ -380,3 +380,86 @@ async fn sdk_import_obj_attaches_complete_uvs_and_reports_the_counts() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_uv_round_trip_through_export_obj_import_obj_inspect_uvs_and_undo() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    editor.create(Primitive::Cube);
+    let source = editor.history.scene().shapes()[0].id().to_decimal();
+    let token = editor.scene_token.to_string();
+    let projected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "project_uv_planar",
+        json!({"scene_token": token, "shape_id": source, "axis": "z"}),
+    )
+    .await;
+    assert_eq!(projected.structured_content.unwrap()["outcome"], "changed");
+    let path = directory.path().join("cube.obj");
+    let exported = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "export_obj",
+        json!({"scene_token": token, "path": path}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(exported["outcome"], "exported", "{exported}");
+
+    let imported = import(
+        &mut editor,
+        &context,
+        &client,
+        json!({"scene_token": token, "path": path}),
+    )
+    .await;
+    assert_eq!(imported["uv_objects"], 1, "{imported}");
+    assert_eq!(imported["uv_dropped_objects"], 0);
+    let copy = editor.history.scene().shapes()[1].id().to_decimal();
+    let mut read = Vec::new();
+    for shape in [&source, &copy] {
+        let reply = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_uvs",
+            json!({"shape_id": shape}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let inspection = reply["inspection"].clone();
+        assert_eq!(inspection["uv_set"], "map1", "{reply}");
+        assert_eq!(inspection["next_cursor"], serde_json::Value::Null);
+        read.push(inspection["faces"].clone());
+    }
+    assert_eq!(read[0].as_array().unwrap().len(), 6);
+    assert_eq!(read[0], read[1]);
+
+    // One undo removes the imported shape and its UVs; the source keeps its own.
+    let undone = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "undo",
+        json!({"scene_token": token}),
+    )
+    .await;
+    assert_ne!(undone.is_error, Some(true), "{undone:?}");
+    assert_eq!(editor.history.scene().shapes().len(), 1);
+    assert!(
+        editor
+            .history
+            .scene()
+            .uv_set(editor.history.scene().shapes()[0].id())
+            .is_some()
+    );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
