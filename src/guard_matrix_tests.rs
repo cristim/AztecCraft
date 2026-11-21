@@ -3144,6 +3144,13 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
                 .join(","),
         ),
         (
+            "image_plane",
+            editor.image_plane.as_ref().map_or_else(
+                || "none".to_string(),
+                |state| format!("{}x{}", state.image_size.0, state.image_size.1),
+            ),
+        ),
+        (
             "recovery_files",
             std::fs::read_dir(roots[0].join("recovery"))
                 .map_or(0, Iterator::count)
