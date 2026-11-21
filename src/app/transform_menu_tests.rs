@@ -199,3 +199,17 @@ fn the_match_row_is_disabled_on_a_read_only_scene() {
     let output = open_modify_menu(&mut editor, &editing_ctx());
     assert!(button_disabled(&output, "Match Transformations"));
 }
+
+#[test]
+fn the_naming_rows_are_visibly_disabled_and_point_at_the_issue_and_the_tools() {
+    let mut editor = two_cube_editor();
+    let output = open_modify_menu(&mut editor, &editing_ctx());
+    for (label, tool) in [
+        ("Prefix Hierarchy Names", "prefix_hierarchy_names"),
+        ("Search and Replace Names", "search_replace_names"),
+    ] {
+        assert!(button_disabled(&output, label), "{label}");
+        let reason = description(&output, label).unwrap_or_default();
+        assert!(reason.contains("#313") && reason.contains(tool), "{reason}");
+    }
+}

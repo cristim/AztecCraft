@@ -3,13 +3,17 @@
 //! `match_transformations` with all three channels (Match: the last selected is the target; Maya's
 //! pages call it the "source", so the naming is inverted); the option boxes are not built, so their
 //! rows are visibly disabled with a reason. Maya's Lock and Preserve Normals and Joint orient
-//! options are unbuilt too (PROVISIONAL; the native mesh stores no normals).
+//! options are unbuilt too (PROVISIONAL; the native mesh stores no normals). Prefix Hierarchy
+//! Names and Search and Replace Names are typed operations and MCP tools, but their text dialogs
+//! do not fit this slice, so their rows are visibly disabled and point at #313.
 use crate::app::*;
 use azteccraft::native_scene::TransformChannels;
 
 pub(in crate::app) const RESET_OPTIONS_REASON: &str = "Reset Transformations options are not implemented; all of Translate, Rotate and Scale are reset; see #313";
 pub(in crate::app) const FREEZE_OPTIONS_REASON: &str = "Freeze Transformations options are not implemented; Translate, Rotate and Scale are frozen; Joint orient, Lock Normals and Preserve Normals are unbuilt; see #313";
 pub(in crate::app) const MATCH_OPTIONS_REASON: &str = "Match Transformations options are not implemented; Translate, Rotate and Scale are matched in world space (PROVISIONAL); Match Pivots and bounding box sizes are unbuilt; see #313";
+pub(in crate::app) const PREFIX_ROW_REASON: &str = "Prefix Hierarchy Names has no native dialog yet; use the MCP tool prefix_hierarchy_names; see #313";
+pub(in crate::app) const SEARCH_REPLACE_ROW_REASON: &str = "Search and Replace Names has no native dialog yet; use the MCP tool search_replace_names; see #313";
 const MATCH_NEEDS_TWO: &str = "Select at least two objects; the last selected is the target";
 
 impl Editor {
@@ -142,6 +146,15 @@ impl Editor {
             if clicked {
                 ui.close();
                 self.native_match_transformations();
+            }
+            ui.separator();
+            for (label, reason) in [
+                ("Prefix Hierarchy Names", PREFIX_ROW_REASON),
+                ("Search and Replace Names", SEARCH_REPLACE_ROW_REASON),
+            ] {
+                let row = ui.add_enabled(false, egui::Button::new(label));
+                features::primitive_options::describe_unavailable(ui.ctx(), row.id, reason);
+                row.on_disabled_hover_text(reason);
             }
         });
     }
