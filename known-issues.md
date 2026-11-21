@@ -1963,6 +1963,20 @@ The behavior is PROVISIONAL and not compared with Maya (#5). Point storage is f3
 about 4e-4 relative at a scale ratio of 1e3/1e-3; ordinary scales stay far below that. Mirrored nodes are refused
 whenever the scale is frozen (translate-only and rotate-only freezes of a mirrored node keep the mirror on the node).
 
+## Naming operations are PROVISIONAL and have no native dialog (#313 slice 3)
+
+Prefix Hierarchy Names and Search and Replace Names exist as typed operations and MCP tools (`prefix_hierarchy_names`,
+`search_replace_names`); the native Modify rows are visibly disabled because the prefix and search text dialogs are not
+built. The fetched Maya 2027 page (Change the name of one or more objects) and the 2014 and 2016 versions of the same
+pages say only that the prefix goes on the parent node and all its children and that the search covers all node
+names, the selected ones or those of a hierarchy; they do not state the prefix separator, clash handling, case
+sensitivity, pattern support, defaults or undo. Assumed: the prefix is prepended verbatim with no separator; matching
+is plain text (case-sensitive by default, ASCII case-insensitive on request, no regular expressions); a result that is
+invalid or clashes with any other node or shape name is refused for the whole edit, never made unique (AztecCraft names
+are unique across the scene, stricter than Maya's sibling rule); an instanced node is renamed once; nothing matching is
+refused (`invalid_name_edit`) instead of succeeding silently; the undo labels. Only transforms are renamed (derived
+shape names follow); other node types are not in the scene model. Not compared with Maya (#5).
+
 ## Match Transformations refuses shear and cross-channel cases and is PROVISIONAL
 
 **Severity:** low
