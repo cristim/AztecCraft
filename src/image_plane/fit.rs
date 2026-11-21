@@ -142,4 +142,6 @@ fn depth_to_z(depth: f32, near: f32, far: f32) -> Option<f32> {
 }
 
 #[cfg(test)]
+mod depth_tests;
+#[cfg(test)]
 mod tests;
