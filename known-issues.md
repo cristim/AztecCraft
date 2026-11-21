@@ -20,12 +20,15 @@ The Move tool drags picked vertices, edges and faces (native arrows and the remo
 numerics or screenshots were compared (#5); the parity row is MOD-119 (Partial). These choices are
 PROVISIONAL because the Maya 2027 Move pages are silent on them, and each is pinned by a test:
 
-- The arrows sit at the world bounding-box centre of the moved vertices, not their mean.
+- The arrows sit at the world bounding-box centre of the moved vertices, not their mean. The Maya page puts
+  the pivot at the centre of all selected components and states neither where the arrows are drawn nor how
+  the centre is computed.
 - An edge moves both endpoints and a face every loop vertex, shared vertices once.
 - The undo entry is named "Move". Moving a shared (instanced) shape edits every instance; no app or MCP
   route creates instances, so this is covered headless only.
-- Retain Component Spacing is trivially met (no soft select, rigid translate); Preserve UVs leaves session UVs
-  untouched.
+- Retain Component Spacing (on by default in Maya) is trivially met: no soft select, rigid translate.
+- DIFFERS from Maya: the Move Tool settings page says that with Preserve UVs on, moving components moves
+  the corresponding UVs. Here session UVs are left untouched, so a moved vertex does not carry its UV.
 - A mirrored or skewed frame refuses in Object orientation as for Rotate and Scale handles.
 - Sets reaching more than 8192 vertices, Snap to grids, the Parent and Along Rotation Axis orientations,
   scenes opened from `.mb` or `.ma` (their writers cannot carry edited points) and more than one object in
@@ -50,8 +53,10 @@ reviewed screenshots without private paths, build id and platform recorded in
    redo reapplies.
 2. Esc mid-drag restores the cube with no undo entry; after a move and its undo, a cancelled drag leaves the
    redo entry intact.
-3. Several vertices (build the set with MCP `modify_component_selection` or a multi-click once available):
-   the arrows sit at the bounding-box centre and all picked vertices move.
+3. Several vertices: there is no native multi-pick yet, so build the set with MCP `modify_component_selection`
+   (`kind` `vertex`, `mode` `replace`, `owner` = the cube's `node_id`, `shape_id` and `instance_path`
+   from `inspect_scene`, `indices` e.g. `[0, 3, 5]`): the arrows sit at the bounding-box centre and all
+   picked vertices move.
 4. Edge mode (F10): click an edge, drag an arrow: both endpoints move. Face mode (F11): click a face centre,
    drag: its four corners move. The arrows sit at the edge midpoint and face centre.
 5. Object orientation: rotate the cube, set Move Axis Orientation to Object: the arrows align to the object
@@ -1562,7 +1567,7 @@ The pages say little about several objects, so these choices are pinned by tests
 - P21: one node selected through two instances is refused whole, naming the node, because its instances share channels; the same target twice is `InvalidIds` (`move_refuses_two_instances_of_one_node`, `the_same_target_twice_is_invalid_ids`).
 - P22: one undo entry, labelled Move, for the whole set (`several_movers_preview_commit_one_labelled_undo_entry_and_undo_redo_bit_identically`).
 - P23: MCP `update_manipulation distance` applies the same World displacement to every member (`sdk_move_with_the_current_generation_moves_every_selected_object_in_one_undo_step`).
-- P24: not done: Object and Parent axis orientations (each object moving along its own axes) need a Move orientation setting, which does not exist; only World is available.
+- P24: superseded: the Move Axis Orientation selector now offers World (default), Object and Parent, and a drag moves each object along its own axes for Object and Parent (PROVISIONAL: Parent with several objects); Component, Normal, Along Rotation Axis, Along Live Object Axis and Custom stay disabled.
 - P25: when the lead is covered by a selected ancestor, the pivot is still the lead's own origin and the inspection reports the lead's own channels (`the_lead_may_be_the_covered_member`).
 - P27 (#39): Move and Rotate handles are drawn and dragged at the rotate pivot (T + RT + RP in the parent's space), and the Scale handle at the scale fixed point (the full matrix applied to the scale pivot). Maya's pages do not place the handles relative to the pivots (`handle_origin_is_the_rotate_pivot_for_move_and_rotate_and_the_scale_fixed_point_for_scale`, `the_rotate_ring_is_picked_at_the_rotate_pivot_and_not_at_the_translate`).
 - P28 (#39): Frame Selected keeps using T + RT and ignores the rotate pivot (see the frame-selected entry above); Move, Rotate and Scale channel edits never write the pivots (`move_rotate_and_scale_patch_only_their_words_through_save_save_as_and_reopen`).
