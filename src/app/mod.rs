@@ -570,6 +570,8 @@ mod gpu_viewport_tests;
 mod undrawable_scene_tests;
 
 #[cfg(test)]
+mod align_objects_tests;
+#[cfg(test)]
 mod group_menu_tests;
 #[cfg(test)]
 mod group_ops_tests;
