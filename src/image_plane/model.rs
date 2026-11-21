@@ -73,8 +73,25 @@ pub struct ImagePlane {
     pub coverage: Option<Coverage>,
 }
 
+/// Some of the four coverage numbers, for callers that name only part of a coverage (the MCP
+/// tool). The operation merges them with the stored coverage, or with the full image when none is
+/// stored (PROVISIONAL), before the model sees a whole `Coverage`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CoverageParts {
+    pub origin_x: Option<u32>,
+    pub origin_y: Option<u32>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}
+
+impl CoverageParts {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
 /// Every field optional. Creating a plane requires `image_name`. `coverage` is
-/// `Some(None)` to go back to the full image.
+/// `Some(None)` to go back to the full image; `coverage_parts` is the partial form and excludes it.
 #[derive(Clone, Default, PartialEq)]
 pub struct ImagePlaneEdit {
     pub image_name: Option<PathBuf>,
@@ -86,6 +103,14 @@ pub struct ImagePlaneEdit {
     pub alpha_gain: Option<f32>,
     pub display_mode: Option<PlateDisplayMode>,
     pub coverage: Option<Option<Coverage>>,
+    pub coverage_parts: CoverageParts,
+}
+
+impl ImagePlaneEdit {
+    /// True when no field is named. The model treats that as Unchanged; the operation refuses it.
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 // The image name is a user path: Debug prints its length only, so logs and panics never carry it.
@@ -120,6 +145,7 @@ impl fmt::Debug for ImagePlaneEdit {
             .field("alpha_gain", &self.alpha_gain)
             .field("display_mode", &self.display_mode)
             .field("coverage", &self.coverage)
+            .field("coverage_parts", &self.coverage_parts)
             .finish()
     }
 }

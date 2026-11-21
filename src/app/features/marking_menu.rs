@@ -385,6 +385,8 @@ impl Editor {
 #[cfg(test)]
 mod a11y_tests;
 #[cfg(test)]
+mod component_tests;
+#[cfg(test)]
 mod edge_tests;
 #[cfg(test)]
 mod layout_tests;

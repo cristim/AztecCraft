@@ -543,11 +543,25 @@ film, so an overscan below 1 also widens. When the widening cannot converge (rou
 extreme coordinates, or more than 1000 times the sphere distance) the framing silently keeps the
 sphere distance and may leave points outside the view; nothing reports it yet. `NativeScene` also holds per-camera film back overrides (#458 S2a). The store is independent of
 the live viewport lens that `set_camera_film_back` edits, so the two can differ until the editor
-wires them together (S2b); nothing writes the store yet, the authored `.ma` and `.mb` writers
-refuse a scene that holds an override (`camera_override`), and an opened file refuses the edit,
-until persistence lands. The persistence slices must tell an explicit statement of the default
-values in a file from an unstated camera: the store drops an override equal to the defaults, so
-saving would otherwise lose a file's explicit statement. Only the MCP `set_camera_film_back` edits
+wires them together (S2b); nothing writes the store yet and an opened file refuses the edit. The
+authored `.ma` writer saves each override as a `select -ne :<camera>Shape;` block of 19 `setAttr`
+lines (`fl hfa vfa ff ffo hfo vfo lsr ovr cs psc ptsc frv dfg fth ftv hrp vrp fro`, degrees for
+`frv`, exact f64) and the reader reads only a complete block, keeping an explicit default as
+stated. The short names and the `ff` ids 0 to 3 (fill, horizontal, vertical, overscan) are from
+the Maya camera node page; the `fro` ids (0 rotate-translate, 1 translate-rotate) are not on it,
+and Maya's acceptance of the `select -ne` form is unverified, all PROVISIONAL. S2b (wiring the
+editor to the store) stays blocked until Maya accepts the block and the `fro` ids are verified.
+A PARTIAL block refuses the whole file (`unsupported`): real Maya writes only the attributes
+that differ from the node defaults, so a Maya file whose camera has an edited film back and does
+not state all 19 attributes does not open. That is no regression (those attributes were already
+refused), and a follow-up should preserve a partial block as unknown source data instead (with
+the .mb work, S2d and S2e). The block always states `ff`, so the viewport Fill default (the page
+lists the node default as horizontal; see row 25) never decides a stated camera. An out-of-range
+fit id, a duplicate, an invalid value or a radian file also refuses the file. An unknown `fro` id
+blocks the camera: a mesh-free file stays readable and read-only with its source bytes, but a
+mesh file with one is refused (the authored gate cannot re-emit it and a mesh file is never
+retained read-only), so "the source keeps it" holds for mesh-free files only. The `.mb` writer
+still refuses an override (`camera_override`, slice S2d). Only the MCP `set_camera_film_back` edits
 the film back; the Attribute Editor Camera tab (#458) is not built, so no native control exists. Every film formula, the Fill threshold, the Fill default and treating the viewport
 aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
@@ -1885,7 +1899,7 @@ Object Move has the same gap. Closing it needs a test-only unit hook on `NativeS
 
 ## Marking menus are a first slice (#32)
 
-Only the RMB mesh menu exists: eight dial zones (Vertex, Edge, Face, Object Mode, Extrude and unsupported or disabled UV, Multi, Paint, Inputs, Merge and Delete). The layout is original and PROVISIONAL (the Maya 2027 Marking Menus page gives gestures and modifier variants but not the polygon menu's positions or entries) and it has not been compared with Maya. It acts on the current selection mode only. A Select list of eight rows (Select All, Select Hierarchy, Invert Selection, Deselect All, then unsupported Select Similar, Make Live, Metadata and Assign Material) sits beside a sticky dial, on the left near the right edge; a held dial shows no list, and the list's layout and order are original and PROVISIONAL. The component modes' extra rows (Bevel, Multi-Cut, Insert Edge Loop, Connect, Detach) are not drawn yet (#32 T4). There are no submenus, no hold-key or Shift and Ctrl variants (Shift, Ctrl or Alt with RMB open nothing), no Hotbox, no Marking Menu Editor and no custom hotkeys. Native evidence is by synthetic frame tests with explicit times; no real-window run has checked the look, the hold timing or the press-drag-release gesture (#32 T6).
+Only the RMB mesh menu exists: eight dial zones (Vertex, Edge, Face, Object Mode, Extrude and unsupported or disabled UV, Multi, Paint, Inputs, Merge and Delete). The layout is original and PROVISIONAL (the Maya 2027 Marking Menus page gives gestures and modifier variants but not the polygon menu's positions or entries) and it has not been compared with Maya. It acts on the current selection mode only. A Select list of eight rows (Select All, Select Hierarchy, Invert Selection, Deselect All, then unsupported Select Similar, Make Live, Metadata and Assign Material) sits beside a sticky dial, on the left near the right edge; a held dial shows no list, and the list's layout and order are original and PROVISIONAL. In the component modes five more unsupported rows follow (Bevel, Multi-Cut, Insert Edge Loop, Connect, Detach), each naming the polygon modeling toolset (#46); Delete and Merge on the dial stay disabled or unsupported until those tools exist. There are no submenus, no hold-key or Shift and Ctrl variants (Shift, Ctrl or Alt with RMB open nothing), no Hotbox, no Marking Menu Editor and no custom hotkeys. Native evidence is by synthetic frame tests with explicit times; no real-window run has checked the look, the hold timing or the press-drag-release gesture (#32 T6).
 
 - Keyboard (PROVISIONAL, Maya documents none): Shift+F10 opens the menu; Right, Down and Tab move to the next entry, Left, Up and Shift+Tab to the previous, 1 to 9 pick by position, Enter and Space choose, Escape closes. Disabled and unsupported entries take keyboard focus so a screen reader can read their reasons (an `Unavailable:` description); choosing one is rejected and the reason goes to the Help Line.
 - A menu dismissed by a press stays in a Swallow state until that button releases; a Swallow does not block remote calls (only a Held or sticky Open menu does).
@@ -1927,3 +1941,17 @@ The helix self-intersects whenever the tube radius exceeds half the pitch (`heig
 The sourced defaults (3 coils, height 2, width 2, radius 0.4) already overlap: the closest non-adjacent turns are about 0.66 apart against
 a 0.8 tube diameter. Whether Maya's own default overlaps depends on what its `-width` and `-height` measure, which the pages do not say.
 The face count is capped (20000 faces, at most 128 divisions per ring) so a large coil count cannot exhaust memory.
+
+## Playblast job limits (#460)
+
+**Severity:** low
+**Area:** playblast, editor loop
+**Issue:** #460
+
+- A process exit while a job runs (kill, crash, OS termination that skips the close guard) leaves a staged
+  `.pb_tmp` file next to the numbered PNGs. A close through the editor cancels and joins the writer first.
+- A draft, a modal or a pending close that never resolves pauses the job indefinitely; there is no timeout.
+  It resumes when the draft is committed or discarded, the modal is resolved or the close is declined.
+- One tick renders one frame on the UI thread. A very large frame on a software adapter can freeze the window
+  for seconds, and Cancel cannot interrupt a frame in flight; it takes effect before the next frame.
+- `width` and `height` are required: no viewport size is stored, so there is no default to take.

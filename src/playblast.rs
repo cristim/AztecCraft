@@ -1,6 +1,12 @@
 //! Playblast request validation, sizes and output file names (#460), pure policy. Caps, name
 //! charset, `<name>.NNNN.png` numbering, `percent` rounding and the inclusive range end are
 //! PROVISIONAL: no comparison with Maya's playblast output exists.
+//!
+//! Limits (also in `known-issues.md`): a process exit with a running job leaves a staged `.pb_tmp`
+//! file; a draft or modal that never resolves pauses the job with no timeout; one tick renders one
+//! frame on the UI thread, so a very large frame on a software adapter can freeze the window and
+//! Cancel cannot interrupt a frame in flight; `width` and `height` are required (no stored viewport
+//! size).
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::fmt;
@@ -47,6 +53,12 @@ pub enum PlayblastError {
     /// No GPU device is available to render with.
     NoAdapter,
     WriterPanicked,
+    /// A playblast is already running.
+    Busy,
+    /// The scene has no value for this frame (out of the supported frame range).
+    Evaluate {
+        frame: i64,
+    },
 }
 
 impl fmt::Display for PlayblastError {
@@ -67,6 +79,8 @@ impl fmt::Display for PlayblastError {
             Self::Render(what) => write!(f, "render failed: {what}"),
             Self::NoAdapter => f.write_str("no GPU device: start the window or a headless adapter"),
             Self::WriterPanicked => f.write_str("the writer thread panicked"),
+            Self::Busy => f.write_str("a playblast is already running"),
+            Self::Evaluate { frame } => write!(f, "the scene cannot be evaluated at frame {frame}"),
         }
     }
 }
@@ -211,6 +225,11 @@ fn whole_frame(value: f64) -> Result<i64, PlayblastError> {
 
 mod job;
 mod writer;
+
+/// Produces the scene to draw at a frame; called with ascending frames, one per render.
+pub type SceneAt =
+    Box<dyn FnMut(i64) -> Result<crate::view_scene::ViewScene, PlayblastError> + Send>;
+
 pub use job::{FrameRenderer, JobProgress, PlayblastJob};
 pub use writer::{encode_png, install_frame};
 

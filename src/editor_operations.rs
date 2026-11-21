@@ -3,6 +3,7 @@ use azteccraft::native_scene::{NativeTransform, ReparentKeep, TransformAttribute
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
+    image_plane::{model::ImagePlaneEdit, ops::ImagePlaneOpError},
     move_handles::ManipulatorSize,
     native_scene::{
         EdgeTarget, FaceTarget, GroupOptions, MoveSpace, NativeError, NativeId, RotateAxis,
@@ -406,6 +407,31 @@ impl Operation {
     }
 }
 
+/// PROVISIONAL (#460): the playblast request, after Maya's `playblast` flags. `start` and `end`
+/// default to the playback range, `width` and `height` (the 100% size) are required until a
+/// painted viewport size is recorded.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct PlayblastRequest {
+    pub directory: PathBuf,
+    pub name: String,
+    pub start: Option<f64>,
+    pub end: Option<f64>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub percent: u32,
+    pub format: PlayblastFormat,
+    pub offscreen: bool,
+    pub show_ornaments: bool,
+}
+
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlayblastFormat {
+    #[cfg_attr(not(test), expect(dead_code, reason = "MCP tool pending (#460)"))]
+    Png,
+}
+
 pub enum Operation {
     SetActiveTool(ActiveTool),
     /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool`, or
@@ -695,6 +721,14 @@ pub enum Operation {
         path: PathBuf,
         selection_only: bool,
     },
+    /// Starts a playblast job on a snapshot of the scene; never edits the scene or its history.
+    #[cfg(any(test, feature = "mcp"))]
+    #[cfg_attr(not(test), expect(dead_code, reason = "MCP tool pending (#460)"))]
+    Playblast(PlayblastRequest),
+    /// Stops the running playblast, keeping the frames already written; `Unchanged` with none.
+    #[cfg(any(test, feature = "mcp"))]
+    #[cfg_attr(not(test), expect(dead_code, reason = "MCP tool pending (#460)"))]
+    CancelPlayblast,
     /// File > Import of a Maya `.ma` or `.mb` file: adds its meshes to the scene as one undo
     /// step, each name prefixed with `prefix` when given.
     #[cfg(any(test, feature = "mcp"))]
@@ -917,6 +951,16 @@ pub enum Operation {
         )
     )]
     SetCameraFilmBack(FilmBackEdit),
+    /// Creates the camera image plane (`image_name` required) or edits it, all or nothing. View
+    /// state like the pose: no undo, not saved, cleared by New and Open. A new `image_name`
+    /// reads the first frame's header (at most 1 MiB); PROVISIONAL: the same name again is
+    /// Unchanged and does not reload the file (remove the plane or change the name to reload).
+    /// Unchanged is judged numerically; an empty edit is refused.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetImagePlane(ImagePlaneEdit),
+    /// Removes the image plane; Unchanged when there is none.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    RemoveImagePlane,
 }
 
 #[derive(Debug, Serialize)]
@@ -1042,6 +1086,12 @@ pub enum OperationReply {
         vertices: usize,
         triangles: usize,
     },
+    #[cfg(any(test, feature = "mcp"))]
+    PlayblastStarted {
+        frames: u32,
+        width: u32,
+        height: u32,
+    },
 }
 
 /// Present only on a paged reply. `truncated` means more node pages follow.
@@ -1126,6 +1176,7 @@ pub struct SceneInspection {
     pub status_message: Option<String>,
     pub camera: CameraInspection,
     pub timeline: TimelineInspection,
+    pub playblast: PlayblastInspection,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<PageInspection>,
 }
@@ -1142,6 +1193,20 @@ pub struct TimelineInspection {
     #[serde(rename = "loop")]
     pub loop_mode: &'static str,
     pub key_count: usize,
+}
+
+/// The playblast job, of a fixed size. `state` is idle, running, finished, failed or cancelled;
+/// only the final component of the output directory is named, never its path.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct PlayblastInspection {
+    pub state: &'static str,
+    pub frames_done: u32,
+    pub frames_total: u32,
+    pub width: u32,
+    pub height: u32,
+    pub directory_name: Option<String>,
+    pub last_error: Option<String>,
 }
 
 /// Most keys in one `inspect_keys` reply. A key takes at most about 110 bytes of JSON, so a page
@@ -1561,6 +1626,8 @@ pub struct CameraInspection {
     /// The film back attributes in Maya's units as stored (f64, no rounding); null for an explicit
     /// field-of-view lens. An orthographic view reports the stored film back though it ignores it.
     pub film_back: Option<FilmBackInspection>,
+    /// The session image plane (#459), null when none; never carries the full image path.
+    pub image_plane: Option<ImagePlaneInspection>,
     /// Session viewport eye-to-target distance, in internal centimetres.
     pub center_of_interest_cm: f32,
     pub target: [f32; 3],
@@ -1576,6 +1643,69 @@ pub struct CameraInspection {
     /// `perspective` or `orthographic`. An orthographic view shows `distance * tan(fov_y / 2)`
     /// as its half height (PROVISIONAL).
     pub projection: &'static str,
+}
+
+/// The image plane as `set_image_plane` takes it, plus what the editor can say about the frame
+/// on screen. No pixels and no directory: only the resolved file name.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneInspection {
+    pub settings: ImagePlaneSettingsInspection,
+    /// The first frame's size in pixels, probed when the image name was set.
+    pub image_size: ImagePlaneSizeInspection,
+    /// The file name (no directory) of the frame the current time resolves to. With
+    /// `use_frame_extension` off it is the image file; with it on it is the numbered frame, null
+    /// when the frame has no file (a negative frame, or a name with no digits).
+    pub resolved_file_name: Option<String>,
+    /// Current time plus `frame_offset` while `use_frame_extension` is on, else null.
+    pub resolved_frame: Option<i64>,
+    /// `missing` (the resolved frame has no file name) or `not_loaded`. PROVISIONAL: the editor
+    /// runs no frame decoder yet, so `ready`, `loading` and `failed` are not reported.
+    pub frame_state: &'static str,
+    pub cache: ImagePlaneCacheInspection,
+}
+
+/// Units as in `set_image_plane`: depth in centimetres, offsets and counts in frames.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneSettingsInspection {
+    pub use_frame_extension: bool,
+    pub frame_offset: i32,
+    pub frame_cache: u32,
+    /// `fill`, `best`, `horizontal`, `vertical` or `to_size`.
+    pub fit: &'static str,
+    pub depth_cm: f32,
+    pub alpha_gain: f32,
+    /// `none`, `outline`, `rgb`, `rgba`, `luminance` or `alpha`.
+    pub display_mode: &'static str,
+    /// Source pixels used; null means the full image.
+    pub coverage: Option<ImagePlaneCoverageInspection>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneCoverageInspection {
+    pub origin_x: u32,
+    pub origin_y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneSizeInspection {
+    pub width: u32,
+    pub height: u32,
+}
+
+/// PROVISIONAL: no decoded frames are held yet, so `frames` and `bytes` are 0; `budget_bytes` is
+/// the policy cap the cache will use.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ImagePlaneCacheInspection {
+    pub frames: usize,
+    pub bytes: usize,
+    pub budget_bytes: usize,
 }
 
 /// The camera film back as `set_camera_film_back` takes it: the same names and units.
@@ -1739,6 +1869,9 @@ pub enum OperationError {
     /// USD export refusal or failure; its text never carries the path.
     #[cfg(any(test, feature = "mcp"))]
     UsdExport(ExportError),
+    /// Playblast refusal or failure; its text never carries the path.
+    #[cfg(any(test, feature = "mcp"))]
+    Playblast(azteccraft::playblast::PlayblastError),
     /// A Maya import source that could not be read or decoded; carries no path or content.
     #[cfg(any(test, feature = "mcp"))]
     MayaImportFile(MayaImportFileError),
@@ -1749,6 +1882,8 @@ pub enum OperationError {
     CameraPose(InvalidCameraPose),
     /// A refused film back edit; names the field.
     FilmBack(InvalidFilmBack),
+    /// A refused image plane edit or first-frame probe; its text never carries a path.
+    ImagePlane(ImagePlaneOpError),
     CameraBookmark(BookmarkError),
     #[cfg(any(test, feature = "mcp"))]
     Recovery(RecoveryFailure),
@@ -1882,6 +2017,8 @@ impl fmt::Display for OperationError {
             #[cfg(any(test, feature = "mcp"))]
             Self::GltfExport(error) | Self::UsdExport(error) => error.fmt(f),
             #[cfg(any(test, feature = "mcp"))]
+            Self::Playblast(error) => error.fmt(f),
+            #[cfg(any(test, feature = "mcp"))]
             Self::MayaImportFile(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
@@ -1892,6 +2029,7 @@ impl fmt::Display for OperationError {
             Self::Camera(error) => error.fmt(f),
             Self::CameraPose(error) => error.fmt(f),
             Self::FilmBack(error) => error.fmt(f),
+            Self::ImagePlane(error) => error.fmt(f),
             Self::CameraBookmark(error) => error.fmt(f),
 #[cfg(any(test, feature = "mcp"))]
             Self::Recovery(error) => error.fmt(f),
@@ -2023,10 +2161,12 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"undo_queue":[],"redo_queue":[],"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
-    r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"film_back":null,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
+    r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"film_back":null,"image_plane":null,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
     r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
-    r#""frames_per_second":0.0,"loop":"","key_count":0}}"#
+    r#""frames_per_second":0.0,"loop":"","key_count":0},"#,
+    r#""playblast":{"state":"","frames_done":0,"frames_total":0,"width":0,"height":0,"#,
+    r#""directory_name":null,"last_error":null}}"#
 );
 
 /// Guaranteed lower bound of the serialized `SceneInspection` for the scene alone: the fixed part

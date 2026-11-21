@@ -12,10 +12,12 @@
 use super::*;
 use crate::editor_operations::{
     ComponentKind, ComponentMoveSpace, FileDecision, ManipulationSpace, ManipulationValue,
-    MarqueeMode, MoveDistance, RemoteRequest, SelectRule, ToolHandle, TransformInput,
+    MarqueeMode, MoveDistance, PlayblastRequest, RemoteRequest, SelectRule, ToolHandle,
+    TransformInput,
 };
 use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
+use azteccraft::image_plane::model::ImagePlaneEdit;
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
     ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, MaterialChoice,
@@ -306,8 +308,12 @@ struct Targets {
     import: std::path::PathBuf,
     export_gltf: std::path::PathBuf,
     export_usd: std::path::PathBuf,
+    /// An existing directory for the playblast to write into.
+    playblast_dir: std::path::PathBuf,
     /// A `.ma` file no decoder accepts, so the cell reads the same on every platform.
     import_ma: std::path::PathBuf,
+    /// A valid 2x2 PNG, written by `build`.
+    plate: std::path::PathBuf,
 }
 
 impl Targets {
@@ -426,7 +432,9 @@ fn targets(rig: &Rig) -> Targets {
         import: rig.directory.path().join("import.obj"),
         export_gltf: rig.directory.path().join("export.glb"),
         export_usd: rig.directory.path().join("export.usda"),
+        playblast_dir: rig.directory.path().to_path_buf(),
         import_ma: rig.directory.path().join("import.ma"),
+        plate: rig.directory.path().join("plate.png"),
     }
 }
 
@@ -627,6 +635,18 @@ fn build(state: State) -> Rig {
     )
     .unwrap();
     std::fs::write(directory.path().join("import.ma"), "not a Maya scene\n").unwrap();
+    {
+        let mut encoder = png::Encoder::new(
+            std::fs::File::create(directory.path().join("plate.png")).unwrap(),
+            2,
+            2,
+        );
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&[0; 16]).unwrap();
+        writer.finish().unwrap();
+    }
     let context = egui::Context::default();
     let mut editor = match state {
         State::MaterialDraft => material_editor(),
@@ -742,6 +762,9 @@ fn build(state: State) -> Rig {
             may_install = false;
         }
     }
+    editor.playblast.factory = Some(crate::app::features::playblast::fake::factory(
+        Default::default(),
+    ));
     Rig {
         editor,
         context,
@@ -925,6 +948,8 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             path: t.export_usd.clone(),
             selection_only: false,
         },
+        Operation::Playblast(playblast_request(t.playblast_dir.clone())),
+        Operation::CancelPlayblast,
         Operation::ImportMaya {
             path: t.import_ma.clone(),
             prefix: None,
@@ -1058,7 +1083,17 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         // Differs from the default film back so a Changed outcome is observable.
         film_back_edit(),
+        image_plane_edit(t),
+        Operation::RemoveImagePlane,
     ]
+}
+
+/// A valid PNG written by `build`, so a Changed outcome is observable.
+fn image_plane_edit(t: &Targets) -> Operation {
+    Operation::SetImagePlane(ImagePlaneEdit {
+        image_name: Some(t.plate.clone()),
+        ..ImagePlaneEdit::default()
+    })
 }
 
 fn film_back_edit() -> Operation {
@@ -2880,6 +2915,49 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             },
         )],
         Operation::SetCameraFilmBack(_) => vec![sample("set_camera_film_back", film_back_edit())],
+        Operation::SetImagePlane(_) => vec![
+            sample("set_image_plane(valid)", image_plane_edit(t)),
+            sample(
+                "set_image_plane(missing)",
+                Operation::SetImagePlane(ImagePlaneEdit {
+                    image_name: Some(t.plate.with_file_name("missing.png")),
+                    ..ImagePlaneEdit::default()
+                }),
+            ),
+            sample(
+                "set_image_plane(empty)",
+                Operation::SetImagePlane(ImagePlaneEdit::default()),
+            ),
+        ],
+        Operation::RemoveImagePlane => {
+            vec![sample("remove_image_plane", Operation::RemoveImagePlane)]
+        }
+        Operation::Playblast(_) => vec![
+            sample(
+                "playblast(valid)",
+                Operation::Playblast(playblast_request(t.playblast_dir.clone())),
+            ),
+            sample(
+                "playblast(relative_dir)",
+                Operation::Playblast(playblast_request("relative".into())),
+            ),
+        ],
+        Operation::CancelPlayblast => vec![sample("cancel_playblast", Operation::CancelPlayblast)],
+    }
+}
+
+fn playblast_request(directory: std::path::PathBuf) -> PlayblastRequest {
+    PlayblastRequest {
+        directory,
+        name: "pb".into(),
+        start: Some(1.0),
+        end: Some(2.0),
+        width: Some(4),
+        height: Some(4),
+        percent: 100,
+        format: crate::editor_operations::PlayblastFormat::Png,
+        offscreen: true,
+        show_ornaments: true,
     }
 }
 
@@ -3068,6 +3146,13 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
                 .map(|b| b.name.as_str())
                 .collect::<Vec<_>>()
                 .join(","),
+        ),
+        (
+            "image_plane",
+            editor.image_plane.as_ref().map_or_else(
+                || "none".to_string(),
+                |state| format!("{}x{}", state.image_size.0, state.image_size.1),
+            ),
         ),
         (
             "recovery_files",

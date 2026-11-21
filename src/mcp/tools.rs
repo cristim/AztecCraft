@@ -224,6 +224,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Camera(_)
                 | OperationError::CameraPose(_)
                 | OperationError::FilmBack(_) => "camera_error",
+                OperationError::ImagePlane(_) => "image_plane_error",
                 OperationError::File(_) => "file_error",
                 OperationError::View(_) => "view_error",
                 OperationError::NativeSave(error) => match error {
@@ -279,6 +280,22 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                         G::Io(_) => "export_io",
                         G::Unsupported(_) => "export_unsupported",
                         G::Invalid(_) => "export_invalid",
+                    }
+                }
+                OperationError::Playblast(error) => {
+                    use azteccraft::playblast::PlayblastError as P;
+                    match error {
+                        P::InvalidName | P::InvalidDirectory | P::InvalidRange | P::InvalidSize => {
+                            "playblast_invalid"
+                        }
+                        P::TooManyFrames | P::TooLarge => "playblast_too_large",
+                        P::DestinationExists { .. } => "destination_exists",
+                        P::Cancelled { .. } => "playblast_cancelled",
+                        P::Busy => "playblast_busy",
+                        P::Unsupported(_) => "playblast_unsupported",
+                        P::NoAdapter => "playblast_no_adapter",
+                        P::Io(_) | P::WriterPanicked => "playblast_io",
+                        P::Render(_) | P::Evaluate { .. } => "playblast_render",
                     }
                 }
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
@@ -1019,6 +1036,7 @@ mod tests {
                     json!({"scene_token":token,"target":[0,0,0],"distance":8,"yaw_degrees":30,"pitch_degrees":20})
                 }
                 "set_camera_film_back" => json!({"scene_token":token,"focal_length":50}),
+                "set_image_plane" => json!({"scene_token":token,"image_name":"plate.png"}),
                 "list_camera_bookmarks" => json!({}),
                 "create_camera_bookmark" | "delete_camera_bookmark" | "apply_camera_bookmark" => {
                     json!({"scene_token":token,"name":"v"})
@@ -1153,6 +1171,8 @@ mod tests {
                     | "set_camera_pose"
                     | "default_camera_view"
                     | "set_camera_film_back"
+                    | "set_image_plane"
+                    | "remove_image_plane"
                     | "set_pivots"
                     | "reset_pivots"
                     | "reset_transformations"
