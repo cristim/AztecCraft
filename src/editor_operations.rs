@@ -410,7 +410,6 @@ impl Operation {
 /// PROVISIONAL (#460): the playblast request, after Maya's `playblast` flags. `start` and `end`
 /// default to the playback range, `width` and `height` (the 100% size) are required until a
 /// painted viewport size is recorded.
-#[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlayblastRequest {
     pub directory: PathBuf,
@@ -425,7 +424,6 @@ pub struct PlayblastRequest {
     pub show_ornaments: bool,
 }
 
-#[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlayblastFormat {
     Png,
@@ -720,10 +718,8 @@ pub enum Operation {
         selection_only: bool,
     },
     /// Starts a playblast job on a snapshot of the scene; never edits the scene or its history.
-    #[cfg(any(test, feature = "mcp"))]
     Playblast(PlayblastRequest),
     /// Stops the running playblast, keeping the frames already written; `Unchanged` with none.
-    #[cfg(any(test, feature = "mcp"))]
     CancelPlayblast,
     /// File > Import of a Maya `.ma` or `.mb` file: adds its meshes to the scene as one undo
     /// step, each name prefixed with `prefix` when given.
@@ -1082,7 +1078,6 @@ pub enum OperationReply {
         vertices: usize,
         triangles: usize,
     },
-    #[cfg(any(test, feature = "mcp"))]
     PlayblastStarted {
         frames: u32,
         width: u32,
@@ -1194,7 +1189,6 @@ pub struct TimelineInspection {
 /// The playblast job, of a fixed size. `state` is idle, running, finished, failed or cancelled;
 /// only the final component of the output directory is named, never its path.
 #[derive(Debug, Serialize)]
-#[cfg(any(test, feature = "mcp"))]
 pub struct PlayblastInspection {
     pub state: &'static str,
     pub frames_done: u32,
@@ -1870,7 +1864,6 @@ pub enum OperationError {
     #[cfg(any(test, feature = "mcp"))]
     UsdExport(ExportError),
     /// Playblast refusal or failure; its text never carries the path.
-    #[cfg(any(test, feature = "mcp"))]
     Playblast(azteccraft::playblast::PlayblastError),
     /// A Maya import source that could not be read or decoded; carries no path or content.
     #[cfg(any(test, feature = "mcp"))]
@@ -2016,7 +2009,6 @@ impl fmt::Display for OperationError {
             Self::ObjImport(error) => error.fmt(f),
             #[cfg(any(test, feature = "mcp"))]
             Self::GltfExport(error) | Self::UsdExport(error) => error.fmt(f),
-            #[cfg(any(test, feature = "mcp"))]
             Self::Playblast(error) => error.fmt(f),
             #[cfg(any(test, feature = "mcp"))]
             Self::MayaImportFile(error) => error.fmt(f),

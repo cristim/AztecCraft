@@ -180,6 +180,10 @@ pub(super) fn known_ids() -> HashMap<NodeId, String> {
         super::features::primitive_options::option_field_ids().collect(),
     ));
     table.extend(indexed(
+        "playblast_option",
+        super::features::playblast_options::field_ids().to_vec(),
+    ));
+    table.extend(indexed(
         "joint_option",
         super::features::rigging::joint_field_ids().collect(),
     ));

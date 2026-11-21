@@ -343,7 +343,6 @@ pub struct ViewportRenderer {
     format: wgpu::TextureFormat,
     max_buffer_size: u64,
     /// The window's device and queue (cheap clones), for the playblast; none without a window.
-    #[cfg(feature = "mcp")]
     gpu: Option<(wgpu::Device, wgpu::Queue)>,
     #[cfg(test)]
     submission: Arc<egui::epaint::mutex::Mutex<Option<Submission>>>,
@@ -398,7 +397,6 @@ impl ViewportRenderer {
             errors,
             format: state.target_format,
             max_buffer_size: state.device.limits().max_buffer_size,
-            #[cfg(feature = "mcp")]
             gpu: Some((state.device.clone(), state.queue.clone())),
             #[cfg(test)]
             submission: Arc::default(),
@@ -1149,10 +1147,8 @@ impl CallbackTrait for ViewportCallback {
 mod plate;
 use plate::{PlateDraw, PlateGpu};
 
-#[cfg(any(test, feature = "mcp"))]
 mod offscreen;
 
-#[cfg(feature = "mcp")]
 mod frame_renderer;
 
 #[cfg(test)]
