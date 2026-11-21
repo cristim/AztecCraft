@@ -597,11 +597,13 @@ impl Editor {
         if let Some(noun) = self.selection_mode.component_noun()
             && matches!(
                 operation,
-                Operation::ResetTransformations { .. } | Operation::FreezeTransformations { .. }
+                Operation::ResetTransformations { .. }
+                    | Operation::FreezeTransformations { .. }
+                    | Operation::MatchTransformations { .. }
             )
         {
             return Err(OperationError::InvalidInput(format!(
-                "Reset and Freeze Transformations on {noun} selection are unsupported; switch to Object or Hierarchy selection"
+                "Reset, Freeze and Match Transformations on {noun} selection are unsupported; switch to Object or Hierarchy selection"
             )));
         }
         self.guard_move_dispatch(&operation, provenance)?;
@@ -744,6 +746,7 @@ impl Editor {
                     | Operation::ResetPivots { .. }
                     | Operation::ResetTransformations { .. }
                     | Operation::FreezeTransformations { .. }
+                    | Operation::MatchTransformations { .. }
                     | Operation::Group { .. }
                     | Operation::Ungroup { .. }
                     | Operation::AssignSessionMaterial { .. }
@@ -1319,6 +1322,13 @@ impl Editor {
                 let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
                 Command::FreezeTransformations { ids, channels }
             }
+            Operation::MatchTransformations {
+                channels,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::MatchTransformations { ids, channels }
+            }
             Operation::Group {
                 options,
                 expected_selection_generation,
@@ -1753,7 +1763,9 @@ impl Editor {
         );
         let transform_command = matches!(
             command,
-            Command::ResetTransformations { .. } | Command::FreezeTransformations { .. }
+            Command::ResetTransformations { .. }
+                | Command::FreezeTransformations { .. }
+                | Command::MatchTransformations { .. }
         );
         let key_command = matches!(
             command,

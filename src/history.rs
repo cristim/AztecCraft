@@ -93,6 +93,12 @@ pub enum Command {
         ids: Vec<NodeId>,
         channels: TransformChannels,
     },
+    /// Matches every object of `ids` but the last (the target) to the target's world transform
+    /// for the chosen channels as one undo step; any refusal leaves the scene and history untouched.
+    MatchTransformations {
+        ids: Vec<NodeId>,
+        channels: TransformChannels,
+    },
     SetMaterialDiffuse {
         shape: NativeId,
         value: f64,
@@ -202,6 +208,7 @@ impl Command {
             // PROVISIONAL: Maya's docs name no undo entries.
             Self::ResetTransformations { .. } => "Reset Transformations".to_string(),
             Self::FreezeTransformations { .. } => "Freeze Transformations".to_string(),
+            Self::MatchTransformations { .. } => "Match Transformations".to_string(),
             Self::SetMaterialDiffuse { .. }
             | Self::CreateSessionMaterial { .. }
             | Self::AssignSessionMaterial { .. }
@@ -608,6 +615,7 @@ impl History {
                 | Command::ResetPivots { .. }
                 | Command::ResetTransformations { .. }
                 | Command::FreezeTransformations { .. }
+                | Command::MatchTransformations { .. }
                 | Command::ExtrudeFace { .. }
                 | Command::MoveVertices { .. }
         );
@@ -697,6 +705,10 @@ impl History {
             }
             Command::FreezeTransformations { ids, channels } => {
                 candidate.freeze_transformations(&ids, channels)?;
+                EditOutcome::Changed
+            }
+            Command::MatchTransformations { ids, channels } => {
+                candidate.match_transformations(&ids, channels)?;
                 EditOutcome::Changed
             }
             Command::SetMaterialDiffuse { shape, value } => {
