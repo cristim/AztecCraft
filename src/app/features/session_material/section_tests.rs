@@ -232,3 +232,98 @@ fn the_tab_does_not_resolve_without_a_selection_and_refusal_keeps_the_tab() {
     );
     assert_eq!(editor.effective_attribute_editor_tab(), before);
 }
+
+fn dock_and_tab(editor: &Editor) -> (bool, Option<AttributeEditorTab>) {
+    (
+        editor.sidebar_panel_visible(SidebarPanel::AttributeEditor),
+        editor.effective_attribute_editor_tab(),
+    )
+}
+
+#[test]
+fn material_attributes_shows_the_panel_on_the_material_tab_like_the_two_remote_operations() {
+    let mut native = Editor::default();
+    native.create(Primitive::Cube);
+    assert!(!native.sidebar_panel_visible(SidebarPanel::AttributeEditor));
+    let dirty = native.is_dirty();
+    native.show_material_attributes().unwrap();
+    let shape = shape_id(&native);
+    assert_eq!(
+        dock_and_tab(&native),
+        (true, Some(AttributeEditorTab::Material(shape)))
+    );
+    let mut other = Editor::default();
+    other.create(Primitive::Cube);
+    for operation in [
+        Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: true,
+        },
+        Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::Material(shape_id(&other)),
+        },
+    ] {
+        remote(&mut other, operation).unwrap();
+    }
+    assert_eq!(dock_and_tab(&native), dock_and_tab(&other));
+    assert_eq!(
+        native.is_dirty(),
+        dirty,
+        "view state never changes the dirty flag"
+    );
+}
+
+#[test]
+fn material_attributes_is_refused_without_one_shaped_object_and_changes_nothing() {
+    let mut editor = Editor::default();
+    let refused = |editor: &mut Editor| {
+        let before = dock_and_tab(editor);
+        let result = editor.show_material_attributes();
+        assert!(result.is_err());
+        assert_eq!(dock_and_tab(editor), before);
+        assert!(editor.error);
+    };
+    assert!(editor.material_attributes_target().is_err());
+    refused(&mut editor);
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    editor.native_operation(Operation::SelectByRule(SelectRule::All));
+    assert_eq!(
+        editor.material_attributes_target(),
+        Err(OperationError::MultipleSelection.to_string())
+    );
+    refused(&mut editor);
+    let mut modal = Editor::default();
+    modal.create(Primitive::Cube);
+    modal.request_new();
+    assert!(matches!(
+        modal.show_material_attributes(),
+        Err(OperationError::BusyEditing)
+    ));
+    assert!(!modal.sidebar_panel_visible(SidebarPanel::AttributeEditor));
+}
+
+#[test]
+fn material_attributes_follows_whether_the_sourced_shape_has_a_phong_binding() {
+    let mut phong = crate::app::tests::material_editor();
+    assert!(phong.material_attributes_target().is_ok());
+    phong.show_material_attributes().unwrap();
+    assert!(matches!(
+        phong.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Material(_))
+    ));
+    let (mut plain, _directory) =
+        crate::app::features::attribute_editor::ui_tests::open_with_attribute_editor(
+            "plain.mb",
+            &crate::app::features::attribute_editor::ui_tests::many_shapes(1),
+        );
+    assert_eq!(
+        plain.material_attributes_target(),
+        Err(NO_MATERIAL_REASON.to_string())
+    );
+    assert!(plain.show_material_attributes().is_err());
+    assert!(matches!(
+        plain.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Transform(_))
+    ));
+}

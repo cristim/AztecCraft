@@ -232,6 +232,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "native_operation",
             "extrude_selected_face",
             "assign_material_to_selection",
+            "show_material_attributes",
         ],
     );
     expect(

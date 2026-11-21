@@ -415,3 +415,23 @@ async fn session_material_sdk_table_cap_is_a_typed_limit_and_inspection_still_fi
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn session_material_sdk_sees_the_tab_that_native_material_attributes_selects() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let shape = editor.history.scene().shapes()[0].id().to_decimal();
+    let before = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(before["sidebar_panels"]["attribute_editor"], false);
+    editor.show_material_attributes().unwrap();
+    let after = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(after["sidebar_panels"]["attribute_editor"], true);
+    assert_eq!(
+        after["attribute_editor_tab"],
+        json!({"kind": "material", "id": shape})
+    );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

@@ -33,7 +33,7 @@ impl Editor {
 
     /// Whether `shape` has something to show on a material tab: a saved Phong binding, or the
     /// session material of an authored shape.
-    fn shape_has_material_tab(&self, shape: NativeId) -> bool {
+    pub(in crate::app) fn shape_has_material_tab(&self, shape: NativeId) -> bool {
         let scene = self.history.scene();
         scene.material_for_shape(shape).is_ok()
             || scene

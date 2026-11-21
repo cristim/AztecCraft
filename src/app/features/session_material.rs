@@ -9,6 +9,7 @@ use azteccraft::native_scene::{DEFAULT_LAMBERT_COLOR, MaterialChoice, SessionMat
 
 const MENU_LABEL: &str = "Lighting/Shading";
 const NO_SHAPE_REASON: &str = "The selected object needs exactly one direct mesh shape";
+const NO_MATERIAL_REASON: &str = "The selected shape has no material to show";
 const COMPONENT_REASON: &str =
     "Use Object mode: assigning a material to selected faces is not implemented";
 /// Maya's other Assign New Material types; only lambert exists in the session table.
@@ -24,6 +25,11 @@ impl Editor {
         if self.selection_mode.is_component() {
             return Err(OperationError::InvalidInput(COMPONENT_REASON.into()));
         }
+        self.single_direct_shape()
+    }
+
+    /// The one direct mesh shape of the single selected object, whatever the selection mode.
+    fn single_direct_shape(&self) -> Result<NativeId, OperationError> {
         let (node, _) = self.single_target()?;
         let transform = self
             .history
@@ -36,6 +42,39 @@ impl Editor {
             (Some(shape), None) => Ok(shape),
             _ => Err(OperationError::InvalidInput(NO_SHAPE_REASON.into())),
         }
+    }
+
+    /// The shape Material Attributes shows, or why there is none: it needs one object with one
+    /// direct shape that has a material tab (a session material, or a saved Phong binding).
+    pub(in crate::app) fn material_attributes_target(&self) -> Result<NativeId, String> {
+        let shape = self.single_direct_shape().map_err(|e| e.to_string())?;
+        if self.shape_has_material_tab(shape) {
+            Ok(shape)
+        } else {
+            Err(NO_MATERIAL_REASON.into())
+        }
+    }
+
+    /// Lighting/Shading > Material Attributes: shows the Attribute Editor on the selected
+    /// shape's material tab through the same two operations MCP calls, so the guards are shared.
+    pub(in crate::app) fn show_material_attributes(
+        &mut self,
+    ) -> Result<OperationReply, OperationError> {
+        let shape = match self.material_attributes_target() {
+            Ok(shape) => shape,
+            Err(reason) => {
+                self.status = reason.clone();
+                self.error = true;
+                return Err(OperationError::InvalidInput(reason));
+            }
+        };
+        self.native_operation_result(Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: true,
+        })?;
+        self.native_operation_result(Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::Material(shape),
+        })
     }
 
     /// Why the assign rows are disabled, or `None` when an assignment may be attempted.
@@ -150,10 +189,17 @@ impl Editor {
             let reason = self.session_material_disabled_reason();
             let enabled = reason.is_none();
             let mut chosen = None;
-            ui.add_enabled(false, egui::Button::new("Material Attributes"))
-                .on_disabled_hover_text(
-                    "Not implemented yet: use the Attribute Editor button in the Status Line",
-                );
+            let mut show_attributes = false;
+            let attributes = self.material_attributes_target();
+            let row = ui.add_enabled(attributes.is_ok(), egui::Button::new("Material Attributes"));
+            let row = match &attributes {
+                Err(reason) => row.on_disabled_hover_text(reason),
+                Ok(_) => row,
+            };
+            if row.clicked() {
+                show_attributes = true;
+                ui.close();
+            }
             ui.menu_button("Assign New Material", |ui| {
                 let lambert = ui.add_enabled(enabled, egui::Button::new("Lambert"));
                 let lambert = match &reason {
@@ -191,6 +237,9 @@ impl Editor {
                         }
                     });
             });
+            if show_attributes {
+                let _ = self.show_material_attributes();
+            }
             if let Some(choice) = chosen {
                 let _ = self.assign_material_to_selection(choice);
             }
