@@ -187,3 +187,7 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+### Primitive shelf buttons (#170)
+
+The [Maya 2027.2 Shelf](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-4A21F741-C9AC-4AE5-897E-B6F8C68ADF90.htm) gives one-click shortcuts in category tabs. The [Sphere](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/polySphere.html), [Cylinder](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/polyCylinder.html) and [Cone](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/polyCone.html) commands create their polygon meshes with per-shape options. The shortcut uses AztecCraft's existing Create behavior and guards. Ordering after Plane is PROVISIONAL and the glyphs are original.

@@ -6401,7 +6401,7 @@ mod toolbox_wire {
         }
         // With nothing selected in Object mode, Frame selected acts like Frame All.
         assert!(!disabled(&output, "Frame selected  F"));
-        for label in ["Cube", "Plane"] {
+        for label in ["Cube", "Plane", "Sphere", "Cylinder", "Cone"] {
             assert!(!disabled(&output, label), "{label}");
         }
         let directory = tempfile::tempdir().unwrap();
@@ -6411,7 +6411,7 @@ mod toolbox_wire {
             .apply_operation(Operation::OpenScene { path })
             .unwrap();
         let output = frame(&mut editor, &context, vec![]);
-        for label in ["Cube", "Plane"] {
+        for label in ["Cube", "Plane", "Sphere", "Cylinder", "Cone"] {
             assert!(disabled(&output, label), "{label}");
         }
     }
@@ -6444,6 +6444,11 @@ mod toolbox_wire {
         let output = frame(&mut editor, &context, vec![]);
         click(&mut editor, &context, center_of(&output, "Redo"));
         assert_eq!(editor.history.scene(), &with_cube);
+        for label in ["Sphere", "Cylinder", "Cone"] {
+            let output = frame(&mut editor, &context, vec![]);
+            click(&mut editor, &context, center_of(&output, label));
+            assert!(selected_name(&editor).contains(label));
+        }
     }
 }
 
