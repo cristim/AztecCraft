@@ -81,7 +81,8 @@ fn stepping_the_time_follows_current_not_start_and_inspect_reports_each_frame() 
         (p["resolved_frame"].clone(), p["frame_state"].clone()),
         (1.into(), "ready".into())
     );
-    assert_eq!(p["cache"]["frames"], 1);
+    // The worker may already have prefetched a neighbour: only the shown frame is certain.
+    assert!(p["cache"]["frames"].as_u64().unwrap() >= 1);
     assert!(editor.plate_draw().is_some());
     // The playback range does not matter: the plate follows `timeline.current`.
     editor.timeline.start = 3;

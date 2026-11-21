@@ -89,6 +89,11 @@ impl PlateRuntime {
         }
     }
 
+    /// The injected decoder, if any (a playblast uses it for test injection only; it otherwise calls `decode_from_disk`, not the viewport's stream or cache).
+    pub(in crate::app) fn decoder(&self) -> Option<DecodeFn> {
+        self.decode.clone()
+    }
+
     /// Forgets the source and releases its frames (the plane was removed or replaced by New).
     fn clear(&mut self) {
         if self.source.take().is_some()
@@ -246,15 +251,21 @@ impl Editor {
     }
 }
 
+/// The key frame of `plane` at timeline `frame`: the frame plus the offset for a sequence, 0 for a
+/// single image. The viewport and the playblast (#460) both use it.
+pub(in crate::app) fn key_frame(plane: &ImagePlane, frame: i64) -> i64 {
+    if plane.use_frame_extension {
+        frame.saturating_add(i64::from(plane.frame_offset))
+    } else {
+        0
+    }
+}
+
 impl Editor {
     /// The key frame of the plane at the current time: the timeline frame plus the offset for a
     /// sequence, 0 for a single image.
     pub(in crate::app) fn plate_frame(&self, plane: &ImagePlane) -> i64 {
-        if plane.use_frame_extension {
-            i64::from(self.timeline.current) + i64::from(plane.frame_offset)
-        } else {
-            0
-        }
+        key_frame(plane, i64::from(self.timeline.current))
     }
 
     /// The per-tick update: reads `timeline.current`, asks the stream for the window and keeps

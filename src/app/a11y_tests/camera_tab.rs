@@ -470,3 +470,120 @@ fn the_session_lens_and_blocked_camera_notes_show_exactly_when_they_apply() {
     rig.settle();
     assert!(note_shown(&rig, "The lens is set by field of view"));
 }
+
+fn open_camera_row(rig: &mut Rig) {
+    click_node(rig, Role::Button, "View");
+    let at = label_pos(rig, "Camera Attribute Editor");
+    click_at(&mut rig.editor, &rig.ctx, SIZE, at);
+    rig.settle();
+}
+
+fn mcp_op(editor: &mut Editor, operation: Operation) {
+    let token = editor.scene_token;
+    editor
+        .remote_operation(
+            RemoteRequest {
+                expected_scene_token: Some(token),
+                operation,
+            },
+            &egui::Context::default(),
+        )
+        .unwrap();
+}
+
+#[test]
+fn the_menu_row_shows_the_panel_and_selects_the_camera_tab_like_the_mcp_calls() {
+    let mut rig = Rig::new(true);
+    rig.editor
+        .native_operation(Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: false,
+        });
+    rig.editor
+        .native_operation(Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::ImagePlane,
+        });
+    rig.settle();
+    let mut twin = Editor::default();
+    twin.native_operation(Operation::SetSidebarPanelVisible {
+        panel: SidebarPanel::AttributeEditor,
+        visible: false,
+    });
+    twin.native_operation(Operation::SelectAttributeEditorTab {
+        tab: AttributeEditorTab::ImagePlane,
+    });
+    assert!(
+        !rig.editor
+            .sidebar_panel_visible(SidebarPanel::AttributeEditor)
+    );
+    open_camera_row(&mut rig);
+    mcp_op(
+        &mut twin,
+        Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: true,
+        },
+    );
+    mcp_op(
+        &mut twin,
+        Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::Camera,
+        },
+    );
+    assert!(
+        rig.editor
+            .sidebar_panel_visible(SidebarPanel::AttributeEditor)
+    );
+    assert_eq!(
+        rig.editor.attribute_editor_tab,
+        Some(AttributeEditorTab::Camera)
+    );
+    assert_eq!(
+        rig.editor
+            .sidebar_panel_visible(SidebarPanel::AttributeEditor),
+        twin.sidebar_panel_visible(SidebarPanel::AttributeEditor)
+    );
+    assert_eq!(rig.editor.attribute_editor_tab, twin.attribute_editor_tab);
+    assert_eq!(
+        rig.editor.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Camera)
+    );
+}
+
+#[test]
+fn the_menu_row_is_refused_while_a_pending_draft_refuses_the_operations() {
+    let mut rig = Rig::new(true);
+    rig.editor
+        .native_operation(Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: false,
+        });
+    rig.settle();
+    rig.editor.channels[0] = "invalid".into();
+    let before = rig.editor.attribute_editor_tab;
+    let refused = rig
+        .editor
+        .native_operation_result(Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::Camera,
+        });
+    assert!(refused.is_err(), "{refused:?}");
+    open_camera_row(&mut rig);
+    assert!(
+        !rig.editor
+            .sidebar_panel_visible(SidebarPanel::AttributeEditor)
+    );
+    assert_eq!(rig.editor.attribute_editor_tab, before);
+    assert_eq!(rig.editor.channels[0], "invalid");
+    rig.editor.channels = Default::default();
+    rig.editor.sync_fields();
+    rig.settle();
+    open_camera_row(&mut rig);
+    assert!(
+        rig.editor
+            .sidebar_panel_visible(SidebarPanel::AttributeEditor)
+    );
+    assert_eq!(
+        rig.editor.attribute_editor_tab,
+        Some(AttributeEditorTab::Camera)
+    );
+}

@@ -198,6 +198,7 @@
       "directory_name": null,
       "frames_done": 0,
       "frames_total": 0,
+      "frames_without_plate": 0,
       "height": 0,
       "last_error": null,
       "state": "idle",

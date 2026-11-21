@@ -1387,7 +1387,18 @@ impl Offscreen {
         camera: &Camera,
         selected: Option<&[NativeId]>,
     ) -> Vec<u8> {
-        let submission = Submission::new(
+        self.image_with_plate(view, camera, selected, None)
+    }
+
+    /// Like `image`, with the plate the viewport would draw under the geometry.
+    pub(crate) fn image_with_plate(
+        &mut self,
+        view: &ViewScene,
+        camera: &Camera,
+        selected: Option<&[NativeId]>,
+        plate: Option<PlateDraw>,
+    ) -> Vec<u8> {
+        let mut submission = Submission::new(
             view,
             camera,
             [SIZE; 2],
@@ -1398,6 +1409,7 @@ impl Offscreen {
             self.device.limits().max_buffer_size,
         )
         .unwrap();
+        submission.plate = plate;
         self.render(TestFrame::Geometry(submission))
     }
 

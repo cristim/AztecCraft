@@ -3,23 +3,32 @@
 //! clone is advanced frame by frame (strictly ascending), and every keyed channel is rewritten
 //! at each frame, so no value carries over from an earlier one.
 
+use super::playblast_plate::plate_at;
 use crate::app::Editor;
 use crate::editor_operations::{
     OperationError, OperationReply, PlayblastFormat, PlayblastInspection, PlayblastRequest,
     ShadingMode,
 };
+use crate::viewport_renderer::PlateAt;
+use azteccraft::image_plane::worker::decode_from_disk;
 use azteccraft::playblast::{
     FrameRenderer, JobProgress, PlayblastError, PlayblastJob, PlayblastPlan, SceneAt,
 };
 use azteccraft::view_scene::{VIEW_BUDGET, ViewScene};
 use azteccraft::viewport::Camera;
 use eframe::egui;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
-/// Builds the renderer of one job from its scene source, the viewport camera, the grid flag and
-/// the shading mode. Tests install a fake here; with `None` the window's renderer is used.
+/// Builds the renderer of one job from its scene source, the plate source (`None` without an
+/// image plane), the viewport camera, the grid flag and the shading mode. Tests install a fake
+/// here; with `None` the window's renderer is used.
 pub(in crate::app) type RendererFactory = Box<
     dyn FnMut(
         SceneAt,
+        Option<PlateAt>,
         &Camera,
         bool,
         ShadingMode,
@@ -33,11 +42,15 @@ struct Target {
     height: u32,
     total: u32,
     done: u32,
+    /// Rendered frames whose image plane had no plate image available.
+    without_plate: u32,
 }
 
 pub(in crate::app) struct Run {
     pub(in crate::app) job: PlayblastJob,
     pub(in crate::app) renderer: Box<dyn FrameRenderer>,
+    /// Written by the plate resolver inside `renderer`.
+    without_plate: Arc<AtomicU32>,
 }
 
 #[derive(Default)]
@@ -67,14 +80,27 @@ impl Editor {
         &mut self,
         scene: SceneAt,
         grid: bool,
+        without_plate: &Arc<AtomicU32>,
     ) -> Result<Box<dyn FrameRenderer>, PlayblastError> {
         let (camera, shading) = (self.camera.clone(), self.shading);
+        let plate = self.image_plane.as_ref().map(|state| {
+            let decode = self
+                .plate
+                .decoder()
+                .unwrap_or_else(|| Arc::new(decode_from_disk));
+            plate_at(
+                state.plane.clone(),
+                camera.clone(),
+                decode,
+                Arc::clone(without_plate),
+            )
+        });
         if let Some(factory) = &mut self.playblast.factory {
-            return factory(scene, &camera, grid, shading);
+            return factory(scene, plate, &camera, grid, shading);
         }
         if let Some(renderer) = &self.renderer {
             return renderer
-                .frame_renderer(scene, camera, grid, shading)
+                .frame_renderer(scene, plate, camera, grid, shading)
                 .map(|renderer| Box::new(renderer) as Box<dyn FrameRenderer>);
         }
         Err(PlayblastError::NoAdapter)
@@ -115,8 +141,13 @@ impl Editor {
         .map_err(refuse)?;
         let (frames, (width, height)) = (plan.frame_count(), plan.size());
         let source = scene_at(self.history.scene().clone());
+        let without_plate = Arc::new(AtomicU32::new(0));
         let renderer = self
-            .playblast_renderer(source, self.grid_visible && request.show_ornaments)
+            .playblast_renderer(
+                source,
+                self.grid_visible && request.show_ornaments,
+                &without_plate,
+            )
             .map_err(refuse)?;
         let job = PlayblastJob::start(plan).map_err(refuse)?;
         self.playblast.last = Some(JobProgress::Running {
@@ -133,8 +164,13 @@ impl Editor {
             height,
             total: frames,
             done: 0,
+            without_plate: 0,
         });
-        self.playblast.run = Some(Run { job, renderer });
+        self.playblast.run = Some(Run {
+            job,
+            renderer,
+            without_plate,
+        });
         Ok(OperationReply::PlayblastStarted {
             frames,
             width,
@@ -147,7 +183,7 @@ impl Editor {
         match self.playblast.run.take() {
             Some(mut run) => {
                 let progress = run.job.cancel();
-                self.record_playblast(progress);
+                self.record_playblast(progress, run.without_plate.load(Ordering::Relaxed));
                 OperationReply::Changed
             }
             None => OperationReply::Unchanged,
@@ -161,8 +197,9 @@ impl Editor {
         self.playblast.target = None;
     }
 
-    fn record_playblast(&mut self, progress: JobProgress) {
+    fn record_playblast(&mut self, progress: JobProgress, without_plate: u32) {
         if let Some(target) = &mut self.playblast.target {
+            target.without_plate = without_plate;
             match &progress {
                 JobProgress::Running { done, .. } | JobProgress::Cancelled { done } => {
                     target.done = *done;
@@ -187,6 +224,7 @@ impl Editor {
             state,
             frames_done: target.map_or(0, |target| target.done),
             frames_total: target.map_or(0, |target| target.total),
+            frames_without_plate: target.map_or(0, |target| target.without_plate),
             width: target.map_or(0, |target| target.width),
             height: target.map_or(0, |target| target.height),
             directory_name: target.map(|target| target.directory_name.clone()),
@@ -204,12 +242,13 @@ impl Editor {
             return;
         };
         let progress = run.job.step(run.renderer.as_mut());
+        let without_plate = run.without_plate.load(Ordering::Relaxed);
         if matches!(progress, JobProgress::Running { .. }) {
             ctx.request_repaint();
         } else {
             self.playblast.run = None;
         }
-        self.record_playblast(progress);
+        self.record_playblast(progress, without_plate);
     }
 }
 
@@ -229,12 +268,21 @@ pub(in crate::app) mod fake {
     pub(in crate::app) struct Asked {
         pub(in crate::app) grid: Vec<bool>,
         pub(in crate::app) sizes: Vec<(u32, u32)>,
+        /// Per rendered frame: the key frame and first texel of the plate it resolved (`None`:
+        /// no plate drawn). Empty without a plate source.
+        pub(in crate::app) plates: Vec<PlateSeen>,
+        /// Whether each renderer was built with a plate source.
+        pub(in crate::app) had_plate_source: Vec<bool>,
     }
+
+    /// A rendered frame and the `(key frame, first texel)` of the plate drawn for it, if any.
+    pub(in crate::app) type PlateSeen = (i64, Option<(i64, [u8; 4])>);
 
     pub(in crate::app) type AskedLog = Arc<Mutex<Asked>>;
 
     struct FakeRenderer {
         scene: SceneAt,
+        plate: Option<PlateAt>,
         seen: Seen,
         asked: Option<AskedLog>,
     }
@@ -250,6 +298,13 @@ pub(in crate::app) mod fake {
                 asked.lock().unwrap().sizes.push((width, height));
             }
             let view = (self.scene)(frame)?;
+            if let (Some(plate), Some(asked)) = (&mut self.plate, &self.asked) {
+                let drawn = plate(frame, [width, height])?.map(|draw| {
+                    let texel = draw.frame.rgba[..4].try_into().unwrap_or_default();
+                    (draw.key.frame, texel)
+                });
+                asked.lock().unwrap().plates.push((frame, drawn));
+            }
             let vertices = view
                 .instances()
                 .first()
@@ -272,12 +327,15 @@ pub(in crate::app) mod fake {
     }
 
     fn build(seen: Seen, asked: Option<AskedLog>) -> RendererFactory {
-        Box::new(move |scene, _, grid, _| {
+        Box::new(move |scene, plate, _, grid, _| {
             if let Some(asked) = &asked {
-                asked.lock().unwrap().grid.push(grid);
+                let mut asked = asked.lock().unwrap();
+                asked.grid.push(grid);
+                asked.had_plate_source.push(plate.is_some());
             }
             Ok(Box::new(FakeRenderer {
                 scene,
+                plate,
                 seen: Arc::clone(&seen),
                 asked: asked.clone(),
             }))
@@ -287,7 +345,7 @@ pub(in crate::app) mod fake {
 
 #[cfg(test)]
 #[path = "playblast_tests.rs"]
-mod tests;
+pub(in crate::app) mod tests;
 
 #[cfg(test)]
 #[path = "playblast_gpu_tests.rs"]

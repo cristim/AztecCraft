@@ -735,3 +735,34 @@ fn a_projective_offset_parent_matrix_fails_validation_with_its_own_error() {
             .unwrap_err();
     assert_eq!(error.kind(), ErrorKind::Malformed);
 }
+
+#[test]
+fn an_image_plane_node_refuses_the_whole_scene_at_the_create_node() {
+    // #459: the editor's image plane is session-only; a scene that declares one is refused as
+    // unsupported, never opened with the plane dropped or turned into a session plane.
+    for create in [
+        "createNode imagePlane -n \"imagePlane1\";",
+        "createNode imagePlane -n \"imagePlane1\" -p \"curve1\";",
+    ] {
+        let body =
+            format!("{CREATE} {create} setAttr \".imn\" -type \"string\" \"synthetic.0001.png\";");
+        let source = input(&body);
+        let at = std::str::from_utf8(&source)
+            .unwrap()
+            .find(create)
+            .expect("fixture holds the create node");
+        let error = decode(source).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::Unsupported, "{create}");
+        let offset = error.offset().expect("the refusal names an offset");
+        assert!(
+            (at..at + create.len()).contains(&offset),
+            "{create}: offset {offset} is not inside the create node at {at}"
+        );
+        let text = error.to_string();
+        // Pinned on purpose: it documents that the text does not name imagePlane; rewording is deliberate.
+        assert_eq!(
+            text,
+            format!("native ASCII scene Unsupported at byte {offset}")
+        );
+    }
+}

@@ -1243,6 +1243,9 @@ pub struct PlayblastInspection {
     pub state: &'static str,
     pub frames_done: u32,
     pub frames_total: u32,
+    /// Rendered frames whose image plane had no plate image (no file for the frame, or a
+    /// sequence template without digits); those frames are in the sequence without a plate.
+    pub frames_without_plate: u32,
     pub width: u32,
     pub height: u32,
     pub directory_name: Option<String>,
@@ -2227,7 +2230,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
     r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
     r#""frames_per_second":0.0,"loop":"","key_count":0},"#,
-    r#""playblast":{"state":"","frames_done":0,"frames_total":0,"width":0,"height":0,"#,
+    r#""playblast":{"state":"","frames_done":0,"frames_total":0,"frames_without_plate":0,"width":0,"height":0,"#,
     r#""directory_name":null,"last_error":null}}"#
 );
 
