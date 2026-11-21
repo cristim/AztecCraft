@@ -9,7 +9,7 @@ use eframe::egui::{
     Vec2, WidgetInfo,
 };
 
-const LABEL_RADIUS: f32 = 74.0;
+pub(super) const LABEL_RADIUS: f32 = 74.0;
 const LABEL_SIZE: Vec2 = Vec2::new(86.0, 22.0);
 
 /// Screen-space angle of the centre of a zone, clockwise from north (up).

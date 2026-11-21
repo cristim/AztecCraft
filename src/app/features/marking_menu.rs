@@ -115,6 +115,7 @@ impl Editor {
                 })
             });
         if !wanted {
+            self.marking_menu_baseline = None;
             self.restore_menu_help();
             return frame;
         }
@@ -123,8 +124,19 @@ impl Editor {
         let menu = self.marking_menu_for_mode();
         let enabled = |target: Target| menu.is_enabled(target);
         let mut outcomes = Vec::new();
-        if self.files.is_modal() || self.files.is_closing() {
+        // A change that did not go through the menu (a native action in this frame, a test
+        // harness) closes it before any choice can apply to a selection it was not opened on.
+        let state = (self.scene_token, self.selection_generation());
+        let changed = self
+            .marking_menu_baseline
+            .is_some_and(|baseline| baseline != state);
+        if self.files.is_modal() || self.files.is_closing() || changed {
             outcomes.push(self.marking_menu.focus_lost());
+        }
+        if changed {
+            // The menu it described is gone; a press later in this frame opens a new one, which
+            // takes the current state as its own baseline.
+            self.marking_menu_baseline = None;
         }
         for event in &events {
             let target_at = |pos: Pos2| pick(&menu, &self.marking_menu, viewport, point(pos));
@@ -263,6 +275,10 @@ impl Editor {
         for outcome in outcomes {
             self.apply_menu_outcome(&menu, outcome, &mut frame);
         }
+        self.marking_menu_baseline = self
+            .marking_menu
+            .holds_overlay()
+            .then(|| self.marking_menu_baseline.unwrap_or(state));
         if let Some(wait) = self.marking_menu.repaint_after(now) {
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_secs_f64(wait));

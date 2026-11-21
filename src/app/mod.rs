@@ -145,6 +145,8 @@ pub struct Editor {
     marking_menu_keys: Vec<egui::Event>,
     /// A transient hover reason in the Help Line and the status it replaced.
     marking_menu_help: Option<(String, String)>,
+    /// The scene token and selection generation an open menu was opened on.
+    marking_menu_baseline: Option<(Uuid, u64)>,
     status: String,
     /// Exact `status` text produced from an error whose text can carry a local path. The native
     /// status line shows it; the inspection withholds it. Matching on the text keeps it from going
@@ -218,6 +220,7 @@ impl Default for Editor {
             marking_menu: Default::default(),
             marking_menu_keys: Vec::new(),
             marking_menu_help: None,
+            marking_menu_baseline: None,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,
             refusal_after_change: None,
