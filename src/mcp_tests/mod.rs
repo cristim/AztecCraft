@@ -171,6 +171,7 @@ mod official_client {
     mod torus;
 
     mod component_move;
+    mod create_uvs;
     mod pointer_hit;
     mod primitive_options;
     mod recovery;
