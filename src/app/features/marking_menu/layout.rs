@@ -170,16 +170,21 @@ pub(in crate::app) const LIST_ROW: f32 = 22.0;
 const LIST_GAP: f32 = 12.0;
 
 /// The Select list's rectangle for a sticky dial centred at `centre`: beside the dial on the
-/// right, or on the left when that would leave the viewport, and shifted vertically to stay
-/// inside it (a list taller than the viewport starts at its top).
+/// right, or on the left when only that fits (the roomier side when neither does), then shifted
+/// to stay inside the viewport (a list larger than the viewport starts at its top left corner).
 pub(in crate::app) fn list_rect(centre: [f32; 2], rows: usize, viewport: Rect) -> Rect {
     let size = egui::vec2(LIST_WIDTH, LIST_ROW * rows as f32);
     let mut left = centre[0] + DIAL_RADIUS + LIST_GAP;
     let mut top = centre[1] - size.y / 2.0;
     if viewport.is_finite() {
-        if left + size.x > viewport.max.x {
-            left = centre[0] - DIAL_RADIUS - LIST_GAP - size.x;
+        let flipped = centre[0] - DIAL_RADIUS - LIST_GAP - size.x;
+        let fits_right = left + size.x <= viewport.max.x;
+        let fits_left = flipped >= viewport.min.x;
+        // The side that fits; with neither, the roomier one, then pulled inside the viewport.
+        if !fits_right && (fits_left || centre[0] - viewport.min.x > viewport.max.x - centre[0]) {
+            left = flipped;
         }
+        left = left.min(viewport.max.x - size.x).max(viewport.min.x);
         top = top.min(viewport.max.y - size.y).max(viewport.min.y);
     }
     Rect::from_min_size(egui::pos2(left, top), size)
