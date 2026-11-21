@@ -140,3 +140,6 @@ fn depth_to_z(depth: f32, near: f32, far: f32) -> Option<f32> {
     }
     Some((f * (d - n) / (d * (f - n))) as f32)
 }
+
+#[cfg(test)]
+mod tests;
