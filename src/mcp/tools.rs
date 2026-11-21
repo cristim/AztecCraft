@@ -1036,6 +1036,7 @@ mod tests {
                     json!({"scene_token":token,"target":[0,0,0],"distance":8,"yaw_degrees":30,"pitch_degrees":20})
                 }
                 "set_camera_film_back" => json!({"scene_token":token,"focal_length":50}),
+                "set_image_plane" => json!({"scene_token":token,"image_name":"plate.png"}),
                 "list_camera_bookmarks" => json!({}),
                 "create_camera_bookmark" | "delete_camera_bookmark" | "apply_camera_bookmark" => {
                     json!({"scene_token":token,"name":"v"})
@@ -1170,6 +1171,8 @@ mod tests {
                     | "set_camera_pose"
                     | "default_camera_view"
                     | "set_camera_film_back"
+                    | "set_image_plane"
+                    | "remove_image_plane"
                     | "set_pivots"
                     | "reset_pivots"
                     | "reset_transformations"

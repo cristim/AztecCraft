@@ -4536,6 +4536,191 @@
     }
   },
   {
+    "name": "set_image_plane",
+    "description": "Create or edit the live camera's image plane (Maya imagePlane, a plate behind the scene for matchmove). The first call needs image_name, a .png, .jpg or .jpeg file (1 to 4096 UTF-8 bytes, no NUL; EXR, DPX and movies are not supported); its header is read at once, so a missing, unreadable, oversize (over 128 MiB or 8192 pixels a side) or non-image file is image_plane_error and nothing changes. Optional: use_frame_extension (substitute current time plus frame_offset into the last digit run of the file name; a frame outside the sequence has no file), frame_offset (whole frames, -1000000 to 1000000), frame_cache (frames kept, 1 to 1000), fit (fill, best, horizontal, vertical, to_size; the order is PROVISIONAL), depth (centimetres, greater than zero), alpha_gain (0 to 1000), display_mode (none, outline, rgb, rgba, luminance, alpha). Coverage: coverage_x and coverage_y (width and height in source pixels) and coverage_origin_x and coverage_origin_y name part of the image; the numbers you give replace those of the stored coverage (or of the full image when none is stored) and the result must lie inside the image; reset_coverage true restores the full image and excludes the four numbers. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error) leaves the plane untouched. A new image_name smaller than a stored coverage is refused with a message to reset the coverage in the same call. Setting the same image_name again is unchanged and does not reload the file; call remove_image_plane or change the name to reload. Integers must be whole numbers inside their range. Reports changed or unchanged, judged numerically. Session only, not saved with the scene, not undoable, cleared by New and Open; no reply or error carries the path. inspect_scene camera.image_plane reports the settings, image size, resolved file name and frame. PROVISIONAL: the Maya pages do not state the fit numbering, the occlusion at depth, what Outline shows, or the file-name numbering. The viewport does not draw the plate yet; once it does, the first pass of playback over a sequence is not real time and orthographic views show no plate (PROVISIONAL)",
+    "inputSchema": {
+      "$defs": {
+        "DisplayModeArg": {
+          "enum": [
+            "none",
+            "outline",
+            "rgb",
+            "rgba",
+            "luminance",
+            "alpha"
+          ],
+          "type": "string"
+        },
+        "FitArg": {
+          "enum": [
+            "fill",
+            "best",
+            "horizontal",
+            "vertical",
+            "to_size"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "Maya `imagePlane` attributes in Maya's units; every field is optional (omit or null leaves it\nunchanged) and at least one must be set. The first call needs `image_name`.",
+      "properties": {
+        "alpha_gain": {
+          "description": "Alpha multiplier (`alphaGain`), 0 to 1000.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "coverage_origin_x": {
+          "description": "Image pixel column at the plane's lower left (`coverageOrigin`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "coverage_origin_y": {
+          "description": "Image pixel row at the plane's lower left (`coverageOrigin`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "coverage_x": {
+          "description": "Width in source pixels of the part of the image used (`coverage`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "coverage_y": {
+          "description": "Height in source pixels of the part of the image used (`coverage`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "depth": {
+          "description": "Distance from the camera in centimetres (`depth`), greater than zero.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "display_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DisplayModeArg"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`none`, `outline`, `rgb`, `rgba`, `luminance` or `alpha` (`displayMode`)."
+        },
+        "fit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FitArg"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`fill`, `best`, `horizontal`, `vertical` or `to_size` (`fit`); the numbering is PROVISIONAL."
+        },
+        "frame_cache": {
+          "description": "Frames kept in memory (`frameCache`), a whole number from 1 to 1000.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "frame_offset": {
+          "description": "Frames added to the current time (`frameOffset`), a whole number from -1000000 to 1000000.",
+          "format": "int32",
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "image_name": {
+          "description": "The first frame's file (`imageName`): 1 to 4096 UTF-8 bytes, no NUL, ending in `.png`,\n`.jpg` or `.jpeg` (any case). Required to create the plane. Setting the same name again\ndoes not reload the file.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reset_coverage": {
+          "default": false,
+          "description": "True restores the full image (clears the coverage); it excludes the four coverage numbers.",
+          "type": "boolean"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "use_frame_extension": {
+          "description": "Substitute the current time plus `frame_offset` into the last digit run of the file name\n(`useFrameExtension`).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "SetImagePlaneArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "remove_image_plane",
+    "description": "Remove the live camera's image plane. Reports unchanged when there is none. Session only; does not edit the scene. Set it again with set_image_plane (that reads the file again)",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "list_camera_bookmarks",
     "description": "List the session's camera bookmarks in creation order: name, target, distance, yaw_degrees and pitch_degrees in the units inspect_scene reports for the camera. Needs no scene_token. Bookmarks are session-only: they are not saved in the scene, are cleared when New or Open replaces the document and are lost on close",
     "inputSchema": {
