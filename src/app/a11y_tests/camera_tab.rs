@@ -335,3 +335,138 @@ fn the_tab_needs_no_selection_and_a_remote_edit_shows_in_the_fields() {
     rig.settle();
     assert_eq!(rig.editor.camera_drafts[FOCAL], "50");
 }
+
+fn note_shown(rig: &Rig, starts_with: &str) -> bool {
+    rig.update().nodes.iter().any(|(_, n)| {
+        n.label()
+            .or(n.value())
+            .is_some_and(|text| text.starts_with(starts_with))
+    })
+}
+
+#[test]
+fn a_remote_edit_made_while_a_field_is_focused_but_untouched_survives_the_blur() {
+    let mut rig = tab_rig();
+    rig.ctx.memory_mut(|m| m.request_focus(field_id(FOCAL)));
+    rig.settle();
+    mcp(&mut rig.editor, edit_for(FOCAL, 50.0)).unwrap();
+    rig.settle();
+    rig.ctx.memory_mut(|m| m.surrender_focus(field_id(FOCAL)));
+    rig.settle();
+    assert_eq!(film(&rig.editor).focal_mm, 50.0);
+    assert_eq!(rig.editor.camera_drafts[FOCAL], "50");
+}
+
+#[test]
+fn escape_drops_the_typed_text_and_sends_nothing() {
+    let mut rig = tab_rig();
+    let before = rig.editor.camera.clone();
+    rig.ctx.memory_mut(|m| m.request_focus(field_id(FOCAL)));
+    rig.settle();
+    rig.editor.camera_drafts[FOCAL] = "80".into();
+    rig.frame(vec![]);
+    rig.frame(vec![crate::app::tests::key_event(
+        egui::Key::Escape,
+        egui::Modifiers::NONE,
+        false,
+    )]);
+    rig.settle();
+    assert!(rig.editor.camera.same_capture(&before));
+    assert_eq!(rig.editor.camera_drafts[FOCAL], "35");
+    assert!(!rig.editor.error, "{}", rig.editor.status);
+}
+
+#[test]
+fn a_held_drag_and_a_pending_draft_refuse_the_operation_natively() {
+    use crate::editor_operations::OperationError;
+    let mut rig = tab_rig();
+    let before = rig.editor.camera.clone();
+    // A pending invalid draft elsewhere: the native caller may only commit a valid one.
+    rig.editor.channels[0] = "invalid".into();
+    let refused = rig
+        .editor
+        .native_operation_result(Operation::SetCameraFilmBack(edit_for(FOCAL, 50.0)));
+    assert!(refused.is_err(), "{refused:?}");
+    assert!(rig.editor.camera.same_capture(&before));
+    assert!(matches!(
+        mcp(&mut rig.editor, edit_for(FOCAL, 50.0)),
+        Err(OperationError::BusyEditing)
+    ));
+    rig.editor.channels = Default::default();
+    rig.editor.sync_fields();
+    // A held move: both callers are refused.
+    let target = rig.editor.selected_move_target().unwrap();
+    rig.editor
+        .apply_operation_guarded(
+            azteccraft::history::ManipulationProvenance::Remote,
+            Operation::BeginMove {
+                target,
+                axis: azteccraft::native_scene::WorldAxis::X,
+                expected_selection_generation: None,
+            },
+            &|| true,
+        )
+        .unwrap();
+    assert!(matches!(
+        rig.editor
+            .native_operation_result(Operation::SetCameraFilmBack(edit_for(FOCAL, 50.0))),
+        Err(OperationError::BusyManipulation)
+    ));
+    assert!(matches!(
+        mcp(&mut rig.editor, edit_for(FOCAL, 50.0)),
+        Err(OperationError::BusyManipulation)
+    ));
+    assert!(rig.editor.camera.same_capture(&before));
+}
+
+#[test]
+fn the_session_lens_and_blocked_camera_notes_show_exactly_when_they_apply() {
+    let mut rig = tab_rig();
+    assert!(note_shown(&rig, "These rows show the session lens"));
+    assert!(!note_shown(&rig, "The open file's film back for camera"));
+    assert!(!note_shown(&rig, "The lens is set by field of view"));
+    // A file stating a film back the editor cannot carry blocks its camera.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("partial_camera.ma");
+    std::fs::write(
+        &path,
+        "//Maya ASCII 2026 scene\nrequires maya \"2026\";\ncurrentUnit -l centimeter -a degree -t film;\nfileInfo \"AztecCraft\" \"1\";\nselect -ne :perspShape;\n\tsetAttr \".hfa\" 1.2;\n",
+    )
+    .unwrap();
+    let mut blocked = Rig::new(false);
+    blocked
+        .editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    assert_eq!(
+        blocked.editor.history.scene().blocked_camera_names(),
+        ["persp"]
+    );
+    for operation in [
+        Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: true,
+        },
+        Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::Camera,
+        },
+    ] {
+        blocked.editor.native_operation(operation);
+    }
+    blocked.settle();
+    assert!(note_shown(
+        &blocked,
+        "The open file's film back for camera persp is not applied"
+    ));
+    assert!(!blocked.update().nodes.iter().any(|(_, n)| {
+        n.label()
+            .or(n.value())
+            .is_some_and(|t| t.contains("default lens"))
+    }));
+    // A field-of-view lens.
+    rig.editor.camera =
+        azteccraft::viewport::Camera::new(glam::Vec3::ZERO, 0.6, 0.4, 8.0, 0.8, 0.1, 1000.0)
+            .unwrap();
+    rig.settle();
+    assert!(note_shown(&rig, "The lens is set by field of view"));
+}
