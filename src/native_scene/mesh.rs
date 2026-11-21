@@ -347,6 +347,34 @@ impl NativeMesh {
         }
         Ok(())
     }
+    /// Replaces every point by `matrix` applied to it. A mesh with per-point offsets is refused,
+    /// and so is a result that is not finite in the stored precision. Unchanged on error.
+    pub(super) fn transform_points(&mut self, matrix: glam::DMat4) -> Result<(), NativeError> {
+        if self.has_point_offsets() {
+            return Err(NativeError::UnsupportedEdit);
+        }
+        let moved = |p: [f64; 3]| matrix.transform_point3(DVec3::from_array(p)).to_array();
+        match &mut self.points {
+            Points::Float3(points) => {
+                let next: Vec<[f32; 3]> = points
+                    .iter()
+                    .map(|p| moved(p.map(f64::from)).map(|v| v as f32))
+                    .collect();
+                if next.iter().flatten().any(|v| !v.is_finite()) {
+                    return Err(NativeError::NonFinite);
+                }
+                *points = next;
+            }
+            Points::Double3(points) => {
+                let next: Vec<[f64; 3]> = points.iter().map(|p| moved(*p)).collect();
+                if next.iter().flatten().any(|v| !v.is_finite()) {
+                    return Err(NativeError::NonFinite);
+                }
+                *points = next;
+            }
+        }
+        Ok(())
+    }
     pub fn effective_point_cm(&self, index: usize) -> Result<[f64; 3], NativeError> {
         let mut point = self.points.get(index).ok_or(NativeError::InvalidTopology)?;
         if let Ok(offset) = self
