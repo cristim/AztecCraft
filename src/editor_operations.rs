@@ -523,6 +523,10 @@ pub enum Operation {
     SetCurrentTime {
         time: f64,
     },
+    SetAnimationRange {
+        start: f64,
+        end: f64,
+    },
     SetPlaybackRange {
         start: f64,
         end: f64,
@@ -1185,6 +1189,8 @@ pub struct SceneInspection {
 #[cfg(any(test, feature = "mcp"))]
 pub struct TimelineInspection {
     pub current_time: i32,
+    pub animation_start: i32,
+    pub animation_end: i32,
     pub playback_start: i32,
     pub playback_end: i32,
     pub playing: bool,
@@ -2162,7 +2168,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"film_back":null,"image_plane":null,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
-    r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
+    r#""timeline":{"current_time":0,"animation_start":0,"animation_end":0,"playback_start":0,"playback_end":0,"playing":true,"#,
     r#""frames_per_second":0.0,"loop":"","key_count":0},"#,
     r#""playblast":{"state":"","frames_done":0,"frames_total":0,"width":0,"height":0,"#,
     r#""directory_name":null,"last_error":null}}"#

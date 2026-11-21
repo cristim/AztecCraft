@@ -3288,8 +3288,43 @@
     }
   },
   {
+    "name": "set_animation_range",
+    "description": "Set the session animation range in whole frames. Clamps playback endpoints into that interval. New and Open reset to frames 1 through 48. Does not alter current time or keys",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "description": "A whole frame.",
+          "format": "double",
+          "type": "number"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "start": {
+          "description": "A whole frame, not after `end`.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "scene_token",
+        "start",
+        "end"
+      ],
+      "title": "SetPlaybackRangeArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "set_playback_range",
-    "description": "Set the playback range in whole frames. Session-only, not an undo step. The start must not be after the end (invalid_playback_range). Stops playback",
+    "description": "Set the playback range in whole frames. Session-only, not an undo step. The start must not be after the end (invalid_playback_range). Both endpoints must lie inside the animation range (invalid_input). Stops playback",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

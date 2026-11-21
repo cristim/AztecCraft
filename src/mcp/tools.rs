@@ -1011,7 +1011,9 @@ mod tests {
                 "set_keyframe" | "delete_keys" | "euler_filter" | "set_infinity" => {
                     json!({"scene_token":token,"node_ids":["1"]})
                 }
-                "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
+                "set_playback_range" | "set_animation_range" => {
+                    json!({"scene_token":token,"start":1,"end":48})
+                }
                 "inspect_keys" | "get_recovery_status" | "inspect_limits" => json!({}),
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
                 "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
@@ -1161,6 +1163,7 @@ mod tests {
                     | "delete_keys"
                     | "euler_filter"
                     | "set_infinity"
+                    | "set_animation_range"
                     | "set_playback_range"
                     | "play_timeline"
                     | "stop_timeline"

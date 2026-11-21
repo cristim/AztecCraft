@@ -35,7 +35,7 @@
         "vertical_roll_pivot": 0.0
       },
       "focal_length_mm": 35.0,
-      "fov_y_degrees": 37.79089026254695,
+      "fov_y_degrees": 36.455287751485976,
       "image_plane": null,
       "native_gesture_active": false,
       "near_clip": 0.10000000149011612,
@@ -296,6 +296,8 @@
     "status_message": "Scene edited",
     "text_focused": false,
     "timeline": {
+      "animation_end": 48,
+      "animation_start": 1,
       "current_time": 1,
       "frames_per_second": 24.0,
       "key_count": 0,
