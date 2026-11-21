@@ -352,16 +352,24 @@ fn fit_to_is_a_read_only_film_gate_value_that_a_click_cannot_change() {
     let mut rig = rig_with(dir.path(), 0, None);
     rig.settle();
     assert_eq!(value_of(&rig, "Fit to").as_deref(), Some("Film Gate"));
-    let before = (
-        inspect(&rig),
-        rig.editor.image_plane.as_ref().unwrap().plane.clone(),
-    );
+    // Not the whole inspection: its cache counters change when the worker prefetches a neighbour.
+    let state = |rig: &Rig| {
+        let i = inspect(rig);
+        (
+            [
+                "settings",
+                "resolved_frame",
+                "resolved_file_name",
+                "image_size",
+            ]
+            .map(|k| i[k].clone()),
+            rig.editor.image_plane.as_ref().unwrap().plane.clone(),
+        )
+    };
+    let before = state(&rig);
     rig.click("Fit to");
     rig.settle();
-    let after = (
-        inspect(&rig),
-        rig.editor.image_plane.as_ref().unwrap().plane.clone(),
-    );
+    let after = state(&rig);
     assert_eq!(before, after);
     assert_eq!(value_of(&rig, "Fit to").as_deref(), Some("Film Gate"));
 }
