@@ -423,7 +423,10 @@ fn a_typed_colour_commits_one_undo_step_and_undo_restores_it() {
     let (mut editor, context) = colour_editor();
     let before = editor.history.scene().clone();
     type_into(&mut editor, &context, 0, "1");
-    assert_eq!(editor.session_color_draft.as_ref().unwrap().text[0], "1");
+    assert_eq!(
+        editor.session_color_draft.as_ref().unwrap().rows[0].text[0],
+        "1"
+    );
     assert!(editor.has_draft());
     assert_eq!(colour(&editor), SAME, "typing alone commits nothing");
     press_enter(&mut editor, &context);
@@ -442,7 +445,10 @@ fn invalid_text_keeps_the_draft_the_status_and_the_scene() {
     let before = editor.history.scene().clone();
     for bad in ["abc", "1.5", "-0.1", "NaN", "inf", ""] {
         type_into(&mut editor, &context, 1, bad);
-        assert_eq!(editor.session_color_draft.as_ref().unwrap().text[1], bad);
+        assert_eq!(
+            editor.session_color_draft.as_ref().unwrap().rows[0].text[1],
+            bad
+        );
         press_enter(&mut editor, &context);
         assert!(editor.error, "{bad:?}");
         assert_eq!(
@@ -468,7 +474,10 @@ fn a_commit_refuses_when_the_material_changed_since_the_draft_began() {
     assert!(!editor.commit_pending());
     assert_eq!(editor.status, "The material changed since this edit began");
     assert_eq!(colour(&editor), [0.10000000149011612; 3]);
-    assert_eq!(editor.session_color_draft.as_ref().unwrap().text[2], "0.25");
+    assert_eq!(
+        editor.session_color_draft.as_ref().unwrap().rows[0].text[2],
+        "0.25"
+    );
 }
 
 #[test]
@@ -481,7 +490,10 @@ fn escape_reverts_the_draft() {
         vec![key(egui::Key::Escape, egui::Modifiers::NONE)],
     );
     assert!(!editor.has_draft());
-    assert_eq!(editor.session_color_draft.as_ref().unwrap().text[0], "0.5");
+    assert_eq!(
+        editor.session_color_draft.as_ref().unwrap().rows[0].text[0],
+        "0.5"
+    );
     assert_eq!(colour(&editor), SAME);
 }
 
@@ -502,7 +514,10 @@ fn a_pending_native_colour_draft_blocks_the_remote_recolour_and_survives_it() {
         "{result:?}"
     );
     assert_eq!(editor.history.scene(), &before);
-    assert_eq!(editor.session_color_draft.as_ref().unwrap().text[0], "0.9");
+    assert_eq!(
+        editor.session_color_draft.as_ref().unwrap().rows[0].text[0],
+        "0.9"
+    );
 }
 
 #[test]
@@ -725,7 +740,10 @@ fn dragging_a_slider_is_one_undo_step_that_commits_when_the_button_is_released()
         "a drag in progress commits nothing"
     );
     assert!(editor.has_draft());
-    assert_eq!(editor.session_color_draft.as_ref().unwrap().text[0], "1");
+    assert_eq!(
+        editor.session_color_draft.as_ref().unwrap().rows[0].text[0],
+        "1"
+    );
     frame_in(&mut editor, &context, vec![button_at(end, false)]);
     frame_in(&mut editor, &context, vec![]);
     assert_eq!(colour(&editor), [1.0, 0.5, 0.5]);
@@ -739,7 +757,10 @@ fn escape_in_the_middle_of_a_drag_cancels_it_and_the_release_commits_nothing() {
     let (mut editor, context) = colour_editor();
     let before = editor.history.scene().clone();
     let (_, end) = press_and_drag_red(&mut editor, &context, 0.5, 1.5);
-    assert_eq!(editor.session_color_draft.as_ref().unwrap().text[0], "1");
+    assert_eq!(
+        editor.session_color_draft.as_ref().unwrap().rows[0].text[0],
+        "1"
+    );
     frame_in(
         &mut editor,
         &context,
@@ -752,7 +773,10 @@ fn escape_in_the_middle_of_a_drag_cancels_it_and_the_release_commits_nothing() {
     frame_in(&mut editor, &context, vec![button_at(end, false)]);
     frame_in(&mut editor, &context, vec![]);
     assert_eq!(editor.history.scene(), &before);
-    assert_eq!(editor.session_color_draft.as_ref().unwrap().text[0], "0.5");
+    assert_eq!(
+        editor.session_color_draft.as_ref().unwrap().rows[0].text[0],
+        "0.5"
+    );
 }
 
 #[test]
@@ -771,7 +795,7 @@ fn a_keyboard_step_stays_a_draft_and_enter_on_the_slider_commits_it_as_one_step(
         &context,
         vec![key(egui::Key::ArrowRight, egui::Modifiers::NONE)],
     );
-    let stepped: f64 = editor.session_color_draft.as_ref().unwrap().text[0]
+    let stepped: f64 = editor.session_color_draft.as_ref().unwrap().rows[0].text[0]
         .parse()
         .unwrap();
     assert!(stepped > 0.5 && stepped <= 1.0, "{stepped}");
@@ -825,7 +849,10 @@ fn out_of_range_text_is_not_silently_clamped_by_the_slider_and_the_commit_is_ref
     for _ in 0..3 {
         frame_in(&mut editor, &context, vec![]);
     }
-    assert_eq!(editor.session_color_draft.as_ref().unwrap().text[0], "2");
+    assert_eq!(
+        editor.session_color_draft.as_ref().unwrap().rows[0].text[0],
+        "2"
+    );
     next_field(&mut editor, &context);
     context.memory_mut(|memory| memory.request_focus(colour_edit_id(0)));
     frame_in(
@@ -835,7 +862,7 @@ fn out_of_range_text_is_not_silently_clamped_by_the_slider_and_the_commit_is_ref
     );
     frame_in(&mut editor, &context, vec![]);
     assert_eq!(
-        editor.session_color_draft.as_ref().unwrap().text[0],
+        editor.session_color_draft.as_ref().unwrap().rows[0].text[0],
         "2",
         "focusing the slider must not rewrite the text"
     );

@@ -7,7 +7,7 @@
 //! saying why otherwise (PROVISIONAL), and not to faces.
 use crate::app::*;
 use azteccraft::native_scene::{
-    DEFAULT_LAMBERT_COLOR, MAX_ASSIGN_SHAPES, MaterialChoice, SessionMaterialId,
+    DEFAULT_LAMBERT_COLOR, LambertAttribute, MAX_ASSIGN_SHAPES, MaterialChoice, SessionMaterialId,
 };
 
 const MENU_LABEL: &str = "Lighting/Shading";
@@ -207,7 +207,7 @@ impl Editor {
             swatch.widget_info(|| {
                 egui::WidgetInfo::labeled(egui::accesskit::Role::Image, true, label.as_str())
             });
-            self.session_color_fields(ui, shape);
+            self.session_color_fields(ui, shape, LambertAttribute::Color);
         });
         for row in UNSUPPORTED_ROWS {
             ui.add_enabled(false, egui::Button::new(row))
@@ -287,7 +287,9 @@ impl Editor {
 }
 
 mod colour;
+#[cfg(test)]
 pub(in crate::app) use colour::colour_edit_id;
+pub(in crate::app) use colour::session_attribute_field_ids;
 #[cfg(test)]
 mod section_tests;
 #[cfg(test)]

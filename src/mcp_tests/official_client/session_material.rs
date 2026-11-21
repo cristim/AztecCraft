@@ -449,7 +449,7 @@ async fn session_material_sdk_native_colour_draft_blocks_remote_recolour_and_com
             color: [0.5; 3],
         })
         .unwrap();
-    editor.session_color_draft.as_mut().unwrap().text[0] = "1".into();
+    editor.session_color_draft.as_mut().unwrap().rows[0].text[0] = "1".into();
     let refused = tool(
         &mut editor,
         &context,

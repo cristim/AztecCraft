@@ -53,15 +53,21 @@ impl MaterialDraft {
     }
 }
 
-/// A pending R/G/B edit of one session material. It keeps the original id and colour so a commit
-/// refuses when either changed meanwhile (ids are reused after undo).
+/// One attribute's pending R/G/B text.
+struct DraftRow {
+    original: [f64; 3],
+    text: [String; 3],
+    intent: bool,
+}
+
+/// A pending R/G/B edit of one session material, one row per `LambertAttribute::ALL`. It keeps
+/// the original id and values so a commit refuses when either changed meanwhile (ids are reused
+/// after undo).
 struct SessionColorDraft {
     scene_token: Uuid,
     shape: NativeId,
     material: azteccraft::native_scene::SessionMaterialId,
-    original: [f64; 3],
-    text: [String; 3],
-    intent: bool,
+    rows: [DraftRow; 4],
 }
 
 #[derive(Clone, Copy)]
@@ -422,7 +428,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
         features::rotate_step::scale_step_field_id(),
     ]
     .into_iter()
-    .chain((0..3).map(features::colour_edit_id))
+    .chain(features::session_attribute_field_ids())
     .chain((0..9).map(channel_edit_id))
     .chain((0..6).map(pivot_edit_id))
     .chain(features::primitive_options::option_field_ids())
