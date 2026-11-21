@@ -2375,6 +2375,8 @@ pub enum NativeError {
     InvalidSessionUvs,
     DegenerateUvProjection,
     UnsupportedUvTopology,
+    /// `create_uvs` on a primitive with no UV layout (the Platonic solids, #453).
+    UnsupportedUvPrimitive(Primitive),
     UvsBlockTopologyEdit,
     /// Mesh > Reduce refused its target or the mesh; see `ReduceRefusal`.
     Reduce(ReduceRefusal),
@@ -2496,6 +2498,10 @@ impl fmt::Display for NativeError {
                 "the shape has no usable extent across this projection; pick another Project from axis",
             ),
             Self::UnsupportedUvTopology => f.write_str("UVs on faces with holes are not supported"),
+            Self::UnsupportedUvPrimitive(primitive) => write!(
+                f,
+                "create_uvs is not supported for {primitive:?} yet: it has no UV layout"
+            ),
             Self::UvsBlockTopologyEdit => {
                 f.write_str("UVs do not follow topology edits yet; delete the UVs first")
             }

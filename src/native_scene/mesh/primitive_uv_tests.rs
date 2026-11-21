@@ -374,7 +374,9 @@ fn a_flat_plane_and_the_unsupported_primitives_are_handled_at_the_entry() {
     let platonic = PrimitiveOptions::default_for(Primitive::PlatonicSolid);
     assert_eq!(
         layout(&mesh, &platonic).err(),
-        Some(NativeError::UnsupportedUvTopology)
+        Some(NativeError::UnsupportedUvPrimitive(
+            Primitive::PlatonicSolid
+        ))
     );
     for axis in AXES {
         let plane = PrimitiveOptions::Plane {
@@ -422,8 +424,7 @@ fn pole_and_apex_corners_sit_at_the_middle_of_their_column() {
 }
 
 #[test]
-fn platonic_solids_get_the_planar_placeholder_and_validate() {
-    // NOT DONE: no layout is designed for them; they share the cube's Y planar placeholder.
+fn the_platonic_solids_refuse_uvs_with_no_mutation_and_has_uv_layout_agrees() {
     for solid in crate::primitive_options::PlatonicSolidKind::ALL {
         for axis in AXES {
             let options = PrimitiveOptions::PlatonicSolid {
@@ -431,19 +432,34 @@ fn platonic_solids_get_the_planar_placeholder_and_validate() {
                 radius: 1.5,
                 axis,
             };
-            let scene = built(&options);
-            scene.validate().unwrap();
-            let shape = &scene.shapes()[0];
-            let set = scene.uv_set(shape.id()).expect("uvs");
-            assert_eq!(set.faces().len(), shape.mesh().faces().len(), "{options:?}");
-            for corners in set.faces() {
-                for [u, v] in corners {
-                    assert!(
-                        (0.0..=1.0).contains(u) && (0.0..=1.0).contains(v),
-                        "{options:?}"
-                    );
-                }
-            }
+            let mut scene = NativeScene::default();
+            let before = scene.clone();
+            assert_eq!(
+                scene.create_with_options(options.primitive(), &options, "p", true),
+                Err(NativeError::UnsupportedUvPrimitive(
+                    Primitive::PlatonicSolid
+                )),
+                "{options:?}"
+            );
+            assert!(scene == before, "{options:?}: nothing was added");
+            scene
+                .create_with_options(options.primitive(), &options, "p", false)
+                .unwrap();
         }
+    }
+    // The check T10 and T11 use agrees with what the create path does, for every primitive.
+    for primitive in [
+        Primitive::Cube,
+        Primitive::Plane,
+        Primitive::Sphere,
+        Primitive::Cylinder,
+        Primitive::Cone,
+        Primitive::Torus,
+        Primitive::PlatonicSolid,
+    ] {
+        let options = PrimitiveOptions::default_for(primitive);
+        let mut scene = NativeScene::default();
+        let created = scene.create_with_options(primitive, &options, "p", true);
+        assert_eq!(created.is_ok(), options.has_uv_layout(), "{primitive:?}");
     }
 }

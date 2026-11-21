@@ -85,6 +85,8 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(sphere,create_uvs) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
+  create(platonic_solid,create_uvs refused) => Err(Scene: create_uvs is not supported for PlatonicSolid yet: it has no UV layout) | no state change
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
@@ -312,6 +314,8 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(sphere,create_uvs) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
+  create(platonic_solid,create_uvs refused) => Err(Scene: create_uvs is not supported for PlatonicSolid yet: it has no UV layout) | no state change
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
@@ -533,6 +537,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -744,6 +750,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -955,6 +963,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1166,6 +1176,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1377,6 +1389,8 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(sphere,create_uvs) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(platonic_solid,create_uvs refused) => Err(Scene: create_uvs is not supported for PlatonicSolid yet: it has no UV layout) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1588,6 +1602,8 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(sphere,create_uvs) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(platonic_solid,create_uvs refused) => Err(Scene: create_uvs is not supported for PlatonicSolid yet: it has no UV layout) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1799,6 +1815,8 @@
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(sphere,create_uvs) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2010,6 +2028,8 @@
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(sphere,create_uvs) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2221,6 +2241,8 @@
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(sphere,create_uvs) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2432,6 +2454,8 @@
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(sphere,create_uvs) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2643,6 +2667,8 @@
   create(sphere) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cylinder) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cone) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(sphere,create_uvs) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(platonic_solid,create_uvs refused) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cube,options) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(torus,twist) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(torus,non-finite twist) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2854,6 +2880,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3066,6 +3094,8 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(sphere,create_uvs) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(platonic_solid,create_uvs refused) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3278,6 +3308,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3489,6 +3521,8 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pSphere1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
+  create(sphere,create_uvs) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pSphere1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
+  create(platonic_solid,create_uvs refused) => Err(Scene: create_uvs is not supported for PlatonicSolid yet: it has no UV layout) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCube2"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pTorus1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3700,6 +3734,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3911,6 +3947,8 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(sphere,create_uvs) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
+  create(platonic_solid,create_uvs refused) => Err(Scene: create_uvs is not supported for PlatonicSolid yet: it has no UV layout) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -4122,6 +4160,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4333,6 +4373,8 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(sphere,create_uvs) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
+  create(platonic_solid,create_uvs refused) => Err(Scene: create_uvs is not supported for PlatonicSolid yet: it has no UV layout) | no state change
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
@@ -4544,6 +4586,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4755,6 +4799,8 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(sphere,create_uvs) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
+  create(platonic_solid,create_uvs refused) => Err(Scene: create_uvs is not supported for PlatonicSolid yet: it has no UV layout) | no state change
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
   create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
   create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
@@ -4966,6 +5012,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5177,6 +5225,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5394,6 +5444,8 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,create_uvs) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic_solid,create_uvs refused) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5605,6 +5657,8 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,create_uvs) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic_solid,create_uvs refused) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5816,6 +5870,8 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,create_uvs) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic_solid,create_uvs refused) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6027,6 +6083,8 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,create_uvs) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic_solid,create_uvs refused) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6238,6 +6296,8 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,create_uvs) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic_solid,create_uvs refused) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6449,6 +6509,8 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,create_uvs) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic_solid,create_uvs refused) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6660,6 +6722,8 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,create_uvs) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(platonic_solid,create_uvs refused) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6871,6 +6935,8 @@
   create(sphere) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(sphere,create_uvs) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(platonic_solid,create_uvs refused) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cube,options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(torus,twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(torus,non-finite twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -7082,6 +7148,8 @@
   create(sphere) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(sphere,create_uvs) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(platonic_solid,create_uvs refused) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cube,options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(torus,twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(torus,non-finite twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -7294,6 +7362,8 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,create_uvs) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic_solid,create_uvs refused) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7506,6 +7576,8 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,create_uvs) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic_solid,create_uvs refused) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7718,6 +7790,8 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,create_uvs) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic_solid,create_uvs refused) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7930,6 +8004,8 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,create_uvs) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic_solid,create_uvs refused) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8248,6 +8324,8 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,create_uvs) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic_solid,create_uvs refused) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8460,6 +8538,8 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,create_uvs) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(platonic_solid,create_uvs refused) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -8672,6 +8752,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -8884,6 +8966,8 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,create_uvs) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(platonic_solid,create_uvs refused) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -9019,4 +9103,4 @@
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 8406
+cells: 8490

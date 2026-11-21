@@ -672,7 +672,7 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder, cone, torus or platonic_solid in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+    "description": "Create a cube, plane, sphere, cylinder, cone, torus or platonic_solid in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; the top-level boolean create_uvs (default false) also creates the shape's map1 UVs with a PROVISIONAL AztecCraft layout (Maya's -createUVs has modes 0 to 4 and defaults to 3), is refused for platonic_solid with unsupported_uv_primitive, and UVs currently block saving to .mb and exporting glTF and USD until they carry UVs (OBJ export writes them, .ma save carries them); omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
     "inputSchema": {
       "$defs": {
         "ConeOptions": {
@@ -1013,6 +1013,11 @@
         {
           "additionalProperties": false,
           "properties": {
+            "create_uvs": {
+              "default": false,
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "type": "boolean"
+            },
             "name": {
               "type": [
                 "string",
@@ -1039,6 +1044,11 @@
         {
           "additionalProperties": false,
           "properties": {
+            "create_uvs": {
+              "default": false,
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "type": "boolean"
+            },
             "name": {
               "type": [
                 "string",
@@ -1065,6 +1075,11 @@
         {
           "additionalProperties": false,
           "properties": {
+            "create_uvs": {
+              "default": false,
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "type": "boolean"
+            },
             "name": {
               "type": [
                 "string",
@@ -1091,6 +1106,11 @@
         {
           "additionalProperties": false,
           "properties": {
+            "create_uvs": {
+              "default": false,
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "type": "boolean"
+            },
             "name": {
               "type": [
                 "string",
@@ -1117,6 +1137,11 @@
         {
           "additionalProperties": false,
           "properties": {
+            "create_uvs": {
+              "default": false,
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "type": "boolean"
+            },
             "name": {
               "type": [
                 "string",
@@ -1143,6 +1168,11 @@
         {
           "additionalProperties": false,
           "properties": {
+            "create_uvs": {
+              "default": false,
+              "description": "Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.\nMaya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that\ndefaults to false. UVs currently block saving to .mb and exporting glTF and USD until\nthey carry UVs; OBJ export writes them and a .ma save carries them.",
+              "type": "boolean"
+            },
             "name": {
               "type": [
                 "string",
@@ -1169,6 +1199,11 @@
         {
           "additionalProperties": false,
           "properties": {
+            "create_uvs": {
+              "default": false,
+              "description": "Always refused: the Platonic solids have no UV layout yet, so true is rejected with\nunsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.",
+              "type": "boolean"
+            },
             "name": {
               "type": [
                 "string",

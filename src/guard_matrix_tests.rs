@@ -1628,6 +1628,24 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
             sample(
+                "create(sphere,create_uvs)",
+                Operation::Create {
+                    primitive: Primitive::Sphere,
+                    options: None,
+                    name: None,
+                    create_uvs: true,
+                },
+            ),
+            sample(
+                "create(platonic_solid,create_uvs refused)",
+                Operation::Create {
+                    primitive: Primitive::PlatonicSolid,
+                    options: None,
+                    name: None,
+                    create_uvs: true,
+                },
+            ),
+            sample(
                 "create(cube,options)",
                 Operation::Create {
                     primitive: Primitive::Cube,

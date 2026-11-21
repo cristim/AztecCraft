@@ -79,9 +79,12 @@ pub(in crate::native_scene) fn layout(
             sub_depth,
             ..
         } => cube([sub_width, sub_height, sub_depth].map(|n| n as usize)),
-        // The plane is projected in `session_uv`; the Platonic solids have no layout yet.
-        PrimitiveOptions::Plane { .. } | PrimitiveOptions::PlatonicSolid { .. } => {
-            return Err(NativeError::UnsupportedUvTopology);
+        // The plane is projected in `session_uv`; the Platonic solids have no layout.
+        PrimitiveOptions::Plane { .. } => return Err(NativeError::UnsupportedUvTopology),
+        PrimitiveOptions::PlatonicSolid { .. } => {
+            return Err(NativeError::UnsupportedUvPrimitive(
+                crate::scene::Primitive::PlatonicSolid,
+            ));
         }
     };
     UvSet::from_corners(mesh, faces)

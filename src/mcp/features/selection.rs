@@ -180,7 +180,7 @@ fn parse_create_primitive(arguments: JsonObject) -> Result<RemoteRequest, ErrorD
             primitive: parsed.primitive,
             options: parsed.options,
             name: parsed.name,
-            create_uvs: false,
+            create_uvs: parsed.create_uvs,
         },
     ))
 }
@@ -471,7 +471,7 @@ fn select_edge_schema() -> JsonObject {
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "create_primitive",
-        description: "Create a cube, plane, sphere, cylinder, cone, torus or platonic_solid in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+        description: "Create a cube, plane, sphere, cylinder, cone, torus or platonic_solid in the live editor. Optional options set sizes, subdivisions, axis (x, y or z), the platonic solid type (dodecahedron, icosahedron, octahedron, tetrahedron or cube) and radius, the torus twist in degrees and the cylinder and cone cap subdivisions (subdivisions_caps) and round_cap for that primitive; round_cap has no effect while subdivisions_caps is 0; the top-level boolean create_uvs (default false) also creates the shape's map1 UVs with a PROVISIONAL AztecCraft layout (Maya's -createUVs has modes 0 to 4 and defaults to 3), is refused for platonic_solid with unsupported_uv_primitive, and UVs currently block saving to .mb and exporting glTF and USD until they carry UVs (OBJ export writes them, .ma save carries them); omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
         schema: schema::<CreateArgs>,
         parse: parse_create_primitive,
         idempotent: false,

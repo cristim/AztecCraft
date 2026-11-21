@@ -197,6 +197,9 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::UnsupportedUvTopology) => {
                     "unsupported_uv_topology"
                 }
+                OperationError::Scene(NativeError::UnsupportedUvPrimitive(_)) => {
+                    "unsupported_uv_primitive"
+                }
                 OperationError::Scene(NativeError::UvsBlockTopologyEdit) => {
                     "uvs_block_topology_edit"
                 }

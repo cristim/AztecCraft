@@ -173,6 +173,12 @@ pub(super) enum CreateArgs {
         #[serde(default, deserialize_with = "present")]
         #[schemars(with = "CubeOptions")]
         options: Option<CubeOptions>,
+        /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
+        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
+        /// they carry UVs; OBJ export writes them and a .ma save carries them.
+        #[serde(default)]
+        create_uvs: bool,
     },
     Plane {
         scene_token: String,
@@ -180,6 +186,12 @@ pub(super) enum CreateArgs {
         #[serde(default, deserialize_with = "present")]
         #[schemars(with = "PlaneOptions")]
         options: Option<PlaneOptions>,
+        /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
+        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
+        /// they carry UVs; OBJ export writes them and a .ma save carries them.
+        #[serde(default)]
+        create_uvs: bool,
     },
     Sphere {
         scene_token: String,
@@ -187,6 +199,12 @@ pub(super) enum CreateArgs {
         #[serde(default, deserialize_with = "present")]
         #[schemars(with = "SphereOptions")]
         options: Option<SphereOptions>,
+        /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
+        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
+        /// they carry UVs; OBJ export writes them and a .ma save carries them.
+        #[serde(default)]
+        create_uvs: bool,
     },
     Cylinder {
         scene_token: String,
@@ -194,6 +212,12 @@ pub(super) enum CreateArgs {
         #[serde(default, deserialize_with = "present")]
         #[schemars(with = "CylinderOptions")]
         options: Option<CylinderOptions>,
+        /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
+        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
+        /// they carry UVs; OBJ export writes them and a .ma save carries them.
+        #[serde(default)]
+        create_uvs: bool,
     },
     Cone {
         scene_token: String,
@@ -201,6 +225,12 @@ pub(super) enum CreateArgs {
         #[serde(default, deserialize_with = "present")]
         #[schemars(with = "ConeOptions")]
         options: Option<ConeOptions>,
+        /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
+        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
+        /// they carry UVs; OBJ export writes them and a .ma save carries them.
+        #[serde(default)]
+        create_uvs: bool,
     },
     Torus {
         scene_token: String,
@@ -208,6 +238,12 @@ pub(super) enum CreateArgs {
         #[serde(default, deserialize_with = "present")]
         #[schemars(with = "TorusOptions")]
         options: Option<TorusOptions>,
+        /// Also give the new shape a session UV set (map1) with an AztecCraft layout, PROVISIONAL.
+        /// Maya's `-createUVs` takes modes 0 to 4 and defaults to 3; here it is a boolean that
+        /// defaults to false. UVs currently block saving to .mb and exporting glTF and USD until
+        /// they carry UVs; OBJ export writes them and a .ma save carries them.
+        #[serde(default)]
+        create_uvs: bool,
     },
     PlatonicSolid {
         scene_token: String,
@@ -215,6 +251,10 @@ pub(super) enum CreateArgs {
         #[serde(default, deserialize_with = "present")]
         #[schemars(with = "PlatonicSolidOptions")]
         options: Option<PlatonicSolidOptions>,
+        /// Always refused: the Platonic solids have no UV layout yet, so true is rejected with
+        /// unsupported_uv_primitive and nothing is created. Maya's `-createUVs` takes modes 0 to 4.
+        #[serde(default)]
+        create_uvs: bool,
     },
 }
 
@@ -223,19 +263,22 @@ pub(super) struct Parsed {
     pub primitive: Primitive,
     pub options: Option<PrimitiveOptions>,
     pub name: Option<String>,
+    pub create_uvs: bool,
 }
 
 impl CreateArgs {
     /// Builds the core options and runs the core `validate`, so the wire and the editor agree.
     pub(super) fn into_parsed(self) -> Result<Parsed, ErrorData> {
-        let (scene_token, name, primitive, options) = match self {
+        let (scene_token, name, create_uvs, primitive, options) = match self {
             Self::Cube {
                 scene_token,
                 name,
                 options,
+                create_uvs,
             } => (
                 scene_token,
                 name,
+                create_uvs,
                 Primitive::Cube,
                 options.map(|o| PrimitiveOptions::Cube {
                     width: o.width,
@@ -251,9 +294,11 @@ impl CreateArgs {
                 scene_token,
                 name,
                 options,
+                create_uvs,
             } => (
                 scene_token,
                 name,
+                create_uvs,
                 Primitive::Plane,
                 options.map(|o| PrimitiveOptions::Plane {
                     width: o.width,
@@ -267,9 +312,11 @@ impl CreateArgs {
                 scene_token,
                 name,
                 options,
+                create_uvs,
             } => (
                 scene_token,
                 name,
+                create_uvs,
                 Primitive::Sphere,
                 options.map(|o| PrimitiveOptions::Sphere {
                     radius: o.radius,
@@ -282,9 +329,11 @@ impl CreateArgs {
                 scene_token,
                 name,
                 options,
+                create_uvs,
             } => (
                 scene_token,
                 name,
+                create_uvs,
                 Primitive::Cylinder,
                 options.map(|o| PrimitiveOptions::Cylinder {
                     radius: o.radius,
@@ -300,9 +349,11 @@ impl CreateArgs {
                 scene_token,
                 name,
                 options,
+                create_uvs,
             } => (
                 scene_token,
                 name,
+                create_uvs,
                 Primitive::Cone,
                 options.map(|o| PrimitiveOptions::Cone {
                     radius: o.radius,
@@ -318,9 +369,11 @@ impl CreateArgs {
                 scene_token,
                 name,
                 options,
+                create_uvs,
             } => (
                 scene_token,
                 name,
+                create_uvs,
                 Primitive::Torus,
                 options.map(|o| PrimitiveOptions::Torus {
                     radius: o.radius,
@@ -335,9 +388,11 @@ impl CreateArgs {
                 scene_token,
                 name,
                 options,
+                create_uvs,
             } => (
                 scene_token,
                 name,
+                create_uvs,
                 Primitive::PlatonicSolid,
                 options.map(|o| PrimitiveOptions::PlatonicSolid {
                     solid: o.solid.into(),
@@ -356,6 +411,7 @@ impl CreateArgs {
             primitive,
             options,
             name,
+            create_uvs,
         })
     }
 }
@@ -399,6 +455,7 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(CubeOptions::default()),
+                create_uvs: false,
             },
         );
         check(
@@ -407,6 +464,7 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(PlaneOptions::default()),
+                create_uvs: false,
             },
         );
         check(
@@ -415,6 +473,7 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(SphereOptions::default()),
+                create_uvs: false,
             },
         );
         check(
@@ -423,6 +482,7 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(CylinderOptions::default()),
+                create_uvs: false,
             },
         );
         check(
@@ -431,6 +491,7 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(ConeOptions::default()),
+                create_uvs: false,
             },
         );
         check(
@@ -439,6 +500,7 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(TorusOptions::default()),
+                create_uvs: false,
             },
         );
         check(
@@ -447,6 +509,7 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(PlatonicSolidOptions::default()),
+                create_uvs: false,
             },
         );
     }
