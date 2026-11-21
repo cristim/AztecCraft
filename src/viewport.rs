@@ -162,6 +162,58 @@ impl std::error::Error for InvalidCameraPose {}
 /// Pitch limit shared by `new`, `set_pose` and `orbit`, just short of the poles so the view never flips.
 pub const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.001;
 
+/// Distance refinements after the sphere framing of a film lens (PROVISIONAL).
+const FRAME_REFINE_STEPS: usize = 12;
+/// Largest factor the widening may grow the sphere distance by before giving up (PROVISIONAL).
+const MAX_FRAME_WIDENING: f32 = 1e3;
+
+/// A film-lens framing in progress: the camera with its sphere distance, the aim and the sphere.
+struct FilmFrame<'a> {
+    camera: &'a Camera,
+    target: Vec3,
+    side: Vec3,
+    radius: f32,
+    allowed: f32,
+    aspect: f32,
+    max_widening: f32,
+}
+
+impl FilmFrame<'_> {
+    /// The first distance, growing from the sphere distance, at which every point is inside the
+    /// view; `None` if that takes too many steps, grows too far or any projection fails.
+    fn widened_distance(
+        &self,
+        vertices: impl Iterator<Item = Vec3> + Clone,
+        sphere_distance: f32,
+        steps: usize,
+    ) -> Option<f32> {
+        let mut distance = sphere_distance;
+        for _ in 0..=steps {
+            let mut trial = self.camera.clone();
+            trial.distance = distance;
+            trial.target = self.target - self.side * distance;
+            trial.far = trial.far.max(distance + self.radius + trial.near);
+            trial.validate().ok()?;
+            let mut reach = 0.0_f32;
+            for vertex in vertices.clone() {
+                // A depth-clipped point (rounding at extreme coordinates) says nothing about the
+                // lateral fit, which is all this widening corrects.
+                if let Some(ndc) = trial.project(vertex, self.aspect).ok()? {
+                    reach = reach.max(ndc.truncate().abs().max_element());
+                }
+            }
+            if reach <= self.allowed * 1.00001 {
+                return Some(distance);
+            }
+            distance *= reach.clamp(1.001, 4.0);
+            if !distance.is_finite() || distance > sphere_distance * self.max_widening {
+                return None;
+            }
+        }
+        None
+    }
+}
+
 impl Default for Camera {
     fn default() -> Self {
         let camera = Self {
@@ -819,6 +871,16 @@ impl Camera {
         vertices: impl Iterator<Item = Vec3> + Clone,
         aspect: f32,
     ) -> Result<(), InvalidCameraInput> {
+        self.frame_iter_widening(vertices, aspect, FRAME_REFINE_STEPS)
+    }
+
+    /// `frame_iter` with an explicit number of widening steps (zero keeps the sphere framing).
+    fn frame_iter_widening(
+        &mut self,
+        vertices: impl Iterator<Item = Vec3> + Clone,
+        aspect: f32,
+        refine_steps: usize,
+    ) -> Result<(), InvalidCameraInput> {
         self.projection_matrix(aspect)?;
         let mut any = false;
         let mut min = Vec3::splat(f32::INFINITY);
@@ -835,15 +897,27 @@ impl Camera {
             return Err(InvalidCameraInput);
         }
         let target = min * 0.5 + max * 0.5;
-        let radius = vertices.map(|v| v.distance(target)).fold(0.0_f32, f32::max);
+        let radius = vertices
+            .clone()
+            .map(|v| v.distance(target))
+            .fold(0.0_f32, f32::max);
         let lens = if self.projection == Projection::Orthographic {
             self.lens.for_orthographic()
         } else {
             self.lens
         };
-        let half_angle = lens
+        let mut half_angle = lens
             .half_angle_y(aspect)
             .min((lens.tan_half_y(aspect) * aspect).atan());
+        if let (Projection::Perspective, Lens::Film(film)) = (self.projection, self.lens) {
+            // Roll, pre and post scale reshape the visible area; the ratio does not depend on
+            // overscan, which scales the half extents it is relative to. A neutral map keeps the
+            // original angle bit for bit (PROVISIONAL).
+            let ratio = film.window(f64::from(aspect)).frame_ratio();
+            if (ratio - 1.0).abs() > 1e-12 {
+                half_angle = (half_angle.tan() * ratio as f32).atan();
+            }
+        }
         let mut next = self.clone();
         next.target = target;
         let floor = (self.near + radius).max(self.near * 2.0) * DEFAULT_FRAME_MARGIN;
@@ -859,13 +933,29 @@ impl Camera {
         };
         next.distance = limit.max(floor);
         if let (Projection::Perspective, Lens::Film(film)) = (self.projection, self.lens) {
-            // Shift the target so the framed centre projects to the window centre, not to the
-            // film offset (PROVISIONAL; pre/post scale and roll are ignored here).
-            let centre = film.window(f64::from(aspect)).centre();
+            // Aim so the framed centre projects to the screen centre, not to the film offset or
+            // the film translate, then widen the distance until every point is inside: the
+            // sphere model is exact only on the axis (PROVISIONAL). Any failure to converge keeps
+            // the sphere distance (see known-issues).
+            let aim = film.window(f64::from(aspect)).tan_of_ndc(DVec2::ZERO);
             let view = next.view_matrix().inverse();
-            let shift =
-                view.x_axis.truncate() * centre.x as f32 + view.y_axis.truncate() * centre.y as f32;
-            next.target -= shift * next.distance;
+            let side =
+                view.x_axis.truncate() * aim.x as f32 + view.y_axis.truncate() * aim.y as f32;
+            let allowed = self.fit_factor.map_or(1.0, |fit| fit.max(1.0));
+            let sphere_distance = next.distance;
+            let frame = FilmFrame {
+                camera: &next,
+                target,
+                side,
+                radius,
+                allowed,
+                aspect,
+                max_widening: MAX_FRAME_WIDENING,
+            };
+            next.distance = frame
+                .widened_distance(vertices, sphere_distance, refine_steps)
+                .unwrap_or(sphere_distance);
+            next.target = target - side * next.distance;
         }
         next.far = self.far.max(next.distance + radius + self.near);
         next.validate()?;
@@ -1651,6 +1741,8 @@ fn intersect(ray: Ray, a: Vec3, b: Vec3, c: Vec3) -> Option<f32> {
     (distance.is_finite() && distance >= 0.0).then_some(distance)
 }
 
+#[cfg(test)]
+mod film_frame_tests;
 #[cfg(test)]
 mod film_range_tests;
 #[cfg(test)]

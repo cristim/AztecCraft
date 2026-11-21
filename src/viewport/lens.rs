@@ -408,8 +408,22 @@ impl FilmWindow {
     }
 
     /// The tangent-space window centre: the offset, plus Film Fit Offset for an explicit fit.
+    #[cfg(test)]
     pub(super) fn centre(&self) -> DVec2 {
         self.centre
+    }
+
+    /// How much larger a tangent-space disc may be, relative to the symmetric window's smaller
+    /// half extent, and still fit the unit NDC square: the roll, scales, aspect and shear of the
+    /// 2D map stretch a disc into an ellipse whose x and y extents are the row norms of the map in
+    /// tangent units. 1 at the neutral values (up to rounding). The shift moves the disc, so
+    /// framing aims at `tan_of_ndc(0)` instead.
+    pub(super) fn frame_ratio(&self) -> f64 {
+        let m = self.linear();
+        let inv = DVec2::ONE / self.half;
+        let x = (m[0][0] * inv.x).hypot(m[0][1] * inv.y);
+        let y = (m[1][0] * inv.x).hypot(m[1][1] * inv.y);
+        1.0 / (x.max(y) * self.half.min_element())
     }
 
     /// The xy parts of the projection's x, y and z columns (clip.w = -z):
