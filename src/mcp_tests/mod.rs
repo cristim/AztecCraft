@@ -142,6 +142,7 @@ mod official_client {
     mod gltf_export;
     mod grid;
     mod group;
+    mod helix_soccer_ball;
     mod inspect_budget;
     mod inspect_paging;
     mod limits;

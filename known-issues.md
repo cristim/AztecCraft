@@ -1866,3 +1866,18 @@ with scale 2,1,1) that matrix carries shear, so the mesh stores sheared points w
 The behavior is PROVISIONAL and not compared with Maya (#5). Point storage is f32, so world positions drift by
 about 4e-4 relative at a scale ratio of 1e3/1e-3; ordinary scales stay far below that. Mirrored nodes are refused
 whenever the scale is frozen (translate-only and rotate-only freezes of a mirrored node keep the mirror on the node).
+
+## Poly Helix and Soccer Ball are provisional (#466)
+
+`create_primitive` with `helix` (default 3 coils, height 2, width 2, tube radius 0.4, 8 points per ring, 50 segments: 408 points, 808
+edges, 402 faces) and `soccer_ball` (side length 1: a truncated icosahedron, 60 points, 90 edges, 32 faces) is in core, MCP and the
+Create > Polygon Primitives option boxes. Sources fetched: the polyHelix command page (2023 and 2027: `-coils`, `-height`, `-width`,
+`-radius` "radius of tube", `-subdivisionsAxis`, `-subdivisionsCoil`, `-direction`, `-roundCap`, `-subdivisionsCaps`, no axis flag) and the
+polyPrimitive command page (2023 and 2027: `-polyType 0` is the soccer ball, `-sideLength`, `-radius`, `-axis`). The Maya 2027 Polygon
+Primitives options page was not fetched. PROVISIONAL: for the helix, what `width` and `height` measure (read as the centreline circle
+diameter and span), whether `-subdivisionsCoil` is per coil or in total (read as total), the 1e-6 to 1e6 range of coils, centring, start
+angle, point order, winding, the `axis` field (an AztecCraft addition) and the `pHelix` name; for the soccer ball, that `-sideLength` is the
+edge (the page does not relate it to `-radius`, which is not offered; the page's example hints at an edge of 0.4036 for radius 1), the
+orientation, point order, winding and the `pSoccerBall` name. Not built: helix `-direction`, `-roundCap`, `-subdivisionsCaps`, texture and
+the old-init behaviour, and Create UVs for both (refused with `unsupported_uv_primitive`; `create_uvs` stays off, default untouched). The
+in-app check is still pending.
