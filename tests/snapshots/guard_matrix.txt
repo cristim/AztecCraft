@@ -241,9 +241,12 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(unchanged) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Ok(unchanged) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
+  match_transformations(multi) => Ok(changed) | scene changed
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -489,9 +492,12 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene edited" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(unchanged) | status: "Scene edited" -> "No change"
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Ok(unchanged) | status: "Scene edited" -> "No change"
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
+  match_transformations(multi) => Ok(changed) | scene changed
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -721,9 +727,11 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -956,6 +964,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1185,9 +1195,11 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -1420,6 +1432,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1649,9 +1663,11 @@
   reset_pivots(zero) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_transformations(all) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   freeze_transformations(all) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -1881,9 +1897,11 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_transformations(all) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   freeze_transformations(all) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -2113,9 +2131,11 @@
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_image_plane(valid) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2348,6 +2368,8 @@
   reset_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   freeze_transformations(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   freeze_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  match_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_image_plane(valid) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2577,9 +2599,11 @@
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_image_plane(valid) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2812,6 +2836,8 @@
   reset_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   freeze_transformations(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   freeze_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  match_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_image_plane(valid) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -3041,9 +3067,11 @@
   reset_pivots(zero) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_camera_film_back => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_image_plane(valid) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -3276,6 +3304,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3506,9 +3536,11 @@
   reset_pivots(zero) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; channel_fields: 1,2,3,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_undo: false -> true
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_camera_film_back => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_image_plane(valid) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; image_plane: none -> 2x2
@@ -3742,6 +3774,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3971,9 +4005,11 @@
   reset_pivots(zero) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_film_back => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_image_plane(valid) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; image_plane: none -> 2x2
@@ -4206,6 +4242,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4435,9 +4473,11 @@
   reset_pivots(zero) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: freezing or matching needs default pivots and transform extras on the objects involved (and, for a freeze, on everything below them)) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_film_back => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_image_plane(valid) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; image_plane: none -> 2x2
@@ -4670,6 +4710,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4899,9 +4941,11 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(unchanged) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Ok(unchanged) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -5134,6 +5178,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5363,9 +5409,11 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(unchanged) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Ok(unchanged) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -5598,6 +5646,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5830,6 +5880,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6068,6 +6120,9 @@
   reset_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6300,6 +6355,8 @@
   reset_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6532,6 +6589,8 @@
   reset_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6764,6 +6823,8 @@
   reset_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6996,6 +7057,8 @@
   reset_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7228,6 +7291,8 @@
   reset_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7460,6 +7525,8 @@
   reset_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_image_plane(valid) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7689,9 +7756,11 @@
   reset_pivots(zero) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -7921,9 +7990,11 @@
   reset_pivots(zero) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -8154,9 +8225,11 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,0,1,1,1
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: native ownership or edit effects are unsupported) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -8387,9 +8460,11 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene ready" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,0,1,1,1
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: native ownership or edit effects are unsupported) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -8620,9 +8695,11 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(changed) | scene changed; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,0,1,1,1
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: native ownership or edit effects are unsupported) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -8853,9 +8930,11 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene ready" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,0,1,1,1
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: native ownership or edit effects are unsupported) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -9192,9 +9271,11 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,0,1,1,1
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: native ownership or edit effects are unsupported) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -9425,9 +9506,11 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene ready" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,0,1,1,1
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(Transform: native ownership or edit effects are unsupported) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -9658,9 +9741,11 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   reset_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  reset_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  reset_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  freeze_transformations(face_mode) => Err(InvalidInput: Reset and Freeze Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
   set_camera_film_back => Ok(changed) | camera changed
   set_image_plane(valid) => Ok(changed) | image_plane: none -> 2x2
@@ -9894,6 +9979,8 @@
   reset_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_image_plane(valid) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -9901,4 +9988,4 @@
   set_image_plane(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   remove_image_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 9288
+cells: 9375
