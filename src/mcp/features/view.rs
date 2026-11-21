@@ -320,6 +320,7 @@ fn parse_set_camera_film_back(arguments: JsonObject) -> Result<RemoteRequest, Er
             film_roll_degrees: args.film_roll_value,
             overscan: args.overscan,
             display_film_gate: args.display_film_gate,
+            ..FilmBackEdit::default()
         }),
     ))
 }

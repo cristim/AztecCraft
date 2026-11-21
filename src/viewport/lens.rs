@@ -13,6 +13,9 @@ pub const MIN_FILM_SCALE: f64 = 1e-6;
 /// largest half extent (PROVISIONAL, row 56): the z column of the projection stays finite at
 /// aspects from 1e-3 to 1e3.
 pub const MAX_OFFSET_TAN: f64 = 1e5;
+/// Largest Film Translate or Film Roll Pivot component, in NDC (PROVISIONAL, row 56): ten times
+/// the largest half extent of the offset bound, so the projection's z column stays finite.
+pub const MAX_NDC_SHIFT: f64 = 1e5;
 /// Bounds of the symmetric half extent in tangent space at aspect 1, overscan excluded
 /// (PROVISIONAL, row 56): about 0.006 degrees to 89.994 degrees of half angle.
 pub const MIN_TAN_HALF: f64 = 1e-4;
@@ -26,6 +29,17 @@ pub enum FilmFit {
     Horizontal,
     Vertical,
     Overscan,
+}
+
+/// Maya's Film Roll Order: whether the roll applies before or after the Film Translate. The ids
+/// (0 rotate-translate, 1 translate-rotate) and which composition each name means are PROVISIONAL:
+/// the node page lists no ids and the command page is inconsistent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FilmRollOrder {
+    /// Roll about the pivot, then translate.
+    RotateTranslate,
+    /// Translate, then roll about the pivot.
+    TranslateRotate,
 }
 
 /// Why a film back was refused: the name of the first offending field.
@@ -57,6 +71,13 @@ pub struct FilmBack {
     pub film_roll_degrees: f64,
     pub overscan: f64,
     pub display_film_gate: bool,
+    /// Scales the focal length, effective focal length = focal * scale (PROVISIONAL direction).
+    pub camera_scale: f64,
+    /// Horizontal then vertical Film Translate, normalized device units (PROVISIONAL unit).
+    pub film_translate: [f64; 2],
+    /// Horizontal then vertical Film Roll Pivot, normalized device units (PROVISIONAL unit).
+    pub film_roll_pivot: [f64; 2],
+    pub film_roll_order: FilmRollOrder,
 }
 
 impl FilmBack {
@@ -74,6 +95,10 @@ impl FilmBack {
         film_roll_degrees: 0.0,
         overscan: 1.0,
         display_film_gate: false,
+        camera_scale: 1.0,
+        film_translate: [0.0, 0.0],
+        film_roll_pivot: [0.0, 0.0],
+        film_roll_order: FilmRollOrder::RotateTranslate,
     };
 
     /// Finite everywhere; focal length, apertures, squeeze, scales and overscan above zero.
@@ -86,6 +111,7 @@ impl FilmBack {
             ("pre_scale", self.pre_scale),
             ("post_scale", self.post_scale),
             ("overscan", self.overscan),
+            ("camera_scale", self.camera_scale),
         ];
         if let Some((name, _)) = positive.iter().find(|(_, v)| !(v.is_finite() && *v > 0.0)) {
             return Err(InvalidFilmBack(name));
@@ -93,6 +119,12 @@ impl FilmBack {
         let ranged = [
             ("overscan", self.overscan, 0.0, MAX_OVERSCAN),
             ("pre_scale", self.pre_scale, MIN_FILM_SCALE, MAX_FILM_SCALE),
+            (
+                "camera_scale",
+                self.camera_scale,
+                MIN_FILM_SCALE,
+                MAX_FILM_SCALE,
+            ),
             (
                 "post_scale",
                 self.post_scale,
@@ -115,11 +147,23 @@ impl FilmBack {
         if let Some((name, _)) = finite.iter().find(|(_, v)| !v.is_finite()) {
             return Err(InvalidFilmBack(name));
         }
+        let shifts = [
+            ("film_translate_h", self.film_translate[0]),
+            ("film_translate_v", self.film_translate[1]),
+            ("horizontal_roll_pivot", self.film_roll_pivot[0]),
+            ("vertical_roll_pivot", self.film_roll_pivot[1]),
+        ];
+        if let Some((name, _)) = shifts
+            .iter()
+            .find(|(_, v)| !(v.is_finite() && v.abs() <= MAX_NDC_SHIFT))
+        {
+            return Err(InvalidFilmBack(name));
+        }
         let half = self.tan_half(1.0);
         if !(MIN_TAN_HALF..=MAX_TAN_HALF).contains(&half.x) {
             return Err(InvalidFilmBack("angle_of_view"));
         }
-        let to_tan = MM_PER_INCH / self.focal_mm;
+        let to_tan = MM_PER_INCH / self.focal_eff();
         let offsets = [
             (
                 "film_fit_offset",
@@ -147,7 +191,7 @@ impl FilmBack {
         Ok(())
     }
 
-    fn bits(&self) -> [u64; 13] {
+    fn bits(&self) -> [u64; 19] {
         [
             self.focal_mm.to_bits(),
             self.aperture_in[0].to_bits(),
@@ -162,7 +206,18 @@ impl FilmBack {
             self.film_roll_degrees.to_bits(),
             self.overscan.to_bits(),
             u64::from(self.display_film_gate),
+            self.camera_scale.to_bits(),
+            self.film_translate[0].to_bits(),
+            self.film_translate[1].to_bits(),
+            self.film_roll_pivot[0].to_bits(),
+            self.film_roll_pivot[1].to_bits(),
+            self.film_roll_order as u64,
         ]
+    }
+
+    /// Focal length times the camera scale (PROVISIONAL direction).
+    fn focal_eff(&self) -> f64 {
+        self.focal_mm * self.camera_scale
     }
 
     /// Film gate size in millimetres; the squeeze widens the effective horizontal aperture.
@@ -186,11 +241,11 @@ impl FilmBack {
         let gate = self.gate_mm();
         match self.effective_fit(aspect) {
             FilmFit::Vertical => {
-                let ty = gate.y / (2.0 * self.focal_mm);
+                let ty = gate.y / (2.0 * self.focal_eff());
                 DVec2::new(ty * aspect, ty)
             }
             _ => {
-                let tx = gate.x / (2.0 * self.focal_mm);
+                let tx = gate.x / (2.0 * self.focal_eff());
                 DVec2::new(tx, tx / aspect)
             }
         }
@@ -201,12 +256,12 @@ impl FilmBack {
         DVec2::new(
             self.film_offset_in[0] * self.lens_squeeze,
             self.film_offset_in[1],
-        ) * (MM_PER_INCH / self.focal_mm)
+        ) * (MM_PER_INCH / self.focal_eff())
     }
 
     /// The pinhole view at a viewport aspect.
     pub(super) fn window(&self, aspect: f64) -> FilmWindow {
-        let mm = MM_PER_INCH / self.focal_mm;
+        let mm = MM_PER_INCH / self.focal_eff();
         let mut centre = self.offset_tan();
         // Film Fit Offset acts on the axis the explicit fit leaves free.
         match self.film_fit {
@@ -220,6 +275,10 @@ impl FilmBack {
             scale: self.pre_scale * self.post_scale,
             roll: self.film_roll_degrees.to_radians(),
             aspect,
+            translate: DVec2::from_array(self.film_translate),
+            pivot: DVec2::from_array(self.film_roll_pivot),
+            order: self.film_roll_order,
+            post_scale: self.post_scale,
         }
     }
 }
@@ -238,6 +297,10 @@ pub struct FilmBackEdit {
     pub film_roll_degrees: Option<f64>,
     pub overscan: Option<f64>,
     pub display_film_gate: Option<bool>,
+    pub camera_scale: Option<f64>,
+    pub film_translate: [Option<f64>; 2],
+    pub film_roll_pivot: [Option<f64>; 2],
+    pub film_roll_order: Option<FilmRollOrder>,
 }
 
 impl FilmBackEdit {
@@ -265,6 +328,14 @@ impl FilmBackEdit {
         set(&mut film.post_scale, self.post_scale);
         set(&mut film.film_roll_degrees, self.film_roll_degrees);
         set(&mut film.overscan, self.overscan);
+        set(&mut film.camera_scale, self.camera_scale);
+        set(&mut film.film_translate[0], self.film_translate[0]);
+        set(&mut film.film_translate[1], self.film_translate[1]);
+        set(&mut film.film_roll_pivot[0], self.film_roll_pivot[0]);
+        set(&mut film.film_roll_pivot[1], self.film_roll_pivot[1]);
+        if let Some(order) = self.film_roll_order {
+            film.film_roll_order = order;
+        }
         if let Some(fit) = self.film_fit {
             film.film_fit = fit;
         }
@@ -290,6 +361,10 @@ pub(super) struct FilmWindow {
     scale: f64,
     roll: f64,
     aspect: f64,
+    translate: DVec2,
+    pivot: DVec2,
+    order: FilmRollOrder,
+    post_scale: f64,
 }
 
 impl FilmWindow {
@@ -301,6 +376,27 @@ impl FilmWindow {
             [s * cos, -s * sin / self.aspect],
             [s * sin * self.aspect, s * cos],
         ]
+    }
+
+    /// The NDC shift after the linear part: post scale times the pivot-relative roll residue plus
+    /// the Film Translate, in the order Film Roll Order names (PROVISIONAL). Zero at the neutral
+    /// values, so the pre-existing projection is unchanged bit for bit.
+    fn shift(&self) -> DVec2 {
+        if self.translate == DVec2::ZERO && self.pivot == DVec2::ZERO {
+            return DVec2::ZERO;
+        }
+        let (sin, cos) = self.roll.sin_cos();
+        let rotate = |v: DVec2| {
+            DVec2::new(
+                cos * v.x - sin * v.y / self.aspect,
+                sin * v.x * self.aspect + cos * v.y,
+            )
+        };
+        let moved = match self.order {
+            FilmRollOrder::RotateTranslate => self.translate,
+            FilmRollOrder::TranslateRotate => rotate(self.translate),
+        };
+        (self.pivot - rotate(self.pivot) + moved) * self.post_scale
     }
 
     /// Vertical half extent in tangent space as drawn: overscan and the 2D scales included, a
@@ -322,7 +418,7 @@ impl FilmWindow {
         [
             DVec2::new(m[0][0], m[1][0]) / self.half.x,
             DVec2::new(m[0][1], m[1][1]) / self.half.y,
-            DVec2::new(m[0][0] * c.x + m[0][1] * c.y, m[1][0] * c.x + m[1][1] * c.y),
+            DVec2::new(m[0][0] * c.x + m[0][1] * c.y, m[1][0] * c.x + m[1][1] * c.y) - self.shift(),
         ]
     }
 
@@ -333,13 +429,14 @@ impl FilmWindow {
         DVec2::new(
             m[0][0] * uv.x + m[0][1] * uv.y,
             m[1][0] * uv.x + m[1][1] * uv.y,
-        )
+        ) + self.shift()
     }
 
     /// Analytic inverse of `ndc_of_tan`: the tangent-space point a pixel looks at.
     pub(super) fn tan_of_ndc(&self, ndc: DVec2) -> DVec2 {
         let m = self.linear();
         let det = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+        let ndc = ndc - self.shift();
         let uv = DVec2::new(
             (m[1][1] * ndc.x - m[0][1] * ndc.y) / det,
             (-m[1][0] * ndc.x + m[0][0] * ndc.y) / det,
@@ -356,7 +453,7 @@ impl FilmWindow {
 /// aperture. Computed in f64, cast once.
 pub fn film_gate_ndc(film: &FilmBack, viewport_aspect: f32) -> [Vec2; 4] {
     let window = film.window(f64::from(viewport_aspect));
-    let half = film.gate_mm() / (2.0 * film.focal_mm);
+    let half = film.gate_mm() / (2.0 * film.focal_eff());
     let centre = film.offset_tan();
     [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)].map(|(sx, sy)| {
         let ndc = window.ndc_of_tan(centre + DVec2::new(sx * half.x, sy * half.y));
@@ -417,10 +514,10 @@ impl Lens {
     }
 
     /// Discriminant and value bits, for the bit-exact `Camera::same_capture`.
-    pub(super) fn capture_bits(self) -> (u8, [u64; 13]) {
+    pub(super) fn capture_bits(self) -> (u8, [u64; 19]) {
         match self {
             Self::VerticalFov(fov_y) => {
-                let mut bits = [0; 13];
+                let mut bits = [0; 19];
                 bits[0] = u64::from(fov_y.to_bits());
                 (0, bits)
             }

@@ -12,8 +12,9 @@ use std::fmt;
 
 mod lens;
 pub use lens::{
-    FilmBack, FilmBackEdit, FilmFit, InvalidFilmBack, Lens, MAX_FILM_SCALE, MAX_OFFSET_TAN,
-    MAX_OVERSCAN, MAX_TAN_HALF, MIN_FILM_SCALE, MIN_TAN_HALF, film_gate_ndc,
+    FilmBack, FilmBackEdit, FilmFit, FilmRollOrder, InvalidFilmBack, Lens, MAX_FILM_SCALE,
+    MAX_NDC_SHIFT, MAX_OFFSET_TAN, MAX_OVERSCAN, MAX_TAN_HALF, MIN_FILM_SCALE, MIN_TAN_HALF,
+    film_gate_ndc,
 };
 mod box_dolly;
 mod rect_pick;
@@ -1652,6 +1653,8 @@ fn intersect(ray: Ray, a: Vec3, b: Vec3, c: Vec3) -> Option<f32> {
 
 #[cfg(test)]
 mod film_range_tests;
+#[cfg(test)]
+mod film_shift_tests;
 #[cfg(test)]
 mod film_tests;
 #[cfg(test)]

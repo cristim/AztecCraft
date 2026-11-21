@@ -87,6 +87,7 @@ async fn sdk_set_camera_film_back_sets_each_field_exactly_and_edits_only_the_nam
         film_roll_degrees: 33.3,
         overscan: 1.2,
         display_film_gate: true,
+        ..FilmBack::DEFAULT
     };
     assert_eq!(bits(&film(&editor)), bits(&expected));
 
