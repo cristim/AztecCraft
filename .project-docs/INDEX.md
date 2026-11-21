@@ -26,6 +26,7 @@
 - [Maya API catalog sources](maya-2027-api-inventory.md): versioned C++ change sources, mutable year-level API catalogs, source provenance and the limits of name-level comparisons (issue #6).
 - [Maya API-to-workflow crosswalk](maya-api-workflow-crosswalk.md): partial non-scoring API traceability seeds; does not alter the 14-family denominator.
 - [Maya API leaf audit](maya-api-leaf-audit.md): partial semantic review of selected 2027 command, node and API leaves, with runtime and 2026 evidence boundaries.
+- [Maya API behavior evidence](maya-api-behavior-evidence.md): reproducible synthetic Maya 2027.3 batch observations for Smart Bevel, `shotLabel` defaults and Python API wrapper exposure.
 - [Maya API audit plan](maya-api-audit-plan.md): version boundaries, local catalog snapshots, runtime evidence and completion gates; Maya 2026 remains the acceptance target (issue #6).
 - [Maya 2027.3 update observations](maya-2027-3-update-observations.md): source-backed update/workflow candidates, component boundaries and unresolved leaf semantics; not a parity claim.
 - [Contribution guidance](../CONTRIBUTING.md): local workflow, review evidence and publication restrictions.

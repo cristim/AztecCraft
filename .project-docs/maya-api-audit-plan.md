@@ -75,7 +75,9 @@ runtime-evidence effort, not an implementation or parity claim.
    from API 2.0. Keep installed runtime presence, documented semantics,
    behavioral tests and ABI compatibility as separate evidence.
    The [first bounded leaf audit](maya-api-leaf-audit.md) covers selected
-   2027 command/node differences and API classes; its scope is not exhaustive.
+   2027 command/node differences and API classes; the separate
+   [behavior evidence note](maya-api-behavior-evidence.md) records one
+   repeatable synthetic Maya 2027.3 batch pass. Neither scope is exhaustive.
 6. **Integrate new capabilities into parity work.** Cross-link relevant
    commands and nodes to the 14 workflow families. Add user-facing Maya 2027.3
    workflows to the correct family with versioned citations and truthful

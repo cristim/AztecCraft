@@ -1,0 +1,116 @@
+# Maya API behavior evidence — bounded Maya 2027.3 pass
+
+Status: first empirical behavior slice; not a complete API audit, UI check, or
+Maya 2026 compatibility/parity claim. Checked on 2026-11-21 against one
+installed Windows Maya 2027.3 batch process.
+
+## Probe and environment
+
+The opt-in probe is [`scripts/maya-api-behavior-probe.py`](../scripts/maya-api-behavior-probe.py)
+(SHA-256 `60B7666DF23B61FCC451CC5C92CB7A7DED6C04D2DBF56C9FEA10E6B29169E849`).
+It creates a unique `MAYA_APP_DIR` for each run below the repository's ignored
+`target/maya-catalog/behavior-probe-appdir-<id>` before importing Maya, refuses
+an already-imported Maya runtime and a named/modified scene, and creates only
+synthetic in-memory objects. It does not save scenes or load/unload plug-ins.
+The per-run directories are retained locally and are not shared between runs.
+The source is a reusable audit affordance, not an AztecCraft feature.
+
+Two independent runs each used a unique scratch app directory, ran in the
+installed `mayapy`, and exited `0`. Their captured JSON reports were byte
+identical (SHA-256
+`4AABFC10A0A6046AEC466829798B86AB650636E319118D372B9C9235DC297EE5`); a
+separate assertion check confirmed the version, topology, short-edge length,
+unchanged short-edge geometry, `shotLabel` defaults, and Python API wrapper
+result. Maya reported:
+
+For reproduction, run the script twice in separate processes and capture
+stdout, for example in PowerShell:
+
+```powershell
+& 'C:\Program Files\Autodesk\Maya2027\bin\mayapy.exe' scripts/maya-api-behavior-probe.py |
+  Set-Content target/maya-catalog/maya-api-behavior-probe-isolated-1.json -Encoding utf8
+if ($LASTEXITCODE -ne 0) { throw "Maya probe failed: $LASTEXITCODE" }
+& 'C:\Program Files\Autodesk\Maya2027\bin\mayapy.exe' scripts/maya-api-behavior-probe.py |
+  Set-Content target/maya-catalog/maya-api-behavior-probe-isolated-2.json -Encoding utf8
+if ($LASTEXITCODE -ne 0) { throw "Maya probe failed: $LASTEXITCODE" }
+```
+
+Each process creates a distinct app directory automatically. The probe's
+directory names are intentionally not emitted in the JSON; the reports capture
+Maya/runtime data only.
+
+| Field | Observed value |
+| --- | --- |
+| Installed version | `Autodesk MAYA 2027.3` |
+| API version | `20270300` |
+| Cut identifier | `202611131425-e0ccee1081` |
+| Platform / machine | `win32` / `AMD64` |
+| Python | `3.13.9` |
+| Linear unit | `cm` |
+| Loaded plug-in names | `cacheEvaluator`, `renderSetup` |
+
+The JSON reports remain local and ignored at
+`target/maya-catalog/maya-api-behavior-probe-isolated-1.json` and
+`target/maya-catalog/maya-api-behavior-probe-isolated-2.json`. This is one Maya
+build and one batch environment; it does not establish GUI behavior, unloaded
+plug-in behavior, other platforms, ABI compatibility, or Maya 2026 behavior.
+
+## Smart Bevel observations
+
+Autodesk's [Maya 2027.3 What's New](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-WhatsNew/files/GUID-E30563A9-74A3-4E4B-A955-CDDD25A562FD.htm)
+says Smart Bevel removes extremely short edges before beveling and describes
+other output improvements. The [command reference](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/polySmartBevel.html)
+does not specify a numerical short-edge threshold, bevel width/segments, or an
+exact expected output mesh. The probe therefore records measured inputs and
+outputs without asserting a general algorithm or threshold.
+
+Both cases created explicit 2×2×2 cubes with one subdivision per axis and
+construction history enabled, then selected edge `.e[0]` and called
+`polySmartBevel()`:
+
+| Case | Input edge / topology | Result |
+| --- | --- | --- |
+| Ordinary edge | Length `2.0` object units (`cm`); `8` vertices, `12` edges, `6` faces | Returned a `polySmartBevel` node without a reported exception; topology became `10` vertices, `15` edges, `7` faces. The recorded output coordinates show the mesh changed. |
+| Short edge | One endpoint was moved so the selected edge measured `1.0013580322265625e-05` object units; `8` vertices, `12` edges, `6` faces | Returned a `polySmartBevel` node without a reported exception; topology remained `8/12/6`, and all recorded vertex coordinates were unchanged. The input edit is represented by a `polyTweak` history node. |
+
+The short-edge outcome is a single empirical observation consistent with
+Autodesk's summary, not proof of the fix's full behavior or its cutoff. Multiple
+specified edges, cutback amounts, straight-edge preservation, visual output,
+and other topology/selection cases remain untested. This standalone test also
+does not establish where or how the artist-facing tool is exposed in Maya's UI.
+
+## `shotLabel` and Python API observation
+
+Autodesk's [`shotLabel` node page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Nodes/shotLabel.html)
+documents `color` as float3 `(0,0,0)`, the three float color children as `0`,
+and `name` as string with a null default. A created `shotLabel` in Maya 2027.3
+reported the same current values and defaults. `attributeQuery` reported all
+five attributes as readable, writable, storable and connectable.
+
+For `name`, Maya's generic `attributeQuery(attributeType=True)` result is
+`typed`, while `getAttr(type=True)` reports the stored data type as `string`;
+the current value and listed default are both `None`. These are different
+queries, not a disagreement with the node page.
+
+The probe constructed Python API 2.0 `MFnAttribute` from the `shotLabel.color`
+plug. On that wrapper instance, `isNodeEditorPrimary` and
+`setNodeEditorPrimary` were both absent (`hasattr == false`) even though the
+C++ members are documented as introduced in 2027.3. This is wrapper-exposure
+evidence for this runtime, not a C++ behavior test, ABI result, or claim about
+all Python API surfaces.
+
+## Evidence boundaries and next work
+
+- Runtime command execution, node defaults, and API wrapper exposure are
+  empirical observations, separate from Autodesk's documented semantics.
+- The exact Maya 2026 acceptance build remains unavailable. Nothing in this
+  pass establishes Maya 2026 compatibility.
+- No user scenes, reference assets, or Maya GUI were used.
+- Next Maya-dependent candidates: run carefully scoped synthetic `traxAudioTrack`
+  checks if audio-track state can be isolated in batch; GUI-only Camera Sequencer
+  and artist-facing placement still require a separately authorized/available
+  Maya GUI evidence path.
+
+See the [versioned leaf audit](maya-api-leaf-audit.md), [audit plan](maya-api-audit-plan.md),
+and [runtime catalog inventory](maya-2027-api-inventory.md) for the broader
+source and version boundaries.
