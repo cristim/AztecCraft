@@ -1073,6 +1073,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             channels: TransformChannels::ALL,
             expected_selection_generation: None,
         },
+        Operation::MatchTransformations {
+            channels: TransformChannels::ALL,
+            expected_selection_generation: None,
+        },
         // Differs from the rig's default camera so a Changed outcome is observable.
         Operation::SetCameraPose {
             target: [1.0, 0.5, -2.0],
@@ -2609,6 +2613,37 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 ..sample(
                     "freeze_transformations(face_mode)",
                     Operation::FreezeTransformations {
+                        channels: TransformChannels::ALL,
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
+        Operation::MatchTransformations { .. } => vec![
+            // One object selected: every state shows its guard, the idle cell the refusal.
+            sample(
+                "match_transformations(single)",
+                Operation::MatchTransformations {
+                    channels: TransformChannels::ALL,
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "match_transformations(multi)",
+                    Operation::MatchTransformations {
+                        channels: TransformChannels::ALL,
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "match_transformations(face_mode)",
+                    Operation::MatchTransformations {
                         channels: TransformChannels::ALL,
                         expected_selection_generation: None,
                     },
