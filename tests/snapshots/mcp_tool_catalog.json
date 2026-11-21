@@ -3620,7 +3620,7 @@
   },
   {
     "name": "assign_session_material",
-    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Saved to an authored .ma with the shape's membership; refused as .mb with save_unwritable reason session_materials until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Assign a session material to whole authored shapes; every instance of each shape changes. Give shape_id (one shape) or shape_ids (several, assigned all-or-nothing as one undo step; an empty, duplicated, over-1024 or unknown-shape list is refused with invalid_shape_list or unknown_shape and changes nothing). Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Saved to an authored .ma with the shape's membership; refused as .mb with save_unwritable reason session_materials until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -3649,12 +3649,25 @@
           "type": "string"
         },
         "shape_id": {
-          "type": "string"
+          "description": "One shape. Give this or `shape_ids`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shape_ids": {
+          "description": "Several shapes assigned in one undo step: non-empty, no duplicates, at most 1024. All or\nnothing. Give this or `shape_id`.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
         }
       },
       "required": [
-        "scene_token",
-        "shape_id"
+        "scene_token"
       ],
       "title": "AssignSessionMaterialArgs",
       "type": "object"

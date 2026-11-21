@@ -1104,6 +1104,18 @@ mod tests {
                 json!({"scene_token":token,"shape_id":"2","material_id":"+1"}),
             ),
             (
+                "assign_session_material",
+                json!({"scene_token":token,"shape_id":"2","shape_ids":["2"],"material_id":"1"}),
+            ),
+            (
+                "assign_session_material",
+                json!({"scene_token":token,"material_id":"1"}),
+            ),
+            (
+                "assign_session_material",
+                json!({"scene_token":token,"shape_ids":["2","x"],"material_id":"1"}),
+            ),
+            (
                 "create_session_material",
                 json!({"scene_token":token,"color":[0,0,0],"extra":1}),
             ),

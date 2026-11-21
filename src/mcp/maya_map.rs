@@ -60,7 +60,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("inspect_uvs", "`polyEvaluate -uvcoord`, `polyEditUV -q`", "paged per-corner list, f32"),
     ("set_material_diffuse", "`setAttr <shader>.diffuse`", "none known"),
     ("create_session_material", "`shadingNode -asShader lambert`", "saved to an authored .ma, refused as .mb with save_unwritable reason session_materials"),
-    ("assign_session_material", "`sets -renderable true -noSurfaceShader true -empty`, `sets -forceElement`", "saved to an authored .ma, refused as .mb with save_unwritable reason session_materials; whole shape"),
+    ("assign_session_material", "`sets -renderable true -noSurfaceShader true -empty`, `sets -forceElement`", "saved to an authored .ma, refused as .mb with save_unwritable reason session_materials; whole shapes, one or a list (all or nothing)"),
     ("set_session_material_color", "`setAttr <shader>.color`", "saved to an authored .ma, refused as .mb with save_unwritable reason session_materials"),
     ("delete_node", "`delete`", "refuses hierarchies and shared descendants (#187)"),
     ("delete_selected", "`delete` with no flags", "all or nothing"),

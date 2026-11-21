@@ -49,7 +49,11 @@ struct CreateSessionMaterialArgs {
 #[serde(deny_unknown_fields)]
 struct AssignSessionMaterialArgs {
     scene_token: String,
-    shape_id: String,
+    /// One shape. Give this or `shape_ids`.
+    shape_id: Option<String>,
+    /// Several shapes assigned in one undo step: non-empty, no duplicates, at most 1024. All or
+    /// nothing. Give this or `shape_id`.
+    shape_ids: Option<Vec<String>>,
     /// An existing material id from inspection or a create reply. Give this or `color`.
     material_id: Option<String>,
     /// Creates a new lambert with this colour in the same undo step. Give this or `material_id`.
@@ -98,12 +102,22 @@ fn parse_assign_session_material(arguments: JsonObject) -> Result<RemoteRequest,
             ));
         }
     };
+    let shapes = match (&args.shape_id, &args.shape_ids) {
+        (Some(id), None) => vec![native_id(id)?],
+        (None, Some(ids)) => ids
+            .iter()
+            .map(|id| native_id(id))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => {
+            return Err(ErrorData::invalid_params(
+                "Give exactly one of shape_id or shape_ids",
+                None,
+            ));
+        }
+    };
     Ok(scoped(
         token(&args.scene_token)?,
-        Operation::AssignSessionMaterial {
-            shapes: vec![native_id(&args.shape_id)?],
-            material,
-        },
+        Operation::AssignSessionMaterial { shapes, material },
     ))
 }
 
@@ -137,7 +151,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "assign_session_material",
-        description: "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Saved to an authored .ma with the shape's membership; refused as .mb with save_unwritable reason session_materials until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        description: "Assign a session material to whole authored shapes; every instance of each shape changes. Give shape_id (one shape) or shape_ids (several, assigned all-or-nothing as one undo step; an empty, duplicated, over-1024 or unknown-shape list is refused with invalid_shape_list or unknown_shape and changes nothing). Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Saved to an authored .ma with the shape's membership; refused as .mb with save_unwritable reason session_materials until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<AssignSessionMaterialArgs>,
         parse: parse_assign_session_material,
         idempotent: false,
