@@ -18,9 +18,12 @@ implements or is compatible with any Maya API.
   2026 runtime evidence is available.
 - Families are the project's 14 (see the
   [family inventory](parity-inventory/README.md)). A catalog symbol is not a
-   workflow and not a parity denominator row. See the partial, non-scoring
-   [API-to-workflow crosswalk](maya-api-workflow-crosswalk.md); it does not
-   alter the 14-family denominator.
+  workflow and not a parity denominator row. See the partial, non-scoring
+  [API-to-workflow crosswalk](maya-api-workflow-crosswalk.md); it does not
+  alter the 14-family denominator.
+- Selected 2027 command/node and API leaf semantics, including evidence limits,
+  are recorded in the [bounded leaf audit](maya-api-leaf-audit.md); this does
+  not complete the remaining symbol-by-symbol semantic audit.
 
 ## Source registry
 
@@ -112,6 +115,29 @@ top-level module names: it is not a class/member inventory or behavioral audit,
 and establishes neither ABI compatibility nor Maya 2026 compatibility. The script omits
 plug-in paths, scene data and exception messages; it does not load/unload
 plug-ins or open user scenes.
+
+### Year-catalog versus runtime name-set diagnostic
+
+A case-sensitive exact-string comparison of the 2027 year-page extracted names
+with this one Maya 2027.3 process yielded:
+
+| Surface | 2027 year-page names | 2027.3 runtime names | Exact overlap | Page-only | Runtime-only |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Commands | 1,528 | 4,813 | 1,285 | 243 | 3,528 |
+| Node types | 944 | 902 | 807 | 137 | 95 |
+
+This is a reconciliation diagnostic, not a completeness or compatibility
+result. The year pages and runtime enumerators have different scopes; runtime
+commands/nodes include names not linked by those catalogs, while page-only
+names may depend on command loading, plug-ins, or catalog conventions that this
+single process did not resolve. Do not classify any set difference as an API
+addition, removal, or failure without leaf/source investigation.
+
+The full local name sets remain ignored: the year-page extraction is in
+`target/maya-catalog/snapshot-20261120T211346Z-714/names/`, and the process
+result is `target/maya-catalog/runtime-20261120-pythonapis.json`. The former's
+retrieval time and hashes are in its local manifest. Neither bulk list is
+committed.
 
 ## C++ changelogs
 

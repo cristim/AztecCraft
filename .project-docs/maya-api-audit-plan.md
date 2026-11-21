@@ -38,10 +38,13 @@ runtime-evidence effort, not an implementation or parity claim.
    entries for 2026.0/.1/.2 and 2027.0/.1/.2/.3 separately. The 2027.3 page
    identifies `MFnAttribute::isNodeEditorPrimary`,
    `MFnAttribute::setNodeEditorPrimary` and `MPxTexture2dEvaluator` as
-   introduced in 2027.3. Commands, nodes and Python catalogs currently expose
-   year-level endpoints only; compare those as dated snapshots, not as
-   update-specific changes. Label update provenance unknown when no dated
-   source establishes it. Do not treat absence from a catalog as an API
+   introduced in 2027.3. Commands, nodes and Python catalogs expose mutable
+   year-level indexes rather than comprehensive per-update snapshots; compare
+   them as dated snapshots, not as complete update deltas. Individual leaf
+   pages may carry narrower version labels (for example `traxAudioTrack` says
+   2027.2 in the [bounded leaf audit](maya-api-leaf-audit.md)); use those only
+   for the statement they explicitly date. Label provenance unknown when no
+   dated source establishes it. Do not treat absence from a catalog as an API
    removal.
    Autodesk identifies `maya.OpenMaya` as Python API 1.0 and
    `maya.api.OpenMaya` as API 2.0, and says API 2.0 is less comprehensive.
@@ -71,6 +74,8 @@ runtime-evidence effort, not an implementation or parity claim.
    and Python API 1.0 as its own surface. Do not infer Python API 1.0 coverage
    from API 2.0. Keep installed runtime presence, documented semantics,
    behavioral tests and ABI compatibility as separate evidence.
+   The [first bounded leaf audit](maya-api-leaf-audit.md) covers selected
+   2027 command/node differences and API classes; its scope is not exhaustive.
 6. **Integrate new capabilities into parity work.** Cross-link relevant
    commands and nodes to the 14 workflow families. Add user-facing Maya 2027.3
    workflows to the correct family with versioned citations and truthful
