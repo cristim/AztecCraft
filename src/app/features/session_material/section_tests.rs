@@ -20,7 +20,7 @@ fn cube_with_editor_open() -> Editor {
 }
 
 fn shape_id(editor: &Editor) -> NativeId {
-    editor.session_material_target().unwrap()
+    editor.session_material_targets().unwrap()[0]
 }
 
 fn select_material_tab(editor: &mut Editor) -> Result<OperationReply, OperationError> {

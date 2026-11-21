@@ -169,8 +169,9 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   (`src/app/features/session_material.rs`, `assign_material_to_selection`, which calls `native_operation_result`).
   Native and remote take the same guards: modal and closing are `BusyEditing` (`apply_operation_guarded`), a
   manipulation is `BusyManipulation`, and the core refuses a retained source (`UnsupportedEdit`, `ReadOnlyFormat`).
-  The native entry point first resolves one object with one direct shape and refuses otherwise before dispatch
-  (status line only, no operation). Matrix cells are the existing `assign_session_material(...)` ones.
+  The native entry point first resolves the one direct shape of every selected object (several objects are one
+  `AssignSessionMaterial` with a shape list, one undo step) and refuses the whole selection otherwise before dispatch
+  (status line only, no operation); the guards are the same single operation, so no new matrix cell exists. Matrix cells are the existing `assign_session_material(...)` ones.
 - Native session-material colour edits are a draft (`SessionColorDraft`: three R/G/B fields in the material tab). Typing commits nothing;
   Enter, the end of a slider drag, focus leaving the fields or `commit_pending` runs one `Command::SetSessionMaterialColor` directly through history (the Diffuse arm's route, so
   it cannot re-enter `commit_pending`), refusing when the document, the material id or the colour changed since the draft began.

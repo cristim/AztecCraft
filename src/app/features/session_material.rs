@@ -2,13 +2,18 @@
 //! (#467). Assignment dispatches the same `Operation::AssignSessionMaterial` as MCP
 //! `assign_session_material`, so the draft, modal, close and busy guards are shared.
 //!
-//! Maya assigns to every selected object (and to faces); this slice assigns to one object whose
-//! transform has exactly one direct mesh shape, and says why otherwise (PROVISIONAL).
+//! Maya assigns to every selected object (and to faces); this slice assigns to every selected
+//! object whose transform has exactly one direct mesh shape, refusing the whole selection and
+//! saying why otherwise (PROVISIONAL), and not to faces.
 use crate::app::*;
-use azteccraft::native_scene::{DEFAULT_LAMBERT_COLOR, MaterialChoice, SessionMaterialId};
+use azteccraft::native_scene::{
+    DEFAULT_LAMBERT_COLOR, MAX_ASSIGN_SHAPES, MaterialChoice, SessionMaterialId,
+};
 
 const MENU_LABEL: &str = "Lighting/Shading";
 const NO_SHAPE_REASON: &str = "The selected object needs exactly one direct mesh shape";
+const MULTI_SHAPE_REASON: &str = "Every selected object needs exactly one direct mesh shape to assign a material to the selection";
+const TOO_MANY_REASON: &str = "Too many selected shapes for one material assignment";
 const NO_MATERIAL_REASON: &str = "The selected shape has no material to show";
 const COMPONENT_REASON: &str =
     "Use Object mode: assigning a material to selected faces is not implemented";
@@ -20,12 +25,34 @@ const NOT_EDITABLE_REASON: &str = "Not implemented: session materials store only
 const NOT_IMPLEMENTED_REASON: &str = "Not implemented: only lambert materials exist yet";
 
 impl Editor {
-    /// The shape an assignment targets, or why there is none.
-    pub(in crate::app) fn session_material_target(&self) -> Result<NativeId, OperationError> {
+    /// The shapes an assignment targets, one per selected object in selection order (an object
+    /// selected through two instances of one shape counts once), or why there are none.
+    pub(in crate::app) fn session_material_targets(&self) -> Result<Vec<NativeId>, OperationError> {
         if self.selection_mode.is_component() {
             return Err(OperationError::InvalidInput(COMPONENT_REASON.into()));
         }
-        self.single_direct_shape()
+        if self.selection.len() <= 1 {
+            return self.single_direct_shape().map(|shape| vec![shape]);
+        }
+        let scene = self.history.scene();
+        let mut shapes = Vec::new();
+        for member in self.selection.members() {
+            let transform = scene
+                .node(member.node)
+                .map_err(OperationError::from_history)?
+                .transform_id();
+            let mut direct = self.direct_shapes(transform);
+            let (Some(shape), None) = (direct.next(), direct.next()) else {
+                return Err(OperationError::InvalidInput(MULTI_SHAPE_REASON.into()));
+            };
+            if !shapes.contains(&shape) {
+                if shapes.len() == MAX_ASSIGN_SHAPES {
+                    return Err(OperationError::InvalidInput(TOO_MANY_REASON.into()));
+                }
+                shapes.push(shape);
+            }
+        }
+        Ok(shapes)
     }
 
     /// The one direct mesh shape of the single selected object, whatever the selection mode.
@@ -82,16 +109,17 @@ impl Editor {
         if let Some(refusal) = self.history.scene().session_material_edit_refusal() {
             return Some(refusal.to_string());
         }
-        self.session_material_target().err().map(|e| e.to_string())
+        self.session_material_targets().err().map(|e| e.to_string())
     }
 
-    /// Assigns `choice` to the selected shape through the shared typed operation.
+    /// Assigns `choice` to the shape of every selected object, as one undo step, through the
+    /// shared typed operation.
     pub(in crate::app) fn assign_material_to_selection(
         &mut self,
         choice: MaterialChoice,
     ) -> Result<OperationReply, OperationError> {
-        let shape = match self.session_material_target() {
-            Ok(shape) => shape,
+        let shapes = match self.session_material_targets() {
+            Ok(shapes) => shapes,
             Err(error) => {
                 self.status = error.to_string();
                 self.error = true;
@@ -99,7 +127,7 @@ impl Editor {
             }
         };
         self.native_operation_result(Operation::AssignSessionMaterial {
-            shapes: vec![shape],
+            shapes,
             material: choice,
         })
     }
@@ -109,11 +137,18 @@ impl Editor {
         &self,
     ) -> Vec<(SessionMaterialId, String, bool)> {
         let scene = self.history.scene();
-        let current = self
-            .session_material_target()
-            .ok()
-            .and_then(|shape| scene.shape(shape).ok())
-            .and_then(|shape| scene.session_material_id(shape));
+        // With several shapes selected a row is current only when all of them share it
+        // (PROVISIONAL: the docs name no such mark).
+        let current = self.session_material_targets().ok().and_then(|shapes| {
+            let mut ids = shapes.into_iter().map(|shape| {
+                scene
+                    .shape(shape)
+                    .ok()
+                    .and_then(|s| scene.session_material_id(s))
+            });
+            let first = ids.next()?;
+            ids.all(|id| id == first).then_some(first).flatten()
+        });
         scene
             .session_materials()
             .iter()
@@ -219,6 +254,11 @@ impl Editor {
             ui.add_enabled(false, egui::Button::new("Assign Favorite Material"))
                 .on_disabled_hover_text("Not implemented: there are no favourite materials");
             ui.menu_button("Assign Existing Material", |ui| {
+                if let Ok(shapes) = self.session_material_targets()
+                    && shapes.len() > 1
+                {
+                    ui.label(format!("Applies to {} selected shapes", shapes.len()));
+                }
                 egui::ScrollArea::vertical()
                     .max_height(320.0)
                     .show(ui, |ui| {
