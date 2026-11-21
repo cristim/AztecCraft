@@ -214,6 +214,8 @@ impl Editor {
             | Operation::DefaultView
             | Operation::SetCameraPose { .. }
             | Operation::SetCameraFilmBack(_)
+            | Operation::SetImagePlane(_)
+            | Operation::RemoveImagePlane
             | Operation::CreateCameraBookmark { .. }
             | Operation::RenameCameraBookmark { .. }
             | Operation::DeleteCameraBookmark { .. }
@@ -1671,6 +1673,17 @@ impl Editor {
                     OperationReply::Unchanged
                 });
             }
+            Operation::SetImagePlane(edit) => {
+                let change =
+                    azteccraft::image_plane::ops::set_image_plane(&mut self.image_plane, &edit)
+                        .map_err(OperationError::ImagePlane)?;
+                return Ok(plate_reply(change));
+            }
+            Operation::RemoveImagePlane => {
+                return Ok(plate_reply(
+                    azteccraft::image_plane::ops::remove_image_plane(&mut self.image_plane),
+                ));
+            }
             Operation::FrameAll { fit_factor } => {
                 let original = self.begin_fit(fit_factor)?;
                 let result = self.frame_everything();
@@ -2120,5 +2133,12 @@ impl Editor {
             self.error = false;
         }
         true
+    }
+}
+
+fn plate_reply(change: azteccraft::image_plane::model::PlateChange) -> OperationReply {
+    match change {
+        azteccraft::image_plane::model::PlateChange::Changed => OperationReply::Changed,
+        azteccraft::image_plane::model::PlateChange::Unchanged => OperationReply::Unchanged,
     }
 }

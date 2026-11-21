@@ -91,6 +91,8 @@ pub struct Editor {
     camera: Camera,
     native_camera_drag: bool,
     view_history: features::camera::ViewHistory,
+    /// Session-only (#459); cleared when a document replaces the scene (New, Open).
+    image_plane: Option<azteccraft::image_plane::ops::ImagePlaneState>,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     /// Off unless the host enables it; recovery files never replace the scene file.
@@ -174,6 +176,7 @@ impl Default for Editor {
             camera: Camera::default(),
             native_camera_drag: false,
             view_history: Default::default(),
+            image_plane: None,
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
             recovery: None,
@@ -498,6 +501,12 @@ fn material_edit_id() -> egui::Id {
 
 #[cfg(test)]
 mod film_back_tests;
+
+#[cfg(test)]
+mod image_plane_tests;
+
+#[cfg(test)]
+mod image_plane_inspect_tests;
 
 #[cfg(test)]
 pub(in crate::app) mod overlay_gate_tests;
