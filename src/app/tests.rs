@@ -10169,6 +10169,38 @@ fn view_menu_default_view_row_restores_the_default_pose() {
 }
 
 #[test]
+fn viewport_bookmark_menu_recalls_saved_pose_and_records_view_history() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let saved = editor.camera.clone();
+    remote(
+        &mut editor,
+        Operation::CreateCameraBookmark {
+            name: "Saved pose".into(),
+        },
+    )
+    .unwrap();
+    disturb_camera(&mut editor);
+    let moved = editor.camera.clone();
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let menu = face_text_position(&output, "View");
+    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let row = face_text_position(&output, "Bookmarks");
+    frame(&mut editor, &ctx, vec![egui::Event::PointerMoved(row)]);
+    let output = (0..3)
+        .map(|_| frame(&mut editor, &ctx, vec![]))
+        .last()
+        .unwrap();
+    let item = face_text_position(&output, "Saved pose");
+    face_pointer_click(&mut editor, &ctx, item, egui::Modifiers::NONE, vec![]);
+    assert!(editor.camera.same_capture(&saved));
+    remote(&mut editor, Operation::UndoView).unwrap();
+    assert!(editor.camera.same_capture(&moved));
+}
+
+#[test]
 fn default_view_after_frame_all_restores_the_pose_but_keeps_the_grown_far_clip() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);

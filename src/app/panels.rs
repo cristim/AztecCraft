@@ -253,6 +253,7 @@ impl Editor {
         let mut grid_requested = false;
         let mut shading_requested = None;
         let mut default_view_requested = false;
+        let mut bookmark_requested = None;
         let mut view_requested = None;
         let mut frame_all_requested = false;
         let mut frame_selection_requested = None;
@@ -292,6 +293,20 @@ impl Editor {
                         default_view_requested = true;
                         ui.close();
                     }
+                    ui.menu_button("Bookmarks", |ui| {
+                        ui.weak("Session bookmarks");
+                        ui.add_enabled(false, egui::Button::new("Edit Bookmarks"))
+                            .on_disabled_hover_text("Bookmark editing is available through MCP");
+                        if self.bookmarks.list().is_empty() {
+                            ui.weak("No bookmarks");
+                        }
+                        for bookmark in self.bookmarks.list() {
+                            if ui.button(bookmark.name.as_str()).clicked() {
+                                bookmark_requested = Some(bookmark.name.clone());
+                                ui.close();
+                            }
+                        }
+                    });
                     ui.separator();
                     // Panel names follow Maya's persp, top, front and side; the issue #48 slice 1
                     // offers only these four (PROVISIONAL placement, the 2027 page lists more).
@@ -431,6 +446,13 @@ impl Editor {
         }
         if default_view_requested && self.scene_token == frame_token {
             self.default_view();
+        }
+        if let Some(name) = bookmark_requested
+            && self.scene_token == frame_token
+            && !self.files.is_modal()
+            && !self.files.is_closing()
+        {
+            self.native_operation(Operation::ApplyCameraBookmark { name });
         }
         if let Some(preset) = view_requested
             && self.scene_token == frame_token
