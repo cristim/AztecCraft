@@ -296,3 +296,6 @@ impl NativeScene {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;
