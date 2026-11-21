@@ -10427,8 +10427,7 @@ fn multi_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
 }
 
 #[test]
-fn rotate_and_every_remote_begin_without_a_generation_refuse_several_objects_but_native_move_and_scale_act()
- {
+fn native_begins_act_on_several_objects_and_remote_begins_require_generation() {
     let mut editor = two_cube_editor();
     let baseline = multi_baseline(&editor);
     let target = editor.selection.lead().unwrap().clone();
@@ -10443,6 +10442,7 @@ fn rotate_and_every_remote_begin_without_a_generation_refuse_several_objects_but
             target: target.clone(),
             axis: azteccraft::native_scene::RotateAxis::X,
             space,
+            expected_selection_generation: None,
         },
         _ => Operation::BeginScale {
             target: target.clone(),
@@ -10452,23 +10452,12 @@ fn rotate_and_every_remote_begin_without_a_generation_refuse_several_objects_but
         },
     };
     for (index, label) in ["move", "rotate", "scale"].into_iter().enumerate() {
-        if index != 1 {
-            // A native Move or Scale acts on the whole selection; cancelling restores the baseline.
-            editor.apply_operation(make(index)).unwrap();
-            assert_eq!(
-                editor.history.active_manipulation().unwrap().member_count(),
-                2
-            );
-            editor.cancel_move().unwrap();
-        } else {
-            assert!(
-                matches!(
-                    editor.apply_operation(make(index)),
-                    Err(OperationError::MultipleSelection)
-                ),
-                "native {label}"
-            );
-        }
+        editor.apply_operation(make(index)).unwrap();
+        assert_eq!(
+            editor.history.active_manipulation().unwrap().member_count(),
+            2
+        );
+        editor.cancel_move().unwrap();
         assert!(
             matches!(
                 remote(&mut editor, make(index)),

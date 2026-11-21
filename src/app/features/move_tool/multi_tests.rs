@@ -143,21 +143,39 @@ fn remote_begin_needs_the_current_generation_and_a_lead_target() {
 }
 
 #[test]
-fn rotate_still_refuses_several_objects() {
+fn native_rotate_turns_the_selection_and_cancels_without_scene_changes() {
+    use azteccraft::native_scene::RotateAxis;
     let (mut editor, _, _) = two_selected();
     let lead = editor.selection.lead().unwrap().clone();
-    let space = crate::editor_operations::ManipulationSpace::World;
-    let scene = editor.history.scene().clone();
-    let operation = Operation::BeginRotate {
-        target: lead,
-        axis: azteccraft::native_scene::RotateAxis::X,
-        space,
-    };
-    assert!(matches!(
-        editor.apply_operation(operation),
-        Err(OperationError::MultipleSelection)
-    ));
-    assert_eq!(editor.history.scene(), &scene);
+    let before = editor.history.scene().clone();
+    assert!(
+        editor
+            .apply_operation(Operation::BeginRotate {
+                target: lead,
+                axis: RotateAxis::X,
+                space: crate::editor_operations::ManipulationSpace::Object,
+                expected_selection_generation: None,
+            })
+            .is_ok()
+    );
+    let id = editor.history.active_manipulation().unwrap().id;
+    editor
+        .apply_operation(Operation::UpdateManipulation {
+            id,
+            value: ManipulationValue::Angle(20.0),
+        })
+        .unwrap();
+    for member in editor.selection.members() {
+        let node = editor.history.scene().node(member.node).unwrap();
+        assert_eq!(node.transform().rotation, [20.0, 0.0, 0.0]);
+    }
+    editor
+        .apply_operation(Operation::FinishMove {
+            id,
+            finish: ManipulationFinish::Cancel,
+        })
+        .unwrap();
+    assert_eq!(editor.history.scene(), &before);
 }
 
 fn toggle(editor: &mut Editor, target: &TransformTarget) {

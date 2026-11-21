@@ -243,3 +243,115 @@ async fn sdk_multi_scale_equals_the_native_result_for_the_same_selection_and_fac
     drop(remote_editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_multi_rotate_validates_selection_and_commits_one_exact_undo() {
+    let context = egui::Context::default();
+    let (mut editor, client, server, members) = three_selected(&context).await;
+    let initial = editor.history.scene().clone();
+    let token = editor.scene_token.to_string();
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let generation = inspected["inspection"]["selection_generation"]
+        .as_u64()
+        .unwrap();
+    let kinds = inspected["inspection"]["manipulation"]["kinds"]
+        .as_array()
+        .unwrap();
+    assert!(
+        kinds
+            .iter()
+            .any(|entry| entry["kind"] == "rotate" && entry["available"] == true)
+    );
+    let args = |target: &azteccraft::native_scene::TransformTarget| {
+        json!({
+            "scene_token":token, "kind":"rotate", "space":"object", "axis":"x",
+            "node_id":target.node.to_decimal(),
+            "instance_path":target.path.iter().map(|id| id.to_decimal()).collect::<Vec<_>>(),
+        })
+    };
+    let lead = members.last().unwrap();
+    let missing = args(lead);
+    let mut stale = args(lead);
+    stale["expected_selection_generation"] = json!(generation - 1);
+    let mut non_lead = args(&members[0]);
+    non_lead["expected_selection_generation"] = json!(generation);
+    for (args, expected) in [
+        (missing, "multiple_selection"),
+        (stale, "stale_selection"),
+        (non_lead, "multiple_selection"),
+    ] {
+        assert_eq!(
+            code(
+                call(
+                    &mut editor,
+                    &context,
+                    client.peer(),
+                    "begin_manipulation",
+                    args
+                )
+                .await
+            ),
+            expected
+        );
+        assert_eq!(editor.history.scene(), &initial);
+    }
+    let mut begin = args(lead);
+    begin["expected_selection_generation"] = json!(generation);
+    let begun = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "begin_manipulation",
+        begin,
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let id = begun["manipulation_id"].as_str().unwrap();
+    let updated = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "update_manipulation",
+        json!({"scene_token":token,"manipulation_id":id,"angle":30.0}),
+    )
+    .await;
+    assert_eq!(updated.is_error, Some(false));
+    let finished = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "finish_manipulation",
+        json!({"scene_token":token,"manipulation_id":id,"finish":"commit"}),
+    )
+    .await;
+    assert_eq!(finished.is_error, Some(false));
+    for member in members {
+        let transform = editor
+            .history
+            .scene()
+            .node(member.node)
+            .unwrap()
+            .transform();
+        assert_eq!(transform.rotation, [30.0, 0.0, 0.0]);
+        assert_eq!(
+            transform.translation,
+            initial.node(member.node).unwrap().transform().translation
+        );
+    }
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Rotate"));
+    assert!(editor.history.undo());
+    assert_eq!(editor.history.scene(), &initial);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

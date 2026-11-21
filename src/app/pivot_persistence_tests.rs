@@ -124,6 +124,7 @@ fn commit(editor: &mut Editor, edit: Edit) {
                 target,
                 axis: RotateAxis::X,
                 space: ManipulationSpace::Object,
+                expected_selection_generation: None,
             },
             Edit::Scale => Operation::BeginScale {
                 target,
@@ -248,6 +249,7 @@ fn begin_all(editor: &mut Editor) -> [Result<(), OperationError>; 3] {
             target: target.clone(),
             axis: RotateAxis::X,
             space: ManipulationSpace::Object,
+            expected_selection_generation: None,
         },
         Operation::BeginScale {
             target: target.clone(),
