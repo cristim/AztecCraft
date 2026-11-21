@@ -97,6 +97,11 @@
         },
         {
           "available": false,
+          "kind": "free_rotate",
+          "unavailable_reason": "Rotate is unavailable in Face selection; switch to Object selection"
+        },
+        {
+          "available": false,
           "kind": "scale",
           "unavailable_reason": "Scale is unavailable in Face selection; switch to Object selection"
         }

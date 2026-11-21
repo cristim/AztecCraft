@@ -229,10 +229,22 @@ The size is session-only (no preferences store; it never dirties the scene or en
   manipulator stops shrinking on screen. A foreshortened axis (#155) can still become hard to pick.
 - The arrowhead, boxes, centre zones and pick radius (8 px, Maya Pick Range) stay fixed in pixels.
 - Since the pick radius became 8 px (#295), a click within 8 px of a manipulator handle grabs it
-  instead of selecting the object behind. A disabled handle (the free-rotate circle, the view ring or a
-  Scale plane) consumes the click with an unsupported status only when no enabled handle also lies
-  within the radius; an enabled handle wins the overlap
-  (`scale_planes_are_not_axis_hits_from_the_front_and_the_oblique_result_is_pinned`).
+  instead of selecting the object behind. A disabled handle (a Scale plane) consumes the click with
+  an unsupported status only when no enabled handle also lies within the radius; an enabled handle
+  wins the overlap (`scale_planes_are_not_axis_hits_from_the_front_and_the_oblique_result_is_pinned`).
+- With the Rotate tool, a press anywhere inside the manipulator's sphere that misses the axis
+  rings begins free rotation (#492), so it never selects the object behind; the sphere is the
+  manipulator's screen radius. The trackball mapping (shortest arc on a virtual sphere, 90
+  degrees from centre to rim), the view ring's sign (counterclockwise on screen is positive),
+  Step Snap applying to the view ring only, the sphere and view ring colours and Maya's
+  `-centerTrackball` and Free Rotate setting (always on here) are PROVISIONAL: the Maya 2027
+  Rotate pages describe neither mapping nor the defaults.
+- DIFFERS from Maya (PROVISIONAL): free rotation always turns in World space, so it inherits the
+  World ring's refusals (a non-rotation or non-uniformly scaled parent, a non-positive scale, a
+  non-xyz rotate order, a Rotate Axis, gimbal) even while the Object rings are available;
+  `inspect_scene` reports it as its own `free_rotate` entry in `manipulation.kinds`. Where it is
+  refused, and in a read-only scene, the whole sphere disc still consumes a click with the
+  refusal, so an object behind the manipulator cannot be click-selected through it.
 - A Scale axis whose tip lands inside the 7 px square centre box stays drawn but takes no hover
   or press, so the ring just outside the centre box falls through to the other axes, a disabled
   Scale plane (which consumes the click with its unsupported status) or the viewport (PROVISIONAL:
@@ -1045,8 +1057,9 @@ World-space Rotate refuses parents that are not a rotation times a uniform
 positive scale (relative tolerance 1e-9) and nodes with non-positive scale (a
 policy choice consistent with Move).
 
-The World ring treats the channel that moves most as intended and snaps changes
-below 1e-12 rad on the other channels back to the baseline. That is a heuristic: with
+The World ring, and free rotation (#492), which shares its arithmetic, treat the channel that
+moves most as intended and snap changes below 1e-12 rad on the other channels back to the
+baseline. That is a heuristic: with
 a parent rotated 45 degrees about Z, a World X ring of 1e-11 degrees changes
 rotateX and rotateY by about the same amount, and one of them is snapped away.
 

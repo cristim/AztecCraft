@@ -83,7 +83,10 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   checks, and `commit_pending`: native delete in a component mode reports this refusal even in the
   closing, move, modal, draft and text-focus states, and remote cells without an outer state guard
   (`read_only_ascii`, `binary_dirty`, `no_install`) report it instead of the read-only or ownership
-  error. The Rotate and
+  error. `BeginFreeRotate` (#492, the view ring and the trackball) goes through the same
+  `check_manipulation_target` and Move default-deny guards as `BeginRotate`; matrix cells are
+  `begin_free_rotate(view)`, `begin_free_rotate(trackball)` and the trackball update
+  `update_manipulation(axis_degrees)`. The Rotate and
   Scale refusal in component selection is in the shared target check
   (`check_manipulation_target`, `src/app/features/manipulation_tool.rs "fn check_manipulation_target"`) and applies to both pipelines. Move in Vertex, Edge and Face selection drags the picked
   components instead (`component_move_plan`, `src/app/features/component_move.rs`): with nothing picked `begin_move(face_mode)` reads "Move needs at least one selected face"; the

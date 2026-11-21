@@ -80,9 +80,15 @@ async fn sdk_pointer_hit_follows_the_active_tool_and_matches_the_eight_pixel_pic
             hit(handle),
             "{tool} at 7 px"
         );
+        // 9 px inside the Y ring misses it; for Rotate that point is inside the sphere, which is
+        // free rotation (#492).
         assert_eq!(
             hover(&mut editor, &context, &client, beside(on, along, 9.0)).await,
-            [Value::Null, Value::Null, Value::Null],
+            if tool == "rotate" {
+                hit("trackball")
+            } else {
+                [Value::Null, Value::Null, Value::Null]
+            },
             "{tool} at 9 px"
         );
         match tool {
@@ -94,7 +100,7 @@ async fn sdk_pointer_hit_follows_the_active_tool_and_matches_the_eight_pixel_pic
                     origin + vec2(72.0 * 1.2, 0.0)
                 )
                 .await,
-                [Value::Null, json!("view_ring"), Value::Null]
+                hit("view")
             ),
             "scale" => {
                 assert_eq!(

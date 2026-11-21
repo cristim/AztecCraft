@@ -232,6 +232,7 @@ impl Editor {
             // Native drags report their own live preview, which a remote preview does not drive.
             Operation::BeginMove { .. }
             | Operation::BeginRotate { .. }
+            | Operation::BeginFreeRotate { .. }
             | Operation::BeginScale { .. }
             | Operation::UpdateMove { .. }
             | Operation::UpdateManipulation { .. } => None,
@@ -745,6 +746,7 @@ impl Editor {
                     | Operation::SetScaleStep { .. }
                     | Operation::BeginMove { .. }
                     | Operation::BeginRotate { .. }
+                    | Operation::BeginFreeRotate { .. }
                     | Operation::BeginScale { .. }
                     | Operation::UpdateMove { .. }
                     | Operation::UpdateManipulation { .. }
@@ -981,6 +983,9 @@ impl Editor {
                 space,
             } => {
                 return self.begin_editor_rotate(&target, axis, space, provenance);
+            }
+            Operation::BeginFreeRotate { target, handle } => {
+                return self.begin_editor_free_rotate(&target, handle, provenance);
             }
             Operation::BeginScale {
                 target,

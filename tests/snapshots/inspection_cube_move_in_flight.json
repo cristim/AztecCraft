@@ -124,6 +124,11 @@
         },
         {
           "available": true,
+          "kind": "free_rotate",
+          "unavailable_reason": null
+        },
+        {
+          "available": true,
           "kind": "scale",
           "unavailable_reason": null
         }

@@ -1,11 +1,12 @@
 use super::{Command, EditOutcome, History};
 use crate::native_scene::{
     ChannelBaseline, ChannelEdits, MoveBeginError, MoveSpace, NativeError, NativeId, NativeScene,
-    RotateAxis, RotateFrame, RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported,
-    TransformTarget, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
+    RotateAxis, RotateFrame, RotateSpace, RotateUnsupported, ScaleFrame, ScaleHandle, ScaleSpace,
+    ScaleUnsupported, TransformTarget, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
 };
 use crate::scene::{NodeId, SceneError};
 use crate::view_scene::{ViewError, ViewScene};
+use glam::DVec3;
 use std::{
     collections::{HashMap, HashSet},
     fmt,
@@ -87,6 +88,16 @@ impl fmt::Display for ManipulationError {
 
 impl std::error::Error for ManipulationError {}
 
+/// The Rotate tool's handles that have no axis of their own (#492, Maya 2027 Rotate objects
+/// page: the outer view ring and free rotation inside the rings).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FreeRotateHandle {
+    /// The outer ring: turns about the view axis through the manipulator, fixed at begin.
+    View,
+    /// Inside the rings: a virtual trackball whose world axis each update names.
+    Trackball,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ManipulationKindState {
     Move {
@@ -95,6 +106,10 @@ pub enum ManipulationKindState {
     Rotate {
         axis: RotateAxis,
         space: RotateSpace,
+    },
+    /// A World-space turn about a world direction (`ManipulationState::free_rotate_axis`).
+    FreeRotate {
+        handle: FreeRotateHandle,
     },
     Scale {
         handle: ScaleHandle,
@@ -123,6 +138,9 @@ pub struct ManipulationState<'a> {
     pub current_channels: Option<[f64; 3]>,
     /// Vertices a component Move drags; `None` for every other kind.
     pub vertex_count: Option<usize>,
+    /// The world direction a free rotation turns about: the view ring's from begin, the
+    /// trackball's from its last update (`None` before the first). Unnormalized as given.
+    pub free_rotate_axis: Option<DVec3>,
     member_count: usize,
     covered_count: usize,
 }
@@ -142,7 +160,9 @@ impl ManipulationState<'_> {
         match self.kind {
             ManipulationKindState::Move { axis } => Some(axis),
             ManipulationKindState::MoveComponents { axis, .. } => axis,
-            ManipulationKindState::Rotate { .. } | ManipulationKindState::Scale { .. } => None,
+            ManipulationKindState::Rotate { .. }
+            | ManipulationKindState::FreeRotate { .. }
+            | ManipulationKindState::Scale { .. } => None,
         }
     }
 
@@ -174,6 +194,14 @@ enum ManipulationKind {
         frame: RotateFrame,
         baseline: ChannelBaseline,
     },
+    /// A turn about a world direction with a World-space frame (#492). `axis` is fixed for the
+    /// view ring and replaced by each trackball update.
+    FreeRotate {
+        handle: FreeRotateHandle,
+        axis: Option<DVec3>,
+        frame: RotateFrame,
+        baseline: ChannelBaseline,
+    },
     /// Like `Move`: every uncovered member's frame and baseline, the lead last unless covered.
     Scale {
         handle: ScaleHandle,
@@ -188,7 +216,7 @@ impl ManipulationKind {
     fn label(&self) -> &'static str {
         match self {
             Self::Move { .. } => "Move",
-            Self::Rotate { .. } => "Rotate",
+            Self::Rotate { .. } | Self::FreeRotate { .. } => "Rotate",
             Self::Scale { .. } => "Scale",
             Self::MoveComponents(_) => "Move",
         }
@@ -196,7 +224,10 @@ impl ManipulationKind {
 
     fn initial_parameter(&self) -> f64 {
         match self {
-            Self::Move { .. } | Self::Rotate { .. } | Self::MoveComponents(_) => 0.0,
+            Self::Move { .. }
+            | Self::Rotate { .. }
+            | Self::FreeRotate { .. }
+            | Self::MoveComponents(_) => 0.0,
             Self::Scale { .. } => 1.0,
         }
     }
@@ -215,11 +246,21 @@ impl ManipulationKind {
                 axis: *axis,
                 space: frame.space(),
             },
+            Self::FreeRotate { handle, .. } => {
+                ManipulationKindState::FreeRotate { handle: *handle }
+            }
             Self::Scale { handle, space, .. } => ManipulationKindState::Scale {
                 handle: *handle,
                 space: *space,
             },
             Self::MoveComponents(component) => component.state(),
+        }
+    }
+
+    fn free_rotate_axis(&self) -> Option<DVec3> {
+        match self {
+            Self::FreeRotate { axis, .. } => *axis,
+            _ => None,
         }
     }
 
@@ -240,7 +281,7 @@ impl ManipulationKind {
             } => covered_lead
                 .as_ref()
                 .or_else(|| movers.last().map(|mover| &mover.1)),
-            Self::Rotate { baseline, .. } => Some(baseline),
+            Self::Rotate { baseline, .. } | Self::FreeRotate { baseline, .. } => Some(baseline),
             Self::MoveComponents(_) => None,
         }
     }
@@ -281,6 +322,20 @@ impl ManipulationKind {
                 baseline,
                 frame.rotation_declared(*axis, parameter, declared)?,
             ),
+            Self::FreeRotate {
+                axis,
+                frame,
+                baseline,
+                ..
+            } => (
+                baseline,
+                match axis {
+                    Some(axis) => frame.rotation_about_world(*axis, parameter)?,
+                    // A trackball before its first update has no axis; only "no turn" is defined.
+                    None if parameter == 0.0 => frame.rotation_about_world(DVec3::Z, 0.0)?,
+                    None => return Err(NativeError::UnsupportedEdit),
+                },
+            ),
             Self::Scale { handle, movers, .. } => {
                 let values = movers
                     .iter()
@@ -316,7 +371,9 @@ impl ManipulationKind {
             Self::Scale { movers, .. } => {
                 scene.restore_channels_many(movers.iter().map(|(_, baseline)| baseline))
             }
-            Self::Rotate { baseline, .. } => scene.restore_channels(baseline),
+            Self::Rotate { baseline, .. } | Self::FreeRotate { baseline, .. } => {
+                scene.restore_channels(baseline)
+            }
             Self::MoveComponents(component) => component.restore(scene),
         }
     }
@@ -351,7 +408,7 @@ impl ManipulationKind {
             Self::Scale { movers, .. } => {
                 scene.channel_changes_many(movers.iter().map(|(_, baseline)| baseline))
             }
-            Self::Rotate { baseline, .. } => {
+            Self::Rotate { baseline, .. } | Self::FreeRotate { baseline, .. } => {
                 let channels = scene.channel_changes(baseline)?;
                 Ok(if channels.iter().all(Option::is_none) {
                     Vec::new()
@@ -361,6 +418,17 @@ impl ManipulationKind {
             }
         }
     }
+}
+
+/// A free rotation axis: finite, and long enough to normalize.
+fn checked_axis(axis: DVec3) -> Result<DVec3, ManipulationError> {
+    if !axis.is_finite() {
+        return Err(NativeError::NonFinite.into());
+    }
+    if !axis.length().is_normal() {
+        return Err(NativeError::UnsupportedRotate(RotateUnsupported::NumericalAngle).into());
+    }
+    Ok(axis)
 }
 
 /// Retained bytes charged per mover against the view budget, beside its path.
@@ -688,6 +756,7 @@ impl History {
                 })
             }),
             vertex_count: active.kind.vertex_count(),
+            free_rotate_axis: active.kind.free_rotate_axis(),
             member_count: active.member_count,
             covered_count: active.covered_count,
         })
@@ -793,6 +862,76 @@ impl History {
                 baseline,
             }))
         })
+    }
+
+    /// Begins a free rotation of one object (#492): a World-space turn about a world direction.
+    /// The view ring passes its view axis now and is then updated by angle (`update_move`, in
+    /// degrees); the trackball passes none and names an axis with every `update_free_rotate`.
+    /// The frame and its refusals are the World ring's.
+    #[allow(clippy::too_many_arguments)]
+    pub fn begin_free_rotate(
+        &mut self,
+        target: &TransformTarget,
+        handle: FreeRotateHandle,
+        view_axis: Option<DVec3>,
+        scene_token: Uuid,
+        provenance: ManipulationProvenance,
+        byte_budget: usize,
+    ) -> Result<ManipulationId, ManipulationError> {
+        let axis = match (handle, view_axis) {
+            (FreeRotateHandle::View, Some(axis)) => Some(checked_axis(axis)?),
+            (FreeRotateHandle::Trackball, None) => None,
+            _ => return Err(NativeError::UnsupportedEdit.into()),
+        };
+        self.begin_manipulation(target, scene_token, provenance, byte_budget, |scene| {
+            let (frame, baseline) =
+                scene.begin_rotation(target, RotateAxis::X, RotateSpace::World)?;
+            Ok(ManipulationBegin::single(ManipulationKind::FreeRotate {
+                handle,
+                axis,
+                frame,
+                baseline,
+            }))
+        })
+    }
+
+    /// Previews a trackball turn of `degrees` about the world direction `axis`, both measured
+    /// from the begin (not from the last update). A refused update keeps the previous axis and
+    /// preview. Only a trackball takes an axis; the view ring keeps its own.
+    pub fn update_free_rotate(
+        &mut self,
+        scene_token: Uuid,
+        id: ManipulationId,
+        provenance: ManipulationProvenance,
+        axis: DVec3,
+        degrees: f64,
+    ) -> Result<EditOutcome, ManipulationError> {
+        let active = self
+            .active_manipulation
+            .as_mut()
+            .ok_or(ManipulationError::StaleManipulation)?;
+        active.matches(scene_token, id, provenance)?;
+        let ManipulationKind::FreeRotate {
+            handle: FreeRotateHandle::Trackball,
+            axis: current,
+            ..
+        } = &mut active.kind
+        else {
+            return Err(NativeError::UnsupportedEdit.into());
+        };
+        // Judged only for the manipulation it belongs to, so a stray update never names a refusal.
+        let axis = checked_axis(axis)?;
+        let previous = current.replace(axis);
+        let result = self.update_active(scene_token, id, provenance, degrees, None);
+        if result.is_err()
+            && let Some(MoveTransaction {
+                kind: ManipulationKind::FreeRotate { axis: current, .. },
+                ..
+            }) = self.active_manipulation.as_mut()
+        {
+            *current = previous;
+        }
+        result
     }
 
     /// Begins a scale in object or world space; `update_move` then takes the unitless factor.

@@ -2,7 +2,7 @@
 use azteccraft::native_scene::{NativeTransform, ReparentKeep, TransformAttributes};
 use azteccraft::{
     camera_bookmarks::BookmarkError,
-    history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
+    history::{FreeRotateHandle, ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
     image_plane::{model::ImagePlaneEdit, ops::ImagePlaneOpError},
     move_handles::ManipulatorSize,
     native_scene::{
@@ -289,6 +289,17 @@ pub enum ManipulationValue {
     Degrees(f64),
     Angle(f64),
     Factor(f64),
+    /// A free rotation trackball turn (#492): a world axis and degrees, both from the begin.
+    AxisDegrees {
+        axis: glam::DVec3,
+        degrees: f64,
+    },
+    /// The same turn with the angle in the scene's angular unit, as MCP gives it.
+    #[cfg(feature = "mcp")]
+    AxisAngle {
+        axis: glam::DVec3,
+        angle: f64,
+    },
 }
 
 pub enum MoveDistance {
@@ -493,6 +504,13 @@ pub enum Operation {
         target: TransformTarget,
         axis: RotateAxis,
         space: ManipulationSpace,
+    },
+    /// Begins a free rotation of one object (#492): the view ring, about the view axis through the
+    /// manipulator at begin, or the trackball, whose updates each name a world axis. Both turn in
+    /// World space whatever the Rotate tool's Axis Orientation, with the World ring's refusals.
+    BeginFreeRotate {
+        target: TransformTarget,
+        handle: FreeRotateHandle,
     },
     /// Begins a Scale of the selected objects with `target` as the lead; the generation rule is
     /// the one of `BeginMove`.
@@ -1406,7 +1424,8 @@ pub struct ActiveManipulationInspection {
     pub axis: Option<&'static str>,
     pub handle: Option<&'static str>,
     pub provenance: &'static str,
-    /// `distance`, `angle` or `factor`: the parameter `update_manipulation` takes for this kind.
+    /// `distance`, `angle`, `factor` or, for a free_rotate trackball, `angle_and_world_axis`: the
+    /// parameters `update_manipulation` takes for this kind.
     pub parameter: &'static str,
     pub value: f64,
     pub unit: String,
@@ -1421,6 +1440,11 @@ pub struct ActiveManipulationInspection {
     /// Vertices a component Move drags (the union of the picked components); absent otherwise.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vertex_count: Option<usize>,
+    /// The world direction a free rotation (`kind` `free_rotate`) turns about: the view ring's
+    /// from begin, the trackball's from its last update; absent otherwise and before the first
+    /// trackball update.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub free_rotate_axis: Option<[f64; 3]>,
     /// Selected objects a Move acts on (1 for Rotate and Scale), covered members included.
     pub member_count: usize,
     /// Members that follow a selected ancestor instead of getting their own translation.
@@ -1432,11 +1456,12 @@ pub struct ActiveManipulationInspection {
 pub struct MoveViewportInspection {
     pub provenance: &'static str,
     pub axes: Vec<MoveAxisInspection>,
-    /// The active tool's enabled handle under the last native pointer: Move and Rotate `x|y|z`,
-    /// Scale `x|y|z|uniform`; null for Select, no hit, or while a manipulation is active.
+    /// The active tool's enabled handle under the last native pointer: Move `x|y|z`, Rotate
+    /// `x|y|z`, `view` (the outer view ring) or `trackball` (inside the sphere, #492), Scale
+    /// `x|y|z|uniform`; null for Select, no hit, or while a manipulation is active.
     pub pointer_hit: Option<&'static str>,
-    /// `free_rotate`, `view_ring` or `scale_plane` when a drawn-but-unsupported handle is under
-    /// the pointer and no enabled handle outranks it; null otherwise.
+    /// `scale_plane` when that drawn-but-unsupported handle is under the pointer and no enabled
+    /// handle outranks it; null otherwise.
     pub pointer_disabled: Option<&'static str>,
     /// Why a press at the pointer would be refused, in the text native hover shows after
     /// `{space} {handle} {tool}: ` (a handle) or `{tool} unavailable: ` (the whole tool). Non-null

@@ -99,6 +99,11 @@
         },
         {
           "available": false,
+          "kind": "free_rotate",
+          "unavailable_reason": "Select an object or face first"
+        },
+        {
+          "available": false,
           "kind": "scale",
           "unavailable_reason": "Select an object or face first"
         }

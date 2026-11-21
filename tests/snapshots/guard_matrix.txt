@@ -46,12 +46,15 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> native
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(object) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(world) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(multi) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(native_vertex_drag) => Ok(unchanged) | active_move: native -> none
   finish_move(remote_vertex_drag) => Err(Move: manipulation belongs to another input source) | no state change
@@ -277,7 +280,7 @@
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
-  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis, inside the rings to rotate freely or the outer ring about the view axis | Esc cancels"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
@@ -307,12 +310,15 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> remote
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> remote
   begin_scale(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_scale(world) => Ok(manipulation_started) | active_move: none -> remote
   begin_scale(multi) => Ok(manipulation_started) | active_move: none -> remote
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(native_vertex_drag) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   finish_move(remote_vertex_drag) => Ok(unchanged) | status: "Scene edited" -> "Move committed"; active_move: remote -> none
@@ -565,11 +571,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -808,11 +817,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1051,11 +1063,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1294,11 +1309,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1537,11 +1555,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_scale(object) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_scale(world) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create_session_material => Ok(session_material) | scene changed; session_materials: [] -> [[1.0, 0.0, 0.0]]; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1753,7 +1774,7 @@
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
-  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis, inside the rings to rotate freely or the outer ring about the view axis | Esc cancels"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
@@ -1780,11 +1801,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_scale(object) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_scale(world) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create_session_material => Ok(session_material) | scene changed; session_materials: [] -> [[1.0, 0.0, 0.0]]; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -2023,11 +2047,14 @@
   begin_rotate(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_free_rotate(view) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_free_rotate(trackball) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_manipulation(degrees) => Err(KindMismatch: An angle does not apply to the active move manipulation) | no state change
   update_manipulation(factor) => Err(KindMismatch: A factor does not apply to the active move manipulation) | no state change
+  update_manipulation(axis_degrees) => Err(KindMismatch: A world_axis does not apply to the active move manipulation) | no state change
   finish_move(commit) => Ok(unchanged) | active_move: native -> none
   set_material_diffuse => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_session_material => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2266,11 +2293,14 @@
   begin_rotate(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_free_rotate(view) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_free_rotate(trackball) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_manipulation(degrees) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_manipulation(factor) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  update_manipulation(axis_degrees) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   finish_move(commit) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_material_diffuse => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_session_material => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2509,11 +2539,14 @@
   begin_rotate(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_free_rotate(view) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_free_rotate(trackball) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_manipulation(degrees) => Err(KindMismatch: An angle does not apply to the active move manipulation) | no state change
   update_manipulation(factor) => Err(KindMismatch: A factor does not apply to the active move manipulation) | no state change
+  update_manipulation(axis_degrees) => Err(KindMismatch: A world_axis does not apply to the active move manipulation) | no state change
   finish_move(commit) => Err(Move: manipulation belongs to another input source) | no state change
   set_material_diffuse => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_session_material => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2752,11 +2785,14 @@
   begin_rotate(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_rotate(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_free_rotate(view) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  begin_free_rotate(trackball) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   begin_scale(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   update_manipulation(degrees) => Err(KindMismatch: An angle does not apply to the active move manipulation) | no state change
   update_manipulation(factor) => Err(KindMismatch: A factor does not apply to the active move manipulation) | no state change
+  update_manipulation(axis_degrees) => Err(KindMismatch: A world_axis does not apply to the active move manipulation) | no state change
   finish_move(commit) => Ok(unchanged) | status: "Scene edited" -> "Move committed"; active_move: remote -> none
   set_material_diffuse => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_session_material => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2995,11 +3031,14 @@
   begin_rotate(object) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_rotate(world) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_rotate(face_mode) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  begin_free_rotate(view) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  begin_free_rotate(trackball) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_scale(object) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_scale(world) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   begin_scale(face_mode) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create_session_material => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -3238,11 +3277,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3482,11 +3524,14 @@
   begin_rotate(object) => Err(Move: rotateX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_rotate(world) => Err(Move: rotateX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  begin_free_rotate(view) => Err(Move: rotateX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  begin_free_rotate(trackball) => Err(Move: rotateX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_scale(object) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_scale(world) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> text=0.25 intent=false; can_undo: false -> true
   create_session_material => Err(SessionMaterial: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3726,11 +3771,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3969,11 +4017,14 @@
   begin_rotate(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_rotate(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_free_rotate(view) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_free_rotate(trackball) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_scale(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_scale(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create_session_material => Ok(session_material) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; session_materials: [] -> [[1.0, 0.0, 0.0]]; can_redo: true -> false
@@ -4212,11 +4263,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4455,11 +4509,14 @@
   begin_rotate(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_rotate(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_free_rotate(view) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_free_rotate(trackball) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_scale(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_scale(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create_session_material => Ok(session_material) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; session_materials: [] -> [[1.0, 0.0, 0.0]]; can_redo: true -> false
@@ -4698,11 +4755,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4941,11 +5001,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> native
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(object) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(world) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_session_material => Ok(session_material) | scene changed; session_materials: [] -> [[1.0, 0.0, 0.0]]; can_redo: true -> false
@@ -5184,11 +5247,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5427,11 +5493,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> native
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(object) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(world) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_session_material => Ok(session_material) | scene changed; session_materials: [] -> [[1.0, 0.0, 0.0]]; can_redo: true -> false
@@ -5670,11 +5739,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5913,11 +5985,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6159,12 +6234,15 @@
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(view) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(trackball) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(factor) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_manipulation(axis_degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   finish_move(commit) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   finish_move(native_vertex_drag) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   finish_move(remote_vertex_drag) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6407,11 +6485,14 @@
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(view) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(trackball) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(factor) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_manipulation(axis_degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   finish_move(commit) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_material_diffuse => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_session_material => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6650,11 +6731,14 @@
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(view) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(trackball) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(factor) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_manipulation(axis_degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   finish_move(commit) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_material_diffuse => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_session_material => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6893,11 +6977,14 @@
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(view) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(trackball) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(factor) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_manipulation(axis_degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   finish_move(commit) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_material_diffuse => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_session_material => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7136,11 +7223,14 @@
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(view) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(trackball) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(factor) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_manipulation(axis_degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   finish_move(commit) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_material_diffuse => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_session_material => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7379,11 +7469,14 @@
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(view) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(trackball) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(factor) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_manipulation(axis_degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   finish_move(commit) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_material_diffuse => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_session_material => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7622,11 +7715,14 @@
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(view) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_free_rotate(trackball) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(factor) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  update_manipulation(axis_degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   finish_move(commit) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_material_diffuse => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_session_material => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7865,11 +7961,14 @@
   begin_rotate(object) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_rotate(world) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  begin_free_rotate(trackball) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_scale(object) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_scale(world) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native mesh shape 2 does not exist) | no state change
   create_session_material => Err(SessionMaterial: Maya ASCII scenes are read-only in this version) | no state change
@@ -8081,7 +8180,7 @@
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
-  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis, inside the rings to rotate freely or the outer ring about the view axis | Esc cancels"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
@@ -8108,11 +8207,14 @@
   begin_rotate(object) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_rotate(world) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  begin_free_rotate(trackball) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_scale(object) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_scale(world) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native mesh shape 2 does not exist) | no state change
   create_session_material => Err(SessionMaterial: Maya ASCII scenes are read-only in this version) | no state change
@@ -8352,11 +8454,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> native
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(object) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(world) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_session_material => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
@@ -8569,7 +8674,7 @@
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
-  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis, inside the rings to rotate freely or the outer ring about the view axis | Esc cancels"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
@@ -8596,11 +8701,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> remote
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> remote
   begin_scale(object) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(world) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_session_material => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
@@ -8840,11 +8948,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> native
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(object) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(world) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_session_material => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
@@ -9057,7 +9168,7 @@
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
-  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis, inside the rings to rotate freely or the outer ring about the view axis | Esc cancels"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
@@ -9084,11 +9195,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> remote
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> remote
   begin_scale(object) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(world) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_session_material => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
@@ -9316,6 +9430,7 @@
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_pivots(preserve) => Err(Pivot: Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet) | no state change
   set_pivots(raw) => Ok(changed) | scene changed; dirty: false -> true; can_undo: false -> true
@@ -9351,6 +9466,7 @@
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_pivots(preserve) => Err(Pivot: Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet) | no state change
   set_pivots(raw) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; dirty: false -> true; can_undo: false -> true
@@ -9434,11 +9550,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> native
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(object) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(world) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_session_material => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
@@ -9651,7 +9770,7 @@
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
-  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis, inside the rings to rotate freely or the outer ring about the view axis | Esc cancels"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
@@ -9678,11 +9797,14 @@
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_free_rotate(view) => Ok(manipulation_started) | active_move: none -> remote
+  begin_free_rotate(trackball) => Ok(manipulation_started) | active_move: none -> remote
   begin_scale(object) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(world) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(axis_degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
   set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_session_material => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
@@ -9922,11 +10044,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -10166,11 +10291,14 @@
   begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(view) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_free_rotate(trackball) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(axis_degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -10369,4 +10497,4 @@
   set_image_plane(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   remove_image_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 9756
+cells: 9884

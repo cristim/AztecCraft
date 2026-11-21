@@ -303,6 +303,22 @@ impl ViewportCapture {
         self.camera.eye().as_dvec3()
     }
 
+    /// World directions of the screen's right and up at `point`: the camera's right made
+    /// perpendicular to the view direction through `point`, and the up completing a right-handed
+    /// frame with the direction toward the viewer. `None` when either degenerates.
+    pub(crate) fn screen_axes(&self, point: DVec3) -> Option<(DVec3, DVec3)> {
+        let toward = -self.view_direction(point);
+        let view = self.camera.view_matrix();
+        let right = DVec3::new(
+            f64::from(view.x_axis.x),
+            f64::from(view.y_axis.x),
+            f64::from(view.z_axis.x),
+        );
+        let right = (right - toward * right.dot(toward)).normalize_or_zero();
+        let up = toward.cross(right);
+        (toward != DVec3::ZERO && right != DVec3::ZERO && up.is_finite()).then_some((right, up))
+    }
+
     /// Unit view direction through `point`: from the eye, or parallel for an orthographic
     /// camera. Zero when `point` is the eye.
     pub(crate) fn view_direction(&self, point: DVec3) -> DVec3 {

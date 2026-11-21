@@ -316,7 +316,10 @@ async fn malformed_values_are_refused_by_the_protocol_and_leave_the_pivoted_scen
     let preview = rig.editor.history.scene().clone();
     // JSON has no NaN or infinity: a client's f64::NAN serialises to null.
     for (bad, message) in [
-        (Value::Null, "give exactly one of distance, angle or factor"),
+        (
+            Value::Null,
+            "give exactly one of distance, angle or factor, or angle with world_axis for a free_rotate trackball",
+        ),
         (json!("NaN"), "expected f64"),
         (json!("Infinity"), "expected f64"),
         (json!([1.0, 2.0, 3.0]), "expected f64"),

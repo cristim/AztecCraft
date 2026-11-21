@@ -12,7 +12,7 @@ use crate::{
 mod move_transaction;
 use move_transaction::MoveTransaction;
 pub use move_transaction::{
-    ManipulationError, ManipulationFinish, ManipulationId, ManipulationKindState,
+    FreeRotateHandle, ManipulationError, ManipulationFinish, ManipulationId, ManipulationKindState,
     ManipulationProvenance, ManipulationState, MoveDirection, is_covered, selected_transform_ids,
 };
 use std::collections::VecDeque;
