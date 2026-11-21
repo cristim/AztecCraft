@@ -183,7 +183,8 @@ impl UiBridge {
                     | OperationReply::Imported { .. }
                     | OperationReply::Nodes { .. }
                     | OperationReply::GltfExported { .. }
-                    | OperationReply::UsdExported { .. })
+                    | OperationReply::UsdExported { .. }
+                    | OperationReply::PlayblastStarted { .. })
                     | Ok(OperationReply::Saved { .. }
                         | OperationReply::SaveUncertain { .. }
                         | OperationReply::SaveReconciled { .. })

@@ -281,6 +281,22 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                         G::Invalid(_) => "export_invalid",
                     }
                 }
+                OperationError::Playblast(error) => {
+                    use azteccraft::playblast::PlayblastError as P;
+                    match error {
+                        P::InvalidName | P::InvalidDirectory | P::InvalidRange | P::InvalidSize => {
+                            "playblast_invalid"
+                        }
+                        P::TooManyFrames | P::TooLarge => "playblast_too_large",
+                        P::DestinationExists { .. } => "destination_exists",
+                        P::Cancelled { .. } => "playblast_cancelled",
+                        P::Busy => "playblast_busy",
+                        P::Unsupported(_) => "playblast_unsupported",
+                        P::NoAdapter => "playblast_no_adapter",
+                        P::Io(_) | P::WriterPanicked => "playblast_io",
+                        P::Render(_) | P::Evaluate { .. } => "playblast_render",
+                    }
+                }
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
                 OperationError::StalePendingAction => "stale_pending_action",

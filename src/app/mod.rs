@@ -132,6 +132,8 @@ pub struct Editor {
     joint_options: features::rigging::JointOptionsUi,
     extrude_options: features::extrude_options::ExtrudeOptionsUi,
     timeline: features::timeline::Timeline,
+    #[cfg(any(test, feature = "mcp"))]
+    playblast: features::playblast::Playblast,
     uv: features::uv::UvUi,
     native_input_pending: bool,
     /// The marking menu's interaction. Closed until the native wiring lands; the overlay gate
@@ -206,6 +208,8 @@ impl Default for Editor {
             joint_options: Default::default(),
             extrude_options: Default::default(),
             timeline: Default::default(),
+            #[cfg(any(test, feature = "mcp"))]
+            playblast: Default::default(),
             uv: Default::default(),
             native_input_pending: false,
             marking_menu: Default::default(),

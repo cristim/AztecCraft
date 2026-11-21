@@ -47,6 +47,12 @@ pub enum PlayblastError {
     /// No GPU device is available to render with.
     NoAdapter,
     WriterPanicked,
+    /// A playblast is already running.
+    Busy,
+    /// The scene has no value for this frame (out of the supported frame range).
+    Evaluate {
+        frame: i64,
+    },
 }
 
 impl fmt::Display for PlayblastError {
@@ -67,6 +73,8 @@ impl fmt::Display for PlayblastError {
             Self::Render(what) => write!(f, "render failed: {what}"),
             Self::NoAdapter => f.write_str("no GPU device: start the window or a headless adapter"),
             Self::WriterPanicked => f.write_str("the writer thread panicked"),
+            Self::Busy => f.write_str("a playblast is already running"),
+            Self::Evaluate { frame } => write!(f, "the scene cannot be evaluated at frame {frame}"),
         }
     }
 }
@@ -211,6 +219,11 @@ fn whole_frame(value: f64) -> Result<i64, PlayblastError> {
 
 mod job;
 mod writer;
+
+/// Produces the scene to draw at a frame; called with ascending frames, one per render.
+pub type SceneAt =
+    Box<dyn FnMut(i64) -> Result<crate::view_scene::ViewScene, PlayblastError> + Send>;
+
 pub use job::{FrameRenderer, JobProgress, PlayblastJob};
 pub use writer::{encode_png, install_frame};
 

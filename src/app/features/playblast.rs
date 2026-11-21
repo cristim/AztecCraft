@@ -1,0 +1,167 @@
+//! `Operation::Playblast` and `CancelPlayblast` (#460): a job renders a clone of the scene, one
+//! frame per tick, and the authoritative scene, selection and history are never written. The
+//! clone is advanced frame by frame (strictly ascending), and every keyed channel is rewritten
+//! at each frame, so no value carries over from an earlier one.
+
+use crate::app::Editor;
+use crate::editor_operations::{
+    OperationError, OperationReply, PlayblastFormat, PlayblastRequest, ShadingMode,
+};
+use azteccraft::playblast::{FrameRenderer, PlayblastError, PlayblastJob, PlayblastPlan, SceneAt};
+use azteccraft::view_scene::{VIEW_BUDGET, ViewScene};
+use azteccraft::viewport::Camera;
+
+/// Builds the renderer of one job from its scene source, the viewport camera, the grid flag and
+/// the shading mode. Tests install a fake here; with `None` the window's renderer is used.
+pub(in crate::app) type RendererFactory = Box<
+    dyn FnMut(
+        SceneAt,
+        &Camera,
+        bool,
+        ShadingMode,
+    ) -> Result<Box<dyn FrameRenderer>, PlayblastError>,
+>;
+
+#[expect(
+    dead_code,
+    reason = "stepped by tick_playblast in the next commit (#460)"
+)]
+pub(in crate::app) struct Run {
+    pub(in crate::app) job: PlayblastJob,
+    pub(in crate::app) renderer: Box<dyn FrameRenderer>,
+}
+
+#[derive(Default)]
+pub(in crate::app) struct Playblast {
+    pub(in crate::app) run: Option<Run>,
+    pub(in crate::app) factory: Option<RendererFactory>,
+}
+
+/// Renders `scene` at each requested frame; an unevaluable frame stops the job.
+fn scene_at(mut scene: azteccraft::native_scene::NativeScene) -> SceneAt {
+    Box::new(move |frame| {
+        let mut evaluate = || {
+            let at = i32::try_from(frame).ok()?;
+            let writes = scene.evaluated_writes(at).ok()?;
+            scene.apply_evaluated(writes);
+            ViewScene::from_native(&scene, VIEW_BUDGET).ok()
+        };
+        evaluate().ok_or(PlayblastError::Evaluate { frame })
+    })
+}
+
+impl Editor {
+    fn playblast_renderer(
+        &mut self,
+        scene: SceneAt,
+        grid: bool,
+    ) -> Result<Box<dyn FrameRenderer>, PlayblastError> {
+        let (camera, shading) = (self.camera.clone(), self.shading);
+        if let Some(factory) = &mut self.playblast.factory {
+            return factory(scene, &camera, grid, shading);
+        }
+        #[cfg(feature = "mcp")]
+        if let Some(renderer) = &self.renderer {
+            return renderer
+                .frame_renderer(scene, camera, grid, shading)
+                .map(|renderer| Box::new(renderer) as Box<dyn FrameRenderer>);
+        }
+        Err(PlayblastError::NoAdapter)
+    }
+
+    pub(in crate::app) fn start_playblast(
+        &mut self,
+        request: PlayblastRequest,
+    ) -> Result<OperationReply, OperationError> {
+        let refuse = OperationError::Playblast;
+        if self.playblast.run.is_some() {
+            return Err(refuse(PlayblastError::Busy));
+        }
+        if !request.offscreen {
+            return Err(refuse(PlayblastError::Unsupported(
+                "on-screen capture is not implemented",
+            )));
+        }
+        let PlayblastFormat::Png = request.format;
+        let (Some(width), Some(height)) = (request.width, request.height) else {
+            return Err(refuse(PlayblastError::InvalidSize));
+        };
+        self.history
+            .scene()
+            .check_time_unit()
+            .map_err(OperationError::Scene)?;
+        let start = request.start.unwrap_or(f64::from(self.timeline.start));
+        let end = request.end.unwrap_or(f64::from(self.timeline.end));
+        let plan = PlayblastPlan::new(
+            &request.directory,
+            &request.name,
+            start,
+            end,
+            width,
+            height,
+            request.percent,
+        )
+        .map_err(refuse)?;
+        let (frames, (width, height)) = (plan.frame_count(), plan.size());
+        let source = scene_at(self.history.scene().clone());
+        let renderer = self
+            .playblast_renderer(source, self.grid_visible && request.show_ornaments)
+            .map_err(refuse)?;
+        let job = PlayblastJob::start(plan).map_err(refuse)?;
+        self.playblast.run = Some(Run { job, renderer });
+        Ok(OperationReply::PlayblastStarted {
+            frames,
+            width,
+            height,
+        })
+    }
+}
+
+/// A renderer that draws no GPU pixels: each frame is `[frame, x, y, 255]` per pixel, and the
+/// world vertices of the first instance it was handed are recorded, so tests see what the job
+/// evaluated at each frame.
+#[cfg(test)]
+pub(in crate::app) mod fake {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+
+    pub(in crate::app) type Seen = Arc<Mutex<Vec<(i64, Vec<glam::Vec3>)>>>;
+
+    struct FakeRenderer {
+        scene: SceneAt,
+        seen: Seen,
+    }
+
+    impl FrameRenderer for FakeRenderer {
+        fn render(
+            &mut self,
+            frame: i64,
+            width: u32,
+            height: u32,
+        ) -> Result<Vec<u8>, PlayblastError> {
+            let view = (self.scene)(frame)?;
+            let vertices = view
+                .instances()
+                .first()
+                .map(|instance| instance.world_vertices().to_vec())
+                .unwrap_or_default();
+            self.seen.lock().unwrap().push((frame, vertices));
+            Ok((0..height)
+                .flat_map(|y| (0..width).flat_map(move |x| [frame as u8, x as u8, y as u8, 255]))
+                .collect())
+        }
+    }
+
+    pub(in crate::app) fn factory(seen: Seen) -> RendererFactory {
+        Box::new(move |scene, _, _, _| {
+            Ok(Box::new(FakeRenderer {
+                scene,
+                seen: Arc::clone(&seen),
+            }))
+        })
+    }
+}
+
+#[cfg(test)]
+#[path = "playblast_tests.rs"]
+mod tests;

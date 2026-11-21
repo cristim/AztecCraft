@@ -215,8 +215,9 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::RenameCameraBookmark { .. }
         | Operation::DeleteCameraBookmark { .. }
         | Operation::ApplyCameraBookmark { .. } => false,
+        // The job renders its own snapshot, so playback and a playblast do not interact.
         #[cfg(any(test, feature = "mcp"))]
-        Operation::AutosaveNow => false,
+        Operation::AutosaveNow | Operation::Playblast(_) => false,
         #[cfg(any(test, feature = "mcp"))]
         Operation::ListCameraBookmarks
         | Operation::RecoveryStatus
