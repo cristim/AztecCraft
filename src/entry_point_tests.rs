@@ -256,6 +256,8 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "history_step",
             "native_group",
             "native_ungroup",
+            "native_reset_transformations",
+            "native_freeze_transformations",
             "manipulation_options",
             "outliner",
             "render",
