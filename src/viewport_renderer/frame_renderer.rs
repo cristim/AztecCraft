@@ -112,7 +112,7 @@ impl OffscreenRenderer {
     }
 }
 
-pub(super) type SceneAt = Box<dyn FnMut(i64) -> Result<ViewScene, PlayblastError>>;
+pub(super) type SceneAt = Box<dyn FnMut(i64) -> Result<ViewScene, PlayblastError> + Send>;
 
 /// Renders the viewport camera at each requested frame through the same [`Submission`] code
 /// as the window, on the window's device and queue (no second wgpu device).

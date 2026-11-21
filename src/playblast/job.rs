@@ -17,8 +17,9 @@ use super::{PlayblastError, PlayblastPlan};
 /// Queue depth between render and write; PROVISIONAL.
 const QUEUE: usize = 2;
 
-/// Renders one frame as tightly packed RGBA8 at `width` x `height`.
-pub trait FrameRenderer {
+/// Renders one frame as tightly packed RGBA8 at `width` x `height`. `Send` so a job can be
+/// stepped from whichever thread owns it.
+pub trait FrameRenderer: Send {
     fn render(&mut self, frame: i64, width: u32, height: u32) -> Result<Vec<u8>, PlayblastError>;
 }
 

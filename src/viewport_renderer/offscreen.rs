@@ -25,6 +25,9 @@ pub(super) fn strip_row_padding(mapped: &[u8], width: u32, padded: u32) -> Vec<u
         .collect()
 }
 
+/// Refuses a frame before any texture exists: an out-of-memory texture would latch the shared
+/// device error that also disables the live viewport. The padded readback is the largest of the
+/// colour, depth and readback allocations, so it stands for all three.
 pub(super) fn check_size(
     limits: &wgpu::Limits,
     [width, height]: [u32; 2],
@@ -33,7 +36,11 @@ pub(super) fn check_size(
     if width == 0 || height == 0 || width > edge || height > edge {
         return Err(RenderError::ResourceLimit);
     }
-    Ok(())
+    let bytes = padded_bytes_per_row(width).map(|padded| u64::from(padded) * u64::from(height));
+    match bytes {
+        Some(bytes) if bytes <= limits.max_buffer_size => Ok(()),
+        _ => Err(RenderError::ResourceLimit),
+    }
 }
 
 /// Copies an RGBA8 `texture` of `size` (width, height; it needs `COPY_SRC`) to the CPU as
@@ -49,9 +56,6 @@ pub(super) fn read_back(
     check_size(&limits, size)?;
     let padded = padded_bytes_per_row(width).ok_or(RenderError::ResourceLimit)?;
     let bytes = u64::from(padded) * u64::from(height);
-    if bytes > limits.max_buffer_size {
-        return Err(RenderError::ResourceLimit);
-    }
     let readback = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("viewport readback pixels"),
         size: bytes,
