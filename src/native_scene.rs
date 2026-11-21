@@ -12,6 +12,7 @@ mod manipulator_frame;
 mod maya_import;
 mod mesh;
 mod move_translation;
+mod naming;
 mod pivot_edit;
 mod references;
 mod reparent;
@@ -45,6 +46,7 @@ pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError}
 pub use move_translation::{
     ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
 };
+pub use naming::NamingRefusal;
 pub use pivot_edit::{PivotLeaf, PivotReset};
 pub use references::{
     MAX_REFERENCE_PATH_BYTES, MAX_REFERENCE_TEXT_BYTES, MAX_REFERENCES, ReferenceDeclaration,
@@ -2359,6 +2361,8 @@ pub enum NativeError {
     InvalidReparent(ReparentRefusal),
     /// A reset or freeze of transformations the scene refuses; see `TransformRefusal`.
     InvalidTransformEdit(TransformRefusal),
+    /// A prefix or search and replace of node names the scene refuses; see `NamingRefusal`.
+    InvalidNameEdit(NamingRefusal),
     UnsupportedDelete(DeleteUnsupported),
     /// One node of a delete of several refused; `reason` is that node's own refusal.
     DeleteMemberRefused {
@@ -2467,6 +2471,7 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidReparent(reason) => reason.fmt(f),
             Self::InvalidTransformEdit(reason) => reason.fmt(f),
+            Self::InvalidNameEdit(reason) => reason.fmt(f),
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
             Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
             Self::InsertionAfterDelete => f.write_str(
