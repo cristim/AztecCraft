@@ -5764,7 +5764,7 @@ mod menu_bar_wire {
             .iter()
             .chain(MODELING_SET_MENUS.iter())
             .copied()
-            .chain([HELP_MENU])
+            .chain([HELP_MENU, "Workspaces unavailable"])
             .collect()
     }
 
@@ -5779,7 +5779,7 @@ mod menu_bar_wire {
     }
 
     #[test]
-    fn menu_bar_lists_the_maya_defaults_then_the_modeling_set_then_help() {
+    fn menu_bar_lists_defaults_modeling_help_and_workspace_in_order() {
         let (mut editor, context) = setup();
         let output = frame(&mut editor, &context, vec![]);
         let labels: Vec<String> = bar(&output).into_iter().map(|c| c.label).collect();
@@ -5804,6 +5804,7 @@ mod menu_bar_wire {
                 "UV",
                 "Generate",
                 "Help",
+                "Workspaces unavailable",
             ]
         );
         assert!(!labels.iter().any(|label| label == "Render"));
@@ -5822,9 +5823,18 @@ mod menu_bar_wire {
         let found = bar(&output);
         let first = found.iter().find(|c| c.label == "File").unwrap();
         let last = found.iter().find(|c| c.label == HELP_MENU).unwrap();
+        let workspace = found
+            .iter()
+            .find(|c| c.label == "Workspaces unavailable")
+            .unwrap();
+        assert!(workspace.rect.right() <= size.x);
         assert!(first.rect.left() >= 0.0);
         assert!(last.rect.right() > size.x, "must exercise actual overflow");
-        assert!(found.iter().all(|c| c.rect.top() == found[0].rect.top()));
+        assert!(
+            found
+                .iter()
+                .all(|c| (c.rect.center().y - found[0].rect.center().y).abs() <= 2.0)
+        );
         let row_bottom = found.iter().map(|c| c.rect.bottom()).fold(0.0, f32::max);
         let status = controls(&output)
             .into_iter()
@@ -5855,13 +5865,22 @@ mod menu_bar_wire {
         let output = render(vec![]);
         let scrolled = bar(&output);
         let help = scrolled.iter().find(|c| c.label == HELP_MENU).unwrap();
-        assert!(help.rect.right() <= size.x);
+        let scrolled_workspace = scrolled
+            .iter()
+            .find(|c| c.label == "Workspaces unavailable")
+            .unwrap();
+        assert_eq!(scrolled_workspace.rect, workspace.rect);
+        assert!(help.rect.right() < workspace.rect.left());
         assert!(
             scrolled
                 .iter()
                 .any(|c| c.label == "File" && c.rect.left() < 0.0)
         );
-        assert!(scrolled.iter().all(|c| c.rect.top() == first.rect.top()));
+        assert!(
+            scrolled
+                .iter()
+                .all(|c| (c.rect.center().y - first.rect.center().y).abs() <= 2.0)
+        );
         let click_events = |at| {
             [true, false].map(|pressed| egui::Event::PointerButton {
                 pos: at,

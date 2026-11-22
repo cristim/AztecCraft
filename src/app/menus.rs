@@ -618,18 +618,30 @@ impl Editor {
             .authoring_read_only_reason()
             .map(|reason| reason.to_string());
         let authoring = read_only_reason.is_none();
-        // Sixteen or seventeen menus overflow the 960 point minimum window at enlarged text or padding;
-        // scroll instead of wrapping so the strips below keep their rows.
-        egui::ScrollArea::horizontal()
-            .auto_shrink([false, true])
-            .show(ui, |ui| {
-                self.menu_bar(
-                    ui,
-                    selection_intent,
-                    delete_intent,
-                    read_only_reason.as_deref(),
-                );
-            });
+        egui::Sides::new().shrink_left().show(
+            ui,
+            |ui| {
+                // Keep the scrollbar below menu buttons when the row overflows.
+                ui.spacing_mut().scroll.floating = false;
+                egui::ScrollArea::horizontal()
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
+                        self.menu_bar(
+                            ui,
+                            selection_intent,
+                            delete_intent,
+                            read_only_reason.as_deref(),
+                        );
+                    });
+            },
+            |ui| {
+                let reason = "Workspace switching and docking are not implemented yet";
+                let workspace = ui
+                    .add_enabled(false, egui::Button::new("Workspaces unavailable"))
+                    .on_disabled_hover_text(reason);
+                features::primitive_options::describe_unavailable(ui.ctx(), workspace.id, reason);
+            },
+        );
         ui.separator();
         self.status_line(ui, selection_intent);
         ui.separator();

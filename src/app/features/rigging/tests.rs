@@ -137,7 +137,7 @@ fn expected_bar(set: &[&str]) -> Vec<String> {
     ALWAYS_ON_MENUS
         .iter()
         .chain(set)
-        .chain([&HELP_MENU])
+        .chain([&HELP_MENU, &"Workspaces unavailable"])
         .map(|label| (*label).to_owned())
         .collect()
 }

@@ -104,6 +104,12 @@ MCP `import_obj`, UV export and import, round-trip tests). The native file-panel
 pending: see the checklist in `known-issues.md`, "OBJ import is a first slice". INT-016 is
 Partial and the option box is INT-040 (Missing); its follow-up issue is opened at T7.
 
+## Issue #67: Workspace selector availability
+
+The [Maya 2027 Workspaces page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-0384C282-3CA1-4587-9775-F7164D3F6980.htm) places the selector at the far right of the main menu bar and also lists Windows > Workspaces. It names General as the default, describes factory and custom layouts, and documents saving on switch or exit, reset, and a separate adjacent lock. The [interface overview](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-F4FCE554-1FA5-447A-8835-63EB43D2690B.htm) illustrates Maya Classic. Neither page specifies a selector keyboard shortcut. The disabled label, style, and fixed placement beside the scrolling menus are PROVISIONAL. [Maya 2027.3 release notes](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-ReleaseNotes/files/MAYA_RELEASENOTES_2027_3_HTML.html) establish a newer update than the 2027.2 dossier pin. Workspace behavior specific to either update has no runtime evidence here.
+
+Expose a disabled Workspace selector with an accessible reason. Verify placement, ignored input, and unchanged scene and menu set through the Editor, plus minimum-size and default-size native windows. Keep menu overflow scrollable. Workspace switching, lock, reset, the Windows menu route, docking, and persisted layouts remain open. The disabled selector adds no editor operation or state.
+
 ## Verification and review
 
 Keep the same non-author reviewer across the two plan passes and each two-pass diff gate. Use a cold independent verifier for the completed vertical slice. Run formatting, Clippy, headless workflow tests, and native build. Record exact tree/commit identifiers for reviewed work. Reference comparison is blocked until a Maya installation/reference manifest exists. No positive parity claim without it.
