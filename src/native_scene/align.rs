@@ -1,12 +1,13 @@
 //! Modify > Snap Align Objects > Align Objects (#313): moves the selected objects along the world
 //! axes so their world-space bounding boxes line up. Only translate channels are written.
 //!
-//! Sourced from the Maya 2027 Align Objects pages: the modes are Min (side closest to 0), Mid
-//! (centres), Max (side farthest from 0) and Dist (even spread over the total distance), they
+//! Sourced from the Maya 2027 Align Objects pages: the modes are Min (lowest coordinate), Mid
+//! (centers), Max (highest coordinate) and Dist (even spread over the total distance), they
 //! work on the objects' bounding boxes, axes are chosen in world space, and Align To is Selection
-//! Average or Last Selected Object (Min, Mid and Max only). PROVISIONAL (#5), because the pages
-//! omit them: the box is the axis-aligned world box of every mesh point below the object, Dist
-//! keeps the outermost objects (by box centre) fixed and equalises the gaps between the boxes,
+//! Average or Last Selected Object (Min, Mid and Max only). PROVISIONAL (#5): the pages word Min and Max
+//! as the side closest to or farthest from 0, which this code does not follow (it takes the lowest
+//! and highest coordinate, so all-negative boxes differ); they also omit: the box is the axis-aligned world box of every mesh point below the object, Dist
+//! keeps the outermost objects (by box center) fixed and equalizes the gaps between the boxes,
 //! Stack is unbuilt, and the defaults are this editor's choice.
 use super::transform_ops::keeps_volume;
 use super::{

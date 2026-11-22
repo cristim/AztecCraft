@@ -2145,8 +2145,12 @@ PROVISIONAL and pinned by a test (rows 68 to 72 of the policy constants table in
 - The fetched Maya 2027 pages (Snap Align Objects Options and Align objects) name Min, Mid, Max, Dist and Stack, the
   Align To choices (Selection Average, Last Selected Object) and world axes, but not how rotated or scaled objects'
   boxes are computed, any defaults, how Dist distributes or the undo label. The box here is the world axis-aligned box
-  of every mesh point at or below the object, Dist keeps the outermost objects (by box centre) and equalises the gaps
+  of every mesh point at or below the object, Dist keeps the outermost objects (by box center) and equalizes the gaps
   between boxes, and the undo label is "Align Objects". None of this is compared with Maya (#5).
+- Min and Max take the lowest and highest box coordinate on the axis. The Maya wording (side closest to or farthest
+  from 0) is PROVISIONAL (#5) and would pick different sides for boxes that lie below 0 (all-negative); not compared
+  with Maya. Pinned behavior: Dist with two objects changes nothing, and overlapping outer boxes give a negative gap
+  that is shared equally. Last Selected is the last object in selection order (the selection's lead), not outliner order.
 - Unbuilt: Stack, the options dialog (the Modify row is disabled), the Align Tool and Snap Align (SCN-054, SCN-056),
   and the Selection Min, Selection Max and World Origin references. A selection holding an object below another
   selected object is refused rather than ordered. Aligning twice can move an object by rounding (about 1e-15).
