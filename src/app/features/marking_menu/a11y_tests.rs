@@ -133,9 +133,10 @@ fn the_dial_is_a_menu_node_that_parents_its_entries() {
     let (_, menu) = update
         .nodes
         .iter()
-        .find(|(_, node)| node.role() == accesskit::Role::Menu)
-        .expect("a menu node");
-    assert_eq!(menu.label(), Some("Marking menu"));
+        .find(|(_, node)| {
+            node.role() == accesskit::Role::Menu && node.label() == Some("Marking menu")
+        })
+        .expect("the marking menu node");
     let by_id: std::collections::HashMap<_, _> = update.nodes.iter().cloned().collect();
     let mut stack: Vec<_> = menu.children().to_vec();
     let mut items = 0;

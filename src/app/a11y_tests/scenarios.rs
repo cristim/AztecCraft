@@ -405,6 +405,33 @@ fn row(rig: &Rig, label: &str) -> (bool, String) {
 }
 
 #[test]
+fn workspace_selector_is_disabled_at_the_right_of_the_main_menu() {
+    let mut rig = Rig::new(true);
+    let scene = rig.editor.history.scene().clone();
+    let token = rig.editor.scene_token;
+    for set in [MenuSet::Modeling, MenuSet::Rigging, MenuSet::Rendering] {
+        rig.editor.native_operation(Operation::SetMenuSet { set });
+        rig.settle();
+        assert_eq!(
+            row(&rig, "Workspaces unavailable"),
+            (
+                true,
+                "Unavailable: Workspace switching and docking are not implemented yet".into()
+            )
+        );
+        let selector = rig.find("Workspaces unavailable");
+        let file = rig.find("File");
+        assert!((selector.y - file.y).abs() < 2.0);
+        assert!(selector.x > super::rig::SIZE.x - 120.0);
+        rig.click("Workspaces unavailable");
+        rig.settle();
+        assert_eq!(rig.editor.menu_set, set);
+        assert_eq!(rig.editor.scene_token, token);
+        assert_eq!(rig.editor.history.scene(), &scene);
+    }
+}
+
+#[test]
 fn the_image_plane_menu_rows_follow_the_plane_state_with_their_reasons() {
     let open = |rig: &mut Rig| {
         rig.click("View");
