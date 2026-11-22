@@ -634,17 +634,19 @@ impl Editor {
         self.status_line(ui, selection_intent);
         ui.separator();
         ui.horizontal(|ui| {
-            if crate::tool_icons::button(ui, "Cube", UiIcon::PolyCube, authoring)
-                .on_disabled_hover_text(read_only_reason.as_deref().unwrap_or_default())
-                .clicked()
-            {
-                self.create(Primitive::Cube);
-            }
-            if crate::tool_icons::button(ui, "Plane", UiIcon::PolyPlane, authoring)
-                .on_disabled_hover_text(read_only_reason.as_deref().unwrap_or_default())
-                .clicked()
-            {
-                self.create(Primitive::Plane);
+            for (label, icon, primitive) in [
+                ("Cube", UiIcon::PolyCube, Primitive::Cube),
+                ("Plane", UiIcon::PolyPlane, Primitive::Plane),
+                ("Sphere", UiIcon::PolySphere, Primitive::Sphere),
+                ("Cylinder", UiIcon::PolyCylinder, Primitive::Cylinder),
+                ("Cone", UiIcon::PolyCone, Primitive::Cone),
+            ] {
+                if crate::tool_icons::button(ui, label, icon, authoring)
+                    .on_disabled_hover_text(read_only_reason.as_deref().unwrap_or_default())
+                    .clicked()
+                {
+                    self.create(primitive);
+                }
             }
             ui.separator();
             if crate::tool_icons::button(ui, "Undo", UiIcon::Undo, self.history.can_undo())

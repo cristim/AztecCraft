@@ -29,12 +29,15 @@ fn index(icon: UiIcon) -> usize {
         UiIcon::FileSave => 17,
         UiIcon::PolyCube => 18,
         UiIcon::PolyPlane => 19,
+        UiIcon::PolySphere => 26,
+        UiIcon::PolyCylinder => 27,
+        UiIcon::PolyCone => 28,
         UiIcon::Undo => 20,
         UiIcon::Redo => 21,
         UiIcon::FrameSelected => 22,
     }
 }
-const ICON_COUNT: usize = 26;
+const ICON_COUNT: usize = 29;
 
 struct Raster {
     w: usize,
@@ -347,6 +350,9 @@ fn golden(icon: UiIcon) -> [&'static str; 12] {
         UiIcon::FileSave => GOLDEN_FILE_SAVE,
         UiIcon::PolyCube => GOLDEN_POLY_CUBE,
         UiIcon::PolyPlane => GOLDEN_POLY_PLANE,
+        UiIcon::PolySphere => GOLDEN_POLY_SPHERE,
+        UiIcon::PolyCylinder => GOLDEN_POLY_CYLINDER,
+        UiIcon::PolyCone => GOLDEN_POLY_CONE,
         UiIcon::Undo => GOLDEN_UNDO,
         UiIcon::Redo => GOLDEN_REDO,
         UiIcon::FrameSelected => GOLDEN_FRAME_SELECTED,
@@ -1145,3 +1151,48 @@ fn history_head_is_a_pixel_clear_of_the_arc_at_small_sizes() {
         }
     }
 }
+
+const GOLDEN_POLY_SPHERE: [&str; 12] = [
+    "............",
+    "...######...",
+    "..########..",
+    ".##########.",
+    ".##########.",
+    "............",
+    "............",
+    ".##########.",
+    ".##########.",
+    "..########..",
+    "...######...",
+    "............",
+];
+
+const GOLDEN_POLY_CYLINDER: [&str; 12] = [
+    "............",
+    "..########..",
+    ".##########.",
+    "..########..",
+    "............",
+    ".##########.",
+    ".##########.",
+    ".##########.",
+    ".##########.",
+    ".##########.",
+    "..########..",
+    "............",
+];
+
+const GOLDEN_POLY_CONE: [&str; 12] = [
+    "............",
+    "............",
+    ".....##.....",
+    "....####....",
+    "....####....",
+    "...######...",
+    "...######...",
+    "..########..",
+    "..########..",
+    ".##########.",
+    ".##########.",
+    "............",
+];

@@ -34,6 +34,9 @@ pub enum UiIcon {
     FileSave,
     PolyCube,
     PolyPlane,
+    PolySphere,
+    PolyCylinder,
+    PolyCone,
     Undo,
     Redo,
     FrameSelected,
@@ -64,6 +67,9 @@ pub const ALL: &[UiIcon] = &[
     UiIcon::FileSave,
     UiIcon::PolyCube,
     UiIcon::PolyPlane,
+    UiIcon::PolySphere,
+    UiIcon::PolyCylinder,
+    UiIcon::PolyCone,
     UiIcon::Undo,
     UiIcon::Redo,
     UiIcon::FrameSelected,
@@ -961,6 +967,73 @@ fn poly_plane(fit: &Fit) -> Vec<Shape> {
     shapes
 }
 
+fn poly_sphere(fit: &Fit) -> Vec<Shape> {
+    vec![
+        fit.fill(
+            &[
+                pos2(1.4, 10.5),
+                pos2(3.5, 5.2),
+                pos2(8.0, 1.4),
+                pos2(16.0, 1.4),
+                pos2(20.5, 5.2),
+                pos2(22.6, 10.5),
+            ],
+            AMBER_LIGHT,
+        ),
+        fit.fill(
+            &[
+                pos2(1.4, 13.5),
+                pos2(22.6, 13.5),
+                pos2(20.5, 18.8),
+                pos2(16.0, 22.6),
+                pos2(8.0, 22.6),
+                pos2(3.5, 18.8),
+            ],
+            AMBER_MID,
+        ),
+    ]
+}
+
+fn poly_cylinder(fit: &Fit) -> Vec<Shape> {
+    vec![
+        fit.fill(
+            &[
+                pos2(2.1, 5.0),
+                pos2(6.0, 1.6),
+                pos2(18.0, 1.6),
+                pos2(21.9, 5.0),
+                pos2(18.0, 8.0),
+                pos2(6.0, 8.0),
+            ],
+            AMBER_LIGHT,
+        ),
+        fit.fill(
+            &[
+                pos2(2.1, 10.5),
+                pos2(21.9, 10.5),
+                pos2(21.9, 19.5),
+                pos2(17.0, 22.4),
+                pos2(7.0, 22.4),
+                pos2(2.1, 19.5),
+            ],
+            AMBER_MID,
+        ),
+    ]
+}
+
+fn poly_cone(fit: &Fit) -> Vec<Shape> {
+    vec![fit.fill(
+        &[
+            pos2(12.0, 1.3),
+            pos2(22.7, 20.5),
+            pos2(17.0, 22.7),
+            pos2(7.0, 22.7),
+            pos2(1.3, 20.5),
+        ],
+        AMBER_MID,
+    )]
+}
+
 /// History arrow arc: ellipse centre and radii, and the parameter range swept from the
 /// right end, over the top, to the left end.
 const HISTORY_ARC_CENTER: Pos2 = pos2(12.8, 13.0);
@@ -1108,6 +1181,9 @@ pub fn shapes(icon: UiIcon, rect: Rect) -> Vec<Shape> {
         UiIcon::FileSave => file_save(&fit),
         UiIcon::PolyCube => poly_cube(&fit),
         UiIcon::PolyPlane => poly_plane(&fit),
+        UiIcon::PolySphere => poly_sphere(&fit),
+        UiIcon::PolyCylinder => poly_cylinder(&fit),
+        UiIcon::PolyCone => poly_cone(&fit),
         UiIcon::Undo => history(&fit, false),
         UiIcon::Redo => history(&fit, true),
         UiIcon::FrameSelected => frame_selected(&fit),
