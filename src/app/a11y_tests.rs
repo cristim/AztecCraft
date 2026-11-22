@@ -180,6 +180,10 @@ pub(super) fn known_ids() -> HashMap<NodeId, String> {
         super::features::primitive_options::option_field_ids().collect(),
     ));
     table.extend(indexed(
+        "playblast_option",
+        super::features::playblast_options::field_ids().to_vec(),
+    ));
+    table.extend(indexed(
         "joint_option",
         super::features::rigging::joint_field_ids().collect(),
     ));
@@ -432,7 +436,12 @@ pub(super) fn violations(
     found
 }
 
+mod camera_tab;
 mod gaps;
+mod image_plane_tab;
+mod image_plane_tab_info;
+mod image_plane_tab_input;
+mod image_plane_tab_more;
 mod keyboard;
 mod rig;
 mod scenarios;

@@ -134,6 +134,15 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     NativeError::NonFinite => "invalid_input",
                     _ => "scene_error",
                 },
+                OperationError::Naming(error) => match error {
+                    NativeError::ReadOnlyFormat => "read_only_format",
+                    NativeError::UnsupportedEdit => "unsupported_edit",
+                    NativeError::InvalidNameEdit(_) => "invalid_name_edit",
+                    NativeError::InvalidName => "invalid_name",
+                    NativeError::NameCollision => "name_collision",
+                    NativeError::ResourceLimit => "resource_limit",
+                    _ => "scene_error",
+                },
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {
@@ -143,6 +152,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     NativeError::UnsupportedEdit => "unsupported_edit",
                     NativeError::ReadOnlyFormat => "read_only_format",
                     NativeError::MissingShape(_) => "unknown_shape",
+                    NativeError::InvalidShapeList(_) => "invalid_shape_list",
                     NativeError::ResourceLimit => "session_material_limit",
                     _ => "scene_error",
                 },
@@ -295,7 +305,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                         P::Unsupported(_) => "playblast_unsupported",
                         P::NoAdapter => "playblast_no_adapter",
                         P::Io(_) | P::WriterPanicked => "playblast_io",
-                        P::Render(_) | P::Evaluate { .. } => "playblast_render",
+                        P::Render(_) | P::Evaluate { .. } | P::Plate { .. } => "playblast_render",
                     }
                 }
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
@@ -484,6 +494,31 @@ mod tests {
             (NativeError::WorldOutOfRange, "world_out_of_range"),
             (NativeError::NonFinite, "invalid_input"),
             (NativeError::NameCollision, "scene_error"),
+        ] {
+            assert_eq!(code(error), expected);
+        }
+    }
+
+    #[test]
+    fn naming_refusals_report_their_codes_and_the_rest_scene_error() {
+        let code = |error| {
+            let result = tool_reply(Err(OperationError::Naming(error)));
+            serde_json::to_value(&result).unwrap()["structuredContent"]["error"]["code"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        for (error, expected) in [
+            (NativeError::ReadOnlyFormat, "read_only_format"),
+            (NativeError::UnsupportedEdit, "unsupported_edit"),
+            (
+                NativeError::InvalidNameEdit(azteccraft::native_scene::NamingRefusal::EmptyPrefix),
+                "invalid_name_edit",
+            ),
+            (NativeError::InvalidName, "invalid_name"),
+            (NativeError::NameCollision, "name_collision"),
+            (NativeError::ResourceLimit, "resource_limit"),
+            (NativeError::NonFinite, "scene_error"),
         ] {
             assert_eq!(code(error), expected);
         }
@@ -985,8 +1020,13 @@ mod tests {
                 "edit_node" => json!({"scene_token":token,"node_id":"1"}),
                 "set_pivots" => json!({"scene_token":token,"node_id":"1"}),
                 "reset_pivots" => json!({"scene_token":token,"mode":"zero"}),
-                "reset_transformations" | "freeze_transformations" => {
+                "reset_transformations" | "freeze_transformations" | "match_transformations" => {
                     json!({"scene_token":token})
+                }
+                "align_objects" => json!({"scene_token":token,"x":"min"}),
+                "prefix_hierarchy_names" => json!({"scene_token":token,"prefix":"a_"}),
+                "search_replace_names" => {
+                    json!({"scene_token":token,"search":"a","replace":"b"})
                 }
                 "parent_node" => json!({"scene_token":token,"node_id":"1","world":true}),
                 "group_selection" | "ungroup_selection" => json!({"scene_token":token}),
@@ -999,6 +1039,9 @@ mod tests {
                 }
                 "set_session_material_color" => {
                     json!({"scene_token":token,"material_id":"1","color":[0.0,1.0,0.0]})
+                }
+                "set_session_material_attribute" => {
+                    json!({"scene_token":token,"material_id":"1","attribute":"transparency","rgb":[0.0,1.0,0.0]})
                 }
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
@@ -1060,6 +1103,8 @@ mod tests {
                 "export_obj" | "import_obj" => json!({"scene_token":token,"path":"scene.obj"}),
                 "export_gltf" => json!({"scene_token":token,"path":"scene.glb"}),
                 "export_usd" => json!({"scene_token":token,"path":"scene.usda"}),
+                "playblast" => json!({"scene_token":token,"width":32,"height":32,
+                    "output_directory":std::env::temp_dir()}),
                 "import_maya_scene" => json!({"scene_token":token,"path":"scene.ma"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
@@ -1095,12 +1140,40 @@ mod tests {
                 json!({"scene_token":token,"material_id":"01x","color":[0,0,0]}),
             ),
             (
+                "set_session_material_attribute",
+                json!({"scene_token":token,"material_id":"1","attribute":"opacity","rgb":[0,0,0]}),
+            ),
+            (
+                "set_session_material_attribute",
+                json!({"scene_token":token,"material_id":"1","attribute":"color","rgb":[0,0,0]}),
+            ),
+            (
+                "set_session_material_attribute",
+                json!({"scene_token":token,"material_id":"1","attribute":"transparency"}),
+            ),
+            (
+                "set_session_material_attribute",
+                json!({"scene_token":token,"material_id":"1","attribute":"transparency","rgb":"x"}),
+            ),
+            (
                 "set_session_material_color",
                 json!({"scene_token":token,"material_id":"007","color":[0,0,0]}),
             ),
             (
                 "assign_session_material",
                 json!({"scene_token":token,"shape_id":"2","material_id":"+1"}),
+            ),
+            (
+                "assign_session_material",
+                json!({"scene_token":token,"shape_id":"2","shape_ids":["2"],"material_id":"1"}),
+            ),
+            (
+                "assign_session_material",
+                json!({"scene_token":token,"material_id":"1"}),
+            ),
+            (
+                "assign_session_material",
+                json!({"scene_token":token,"shape_ids":["2","x"],"material_id":"1"}),
             ),
             (
                 "create_session_material",
@@ -1159,6 +1232,7 @@ mod tests {
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"
+                    | "set_session_material_attribute"
                     | "set_current_time"
                     | "delete_keys"
                     | "euler_filter"
@@ -1180,6 +1254,8 @@ mod tests {
                     | "reset_pivots"
                     | "reset_transformations"
                     | "freeze_transformations"
+                    | "match_transformations"
+                    | "align_objects"
                     | "list_camera_bookmarks"
                     | "apply_camera_bookmark"
             );
@@ -1852,10 +1928,44 @@ mod tests {
                     AttributeEditorTab::Transform(_) => 0,
                     AttributeEditorTab::Shape(_) => 1,
                     AttributeEditorTab::Material(_) => 2,
+                    AttributeEditorTab::ImagePlane => 3,
+                    AttributeEditorTab::Camera => 4,
                 }
             );
         }
+        // The image plane tab takes no id.
+        let plane = parse_request(
+            "select_attribute_editor_tab",
+            json!({"scene_token": token, "tab": {"kind": "image_plane"}})
+                .as_object()
+                .unwrap()
+                .clone(),
+        )
+        .unwrap();
+        assert!(matches!(
+            plane.operation,
+            Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::ImagePlane
+            }
+        ));
+        // The camera tab takes no id either.
+        let camera = parse_request(
+            "select_attribute_editor_tab",
+            json!({"scene_token": token, "tab": {"kind": "camera"}})
+                .as_object()
+                .unwrap()
+                .clone(),
+        )
+        .unwrap();
+        assert!(matches!(
+            camera.operation,
+            Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::Camera
+            }
+        ));
         for arguments in [
+            json!({"scene_token": token, "tab": {"kind": "image_plane", "id": "7"}}),
+            json!({"scene_token": token, "tab": {"kind": "camera", "id": "7"}}),
             json!({"tab": {"kind": "shape", "id": "7"}}),
             json!({"scene_token": token}),
             json!({"scene_token": token, "tab": null}),

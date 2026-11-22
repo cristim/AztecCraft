@@ -551,18 +551,22 @@ stated. The short names and the `ff` ids 0 to 3 (fill, horizontal, vertical, ove
 the Maya camera node page; the `fro` ids (0 rotate-translate, 1 translate-rotate) are not on it,
 and Maya's acceptance of the `select -ne` form is unverified, all PROVISIONAL. S2b (wiring the
 editor to the store) stays blocked until Maya accepts the block and the `fro` ids are verified.
-A PARTIAL block refuses the whole file (`unsupported`): real Maya writes only the attributes
-that differ from the node defaults, so a Maya file whose camera has an edited film back and does
-not state all 19 attributes does not open. That is no regression (those attributes were already
-refused), and a follow-up should preserve a partial block as unknown source data instead (with
-the .mb work, S2d and S2e). The block always states `ff`, so the viewport Fill default (the page
-lists the node default as horizontal; see row 25) never decides a stated camera. An out-of-range
-fit id, a duplicate, an invalid value or a radian file also refuses the file. An unknown `fro` id
-blocks the camera: a mesh-free file stays readable and read-only with its source bytes, but a
-mesh file with one is refused (the authored gate cannot re-emit it and a mesh file is never
-retained read-only), so "the source keeps it" holds for mesh-free files only. The `.mb` writer
-still refuses an override (`camera_override`, slice S2d). Only the MCP `set_camera_film_back` edits
-the film back; the Attribute Editor Camera tab (#458) is not built, so no native control exists. Every film formula, the Fill threshold, the Fill default and treating the viewport
+A PARTIAL block (real Maya writes only the attributes that differ from the node defaults) blocks
+the camera instead of refusing the file: the source bytes stay, the file opens read-only, the
+viewport keeps its default lens for that camera (`camera_projection_available` is false) and the
+editor cannot edit or write it. Open says so in the status line ("camera persp film back is kept
+in the file but not applied") and `inspect_scene` lists the camera under `camera.blocked_cameras`.
+Nothing else shows it yet (Follow-up F-458-3: an indicator in the Camera Attribute Editor and the
+Help Line once that tab exists). The `.mb` reader still drops the camera attributes and keeps the
+source, so an opened .mb is read-only and its camera film back is not read; S2d and S2e need the
+.mb camera field table, a reader that parses the scalars into the store with spans, a writer and
+source-bound edits. The block always states `ff`, so the viewport Fill default (the page lists the
+node default as horizontal; see row 25) never decides a stated camera. An out-of-range fit id in a
+complete block, a duplicate, a typed or unknown attribute, an invalid value or a radian file
+refuses the file. An unknown `fro` id blocks the camera likewise; "the source keeps it" holds for
+mesh-free files only (F-458-2). The `.mb` writer
+still refuses an override (`camera_override`, slice S2d). The MCP `set_camera_film_back` and the Attribute Editor Camera tab (#458, the same typed
+operation, no sliders, session only, no undo step) edit the live camera's film back. Every film formula, the Fill threshold, the Fill default and treating the viewport
 aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
 1.21x (aspect <= 1.5) to 1.43x (16:9) faster than under the old 45 degrees; it is not
@@ -1197,6 +1201,32 @@ earlier AztecCraft ordering is kept), and Maya draws the axes bold, which one-pi
 Maya 2026 is unverified. Grid Options (size, spacing, divisions, colours) is a disabled row in
 the Display menu, where Maya keeps the Grid option box.
 
+## Snap to grids follows the scene linear unit (#454)
+
+Snap to grids rounds to the grid's line spacing, `snap::drawn_grid_spacing_cm(grid, units)`: the shared
+`snap::DEFAULT_GRID_OPTIONS` give `lines_every / subdivisions` = 5 / 5 = 1 scene linear unit (Maya's
+grid command gives its spacing "in linear units"), so the spacing is 1 m in a metre scene, 2.54 cm in
+an inch scene and so on; an unsupported unit has no spacing and a snapped Move is refused at begin.
+`inspect_scene` `snap_spacing` reports `{cm, scene_units}` (null for an unsupported unit). The options
+are not editable (Grid Options stays disabled). The viewport draws the same lines, 12 per side at
+`ViewScene::grid_spacing_cm` (no grid in an unsupported unit, though `grid_visible` stays true).
+
+Maya sourcing: the current grid command page (MayaCRE-Tech-Docs/Commands/grid.html) gives defaults
+spacing 10, divisions 10 and size 12 "in linear units". No page gives 5 and 5; that claim rests on a
+runtime `grid -q` result in Maya 2025.1. The Snap to the grid page names "Grid intersections" as a
+target but does not say whether snapping lands on subdivision or main lines. PROVISIONAL (#5): the
+5 / 5 defaults, snapping to the subdivision (drawn) lines, the on-line tolerance
+`min(7.45e-9 * max(|coordinate|, 1), 1e-2 * spacing)` and the 1e-2 cap constant
+(`ON_LINE_SPACING_FRACTION`).
+
+Sub-resolution case: at a large coordinate with a tiny spacing (for example coordinate 1e6 and
+spacing 0.001) the snapped displacement is below the core's move resolution, the core refuses the
+update with `NativeError::UnsupportedMove(NumericalDisplacement)`
+(`src/native_scene/move_translation.rs`), and every drag update fails. The failure is typed, so
+nothing is corrupted; the point storage channel is f64, so this is the move resolution, not
+storage precision. Unreachable today because the spacing is fixed at 1 cm; it matters once the
+grid options become editable.
+
 ## Grid lines over primitive faces are expected (#111, closed)
 
 #111 closed as expected behaviour: origin-centred primitives straddle the y=0 grid plane, so grid
@@ -1213,12 +1243,12 @@ lighting models.
 
 ## Session materials: native and MCP editing (#51, #467)
 
-`create_session_material`, `assign_session_material` and `set_session_material_color` edit a
-lambert table. A new scene saves it to an authored `.ma` (reopened as an authored document; the statement layout is PROVISIONAL and unchecked against Maya, #5) and refuses `.mb` with `save_unwritable` reason `session_materials` (undo the material to save a `.mb`); sourced binary scenes
+`create_session_material`, `assign_session_material`, `set_session_material_color` and `set_session_material_attribute` edit a
+lambert table. Transparency, Ambient Color and Incandescence (`set_session_material_attribute`, #467) are stored, undoable and listed by `inspect_scene` but do not yet affect the viewport (PROVISIONAL: Maya's lambert node page, 2027, lists `transparency` `it`, `ambientColor` `ambc`, `incandescence` `ic`, default black, and states no range; 0 through 1 is assumed like Color). A full 512-material table no longer leaves a 2x margin inside the inspection budget with the three extra arrays (about 500 bytes per material at the worst valid text). A new scene saves it to an authored `.ma` (reopened as an authored document; the statement layout is PROVISIONAL and unchecked against Maya, #5) and refuses `.mb` with `save_unwritable` reason `session_materials` (undo the material to save a `.mb`); sourced binary scenes
 refuse edits with `unsupported_edit` and Maya ASCII scenes with `read_only_format`. The table stays separate
-from the saved Phong `set_material_diffuse`. Native UI: Rendering > Lighting/Shading (F6) has Assign New Material > Lambert, Assign Existing Material and Material Attributes (opens the Attribute Editor on the material tab), on one object with exactly one direct mesh shape (the same typed operations and guards as MCP). The Attribute Editor material tab of an authored shape shows the name, shading group, shape users and a non-interactive swatch of the raw linear colour (no gamma, not the lit viewport colour; Maya swatch parity is PROVISIONAL), three R/G/B text fields (Enter or leaving all three commits one undo step; no slider or Color Chooser) and disabled Transparency, Ambient Color and Incandescence rows. Material 0 (`standardSurface1`) is a placeholder lambert colour, locked, and shows the same rows (PROVISIONAL). Assignment is whole-shape only: per-face assignment, several selected objects and instance-specific groups
+from the saved Phong `set_material_diffuse`. Native UI: Rendering > Lighting/Shading (F6) has Assign New Material > Lambert, Assign Existing Material and Material Attributes (opens the Attribute Editor on the material tab), on every selected object, each with exactly one direct mesh shape, as one undo step (an ineligible member refuses the whole selection; PROVISIONAL, Maya's docs say surface or surfaces and name no undo entry; the same typed operations and guards as MCP). The Attribute Editor material tab of an authored shape shows the name, shading group, shape users and a non-interactive swatch of the raw linear colour (no gamma, not the lit viewport colour; Maya swatch parity is PROVISIONAL), three R/G/B text fields per row, each with a 0 to 1 slider, for Color, Transparency, Ambient Color and Incandescence (Enter, the end of a slider drag or leaving a row's controls commits one undo step per changed attribute; no Color Chooser) and a note that Transparency, Ambient Color and Incandescence do not yet affect the viewport (PROVISIONAL: stored, saved and listed by `inspect_scene` only). Material 0 (`standardSurface1`) is a placeholder lambert colour, locked, and shows the same rows (PROVISIONAL). Assignment is whole-shape only: per-face assignment, several selected objects and instance-specific groups
 are follow-ups. Ids are table indices reused after undo, so clients must not cache them. The
-table holds at most 512 materials, far inside the `inspect_scene` budget (tested); creating past it returns `session_material_limit`. Names follow Maya 2025.1 (#177): the
+table holds at most 512 materials, far inside the `inspect_scene` budget (tested); creating past it returns `session_material_limit`. `assign_session_material` accepts `shape_ids` (all or nothing, one undo step, at most 1024 shapes, PROVISIONAL cap; refusals `invalid_shape_list`, `unknown_shape`). Names follow Maya 2025.1 (#177): the
 initial shading group's shader is `standardSurface1`, and a new material is `lambert<N>` with
 `lambert<N>SG`, N one above the highest `lambert<N>` any transform, shape, material or group holds
 and at least 2 (Maya's unconnected `lambert1` always exists), so undo frees the number and a
@@ -1230,10 +1260,10 @@ viewport-fill placeholder rather than Maya's base colour, Maya 2026 is unverifie
 colour is shown as sRGB bytes, so no parity is claimed. No MCP test creates two instances of one shape
 (no instancing operation exists yet); that case is covered by core and `ViewScene` unit tests.
 
-Remaining #467 work and the in-app checklist (no native run of these controls has been made; a headless test is not visual proof, and nothing here claims Maya parity):
+The colour sliders are 48 px wide and about 18 px tall, a small pointer target (the width is fixed small because the side panel auto-grows with its content). The four attribute rows make the side panel settle about 34 px wider (238 to 272 points) than with the Color row alone, because the longest unit is a prefixed label such as `Incandescence Green` with its field and slider; each row's fields sit on their own wrapped line, since inside the title row they made the panel grow over several frames and changed the viewport aspect between frames (caught by `headless_gpu_sdk_camera_selection...`). Checked on the final tree: `cargo test --locked --bin azteccraft -- viewport_ gesture` passes (136 tests, including `viewport_command_click_acts_as_ctrl` and the other fixed-coordinate viewport-click tests), so they tolerate the wider panel today; they still click at fixed coordinates and should locate the viewport rect. A commit of the draft validates every changed row before executing any; if a later execute failed after an earlier one succeeded (not expected, e.g. a history limit), the earlier steps would stay as separate undo steps and the draft would be kept with the error shown. The new Transparency, Ambient Color and Incandescence controls are RECORDED accessibility gaps in `src/app/a11y_tests/gaps/` (disabled without an `Unavailable:` description) waiting on #465, not delivered AccessKit coverage beyond their names, roles and values. Remaining #467 work and the in-app checklist (no native run of these controls has been made; a headless test is not visual proof, and nothing here claims Maya parity):
 
-- Not built: Assign New Material window and the other material types, Assign Favorite Material, multi-object and face assignment, Color Chooser and sliders, lambert attributes beyond colour (Transparency, Ambient Color, Incandescence, Diffuse), Hypershade, colour management. Accessibility: the new disabled rows and fields are recorded gaps in `src/app/a11y_tests/gaps/` until the shared `describe_disabled` helper (#465) lands, and egui has no API to name a `ScrollArea` scroll bar.
-- Checklist for an OCU run (launch with `open -g`, new scene, one cube): (1) F6 shows the Rendering set; Lighting/Shading lists Material Attributes, Assign New Material, Assign Favorite Material (disabled, hover reason), Assign Existing Material. (2) Assign New Material > Lambert: the cube changes to a mid grey, the status line says the edit, the submenu lists Blinn, Phong, Phong E and Standard Surface as disabled rows with the hover reason; Edit > Undo restores. (3) Material Attributes is enabled with the cube selected and disabled with nothing or two objects selected (hover shows why); clicking it opens the Attribute Editor on the "<shape> material" tab. (4) The tab shows `Material: lambert2`, `Shading group: lambert2SG`, `1 shape user`, a swatch and Red, Green and Blue fields; Transparency, Ambient Color and Incandescence are disabled with the hover reason. (5) Type 1 in Red, Tab, 0 in Green, Tab, 0 in Blue, Enter: the cube turns red, the status line says the colour was edited and one Ctrl+Z restores the grey. (6) Type `abc` or `2` and press Enter: the cube is unchanged and the status line says the channels must be numbers from 0 to 1; Esc reverts the text. (7) Select a cube using the initial material: the colour fields are disabled, hover says the initial material is locked. (8) Assign Existing Material lists `standardSurface1` and `lambert2` with the current one marked; assigning to a second cube shares it ("2 shape users") and recolouring changes both. (9) In the Channel Box the Materials block shows the same section and the panel still scrolls to Delete selected. (10) Compare the swatch with the viewport fill and with `inspect_scene` `session_materials` after each step; note any difference.
+- Not built: Assign New Material window and the other material types, Assign Favorite Material, multi-object and face assignment, Color Chooser, lambert Diffuse and any viewport effect of Transparency, Ambient Color and Incandescence, Hypershade, colour management. Accessibility: the new disabled rows and fields are recorded gaps in `src/app/a11y_tests/gaps/` until the shared `describe_disabled` helper (#465) lands, and egui has no API to name a `ScrollArea` scroll bar.
+- Checklist for an OCU run (launch with `open -g`, new scene, one cube): (1) F6 shows the Rendering set; Lighting/Shading lists Material Attributes, Assign New Material, Assign Favorite Material (disabled, hover reason), Assign Existing Material. (2) Assign New Material > Lambert: the cube changes to a mid grey, the status line says the edit, the submenu lists Blinn, Phong, Phong E and Standard Surface as disabled rows with the hover reason; Edit > Undo restores. (3) Material Attributes is enabled with the cube selected and disabled with nothing or two objects selected (hover shows why); clicking it opens the Attribute Editor on the "<shape> material" tab. (4) The tab shows `Material: lambert2`, `Shading group: lambert2SG`, `1 shape user`, a swatch and Red, Green and Blue fields; Transparency, Ambient Color and Incandescence have their own Red, Green and Blue fields and sliders and a note that the viewport ignores them; typing 0.5 in Transparency Red and pressing Enter changes only that attribute (one Ctrl+Z restores). (5) Type 1 in Red, Tab, 0 in Green, Tab, 0 in Blue, Enter: the cube turns red, the status line says the colour was edited and one Ctrl+Z restores the grey. (6) Type `abc` or `2` and press Enter: the cube is unchanged and the status line says the channels must be numbers from 0 to 1; Esc reverts the text. (7) Select a cube using the initial material: the colour fields are disabled, hover says the initial material is locked. (8) Assign Existing Material lists `standardSurface1` and `lambert2` with the current one marked; assigning to a second cube shares it ("2 shape users") and recolouring changes both. (9) In the Channel Box the Materials block shows the same section and the panel still scrolls to Delete selected. (10) Drag the Red slider: the cube follows the draft only after release, one Ctrl+Z restores; press Esc during a drag and release: nothing changes; Tab onto a slider, press Right and then Enter: one undo step; type `2` in a field and Tab onto its slider: the text stays `2` (the slider only shows 1) and Enter reports the 0 to 1 error. (11) Compare the swatch with the viewport fill and with `inspect_scene` `session_materials` after each step; note any difference.
 
 Right-drag dolly direction is PROVISIONAL (#154): dragging up moves the camera back and
 dragging down moves it in, following a user report. The Maya help pages for tumble, track
@@ -1896,7 +1926,7 @@ Object Move has the same gap. Closing it needs a test-only unit hook on `NativeS
 
 ## Marking menus are a first slice (#32)
 
-Only the RMB mesh menu exists: eight dial zones (Vertex, Edge, Face, Object Mode, Extrude and unsupported or disabled UV, Multi, Paint, Inputs, Merge and Delete). The layout is original and PROVISIONAL (the Maya 2027 Marking Menus page gives gestures and modifier variants but not the polygon menu's positions or entries) and it has not been compared with Maya. It acts on the current selection mode only. A Select list of eight rows (Select All, Select Hierarchy, Invert Selection, Deselect All, then unsupported Select Similar, Make Live, Metadata and Assign Material) sits beside a sticky dial, on the left near the right edge; a held dial shows no list, and the list's layout and order are original and PROVISIONAL. The component modes' extra rows (Bevel, Multi-Cut, Insert Edge Loop, Connect, Detach) are not drawn yet (#32 T4). There are no submenus, no hold-key or Shift and Ctrl variants (Shift, Ctrl or Alt with RMB open nothing), no Hotbox, no Marking Menu Editor and no custom hotkeys. Native evidence is by synthetic frame tests with explicit times; no real-window run has checked the look, the hold timing or the press-drag-release gesture (#32 T6).
+Only the RMB mesh menu exists: eight dial zones (Vertex, Edge, Face, Object Mode, Extrude and unsupported or disabled UV, Multi, Paint, Inputs, Merge and Delete). The layout is original and PROVISIONAL (the Maya 2027 Marking Menus page gives gestures and modifier variants but not the polygon menu's positions or entries) and it has not been compared with Maya. It acts on the current selection mode only. A Select list of eight rows (Select All, Select Hierarchy, Invert Selection, Deselect All, then unsupported Select Similar, Make Live, Metadata and Assign Material) sits beside a sticky dial, on the left near the right edge; a held dial shows no list, and the list's layout and order are original and PROVISIONAL. In the component modes five more unsupported rows follow (Bevel, Multi-Cut, Insert Edge Loop, Connect, Detach), each naming the polygon modeling toolset (#46); Delete and Merge on the dial stay disabled or unsupported until those tools exist. There are no submenus, no hold-key or Shift and Ctrl variants (Shift, Ctrl or Alt with RMB open nothing), no Hotbox, no Marking Menu Editor and no custom hotkeys. Native evidence is by synthetic frame tests with explicit times; no real-window run has checked the look, the hold timing or the press-drag-release gesture (#32 T6).
 
 - Keyboard (PROVISIONAL, Maya documents none): Shift+F10 opens the menu; Right, Down and Tab move to the next entry, Left, Up and Shift+Tab to the previous, 1 to 9 pick by position, Enter and Space choose, Escape closes. Disabled and unsupported entries take keyboard focus so a screen reader can read their reasons (an `Unavailable:` description); choosing one is rejected and the reason goes to the Help Line.
 - A menu dismissed by a press stays in a Swallow state until that button releases; a Swallow does not block remote calls (only a Held or sticky Open menu does).
@@ -1905,6 +1935,21 @@ Only the RMB mesh menu exists: eight dial zones (Vertex, Edge, Face, Object Mode
 - Only a sticky (clicked or Shift+F10) dial is pulled inside the viewport, by a fixed 120 point margin (PROVISIONAL, set by the label layout); a viewport smaller than the dial gets it centred and parts are cut off. A held dial is drawn and read at the press point, so within 120 points of an edge some of its labels are cut off (moving the dial under a flick would make the shown zone differ from the picked one).
 - Shift or Ctrl with RMB only sets the Help Line text "not implemented yet". While a text field has focus (a screen reader can move focus into one under an open menu) the menu ignores its keys and leaves them to the field.
 - Not covered by a test (found in review, left open): the "Marking menu choice ignored: the editor is busy" status (no way found to keep a field focused through a viewport press in a frame test), an opened read-only `.mb` scene still switching mode, and keys the hook took in a frame where a modal then opens mid-frame (a remote close request), which are dropped with the menu.
+- An open menu closes without dispatching when the scene token or the selection generation changes by a path that did not go through the menu (a native action in the same frame, a test harness); remote mutations cannot arrive then, because an open or held menu refuses them with `busy_editing`. The remote `request_close` tool is refused the same way while the menu is Held or sticky Open (not in a Swallow); a window close request dismisses the menu through the modal path. Covered by `a_change_that_bypasses_the_menu_closes_it_before_a_choice_can_apply`.
+- Deferred, not planned in #32 (listed here so they stay discoverable once it closes): the Shift and Ctrl+RMB menus (Convert Selection, Create Polygon, Polygon Tools, tool menus), a hold-key trigger (hold a key, then press the mouse button), submenus, the Hotbox, the Marking Menu Editor, the Hotkey Editor and custom hotkeys, and the customisation request from the Discord thread.
+- No inspection field exposes the menu: it is a UI widget with no tool of its own, and `inspect_scene` reports only that a menu holds the editor, through `native_input_pending` (see `mcp.md`, coverage inventory). Which entries are enabled is a function of the selection mode and the Extrude refusal, both inspectable already.
+- Real-window (OCU) checklist, not yet run; every item needs a foreground launch, clicks in window points from the UI tree, and screenshots:
+  1. RMB click in an empty viewport area in Object mode: dial and Select list drawn and legible, UV, Multi, Paint and Inputs dimmed, hovering one shows its reason in the Help Line.
+  2. Click Vertex: the Status Line shows Vertex mode and the cube is not picked or deselected by the release.
+  3. Right-button `drag` toward Edge from the press point (a fast press, move and release, so the flick path); the dial is never drawn. Hold timing and hold-drag release are covered only by synthetic frames.
+  4. F11, pick a face, RMB: Extrude enabled and opens its window, Delete disabled with its reason, Select All disabled with its reason, and the 13-row list (the five unsupported rows Bevel, Multi-Cut, Insert Edge Loop, Connect and Detach after Assign Material) fits and reads well.
+  5. List placement: press near the right edge (list flips left), near the bottom and top edges (list shifts to stay inside), and in a very narrow window (list pinned to the left edge over the dial).
+  6. Corner clamp: a sticky dial opened within 120 pt of a corner is pulled inside and clicks hit the drawn wedges; a held dial opened there is drawn at the press point and its flick direction matches the labels.
+  7. Hold-drag: hold RMB past 0.25 s, the dial appears under the pointer, drag onto an entry and release to choose it; release in the dead zone after an excursion dismisses.
+  8. Shift+F10 with a toolbar button focused: the menu opens and Enter does not also activate the button.
+  9. Screen reader (VoiceOver on macOS): Focus and Click on entries and rows move menu focus and choose, a disabled entry reads its `Unavailable:` reason.
+  10. Keyboard: Shift+F10 opens, digits 1 to 9 and Right, Down, Left, Up, Tab and Shift+Tab move focus (disabled entries take it too, the Help Line shows the reason), Enter or Space chooses, Escape closes.
+  11. Alt pressed after the RMB press and dragged: the camera does not dolly; Alt+RMB drag with no menu still dollies.
 
 ## Freeze Transformations can bake shear and loses precision at extreme scale ratios
 
@@ -1918,6 +1963,46 @@ with scale 2,1,1) that matrix carries shear, so the mesh stores sheared points w
 The behavior is PROVISIONAL and not compared with Maya (#5). Point storage is f32, so world positions drift by
 about 4e-4 relative at a scale ratio of 1e3/1e-3; ordinary scales stay far below that. Mirrored nodes are refused
 whenever the scale is frozen (translate-only and rotate-only freezes of a mirrored node keep the mirror on the node).
+
+## Naming operations are PROVISIONAL and have no native dialog (#313 slice 3)
+
+Prefix Hierarchy Names and Search and Replace Names exist as typed operations and MCP tools (`prefix_hierarchy_names`,
+`search_replace_names`); the native Modify rows are visibly disabled because the prefix and search text dialogs are not
+built. The fetched Maya 2027 page (Change the name of one or more objects) and the 2014 and 2016 versions of the same
+pages say only that the prefix goes on the parent node and all its children and that the search covers all node
+names, the selected ones or those of a hierarchy; they do not state the prefix separator, clash handling, case
+sensitivity, pattern support, defaults or undo. Assumed: the prefix is prepended verbatim with no separator; matching
+is plain text (case-sensitive by default, ASCII case-insensitive on request, no regular expressions); a result that is
+invalid or clashes with any other node or shape name is refused for the whole edit, never made unique (AztecCraft names
+are unique across the scene, stricter than Maya's sibling rule); an instanced node is renamed once; nothing matching is
+refused (`invalid_name_edit`) instead of succeeding silently; the undo labels. Only transforms are renamed (derived
+shape names follow); other node types are not in the scene model. Not compared with Maya (#5).
+
+Edge cases: a restricted node (one with restrictions or unsupported transform data, or a restricted shape) anywhere
+in the target set, in an ancestor or descendant chain of a target, or, with scope `all`, anywhere in the scene,
+returns `unsupported_edit` and blocks the whole edit (not only for sourced scenes). The derived shape names are
+planned with the node names, so uniqueness is checked on the final scene (nodes and shapes together) and the result
+does not depend on application order: a chain such as `aaa`, `aa` with `aa` to `a` applies, because the final names
+are unique; a node name that equals a derived shape name is `name_collision`. A search and replace cannot swap two
+names (one search, one replacement). A resulting node or derived shape name over 4096 bytes (the MCP name limit;
+the `.ma` writer has none) is `invalid_name`. Known gap, not widened here: a plain rename (`validate_new_name`)
+checks node names only, so it can still produce a node name equal to an existing shape name.
+
+## Match Transformations refuses shear and cross-channel cases and is PROVISIONAL
+
+**Severity:** low
+**Area:** transform, native scene
+**Issue:** #313 (Match Transformations slice)
+
+The fetched Autodesk pages (Match Transformations Options, the `matchTransform` command, the Modify menu) do not
+state world versus local space, child handling, defaults or the behaviour with several objects; the menu page names
+the last selected object as the one matched and the command page lists position, rotation, scale and pivot flags.
+The native op assumes world space and writes only the chosen local channels, so a subset that would also need a
+different unchosen channel (a rotation-only match under a non-uniformly scaled parent that swaps its axes) or any
+shear is refused as `invalid_transform_edit`, never approximated. Match Pivots, bounding-box matching, per-axis
+flags, targets and moved objects with pivots, extras, keys or joints, and instanced objects are unsupported. Not
+compared with Maya (#5). Vocabulary: Maya's pages call the last selected object the "source" and the others
+"targets"; here the last selected is the "target" (also in `maya_map`), so the naming is inverted (no behavior change).
 
 ## Poly Helix and Soccer Ball are provisional (#466)
 
@@ -1952,3 +2037,121 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
 - One tick renders one frame on the UI thread. A very large frame on a software adapter can freeze the window
   for seconds, and Cancel cannot interrupt a frame in flight; it takes effect before the next frame.
 - `width` and `height` are required: no viewport size is stored, so there is no default to take.
+
+## Camera film back file persistence follow-ups (#458)
+
+**Severity:** medium
+**Area:** camera, Maya ASCII and Binary files
+**Issue:** #458
+
+- Follow-up F-458-1: a statement of `fl` alone is ignored (the viewport stays at the default focal
+  length for a Maya file that edited it) while `fl` plus any other attribute blocks the camera;
+  make a lone non-default `fl` block or be read too (PROVISIONAL, inconsistent today).
+- Follow-up F-458-2: a mesh file with a blocked camera is refused, because the authored gate must
+  re-emit every statement and meshes are never retained read-only. That likely affects most real
+  Maya scenes that contain meshes and a camera edit. The fix is to preserve a blocked camera's
+  statements as unknown source data (S2d and S2e) so the file opens with its camera intact.
+- Follow-up F-458-3: a blocked camera shows in the Open status line, `inspect_scene` and, as a note
+  (not a disabled state: the live-camera operation does not refuse it), in the Attribute Editor
+  Camera tab; the Help Line indicator is still missing. The tab edits the live camera lens, which
+  the scene's per-camera store (`camera_film_back`) does not yet feed, so blocked cameras and
+  file-stated film backs do not reach the rows. The tab shows the session lens values, not the
+  open file's film back, for every camera (non-blocked ones too) until S2b connects the store and
+  the lens. Esc on a focused field drops the typed text (Maya cancels the edit).
+
+## Playblast option box and MCP test limits (#460)
+
+**Severity:** low
+**Area:** playblast, native UI, tests
+**Issue:** #460
+
+- The Playblast Options window has no Esc or Enter handling, like the Create primitive dialogs; Start and Close are
+  clicked.
+- The Windows > Playblast menu item stays enabled while a job runs: the window opens to show progress and Cancel, and
+  the "already running" reason appears on Start.
+- The official-client protocol tests use the fake renderer; only the `headless_gpu` tests exercise a real adapter.
+- The end-to-end `headless_gpu_playblast_*` Editor tests (real `WgpuFrameRenderer`, PNGs read back) do not cover the
+  native window or its surface and colour management, frames larger than 128 x 128 (sizes 64 x 48, 100 x 60 and
+  128 x 128 only), a second adapter family (exact equality is asserted only between renders on one adapter, analytic
+  checks use +-2). Esc and the menu are unchecked.
+- The camera image plane is drawn into playblasts (PROVISIONAL, no Maya comparison): the plate is scene content, so
+  `show_ornaments` does not affect it; a sequence shows `frame + frame_offset`; the plate is placed by `plate_quad` at the
+  output aspect (the film gate is fitted into the output as in the viewport); a frame with no file renders without a plate
+  and the job continues, counted in `frames_without_plate` (`inspect_scene` `playblast`, the option box progress text;
+  a sequence template with no digits counts every frame; a plane hidden by its display mode, a single image and no plane
+  count 0; there is no `require_plate` flag because no caller needs one); an unreadable frame or a failed plate upload
+  stops the job with `playblast_render`. The plane is snapshotted at the start. Wireframe on shaded (#48, #49) and
+  movie containers remain open.
+- Image plane in playblasts, untested or unproven: portrait outputs and outputs that are neither square nor exactly the
+  film gate's aspect; sRGB window colour parity (the exact-equality test shares `Submission`, the plate shader and
+  `read_back` with the render it is compared to, so it cannot show a difference from the window).
+- The playblast calls the decoder (`decode_from_disk`) directly; it does not use the viewport's `PlateStream` or cache
+  (an injected decoder is used only by tests). Decoding is synchronous on the UI tick: a 32 MP plate can block the tick
+  for about a second and peaks at about 400 MB. Cancel is serviced between frames only.
+
+## Viewport View menu rows: the stale-token guard is tested only for Remove Image Plane
+
+**Area:** native UI, tests
+**Issue:** #459
+
+- Each View menu request in `Editor::viewport` (frame all, frame selection, view presets, Import Image, Image
+  Plane Attributes, Remove Image Plane) acts only when `self.scene_token == frame_token`. Only Remove Image Plane
+  has a test that a stale frame token is refused (`the_remove_row_is_ignored_when_the_frames_scene_token_is_stale`);
+  the other rows share the pattern but their guard is unpinned.
+
+## Camera image plane: implemented, not compared against Maya (#459)
+
+**Severity:** medium
+**Area:** viewport, parity, persistence
+**Issue:** #459
+
+One image plane on the live camera (View > Image Plane, the Attribute Editor Image Plane tab, MCP
+`set_image_plane`, `remove_image_plane` and `inspect_scene` `camera.image_plane`). No Maya render or screenshot
+was compared (#5), so this is implemented, not parity. Every choice below the Maya 2027 pages do not state is
+PROVISIONAL and pinned by a test (rows 68 to 72 of the policy constants table in `.project-docs/development.md`).
+
+- **Session only.** The plane is not saved in `.ma` or `.mb` and is cleared by New and Open.
+- **A scene that declares an imagePlane node is refused.** The `.ma` reader refuses a scene with an `imagePlane`
+  `createNode`, like any node class it does not model, with `ErrorKind::Unsupported` at an offset inside that
+  `createNode` (`an_image_plane_node_refuses_the_whole_scene_at_the_create_node`). Nothing is dropped, nothing is
+  turned into a session plane and nothing is executed. The error text is only "native ASCII scene Unsupported at byte
+  N": it does not name the imagePlane node. For `.mb` an unknown group form is refused the same way (a joint form is
+  pinned in `a_joint_form_is_refused_not_dropped_from_the_scene`), but the real form tag of an imagePlane in a
+  Maya-saved file is unconfirmed, so no `.mb` test exists. The exact `.ma` shape of a Maya-saved imagePlane needs a
+  Maya sample (#5). Reading and writing the scene node is deferred on #459.
+- **First-pass playback is not real time.** A cold pass over a sequence decodes on one worker thread and may show
+  the held frame or `loading`; once frames are cached a pass plays from the cache.
+- **The playing prefetch window does not wrap at the playback end.** Each loop wrap shows `loading` on its first
+  frame until it decodes (PROVISIONAL, a later refinement).
+- **A frame past the last file is `missing`.** The plate does not wrap, clamp or hold (PROVISIONAL).
+- **EXR, DPX, movies, free image planes, placement, colour and depth maps are unsupported.** Only PNG and JPEG
+  (also `.jpeg`) load. Size, Offset, Rotate, Squeeze Correction, Color Gain, Color Offset, Color Space, Depth Map and
+  Fit to Resolution Gate are drawn disabled with a reason (the resolution gate needs #55, colour management #49).
+- **Re-setting the same image name does not reload the file.** A changed file is picked up by Remove Image Plane
+  then Import Image, or by another name.
+- **Orthographic views show no plate.** The plate is drawn in perspective views only, and it is not drawn into
+  playblasts.
+- **Typed or keyed Image Number is unsupported** (it follows the time slider; keys need #52).
+- **The viewport summary line waits on #465 T7.** `Editor::viewport_summary()` is not on main. The plate state is
+  exposed meanwhile as real text in the status line ("Plate frame N: loading", "missing", "failed: <code>"), in the
+  Image Plane tab's Resolved Frame row and in `inspect_scene`; the line "image plane: <file>, frame N, <state>" is
+  added when T7 lands.
+
+## Align Objects is PROVISIONAL (#313)
+
+**Severity:** low
+**Area:** native scene, MCP
+**Issue:** #313
+
+- The fetched Maya 2027 pages (Snap Align Objects Options and Align objects) name Min, Mid, Max, Dist and Stack, the
+  Align To choices (Selection Average, Last Selected Object) and world axes, but not how rotated or scaled objects'
+  boxes are computed, any defaults, how Dist distributes or the undo label. The box here is the world axis-aligned box
+  of every mesh point at or below the object, Dist keeps the outermost objects (by box center) and equalizes the gaps
+  between boxes, and the undo label is "Align Objects". None of this is compared with Maya (#5).
+- Min and Max take the lowest and highest box coordinate on the axis. The Maya wording (side closest to or farthest
+  from 0) is PROVISIONAL (#5) and would pick different sides for boxes that lie below 0 (all-negative); not compared
+  with Maya. Pinned behavior: Dist with two objects changes nothing, and overlapping outer boxes give a negative gap
+  that is shared equally. Last Selected is the last object in selection order (the selection's lead), not outliner order.
+- Unbuilt: Stack, the options dialog (the Modify row is disabled), the Align Tool and Snap Align (SCN-054, SCN-056),
+  and the Selection Min, Selection Max and World Origin references. A selection holding an object below another
+  selected object is refused rather than ordered. Aligning twice can move an object by rounding (about 1e-15).

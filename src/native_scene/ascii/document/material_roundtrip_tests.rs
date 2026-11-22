@@ -145,3 +145,60 @@ fn files_without_materials_keep_both_legacy_layouts() {
         );
     }
 }
+
+#[test]
+fn non_black_lambert_attributes_round_trip_and_black_is_not_written() {
+    use crate::native_scene::LambertAttribute::{AmbientColor, Incandescence, Transparency};
+    let mut scene = NativeScene::default();
+    scene.create(Primitive::Cube, "a").unwrap();
+    let mut ids = Vec::new();
+    for _ in 0..3 {
+        ids.push(scene.create_session_material([0.5; 3]).unwrap());
+    }
+    scene
+        .set_session_material_attribute(ids[0], Transparency, [0.25, 0.5, 1.0])
+        .unwrap();
+    scene
+        .set_session_material_attribute(ids[1], Incandescence, [0.0, 0.0, 0.125])
+        .unwrap();
+    scene
+        .set_session_material_attribute(ids[1], AmbientColor, [0.5, 0.0, 0.0])
+        .unwrap();
+    let bytes = emit_geometry_prefix(&scene).unwrap();
+    let text = String::from_utf8(bytes.clone()).unwrap();
+    assert_eq!(text.matches("\".it\"").count(), 1);
+    assert_eq!(text.matches("\".ambc\"").count(), 1);
+    assert_eq!(text.matches("\".ic\"").count(), 1);
+    assert!(text.find("\".ambc\"").unwrap() < text.find("\".ic\"").unwrap());
+    let projection = authored(&bytes);
+    assert_eq!(
+        projection.scene().session_materials,
+        scene.session_materials
+    );
+    assert_eq!(emit_geometry_prefix(projection.scene()).unwrap(), bytes);
+    // An explicit black attribute is not what the writer emits, so it is refused, as are
+    // duplicates, a wrong order and a non-float3 type.
+    let black = replace(
+        &bytes,
+        "\tsetAttr \".it\" -type \"float3\" 0.25 0.5 1;\n",
+        "\tsetAttr \".it\" -type \"float3\" 0 0 0;\n",
+    );
+    refused(&black);
+    let dup = replace(
+        &bytes,
+        "\tsetAttr \".it\" -type \"float3\" 0.25 0.5 1;\n",
+        "\tsetAttr \".it\" -type \"float3\" 0.25 0.5 1;\n\tsetAttr \".it\" -type \"float3\" 0.25 0.5 1;\n",
+    );
+    refused(&dup);
+    let wrong_type = replace(
+        &bytes,
+        "\".it\" -type \"float3\"",
+        "\".it\" -type \"double3\"",
+    );
+    refused(&wrong_type);
+    let out_of_range = replace(&bytes, "0.25 0.5 1;\n", "0.25 0.5 2;\n");
+    refused(&out_of_range);
+    // Only the three known attributes are read; any other lambert attribute stays refused.
+    let unknown = replace(&bytes, "\".it\"", "\".xx\"");
+    refused(&unknown);
+}

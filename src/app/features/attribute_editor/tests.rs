@@ -489,3 +489,58 @@ fn tab_selection_is_refused_unless_the_attribute_editor_is_the_active_panel() {
         }
     }
 }
+
+#[test]
+fn the_camera_tab_needs_no_selection_survives_selection_changes_and_reports_kind_camera() {
+    let mut editor = Editor {
+        sidebar_dock: Some(AE),
+        ..Editor::default()
+    };
+    // Nothing selected: the tab still resolves, selects and is reported.
+    assert!(editor.effective_attribute_editor_tab().is_none());
+    assert!(matches!(
+        remote(&mut editor, tab_op(AttributeEditorTab::Camera)),
+        Ok(OperationReply::Changed)
+    ));
+    assert!(matches!(
+        remote(&mut editor, tab_op(AttributeEditorTab::Camera)),
+        Ok(OperationReply::Unchanged)
+    ));
+    assert_eq!(
+        inspected(&editor)["attribute_editor_tab"],
+        serde_json::json!({"kind": "camera", "id": null})
+    );
+    // A selection does not displace it, and neither does a new object.
+    editor.create(Primitive::Cube);
+    assert_eq!(
+        editor.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Camera)
+    );
+    editor.select(None);
+    assert_eq!(inspected(&editor)["attribute_editor_tab"]["kind"], "camera");
+    // Another tab replaces it, and it can be chosen again.
+    editor.create(Primitive::Cube);
+    let node = editor.selected().unwrap();
+    assert!(matches!(
+        remote(&mut editor, tab_op(AttributeEditorTab::Transform(node))),
+        Ok(OperationReply::Changed)
+    ));
+    assert!(matches!(
+        remote(&mut editor, tab_op(AttributeEditorTab::Camera)),
+        Ok(OperationReply::Changed)
+    ));
+}
+
+#[test]
+fn the_camera_tab_is_refused_unless_the_attribute_editor_is_active() {
+    let mut editor = Editor {
+        sidebar_dock: Some(CB),
+        ..Editor::default()
+    };
+    let before = editor.attribute_editor_tab;
+    assert!(matches!(
+        remote(&mut editor, tab_op(AttributeEditorTab::Camera)),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(editor.attribute_editor_tab, before);
+}

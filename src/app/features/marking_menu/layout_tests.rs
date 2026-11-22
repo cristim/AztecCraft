@@ -103,3 +103,17 @@ fn every_menu_action_names_a_registered_mcp_tool() {
         );
     }
 }
+
+/// Development.md rows 65 to 67 name these values; changing one means updating the row.
+#[test]
+fn the_menu_policy_constants_are_pinned() {
+    use super::layout::{DIAL_EXTENT, LIST_ROW, LIST_WIDTH};
+    assert_eq!(azteccraft::marking_menu::DRAW_DELAY, 0.25);
+    assert_eq!(azteccraft::marking_menu::FLICK_DISTANCE, 24.0);
+    assert_eq!(azteccraft::marking_menu::IDLE_DISMISS, 30.0);
+    assert_eq!(azteccraft::marking_menu::DEAD_ZONE, 12.0);
+    assert_eq!(DIAL_RADIUS, 110.0);
+    assert_eq!(DIAL_EXTENT, 120.0);
+    assert_eq!((LIST_WIDTH, LIST_ROW), (150.0, 22.0));
+    assert_eq!(super::paint::LABEL_RADIUS, 74.0);
+}

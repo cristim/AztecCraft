@@ -231,7 +231,7 @@ fn an_unencodable_scene_writes_nothing_and_reports_a_typed_error() {
     editor
         .history
         .execute(azteccraft::history::Command::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: azteccraft::native_scene::MaterialChoice::New {
                 color: [1.0, 0.0, 0.0],
             },

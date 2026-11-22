@@ -1,5 +1,5 @@
 #[cfg(any(test, feature = "mcp"))]
-use azteccraft::native_scene::{NativeTransform, ReparentKeep, TransformAttributes};
+use azteccraft::native_scene::{AlignOptions, NativeTransform, ReparentKeep, TransformAttributes};
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
@@ -40,12 +40,27 @@ pub enum MenuSet {
 }
 
 /// An Attribute Editor tab. Each variant names its owner: the selected transform, or a direct
-/// mesh shape (its own tab, or the material connected to it).
+/// mesh shape (its own tab, or the material connected to it). `ImagePlane` belongs to the live
+/// camera's session image plane (#459), so it needs a plane, not a selection. `Camera` belongs to
+/// the live camera's film back (#458): it needs neither a selection nor anything else, so it always
+/// resolves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AttributeEditorTab {
     Transform(NodeId),
     Shape(NativeId),
     Material(NativeId),
+    ImagePlane,
+    Camera,
+}
+
+/// Which names `Operation::SearchReplaceNames` edits, after Maya's Search and Replace Names
+/// scopes: the selected objects, the selection with everything below it, or every object.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NameScope {
+    Selected,
+    Hierarchy,
+    All,
 }
 
 /// Which objects `Operation::SelectByRule` selects, after Maya's Select menu rows. All selects
@@ -410,7 +425,6 @@ impl Operation {
 /// PROVISIONAL (#460): the playblast request, after Maya's `playblast` flags. `start` and `end`
 /// default to the playback range, `width` and `height` (the 100% size) are required until a
 /// painted viewport size is recorded.
-#[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlayblastRequest {
     pub directory: PathBuf,
@@ -425,10 +439,8 @@ pub struct PlayblastRequest {
     pub show_ornaments: bool,
 }
 
-#[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlayblastFormat {
-    #[cfg_attr(not(test), expect(dead_code, reason = "MCP tool pending (#460)"))]
     Png,
 }
 
@@ -510,13 +522,21 @@ pub enum Operation {
     },
     /// Native: Lighting/Shading > Assign New Material and Assign Existing Material.
     AssignSessionMaterial {
-        shape: NativeId,
+        shapes: Vec<NativeId>,
         material: azteccraft::native_scene::MaterialChoice,
     },
     #[cfg(any(test, feature = "mcp"))]
     SetSessionMaterialColor {
         material: azteccraft::native_scene::SessionMaterialId,
         color: [f64; 3],
+    },
+    /// Transparency, Ambient Color or Incandescence of a created material (#467); colour has
+    /// `SetSessionMaterialColor`.
+    #[cfg(any(test, feature = "mcp"))]
+    SetSessionMaterialAttribute {
+        material: azteccraft::native_scene::SessionMaterialId,
+        attribute: azteccraft::native_scene::LambertAttribute,
+        rgb: [f64; 3],
     },
     /// Moves the current time to a whole frame and writes every keyed channel there. Not an undo
     /// step. A draft refuses it, because the write refreshes the fields.
@@ -725,12 +745,8 @@ pub enum Operation {
         selection_only: bool,
     },
     /// Starts a playblast job on a snapshot of the scene; never edits the scene or its history.
-    #[cfg(any(test, feature = "mcp"))]
-    #[cfg_attr(not(test), expect(dead_code, reason = "MCP tool pending (#460)"))]
     Playblast(PlayblastRequest),
     /// Stops the running playblast, keeping the frames already written; `Unchanged` with none.
-    #[cfg(any(test, feature = "mcp"))]
-    #[cfg_attr(not(test), expect(dead_code, reason = "MCP tool pending (#460)"))]
     CancelPlayblast,
     /// File > Import of a Maya `.ma` or `.mb` file: adds its meshes to the scene as one undo
     /// step, each name prefixed with `prefix` when given.
@@ -805,6 +821,43 @@ pub enum Operation {
     /// Transformations" undo step. Object and Hierarchy modes only.
     FreezeTransformations {
         channels: TransformChannels,
+        expected_selection_generation: Option<u64>,
+    },
+    /// Modify > Match Transformations on the object selection: every selected object but the last
+    /// (the target, the lead) takes the target's world translate, rotate and scale limited to the
+    /// chosen channels, as one "Match Transformations" undo step. Object and Hierarchy modes only.
+    /// Vocabulary: Maya's pages call the last selected the "source" and the others "targets"; here
+    /// the last selected is the "target", so the naming is inverted (no behavior change).
+    MatchTransformations {
+        channels: TransformChannels,
+        expected_selection_generation: Option<u64>,
+    },
+    /// Modify > Snap Align Objects > Align Objects on the object selection: the world bounding
+    /// boxes of the selected objects line up per world axis (translate only), as one "Align
+    /// Objects" undo step. The last selected is the reference of `AlignTo::LastSelected`. Object
+    /// and Hierarchy modes only.
+    #[cfg(any(test, feature = "mcp"))]
+    AlignObjects {
+        options: AlignOptions,
+        expected_selection_generation: Option<u64>,
+    },
+    /// Modify > Prefix Hierarchy Names on the object selection: `prefix` is prepended to the name
+    /// of every selected object and of every transform below it (each once), as one "Prefix
+    /// Hierarchy Names" undo step. Object and Hierarchy modes only.
+    #[cfg(any(test, feature = "mcp"))]
+    PrefixHierarchyNames {
+        prefix: String,
+        expected_selection_generation: Option<u64>,
+    },
+    /// Modify > Search and Replace Names: every occurrence of `search` in the names of the
+    /// scope's objects becomes `replace`, as one "Search and Replace Names" undo step. `All`
+    /// needs no selection. Object and Hierarchy modes only.
+    #[cfg(any(test, feature = "mcp"))]
+    SearchReplaceNames {
+        scope: NameScope,
+        search: String,
+        replace: String,
+        match_case: bool,
         expected_selection_generation: Option<u64>,
     },
     /// Edit > Group on the object selection: the top-most selected objects become the children
@@ -946,13 +999,6 @@ pub enum Operation {
     /// named fields change, all or nothing. A `VerticalFov` lens becomes a film back with the
     /// defaults for unnamed fields. Allowed in every projection; the view follows once perspective.
     /// Unchanged is judged numerically; an empty edit is refused.
-    #[cfg_attr(
-        not(any(test, feature = "mcp")),
-        expect(
-            dead_code,
-            reason = "only the MCP tool constructs it until the Attribute Editor Camera tab (#458)"
-        )
-    )]
     SetCameraFilmBack(FilmBackEdit),
     /// Creates the camera image plane (`image_name` required) or edits it, all or nothing. View
     /// state like the pose: no undo, not saved, cleared by New and Open. A new `image_name`
@@ -1089,7 +1135,6 @@ pub enum OperationReply {
         vertices: usize,
         triangles: usize,
     },
-    #[cfg(any(test, feature = "mcp"))]
     PlayblastStarted {
         frames: u32,
         width: u32,
@@ -1138,6 +1183,11 @@ pub struct SceneInspection {
     pub grid_visible: bool,
     /// Snap to grids (`snapMode -grid`), off by default (PROVISIONAL: the docs state no default).
     pub snap_to_grid: bool,
+    /// What Snap to grids rounds to: the drawn grid line spacing in centimetres and the same
+    /// length in the scene linear unit (one unit for the default 5 and 5 options: the grid is drawn
+    /// in scene units); null for an unsupported linear unit, where a Move cannot be declared either.
+    /// PROVISIONAL (#5): Maya's pages do not say whether snapping uses subdivision or main lines.
+    pub snap_spacing: Option<SnapSpacingInspection>,
     pub shading: ShadingMode,
     pub menu_set: MenuSet,
     pub face_centres_hidden: bool,
@@ -1203,11 +1253,13 @@ pub struct TimelineInspection {
 /// The playblast job, of a fixed size. `state` is idle, running, finished, failed or cancelled;
 /// only the final component of the output directory is named, never its path.
 #[derive(Debug, Serialize)]
-#[cfg(any(test, feature = "mcp"))]
 pub struct PlayblastInspection {
     pub state: &'static str,
     pub frames_done: u32,
     pub frames_total: u32,
+    /// Rendered frames whose image plane had no plate image (no file for the frame, or a
+    /// sequence template without digits); those frames are in the sequence without a plate.
+    pub frames_without_plate: u32,
     pub width: u32,
     pub height: u32,
     pub directory_name: Option<String>,
@@ -1482,7 +1534,14 @@ pub struct SidebarPanelsInspection {
 #[cfg(any(test, feature = "mcp"))]
 pub struct AttributeEditorTabInspection {
     pub kind: &'static str,
-    pub id: String,
+    /// The node or shape id; null for the image plane and camera tabs, which have no owner id.
+    pub id: Option<String>,
+}
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct SnapSpacingInspection {
+    pub scene_units: f64,
+    pub cm: f64,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -1584,6 +1643,10 @@ pub struct SessionMaterialInspection {
     pub name: String,
     pub shading_group: String,
     pub color: [f64; 3],
+    /// Stored lambert attributes that do not yet affect the viewport (PROVISIONAL).
+    pub transparency: [f64; 3],
+    pub ambient_color: [f64; 3],
+    pub incandescence: [f64; 3],
     pub editable: bool,
     /// Authored shapes that display this material.
     pub shape_count: usize,
@@ -1628,6 +1691,10 @@ pub struct CameraInspection {
     pub native_gesture_active: bool,
     /// Millimetres, unknown for an explicit field-of-view lens.
     pub focal_length_mm: Option<f32>,
+    /// Cameras (`persp`, `top`, `front`, `side`) the opened file states in a way the editor cannot
+    /// carry (a partial film back or an unknown roll order id): the file keeps the statement, the
+    /// viewport shows its default lens and the film back cannot be edited.
+    pub blocked_cameras: Vec<&'static str>,
     /// The film back attributes in Maya's units as stored (f64, no rounding); null for an explicit
     /// field-of-view lens. An orthographic view reports the stored film back though it ignores it.
     pub film_back: Option<FilmBackInspection>,
@@ -1664,9 +1731,16 @@ pub struct ImagePlaneInspection {
     pub resolved_file_name: Option<String>,
     /// Current time plus `frame_offset` while `use_frame_extension` is on, else null.
     pub resolved_frame: Option<i64>,
-    /// `missing` (the resolved frame has no file name) or `not_loaded`. PROVISIONAL: the editor
-    /// runs no frame decoder yet, so `ready`, `loading` and `failed` are not reported.
+    /// `not_loaded` (the editor has not requested this frame yet), `loading`, `ready`, `missing`
+    /// or `failed`: what the last editor tick learned about the resolved frame, the source of the
+    /// status line text and of the viewport. After a time change through MCP it reads `not_loaded`
+    /// until the next UI tick, even when that frame is cached. PROVISIONAL naming (the Maya pages
+    /// have no such state).
     pub frame_state: &'static str,
+    /// When `frame_state` is `failed`, one of `io`, `too_large`, `header_too_large`,
+    /// `unsupported_format`, `corrupt`, `truncated`, `dimension_mismatch`, `internal`,
+    /// `worker_gone` or `missing`.
+    pub frame_error: Option<&'static str>,
     pub cache: ImagePlaneCacheInspection,
 }
 
@@ -1703,8 +1777,7 @@ pub struct ImagePlaneSizeInspection {
     pub height: u32,
 }
 
-/// PROVISIONAL: no decoded frames are held yet, so `frames` and `bytes` are 0; `budget_bytes` is
-/// the policy cap the cache will use.
+/// The decoded frames held (`frames`, `bytes`) and the policy cap (`budget_bytes`).
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct ImagePlaneCacheInspection {
@@ -1845,6 +1918,8 @@ pub enum OperationError {
     Reparent(NativeError),
     /// A reset or freeze the core refused; the MCP layer reports a typed code.
     Transform(NativeError),
+    /// A prefix or search and replace of names the core refused; the MCP layer reports a typed code.
+    Naming(NativeError),
     NoSelection,
     /// Edit > Repeat with no repeatable operation recorded in this session.
     NothingToRepeat,
@@ -1875,7 +1950,6 @@ pub enum OperationError {
     #[cfg(any(test, feature = "mcp"))]
     UsdExport(ExportError),
     /// Playblast refusal or failure; its text never carries the path.
-    #[cfg(any(test, feature = "mcp"))]
     Playblast(azteccraft::playblast::PlayblastError),
     /// A Maya import source that could not be read or decoded; carries no path or content.
     #[cfg(any(test, feature = "mcp"))]
@@ -2004,7 +2078,7 @@ impl fmt::Display for OperationError {
             Self::Keys(refusal) => refusal.native().fmt(f),
             Self::Pivot(error) => error.fmt(f),
             Self::Reparent(error) => error.fmt(f),
-            Self::Transform(error) => error.fmt(f),
+            Self::Transform(error) | Self::Naming(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face first"),
             Self::NothingToRepeat => f.write_str("No repeatable command yet"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
@@ -2021,7 +2095,6 @@ impl fmt::Display for OperationError {
             Self::ObjImport(error) => error.fmt(f),
             #[cfg(any(test, feature = "mcp"))]
             Self::GltfExport(error) | Self::UsdExport(error) => error.fmt(f),
-            #[cfg(any(test, feature = "mcp"))]
             Self::Playblast(error) => error.fmt(f),
             #[cfg(any(test, feature = "mcp"))]
             Self::MayaImportFile(error) => error.fmt(f),
@@ -2066,7 +2139,7 @@ pub const STATUS_MESSAGE_WITHHELD: &str = "File operation failed (details withhe
 #[cfg(test)]
 pub(crate) const MOVE_INSPECTION_MAX_BYTES: usize = 32 * 1024;
 #[cfg(test)]
-const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 240;
+const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 500;
 
 // The inspection preflight is a guaranteed minimum: each constant below is the serialized length
 // of the smallest value the DTO can take, so the sum never exceeds what `inspect_scene` writes and
@@ -2115,7 +2188,7 @@ const MIN_REFERENCE: &str = concat!(
     r#""renaming_prefix":null,"file_type":null,"deferred":null,"depth_info":null}"#
 );
 #[cfg(any(test, feature = "mcp"))]
-const MIN_SESSION_MATERIAL: &str = r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"editable":true,"shape_count":0}"#;
+const MIN_SESSION_MATERIAL: &str = r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"transparency":[0.0,0.0,0.0],"ambient_color":[0.0,0.0,0.0],"incandescence":[0.0,0.0,0.0],"editable":true,"shape_count":0}"#;
 /// One path element in an `instance_path` array: `"1",`. A non-empty array of L elements costs
 /// 4L + 1 bytes (the last element has no comma), so a member or target already counted with `[]`
 /// adds 4L - 1; a node's `instance_paths` entry is a whole array and is charged 4L.
@@ -2153,7 +2226,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
     r#""units":{"linear":"","angular":"","time":""},"save_available":true,"save_as_available":true,"#,
     r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
-    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"snap_to_grid":true,"shading":"","menu_set":"","#,
+    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"snap_to_grid":true,"snap_spacing":{"scene_units":0.0,"cm":0.0},"shading":"","menu_set":"","#,
     r#""face_centres_hidden":true,"vertex_markers_hidden":true,"#,
     r#""sidebar_panels":{"channel_box":true,"attribute_editor":true},"attribute_editor_tab":null,"#,
     r#""depth_complete":true,"clipping_complete":true,"appearance_incomplete":true,"#,
@@ -2166,11 +2239,11 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"undo_queue":[],"redo_queue":[],"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
-    r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"film_back":null,"image_plane":null,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
+    r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"blocked_cameras":[],"film_back":null,"image_plane":null,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
     r#""timeline":{"current_time":0,"animation_start":0,"animation_end":0,"playback_start":0,"playback_end":0,"playing":true,"#,
     r#""frames_per_second":0.0,"loop":"","key_count":0},"#,
-    r#""playblast":{"state":"","frames_done":0,"frames_total":0,"width":0,"height":0,"#,
+    r#""playblast":{"state":"","frames_done":0,"frames_total":0,"frames_without_plate":0,"width":0,"height":0,"#,
     r#""directory_name":null,"last_error":null}}"#
 );
 
@@ -2291,13 +2364,18 @@ mod tests {
     #[test]
     fn a_full_session_material_table_stays_well_inside_the_inspection_budget() {
         let materials = azteccraft::native_scene::MAX_SESSION_MATERIALS;
-        assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES * 2 <= MAX_REPLY_BYTES);
+        // Four colour arrays of f32-exact channels (the widest valid text is the smallest f32
+        // denormal as f64) no longer leave a 2x margin; the whole table still fits one reply.
+        assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES <= MAX_REPLY_BYTES);
         let widest = SessionMaterialInspection {
             id: (materials - 1).to_string(),
             // Material numbers are u32 (adding past u32::MAX is a resource-limit refusal).
             name: format!("lambert{}", u32::MAX),
             shading_group: format!("lambert{}SG", u32::MAX),
-            color: [-1.2345678901234567e-308; 3],
+            color: [f64::from(f32::from_bits(1)); 3],
+            transparency: [f64::from(f32::from_bits(1)); 3],
+            ambient_color: [f64::from(f32::from_bits(1)); 3],
+            incandescence: [f64::from(f32::from_bits(1)); 3],
             editable: true,
             shape_count: usize::MAX,
         };
@@ -2411,6 +2489,9 @@ mod tests {
             name: String::new(),
             shading_group: String::new(),
             color: zeros(),
+            transparency: zeros(),
+            ambient_color: zeros(),
+            incandescence: zeros(),
             editable: true,
             shape_count: 0,
         };

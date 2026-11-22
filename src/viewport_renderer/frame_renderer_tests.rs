@@ -26,7 +26,7 @@ fn frame_renderer(grid: bool) -> WgpuFrameRenderer {
     let viewport = ViewportRenderer::initialize(&creation).unwrap();
     let scene_at: SceneAt = Box::new(|_| Ok(cube_view()));
     viewport
-        .frame_renderer(scene_at, camera(), grid, ShadingMode::SmoothShadeAll)
+        .frame_renderer(scene_at, None, camera(), grid, ShadingMode::SmoothShadeAll)
         .map_err(|error| error.to_string())
         .unwrap()
 }
@@ -67,8 +67,13 @@ fn a_latched_device_error_fails_the_frame_without_a_panic() {
 #[test]
 fn a_renderer_without_a_window_device_reports_no_adapter() {
     let scene_at: SceneAt = Box::new(|_| Ok(cube_view()));
-    let result =
-        renderer_handle().frame_renderer(scene_at, camera(), true, ShadingMode::SmoothShadeAll);
+    let result = renderer_handle().frame_renderer(
+        scene_at,
+        None,
+        camera(),
+        true,
+        ShadingMode::SmoothShadeAll,
+    );
     assert_eq!(result.err(), Some(PlayblastError::NoAdapter));
 }
 
@@ -79,7 +84,7 @@ fn headless_gpu_playblast_frame_equals_the_viewport_render_path() {
     let viewport = ViewportRenderer::initialize(&creation).unwrap();
     let scene_at: SceneAt = Box::new(|_| Ok(cube_view()));
     let mut adapter = viewport
-        .frame_renderer(scene_at, camera(), true, ShadingMode::SmoothShadeAll)
+        .frame_renderer(scene_at, None, camera(), true, ShadingMode::SmoothShadeAll)
         .map_err(|error| error.to_string())
         .unwrap();
     let mut reference = Offscreen::from_context(&creation);
@@ -200,6 +205,7 @@ fn headless_gpu_playblast_flat_triangle_has_known_colour_and_orientation() {
     const COLOUR: [u8; 3] = [200, 50, 20];
     let (_, _, device, queue) = device_setup();
     let mut submission = Submission {
+        plate: None,
         bytes: Vec::new(),
         surfaces: 0..3,
         lines: 3..3,

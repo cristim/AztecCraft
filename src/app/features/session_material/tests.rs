@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::tests::remote;
-use azteccraft::native_scene::NativeScene;
+use azteccraft::native_scene::{GroupOptions, GroupPivot, GroupUnder, NativeScene};
 
 fn cube_editor() -> Editor {
     let mut editor = Editor::default();
@@ -74,19 +74,129 @@ fn refusals_name_the_reason_and_leave_the_scene_unchanged() {
         Err(OperationError::NoSelection)
     ));
     assert!(editor.session_material_disabled_reason().is_some());
-    editor.create(Primitive::Cube);
+    assert_eq!(editor.history.scene(), &before);
+}
+
+fn two_cube_editor() -> Editor {
+    n_cube_editor(2)
+}
+
+fn shape_materials(editor: &Editor) -> Vec<String> {
+    let scene = editor.history.scene();
+    scene
+        .shapes()
+        .iter()
+        .map(|shape| scene.session_material(shape).unwrap().name().to_owned())
+        .collect()
+}
+
+#[test]
+fn assign_applies_to_every_selected_object_as_one_undo_step() {
+    let mut editor = two_cube_editor();
+    assert_eq!(editor.session_material_targets().unwrap().len(), 2);
+    assert_eq!(editor.session_material_disabled_reason(), None);
+    let before = editor.history.scene().clone();
+    editor.assign_material_to_selection(new_lambert()).unwrap();
+    assert_eq!(shape_materials(&editor), ["lambert2", "lambert2"]);
+    assert_eq!(editor.history.scene().session_materials().len(), 2);
+    assert_eq!(
+        editor
+            .session_material_choices()
+            .iter()
+            .map(|row| row.2)
+            .collect::<Vec<_>>(),
+        [false, true]
+    );
+    editor.native_operation(Operation::Undo);
+    assert_eq!(editor.history.scene(), &before);
+    editor.native_operation(Operation::Redo);
+    assert_eq!(shape_materials(&editor), ["lambert2", "lambert2"]);
+}
+
+#[test]
+fn mixed_materials_mark_no_row() {
+    let mut editor = two_cube_editor();
+    editor.assign_material_to_selection(new_lambert()).unwrap();
+    let first = editor.history.scene().shapes()[0].id();
+    editor.native_operation(Operation::AssignSessionMaterial {
+        shapes: vec![first],
+        material: MaterialChoice::Existing(SessionMaterialId::from_index(0)),
+    });
+    assert!(editor.session_material_choices().iter().all(|row| !row.2));
+}
+
+#[test]
+fn a_selected_group_without_a_direct_shape_refuses_the_whole_selection() {
+    let mut editor = two_cube_editor();
+    let all = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(all);
+    editor
+        .apply_operation(Operation::Group {
+            options: GroupOptions {
+                under: GroupUnder::Parent,
+                pivot: GroupPivot::Center,
+                preserve_position: true,
+            },
+            expected_selection_generation: None,
+        })
+        .unwrap();
     editor.create(Primitive::Cube);
     editor.native_operation(Operation::SelectByRule(SelectRule::All));
+    assert!(
+        editor.selection.len() > 1,
+        "the group, its children and the new cube"
+    );
+    let before = editor.history.scene().clone();
+    let reason = editor.session_material_disabled_reason().unwrap();
+    assert_eq!(reason, MULTI_SHAPE_REASON);
     assert!(matches!(
         editor.assign_material_to_selection(new_lambert()),
-        Err(OperationError::MultipleSelection)
+        Err(OperationError::InvalidInput(ref r)) if r == MULTI_SHAPE_REASON
     ));
+    assert_eq!(editor.status, MULTI_SHAPE_REASON);
     assert!(editor.error);
-    assert_eq!(editor.session_material_choices().len(), 1);
-    assert_eq!(
-        editor.history.scene().session_materials(),
-        before.session_materials()
-    );
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn a_transform_with_two_direct_shapes_refuses_the_selection() {
+    let (mut editor, _directory) = open_with_attribute_editor("two.mb", &many_shapes(2));
+    let before = editor.history.scene().clone();
+    assert!(matches!(
+        editor.assign_material_to_selection(new_lambert()),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn two_selected_instances_of_one_transform_give_one_shape() {
+    let mut editor = two_cube_editor();
+    let first = editor.history.scene().transform_paths().unwrap()[0].clone();
+    let bare = TransformTarget {
+        node: first.node,
+        path: Vec::new(),
+    };
+    editor.set_selection_members_for_test(vec![first, bare]);
+    assert_eq!(editor.selection.len(), 2);
+    assert_eq!(editor.session_material_targets().unwrap().len(), 1);
+}
+
+#[test]
+fn multi_selection_assignment_keeps_the_draft_and_token_guards() {
+    let mut editor = two_cube_editor();
+    let shapes = editor.session_material_targets().unwrap();
+    let operation = || Operation::AssignSessionMaterial {
+        shapes: shapes.clone(),
+        material: new_lambert(),
+    };
+    let before = editor.history.scene().clone();
+    editor.name = "draft name".into();
+    assert!(matches!(
+        remote(&mut editor, operation()),
+        Err(OperationError::BusyEditing)
+    ));
+    assert_eq!(editor.history.scene(), &before);
 }
 
 #[test]
@@ -112,11 +222,11 @@ fn native_and_remote_assignment_give_equal_scenes() {
     other.native_operation(Operation::SelectByRule(SelectRule::All));
     assert_eq!(native.history.scene(), other.history.scene());
     native.assign_material_to_selection(new_lambert()).unwrap();
-    let shape = other.session_material_target().unwrap();
+    let shape = other.session_material_targets().unwrap()[0];
     remote(
         &mut other,
         Operation::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: new_lambert(),
         },
     )
@@ -183,7 +293,7 @@ fn an_opened_binary_scene_refuses_assignment_with_the_typed_reason() {
 fn several_direct_shapes_have_no_assignment_target() {
     let (mut editor, _directory) = open_with_attribute_editor("two.mb", &many_shapes(2));
     assert!(matches!(
-        editor.session_material_target(),
+        editor.session_material_targets(),
         Err(OperationError::InvalidInput(ref reason)) if reason == NO_SHAPE_REASON
     ));
     let before = editor.history.scene().clone();
@@ -227,9 +337,9 @@ fn a_pending_valid_draft_is_committed_by_the_native_assignment() {
 #[test]
 fn remote_assignment_is_refused_for_a_draft_and_a_stale_token() {
     let mut editor = cube_editor();
-    let shape = editor.session_material_target().unwrap();
+    let shape = editor.session_material_targets().unwrap()[0];
     let operation = || Operation::AssignSessionMaterial {
-        shape,
+        shapes: vec![shape],
         material: new_lambert(),
     };
     let before = editor.history.scene().clone();
@@ -255,4 +365,53 @@ fn remote_assignment_is_refused_for_a_draft_and_a_stale_token() {
         "{result:?}"
     );
     assert_eq!(editor.history.scene(), &before);
+}
+
+fn n_cube_editor(count: usize) -> Editor {
+    let mut editor = Editor::default();
+    for _ in 0..count {
+        editor.create(Primitive::Cube);
+    }
+    editor.native_operation(Operation::SelectByRule(SelectRule::All));
+    editor
+}
+
+#[test]
+fn exactly_the_cap_of_selected_shapes_assigns_as_one_undo_step() {
+    let mut editor = n_cube_editor(MAX_ASSIGN_SHAPES);
+    assert_eq!(editor.selection.len(), MAX_ASSIGN_SHAPES);
+    assert_eq!(
+        editor.session_material_targets().unwrap().len(),
+        MAX_ASSIGN_SHAPES
+    );
+    let before = editor.history.scene().clone();
+    editor.assign_material_to_selection(new_lambert()).unwrap();
+    let assigned = shape_materials(&editor);
+    assert_eq!(assigned.len(), MAX_ASSIGN_SHAPES);
+    assert!(assigned.iter().all(|name| name == "lambert2"));
+    editor.native_operation(Operation::Undo);
+    assert_eq!(editor.history.scene(), &before);
+    assert!(
+        shape_materials(&editor)
+            .iter()
+            .all(|name| name == "standardSurface1")
+    );
+}
+
+#[test]
+fn one_over_the_cap_refuses_natively_and_leaves_the_scene_unchanged() {
+    let mut editor = n_cube_editor(MAX_ASSIGN_SHAPES + 1);
+    assert_eq!(editor.selection.len(), MAX_ASSIGN_SHAPES + 1);
+    let before = editor.history.scene().clone();
+    let could_undo = editor.history.can_undo();
+    assert!(matches!(
+        editor.session_material_targets(),
+        Err(OperationError::InvalidInput(ref r)) if r == TOO_MANY_REASON
+    ));
+    assert!(matches!(
+        editor.assign_material_to_selection(new_lambert()),
+        Err(OperationError::InvalidInput(ref r)) if r == TOO_MANY_REASON
+    ));
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.history.can_undo(), could_undo);
 }

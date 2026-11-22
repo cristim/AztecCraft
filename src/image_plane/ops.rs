@@ -13,7 +13,7 @@ use super::model::{Coverage, ImagePlane, ImagePlaneEdit, ImagePlaneError, PlateC
 /// The file-tool path rule (`mcp.md`): 1 to 4096 UTF-8 bytes, no NUL.
 pub const MAX_IMAGE_NAME_BYTES: usize = 4096;
 /// PROVISIONAL (#459): the formats the decoder supports. Checked before any open.
-const ALLOWED_EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
+pub const ALLOWED_EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
 
 /// The plane and the size of its first frame (probed when the name last changed).
 #[derive(Clone, Debug, PartialEq)]

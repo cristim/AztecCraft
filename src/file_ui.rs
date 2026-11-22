@@ -418,7 +418,6 @@ impl Editor {
         path: Option<PathBuf>,
         camera: Camera,
     ) {
-        #[cfg(any(test, feature = "mcp"))]
         self.reset_playblast();
         self.scene_token = Uuid::new_v4();
         self.files.saved = scene.clone();

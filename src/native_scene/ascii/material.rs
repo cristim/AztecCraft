@@ -1,7 +1,7 @@
 //! Session-material statements of the authored ASCII subset (#156), read into a side table.
 //!
 //! Per session material `lambertN` (N >= 2) the layout is `createNode lambert -n "lambertN";`,
-//! `setAttr ".c" -type "float3" r g b;`, `createNode shadingEngine -n "lambertNSG";`,
+//! `setAttr ".c" -type "float3" r g b;` (then `.it`, `.ambc`, `.ic` in that order, each only when not black), `createNode shadingEngine -n "lambertNSG";`,
 //! `setAttr ".ro" yes;`, then the connects `"lambertN.oc" "lambertNSG.ss"`,
 //! `"lambertNSG.pa" ":renderPartition.st" -na`, `"lambertN.msg" ":defaultShaderList1.s" -na`, and
 //! per assigned shape `"<shape>.iog" "lambertNSG.dsm" -na` (an unassigned shape keeps its link to
@@ -20,8 +20,8 @@ use crate::native_scene::{
     NativeId, NativeMeshShape, NativeScene,
     admission::Budget,
     session_material::{
-        Lambert, MAX_SESSION_MATERIALS, SessionMaterialId, SessionMaterials, ShadingGroup,
-        lambert_number,
+        DEFAULT_LAMBERT_EXTRA, Lambert, MAX_SESSION_MATERIALS, SessionMaterialId, SessionMaterials,
+        ShadingGroup, lambert_number,
     },
 };
 use std::collections::BTreeMap;
@@ -30,6 +30,8 @@ use std::collections::BTreeMap;
 const COLOR: u32 = 1;
 const SHADER_OUT: u32 = 2;
 const SHADER_LIST: u32 = 4;
+/// Optional lambert attribute bits, outside `COMPLETE`: `it`, `ambc`, `ic`.
+const EXTRA_BITS: [u32; 3] = [8, 16, 32];
 /// Group owner bits: `ro`, `pa` into `:renderPartition.st`, a lambert wired to `ss`.
 const RENDERABLE: u32 = 1;
 const PARTITION: u32 = 2;
@@ -39,6 +41,7 @@ const COMPLETE: u32 = 7;
 pub(super) struct LambertParts {
     name: String,
     color: Option<[f64; 3]>,
+    extras: [[f64; 3]; 3],
 }
 
 pub(super) struct GroupParts {
@@ -172,6 +175,7 @@ impl Builder<'_, '_> {
             parts.lamberts.push(LambertParts {
                 name: stored,
                 color: None,
+                extras: [DEFAULT_LAMBERT_EXTRA; 3],
             });
             Kind::Lambert(parts.lamberts.len() - 1)
         };
@@ -197,6 +201,21 @@ impl Builder<'_, '_> {
                 c.done()?;
                 self.mark(owner, COLOR, c)?;
                 self.materials.lamberts[index].color = Some(color);
+            }
+            (Kind::Lambert(index), ".it" | ".ambc" | ".ic") => {
+                let slot = [".it", ".ambc", ".ic"]
+                    .iter()
+                    .position(|name| *name == attribute)
+                    .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
+                flags.typed("float3", c)?;
+                let value = [
+                    c.colour_channel()?,
+                    c.colour_channel()?,
+                    c.colour_channel()?,
+                ];
+                c.done()?;
+                self.mark(owner, EXTRA_BITS[slot], c)?;
+                self.materials.lamberts[index].extras[slot] = value;
             }
             (Kind::ShadingEngine(_), ".ro") => {
                 flags.plain(c)?;
@@ -298,7 +317,7 @@ impl Builder<'_, '_> {
         if parts.lamberts.len() != parts.groups.len()
             || self.owners.iter().any(|owner| {
                 matches!(owner.kind, Kind::Lambert(_) | Kind::ShadingEngine(_))
-                    && owner.attributes != COMPLETE
+                    && owner.attributes & COMPLETE != COMPLETE
             })
         {
             return Err(incomplete());
@@ -321,6 +340,9 @@ impl Builder<'_, '_> {
             table.materials.push(Lambert {
                 name: lambert.name,
                 color: lambert.color.ok_or_else(incomplete)?,
+                transparency: lambert.extras[0],
+                ambient_color: lambert.extras[1],
+                incandescence: lambert.extras[2],
             });
             table.groups.push(ShadingGroup {
                 name: group.name,
