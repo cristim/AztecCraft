@@ -1306,6 +1306,60 @@ fn help_line_text(editor: &mut Editor) -> String {
     channel_text(&output)
 }
 
+#[test]
+fn command_line_is_visible_but_cannot_take_input() {
+    use egui::accesskit::Role;
+
+    let context = egui::Context::default();
+    context.enable_accesskit();
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let scene = editor.history.scene().clone();
+    let token = editor.scene_token;
+    let status = editor.status.clone();
+    let history = (editor.history.can_undo(), editor.history.can_redo());
+    let input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(1100.0, 760.0),
+        )),
+        ..Default::default()
+    };
+    let mut output = context.run_ui(input.clone(), |ui| editor.render(ui));
+    output.textures_delta.clear();
+    assert!(channel_text(&output).contains("Scripting is unavailable"));
+    let field = egui::Id::unique("disabled_command_line");
+    let update = output.platform_output.accesskit_update.unwrap();
+    assert!(update.nodes.iter().any(|(id, node)| {
+        id.0 == field.value()
+            && node.role() == Role::TextInput
+            && node.label() == Some("Command Line")
+            && node.is_disabled()
+            && node.description() == Some("Unavailable: Scripting is unavailable")
+    }));
+
+    let pos = context.read_response(field).unwrap().rect.center();
+    let mut input = input;
+    input.events = vec![
+        egui::Event::PointerMoved(pos),
+        primary_button(pos, true),
+        primary_button(pos, false),
+        egui::Event::Text("createNode transform".into()),
+    ];
+    let mut output = context.run_ui(input, |ui| editor.render(ui));
+    output.textures_delta.clear();
+    assert!(!channel_text(&output).contains("createNode transform"));
+    assert!(!context.memory(|memory| memory.has_focus(field)));
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.status, status);
+    assert_eq!(
+        history,
+        (editor.history.can_undo(), editor.history.can_redo())
+    );
+    assert!(!editor.has_draft());
+}
+
 /// Channel Box text while the pointer rests on `field`, so tooltips are included.
 fn hover_texts(editor: &mut Editor, context: &egui::Context, field: egui::Id) -> String {
     context.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);

@@ -237,14 +237,15 @@ The bottom panel (`src/app/panels.rs "timeline_status"`) holds the timeline row 
 
 ## 10. Command Line and Help Line
 
-The bottom message (`src/app/panels.rs "&self.status"`) is an operation status line. Row order between Command Line, Help Line and Range Slider is UNCONFIRMED in the report.
+The bottom panel shows operation status, a disabled Command Line input and Help Line diagnostics. Relative row order and input dimensions are PROVISIONAL.
 
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |
-| Command Line input with MEL/Python toggle | [cmdline] | Missing | absent; no scripting | none | P2 | S12 Command and Help Line (#63) |
+| Command Line input | [cmdline] | Visible-unsupported | Disabled input with a visible and accessible reason in `src/app/panels.rs`; `command_line_is_visible_but_cannot_take_input` | none | P2 | S12 Command and Help Line (#63) |
+| Command Line MEL/Python toggle, history and Hold focus | [cmdline], [interface preferences][command-focus] | Missing | Absent; scripting tracked by #57 | none | P2 | S12 Command and Help Line (#63) |
 | Command Line result box and draggable divider | [cmdline] | Missing | absent | none | P3 | S12 Command and Help Line (#63) |
 | Script Editor button | [cmdline] | Missing | absent | none | P3 | S12 Command and Help Line (#63) |
-| Help Line along the bottom left | [helpline] | Missing | no tool-hint line; the nearest neighbour is the operation status line at `src/app/panels.rs "&self.status"` | none | P2 | S12 Command and Help Line (#63) |
+| Help Line along the bottom left | [helpline] | Partial | `src/app/features/node_edit.rs "fn help_line"` presents scene diagnostics; general tool, menu and workflow hints remain open | `inspect_scene` (`read_only`, `source_appearance`) | P2 | S12 Command and Help Line (#63) |
 
 ## 11. Modeling Toolkit
 
@@ -390,6 +391,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 [range]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-E9E054A1-A5D0-412C-976A-F57C0F6960B1.htm
 [playopts]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-9853B7B5-8AD5-46F6-A921-A3771A505AD1.htm
 [cmdline]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-4981A0A5-9418-4274-918C-561E33B0102D.htm
+[command-focus]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-FE5518DA-2177-44C9-8BC9-F0676EFEEDF9.htm
 [helpline]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-AD137576-F1CF-4A62-A7DA-E0ECF6524D11.htm
 [select]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-5C5F2B9B-BE16-4C49-B72B-70EA7CB4C688.htm
 <!-- select-2025: UNCONFIRMED. This is a JavaScript viewer URL, not a static help page. -->
