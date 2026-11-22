@@ -41,6 +41,7 @@ pub struct ViewScene {
     instances: Vec<ViewInstance>,
     curve_instances: Vec<ViewCurveInstance>,
     joints: Vec<ViewJoint>,
+    grid_spacing_cm: Option<f64>,
 }
 
 /// One joint as the viewport draws and picks it. Unlike a shape instance, `path` is the transform
@@ -338,7 +339,18 @@ impl ViewScene {
             instances,
             curve_instances,
             joints,
+            grid_spacing_cm: crate::snap::drawn_grid_spacing_cm(
+                crate::snap::DEFAULT_GRID_OPTIONS,
+                scene.units(),
+            )
+            .ok(),
         })
+    }
+
+    /// The distance between the viewport grid's lines in centimetres (the world unit), a length in
+    /// the scene linear unit; `None` for an unsupported unit, where no grid is drawn.
+    pub fn grid_spacing_cm(&self) -> Option<f64> {
+        self.grid_spacing_cm
     }
 
     pub fn instances(&self) -> &[ViewInstance] {

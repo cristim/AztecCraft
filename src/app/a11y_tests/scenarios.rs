@@ -179,7 +179,18 @@ fn newly_disabled_controls(captured: &Captured) -> impl Iterator<Item = super::E
 /// labels and its popup).
 const MIN_NEW_NODES: usize = 2;
 /// Scenarios in `all`; adding one means raising this, so a dropped line is noticed.
-const SCENARIOS: usize = 28;
+const SCENARIOS: usize = 32;
+
+fn tiny_png(dir: &std::path::Path) -> std::path::PathBuf {
+    let path = dir.join("plate.png");
+    let mut encoder = png::Encoder::new(std::fs::File::create(&path).unwrap(), 2, 2);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    let mut writer = encoder.write_header().unwrap();
+    writer.write_image_data(&[0; 16]).unwrap();
+    writer.finish().unwrap();
+    path
+}
 
 fn plain(rig: &Rig, base: Option<TreeUpdate>) -> Captured {
     Captured {
@@ -255,6 +266,12 @@ pub(super) fn all() -> Vec<Scenario> {
         ),
         ("menu-view", modeling, &["View"], "Frame All (A)"),
         (
+            "menu-view-image-plane",
+            modeling,
+            &["View", "Image Plane"],
+            "Import Image",
+        ),
+        (
             "menu-shading",
             modeling,
             &["Shading"],
@@ -291,6 +308,22 @@ pub(super) fn all() -> Vec<Scenario> {
     ] {
         all.push(menu_scenario(name, set, path, row));
     }
+    // With a plane the Remove row is enabled and must not carry a stale reason (R3b).
+    all.push(Scenario::new("menu-view-image-plane-set", "menus", || {
+        let dir = tempfile::tempdir().unwrap();
+        let path = tiny_png(dir.path());
+        let mut rig = Rig::new(true);
+        rig.editor.run_import_image(path);
+        rig.settle();
+        let base = rig.update();
+        rig.click("View");
+        rig.hover("Image Plane");
+        rig.settle();
+        Captured {
+            new_row: Some("Remove Image Plane"),
+            ..plain(&rig, Some(base))
+        }
+    }));
     all.extend(panels::scenarios());
     all.extend(dialogs::scenarios());
     all
@@ -355,4 +388,57 @@ fn gate_matches_the_recorded_gaps() {
     );
     let failures = ratchet_failures(&scenarios, &gaps::recorded());
     assert!(failures.is_empty(), "\n{}\n", failures.join("\n"));
+}
+
+/// (disabled, description) of the node named `label` in the open menu.
+fn row(rig: &Rig, label: &str) -> (bool, String) {
+    let update = rig.update();
+    let (_, node) = update
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some(label))
+        .unwrap_or_else(|| panic!("no row named {label:?}"));
+    (
+        node.is_disabled(),
+        node.description().unwrap_or("").to_owned(),
+    )
+}
+
+#[test]
+fn the_image_plane_menu_rows_follow_the_plane_state_with_their_reasons() {
+    let open = |rig: &mut Rig| {
+        rig.click("View");
+        rig.hover("Image Plane");
+        rig.settle();
+    };
+    let mut none = Rig::new(true);
+    open(&mut none);
+    assert_eq!(row(&none, "Import Image"), (false, String::new()));
+    let (disabled, reason) = row(&none, "Remove Image Plane");
+    assert!(
+        disabled && reason == "Unavailable: There is no image plane to remove",
+        "{reason}"
+    );
+    let (disabled, reason) = row(&none, "Image Plane Attributes");
+    assert!(
+        disabled && reason == "Unavailable: There is no image plane: use Import Image first",
+        "{reason}"
+    );
+
+    let dir = tempfile::tempdir().unwrap();
+    let mut some = Rig::new(true);
+    some.editor.run_import_image(tiny_png(dir.path()));
+    some.settle();
+    open(&mut some);
+    assert_eq!(row(&some, "Remove Image Plane"), (false, String::new()));
+    assert_eq!(row(&some, "Image Plane Attributes"), (false, String::new()));
+    // Both rows follow the stored plane, not what is drawn: with an orthographic camera nothing
+    // is drawn, and they stay enabled.
+    some.editor.native_operation(Operation::SetView(
+        crate::editor_operations::ViewPreset::Top,
+    ));
+    some.settle();
+    assert!(some.editor.plate_draw().is_none());
+    assert_eq!(row(&some, "Remove Image Plane"), (false, String::new()));
+    assert_eq!(row(&some, "Image Plane Attributes"), (false, String::new()));
 }

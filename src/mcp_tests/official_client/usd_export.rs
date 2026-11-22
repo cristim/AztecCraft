@@ -195,7 +195,7 @@ async fn sdk_export_usd_writes_new_files_and_never_changes_the_scene() {
         .unwrap();
     editor
         .apply_operation(Operation::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: azteccraft::native_scene::MaterialChoice::New {
                 color: [1.0, 0.0, 0.0],
             },

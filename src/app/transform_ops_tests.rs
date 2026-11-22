@@ -12,7 +12,7 @@ mod ascii_fixture {
     ));
 }
 
-const ALL: TransformChannels = TransformChannels::ALL;
+pub(super) const ALL: TransformChannels = TransformChannels::ALL;
 const MAKERS: [fn() -> Operation; 2] = [|| reset(ALL, None), || freeze(ALL, None)];
 
 fn reset(channels: TransformChannels, generation: Option<u64>) -> Operation {
@@ -54,7 +54,7 @@ fn posed(count: usize) -> (Editor, Vec<TransformTarget>) {
     (editor, all)
 }
 
-fn baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
+pub(super) fn baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
     (
         editor.history.scene().clone(),
         editor.selection.clone(),
@@ -66,13 +66,13 @@ fn baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
 }
 
 /// The nodes as a caller sees them, without the per-editor scene token.
-fn shape(editor: &Editor) -> serde_json::Value {
+pub(super) fn shape(editor: &Editor) -> serde_json::Value {
     let mut value = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
     value["scene_token"] = serde_json::Value::Null;
     value
 }
 
-fn depth(editor: &mut Editor) -> usize {
+pub(super) fn depth(editor: &mut Editor) -> usize {
     let mut count = 0;
     while editor.history.undo() {
         count += 1;

@@ -265,7 +265,7 @@ impl NativeScene {
     }
 
     /// The one instance of `node` in the scene.
-    fn sole_target(&self, node: NodeId) -> Result<TransformTarget, NativeError> {
+    pub(super) fn sole_target(&self, node: NodeId) -> Result<TransformTarget, NativeError> {
         let mut targets = self
             .transform_paths()?
             .into_iter()

@@ -1,7 +1,7 @@
 use super::features::{
     animation, camera_bookmarks, extrude, file, group, history, image_plane, inspect, manipulation,
-    material, move_vertices, node_edit, pivots, recovery, reduce, rigging, selection, status_line,
-    transform_ops, uv, view,
+    material, move_vertices, naming_ops, node_edit, pivots, playblast, recovery, reduce, rigging,
+    selection, status_line, transform_ops, uv, view,
 };
 use crate::editor_operations::{MAX_NAME_BYTES, RemoteRequest};
 use rmcp::model::{ErrorData, JsonObject, Tool, ToolAnnotations};
@@ -27,6 +27,7 @@ const FEATURES: &[&[ToolSpec]] = &[
     group::TOOLS,
     pivots::TOOLS,
     transform_ops::TOOLS,
+    naming_ops::TOOLS,
     extrude::TOOLS,
     reduce::TOOLS,
     move_vertices::TOOLS,
@@ -40,6 +41,7 @@ const FEATURES: &[&[ToolSpec]] = &[
     camera_bookmarks::TOOLS,
     status_line::TOOLS,
     file::TOOLS,
+    playblast::TOOLS,
     recovery::TOOLS,
 ];
 
@@ -66,12 +68,15 @@ pub(super) fn catalog() -> Vec<Tool> {
 }
 
 pub(super) fn parse_request(name: &str, arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
-    if ["name", "new_name"].iter().any(|key| {
-        arguments
-            .get(*key)
-            .and_then(Value::as_str)
-            .is_some_and(|name| name.len() > MAX_NAME_BYTES)
-    }) {
+    if ["name", "new_name", "prefix", "search", "replace"]
+        .iter()
+        .any(|key| {
+            arguments
+                .get(*key)
+                .and_then(Value::as_str)
+                .is_some_and(|name| name.len() > MAX_NAME_BYTES)
+        })
+    {
         return Err(ErrorData::invalid_params(
             "name exceeds 4096 UTF-8 bytes",
             None,
