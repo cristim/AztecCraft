@@ -1475,8 +1475,8 @@ compared with Maya: PROVISIONAL. Default View restores only the pose (target, di
 pitch); the far clip plane, which framing can grow, is not reset. Fn+Option+Left as Alt+Home on compact Mac keyboards is unchecked.
 Undo/Redo View Change and `[`/`]` now use a separate session camera history
 (PROVISIONAL cap 50 and button-drag grouping; #452). Camera changes create no
-scene-authoring undo entries. Native View > Bookmarks remains unsupported (#292);
-MCP bookmark operations exist.
+scene-authoring undo entries. View > Bookmarks recalls session poses (#292).
+Creating, renaming and deleting bookmarks currently use MCP.
 
 Set Camera Pose and `set_camera_pose` judge Changed/Unchanged numerically, so -0.0 over 0.0 (target, yaw or
 pitch) replies Unchanged while the stored sign bits flip; the view renders identically and inspect may show

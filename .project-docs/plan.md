@@ -187,3 +187,7 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+### Viewport bookmark recall (#292)
+
+[Maya 2027.2 Previous views](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-5DB3F04B-7CED-4CD2-9C02-8C9D1368266A.htm) documents recall by name from the viewport View > Bookmarks menu and storage on the camera. [cameraView](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/cameraView.html) documents editing a saved view and optional animation. The existing session store supplies the list in creation order. The menu uses the same guarded apply operation as MCP. Immediate recall, pose-only storage, and the position in the View menu are PROVISIONAL. Editing the list remains available through MCP.
