@@ -40,3 +40,9 @@ tests and 50 headless tests, plus formatting, strict lint and builds. These chec
 do not replace native coverage. macOS application Quit interception, Windows/Linux
 native behavior and complete document/menu journeys remain unverified. This
 record makes no Maya ASCII/Binary load, display or save claim.
+
+## Linux X11 visible idle and fully covered window (#13)
+
+Ran the Linux x86_64 debug build at `2d65489c1fb3a595e9cd658555bcbfa813f2ae06` with `--features mcp` and opt-in `--mcp-stdio` on Omarchy 4.5.0. Used one MCP session and an isolated 2560 x 1800 Xvfb display. The editor window was 1440 x 900. A second 1700 x 1050 native window at the same origin covered it and took focus. Verified X11 geometry and stacking order.
+
+Sent five `inspect_scene` calls per state after idle gaps of 0, 1, 5, 15 and 30 seconds. Measured request-to-reply with a monotonic clock. The visible window replied in 5.6 to 35.4 ms and the covered window in 1.8 to 13.0 ms. All ten replies were successful and below the 5-second editor deadline. This covers an X11 covered window and idle gaps up to 30 seconds. The macOS drawable-acquisition timeout remains unresolved.
