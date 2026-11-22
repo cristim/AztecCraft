@@ -117,7 +117,7 @@ The Tool Box rows below reflect the icon-only Tool Box change (feat/70-wire-ui-i
 | Quick Layout: single pane | [quicklayout] | Missing | absent; fixed layout of `egui::Panel` calls in `src/app/panels.rs "timeline_status"` | none | P2 | S8 Panels and quick layouts (#48 / #69) |
 | Quick Layout: four panes | [quicklayout] | Missing | absent | none | P2 | S8 Panels and quick layouts (#48 / #69) |
 | Quick Layout: two panes side by side | [quicklayout] | Missing | absent | none | P3 | S8 Panels and quick layouts (#48 / #69) |
-| Quick Layout: Outliner button | [quicklayout] | Missing | Outliner is always docked at `src/app/panels.rs "self.outliner(ui)"`; no button | none | P3 | S8 Panels and quick layouts (#48 / #69) |
+| Quick Layout: Outliner button | [quicklayout] | Partial | Tool Box button toggles the left Outliner dock. Placement below the other layout presets is pending | `set_sidebar_panel_visibility` | P3 | S8 Panels and quick layouts (#48 / #69) |
 | Restore Tool Box (Windows > UI Elements) | [toolbox] | Missing | absent | none | P3 | S8 Panels and quick layouts (#48 / #69) |
 
 ## 5. Viewport panel menus and Panel Toolbar

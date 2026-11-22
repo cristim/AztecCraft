@@ -170,7 +170,9 @@ pub(in crate::app) const MAX_SHAPE_TABS: usize = 16;
 pub(in crate::app) fn ctrl_a_target(dock: Option<SidebarPanel>) -> SidebarPanel {
     match dock {
         Some(SidebarPanel::AttributeEditor) => SidebarPanel::ChannelBox,
-        Some(SidebarPanel::ChannelBox) | None => SidebarPanel::AttributeEditor,
+        Some(SidebarPanel::ChannelBox | SidebarPanel::Outliner) | None => {
+            SidebarPanel::AttributeEditor
+        }
     }
 }
 

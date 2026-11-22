@@ -125,6 +125,7 @@ pub struct Editor {
     face_centres_hidden: bool,
     /// Last painted frame hid Wireframe vertex markers (occlusion check over budget).
     vertex_markers_hidden: bool,
+    outliner_visible: bool,
     sidebar_dock: Option<SidebarPanel>,
     sidebar_panel_request: Option<(SidebarPanel, bool)>,
     attribute_editor_tab: Option<AttributeEditorTab>,
@@ -212,6 +213,7 @@ impl Default for Editor {
             menu_set: MenuSet::default(),
             face_centres_hidden: false,
             vertex_markers_hidden: false,
+            outliner_visible: true,
             sidebar_dock: Some(SidebarPanel::ChannelBox),
             sidebar_panel_request: None,
             attribute_editor_tab: None,
@@ -311,7 +313,10 @@ impl Editor {
     }
 
     pub(super) fn sidebar_panel_visible(&self, panel: SidebarPanel) -> bool {
-        self.sidebar_dock == Some(panel)
+        match panel {
+            SidebarPanel::Outliner => self.outliner_visible,
+            _ => self.sidebar_dock == Some(panel),
+        }
     }
     #[cfg(feature = "mcp")]
     pub(crate) fn start_mcp(&mut self, context: &egui::Context) -> std::io::Result<()> {

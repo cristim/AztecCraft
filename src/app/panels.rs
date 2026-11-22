@@ -192,12 +192,31 @@ impl Editor {
                         self.native_operation(Operation::SetActiveTool(tool));
                     }
                 }
+                ui.separator();
+                if ui
+                    .add_enabled(
+                        live && self.history.active_manipulation().is_none(),
+                        egui::Button::new(RichText::new("Outliner").size(9.0))
+                            .wrap_mode(egui::TextWrapMode::Extend)
+                            .selected(self.outliner_visible),
+                    )
+                    .on_hover_text("Toggle Outliner")
+                    .on_disabled_hover_text("Finish the current operation to change the layout")
+                    .clicked()
+                {
+                    self.native_operation(Operation::SetSidebarPanelVisible {
+                        panel: SidebarPanel::Outliner,
+                        visible: !self.outliner_visible,
+                    });
+                }
             });
-        egui::Panel::left("outliner")
-            .default_size(200.0)
-            .size_range(150.0..=350.0)
-            .show(ui, |ui| self.outliner(ui));
-        // Exactly one sidebar panel is drawn: the dock holds a single active panel.
+        if self.outliner_visible {
+            egui::Panel::left("outliner")
+                .default_size(200.0)
+                .size_range(150.0..=350.0)
+                .show(ui, |ui| self.outliner(ui));
+        }
+        // Exactly one right sidebar panel is drawn: the dock holds a single active panel.
         let sidebar_enabled = !self.files.is_closing()
             && !self.files.is_modal()
             && self.history.active_manipulation().is_none();
@@ -220,7 +239,7 @@ impl Editor {
                         ui.add_enabled_ui(sidebar_enabled, |ui| self.attribute_editor(ui));
                     });
             }
-            None => {}
+            None | Some(SidebarPanel::Outliner) => {}
         }
         egui::CentralPanel::default().show(ui, |ui| {
             self.viewport(

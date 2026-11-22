@@ -269,3 +269,54 @@ async fn sdk_inspection_withholds_file_error_status_and_bounds_length() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_outliner_visibility_is_independent_and_guarded() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let token = editor.scene_token.to_string();
+    let scene = editor.history.scene().clone();
+    let args = json!({"scene_token":token,"panel":"outliner","visible":false});
+    editor.name = "humanDraft".into();
+    let refused = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_sidebar_panel_visibility",
+        args.clone(),
+    )
+    .await;
+    assert_eq!(
+        refused.structured_content.unwrap()["error"]["code"],
+        "busy_editing"
+    );
+    assert!(editor.outliner_visible);
+    editor.sync_fields();
+    for outcome in ["changed", "unchanged"] {
+        let hidden = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_sidebar_panel_visibility",
+            args.clone(),
+        )
+        .await;
+        assert_eq!(hidden.structured_content.unwrap()["outcome"], outcome);
+    }
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await;
+    let panels = &inspected.structured_content.unwrap()["inspection"]["sidebar_panels"];
+    assert_eq!(panels["outliner"], false);
+    assert_eq!(panels["channel_box"], true);
+    assert_eq!(editor.history.scene(), &scene);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

@@ -554,6 +554,7 @@ impl Editor {
             face_centres_hidden: self.face_centres_hidden,
             vertex_markers_hidden: self.vertex_markers_hidden,
             sidebar_panels: SidebarPanelsInspection {
+                outliner: self.outliner_visible,
                 channel_box: self.sidebar_panel_visible(SidebarPanel::ChannelBox),
                 attribute_editor: self.sidebar_panel_visible(SidebarPanel::AttributeEditor),
             },

@@ -6248,7 +6248,8 @@ mod toolbox_wire {
         in_column.sort_by(|a, b| a.rect.top().total_cmp(&b.rect.top()));
         let column_labels: Vec<&str> = in_column.iter().map(|c| c.label.as_str()).collect();
         assert_eq!(
-            column_labels, TOOLBOX,
+            column_labels,
+            [TOOLBOX.as_slice(), &["Outliner"]].concat(),
             "every control in the Tool Box column"
         );
         assert!(

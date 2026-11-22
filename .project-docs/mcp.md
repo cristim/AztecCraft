@@ -118,7 +118,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `create_joint` | `parent_id`, `position`, `relative`, `radius`, `name`: all optional | Created `node_id`, selected with its full path; `nodes[].joint.radius` in inspection; refusal `unsupported_joint` for a non-joint parent, a singular parent or a radius outside above 0 through 1e6 (PROVISIONAL safety bound) |
 | `set_shading_mode` | `mode`: required, `"wireframe"` or `"smooth_shade_all"` | Changed or unchanged shading mode in this window's viewport |
 | `set_viewport_view` | `view`: required, `"persp"`, `"top"`, `"front"` or `"side"` | Changed or unchanged viewport camera view |
-| `set_sidebar_panel_visibility` | `panel`: required, `"channel_box"` or `"attribute_editor"`; `visible`: required boolean | Changed or unchanged visibility of that sidebar panel in this window; the dock shows one panel, so showing one hides the other |
+| `set_sidebar_panel_visibility` | `panel`: required, `"outliner"`, `"channel_box"` or `"attribute_editor"`; `visible`: required boolean | Changed or unchanged visibility of that sidebar panel in this window; Outliner is independent. Showing one right panel hides the other |
 | `select_attribute_editor_tab` | `tab`: required `{kind, id}`; `kind`: `"transform"`, `"shape"`, `"material"`, `"image_plane"` or `"camera"`; `id`: decimal id (the selected node for `transform`, a direct shape for `shape`; for `material` a direct shape with a saved Phong binding or, on an authored scene, a session material, which every authored shape has; `image_plane` takes no `id`, needs no selection and is refused when there is no image plane; `camera` takes no `id`, needs neither a selection nor a plane and always resolves) | Changed or unchanged Attribute Editor tab; refused as `invalid_input` unless `attribute_editor` is the active panel or when the tab does not resolve for the current selection |
 | `orbit_camera` | `radians`: two finite numbers, yaw and pitch deltas | Changed or unchanged camera; pitch clamps near the poles |
 | `undo_view_change` / `redo_view_change` | none | View > Undo/Redo View Change, [ / ]; separate session camera history (PROVISIONAL cap 50 each direction). Empty reports unchanged. Guarded like other camera mutations |
@@ -694,7 +694,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Viewport | Hardware Texturing, Use All Lights, Wireframe on Shaded, Use default material | unsupported | | | |
 | Snapping | Snap to grids for Move (MCP only; no Status Line button or X hotkey yet) | supported | `set_snap_mode` | `snap_to_grid`, `snap_spacing` | PROVISIONAL semantics |
 | Snapping | Snap to curves, points, projected center, view planes and surface (step snap for Rotate and Scale is supported, see the Tools rows) | unsupported | | | |
-| Settings | Sidebar panel visibility (Channel Box, Attribute Editor, Ctrl+A) | supported | `set_sidebar_panel_visibility` | `sidebar_panels` | |
+| Settings | Sidebar panel visibility (Outliner, Channel Box, Attribute Editor, Ctrl+A) | supported | `set_sidebar_panel_visibility` | `sidebar_panels` | |
 | Settings | Attribute Editor tab | supported | `select_attribute_editor_tab` | `attribute_editor_tab` | |
 | Settings | Attribute Editor Pin Tab (disabled button) and read-only shape attributes | unsupported | | | |
 | Settings | Menu set (Modeling, Rigging and Rendering) | supported | `set_menu_set` | `menu_set` | |

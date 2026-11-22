@@ -187,3 +187,7 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+### Outliner Quick Layout button (#69)
+
+The [Maya 2027.2 Quick Layout and Outliner buttons](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-693FBB4C-4010-4D55-8215-67FBE19114E7.htm) sit below the Tool Box and the bottom button opens the Outliner. Reuse the existing guarded sidebar visibility operation with an independent Outliner selector. The left dock, initially visible, and toggling it closed with the same button are PROVISIONAL.

@@ -3023,6 +3023,13 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         )],
         Operation::SetSidebarPanelVisible { .. } => vec![
             sample(
+                "set_sidebar_panel_visibility(outliner,false)",
+                Operation::SetSidebarPanelVisible {
+                    panel: crate::editor_operations::SidebarPanel::Outliner,
+                    visible: false,
+                },
+            ),
+            sample(
                 "set_sidebar_panel_visible(channel_box,false)",
                 Operation::SetSidebarPanelVisible {
                     panel: crate::editor_operations::SidebarPanel::ChannelBox,
@@ -3236,6 +3243,12 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         ("grid", editor.grid_visible.to_string()),
         ("shading", format!("{:?}", editor.shading)),
         ("menu_set", format!("{:?}", editor.menu_set)),
+        (
+            "outliner_visible",
+            editor
+                .sidebar_panel_visible(crate::editor_operations::SidebarPanel::Outliner)
+                .to_string(),
+        ),
         (
             "sidebar_panels",
             format!(
