@@ -1,7 +1,7 @@
 [
   {
     "name": "inspect_scene",
-    "description": "Inspect committed editor state, including an active manipulation preview (Move, Rotate or Scale; a component Move in Vertex, Edge or Face selection reports kind move_components with component_kind, vertex_count and null channels, baseline_channels and current_channels), document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. A node's read-only `transform_attributes` (rotate order, rotate axis in degrees, shear, rotate and scale pivots, pivot translations, `inherits_transform`, `offset_parent_matrix` (row-vector as stored, translation row in the scene's linear unit, omitted when it is the identity; the `inherits_transform` false plus offset combination is PROVISIONAL, unverified against Maya) and `non_default`) reports transform extras and is present only when at least one is non-default. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. `status_message` mirrors the native status line text (null when empty, capped at 512 characters, a fixed notice instead of file-error text that can carry a local path). `camera` reports the view (persp, top, front, side or ortho), the projection (perspective or orthographic) and the pose: target, eye, distance, yaw/pitch in degrees, vertical field of view at the current viewport aspect and clip planes, `focal_length_mm` (null for a lens specified only by field of view), `film_back` (the stored film back in the units and names of set_camera_film_back, null for a field-of-view lens), `image_plane` (null without a plane; else the `set_image_plane` settings with `depth_cm` in centimetres, `image_size`, `resolved_file_name` (the file name only, never the directory), `resolved_frame` (current time plus `frame_offset` while `use_frame_extension` is on, else null), `frame_state` (`not_loaded`, or `missing` when the frame has no file name; PROVISIONAL, no frame decoder runs yet so ready/loading/failed are not reported) and `cache` (`frames` and `bytes` are 0 for now, `budget_bytes` is the policy cap)), and `center_of_interest_cm` (eye-to-target distance). `can_undo_view` and `can_redo_view` report session camera-history availability. `native_gesture_active` reports a held native camera gesture that blocks remote mutation even without new pointer events. These describe the session viewport camera, not imported camera nodes. `manipulation.viewport` reports the last native pointer's pick: `pointer_hit` for the active tool's handle and `pointer_disabled` for a drawn-but-unsupported handle and `pointer_refusal` for why a Rotate or Scale press there would be refused (with a hit: that handle; with a null hit: the whole tool, for example a mirrored frame; null for Move), all null during an active manipulation. They mirror the painted highlight, so window focus, an open popup or a file modal do not null them; a hidden window has no `viewport`, and a view build error (for example an overflowing scale) nulls `viewport` from the first frame after the edit until a frame builds a view. No CV arrays or script bodies are exposed. A scene too large for one reply is read in pages: pass `node_limit` (50 to 100 suits most clients) and follow `page.next_cursor` while `page.truncated` is true; the cursor goes stale (`stale_scene`) as soon as the scene changes, and then the walk restarts without a cursor. Every page repeats the selection, camera and editor state; a shape or curve appears on the page of the node that holds it",
+    "description": "Inspect committed editor state, including an active manipulation preview (Move, Rotate or Scale; a component Move in Vertex, Edge or Face selection reports kind move_components with component_kind, vertex_count and null channels, baseline_channels and current_channels), document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. A node's read-only `transform_attributes` (rotate order, rotate axis in degrees, shear, rotate and scale pivots, pivot translations, `inherits_transform`, `offset_parent_matrix` (row-vector as stored, translation row in the scene's linear unit, omitted when it is the identity; the `inherits_transform` false plus offset combination is PROVISIONAL, unverified against Maya) and `non_default`) reports transform extras and is present only when at least one is non-default. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. `status_message` mirrors the native status line text (null when empty, capped at 512 characters, a fixed notice instead of file-error text that can carry a local path). `camera` reports the view (persp, top, front, side or ortho), the projection (perspective or orthographic) and the pose: target, eye, distance, yaw/pitch in degrees, vertical field of view at the current viewport aspect and clip planes, `focal_length_mm` (null for a lens specified only by field of view), `blocked_cameras` (names of cameras whose film back the opened file states in a way the editor cannot carry: the viewport shows its default lens for them), `film_back` (the stored film back in the units and names of set_camera_film_back, null for a field-of-view lens), `image_plane` (null without a plane; else the `set_image_plane` settings with `depth_cm` in centimetres, `image_size`, `resolved_file_name` (the file name only, never the directory), `resolved_frame` (current time plus `frame_offset` while `use_frame_extension` is on, else null), `frame_state` (`not_loaded` before the editor has requested the frame, which includes the moment after a time change until the next UI tick even when the frame is cached, else `loading`, `ready`, `missing` or `failed`; the same state the status line and the viewport use, PROVISIONAL naming), `frame_error` (when failed, one of `io`, `too_large`, `header_too_large`, `unsupported_format`, `corrupt`, `truncated`, `dimension_mismatch`, `internal`, `worker_gone`, `missing`) and `cache` (`frames` and `bytes` of decoded frames held, `budget_bytes` the policy cap)), and `center_of_interest_cm` (eye-to-target distance). `can_undo_view` and `can_redo_view` report session camera-history availability. `native_gesture_active` reports a held native camera gesture that blocks remote mutation even without new pointer events. These describe the session viewport camera, not imported camera nodes. `manipulation.viewport` reports the last native pointer's pick: `pointer_hit` for the active tool's handle and `pointer_disabled` for a drawn-but-unsupported handle and `pointer_refusal` for why a Rotate or Scale press there would be refused (with a hit: that handle; with a null hit: the whole tool, for example a mirrored frame; null for Move), all null during an active manipulation. They mirror the painted highlight, so window focus, an open popup or a file modal do not null them; a hidden window has no `viewport`, and a view build error (for example an overflowing scale) nulls `viewport` from the first frame after the edit until a frame builds a view. No CV arrays or script bodies are exposed. A scene too large for one reply is read in pages: pass `node_limit` (50 to 100 suits most clients) and follow `page.next_cursor` while `page.truncated` is true; the cursor goes stale (`stale_scene`) as soon as the scene changes, and then the walk restarts without a cursor. Every page repeats the selection, camera and editor state; a shape or curve appears on the page of the node that holds it",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2650,7 +2650,7 @@
   },
   {
     "name": "reset_transformations",
-    "description": "Modify > Reset Transformations on every selected object, in one undo entry named Reset Transformations: the chosen channels (translate, rotate, scale; all true by default) return to 0, 0 and 1. Children are not compensated and follow their parent. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_transform_edit for no channel, a joint or a keyed object; a Maya ASCII scene is read-only (read_only_format). All or nothing, with the scene and history untouched on any refusal. Match Transformations and the Joint orient, Lock Normals and Preserve Normals options are unsupported (PROVISIONAL: option defaults and shear and rotate-order cases are not compared with Maya)",
+    "description": "Modify > Reset Transformations on every selected object, in one undo entry named Reset Transformations: the chosen channels (translate, rotate, scale; all true by default) return to 0, 0 and 1. Children are not compensated and follow their parent. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_transform_edit for no channel, a joint or a keyed object; a Maya ASCII scene is read-only (read_only_format). All or nothing, with the scene and history untouched on any refusal. The Joint orient, Lock Normals and Preserve Normals options are unsupported (PROVISIONAL: option defaults and shear and rotate-order cases are not compared with Maya)",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2741,6 +2741,234 @@
     "annotations": {
       "readOnlyHint": false,
       "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "match_transformations",
+    "description": "Modify > Match Transformations on the object selection, in one undo entry named Match Transformations: every selected object except the last selected (the target, the lead) takes the target's WORLD transform for the chosen channels (translate, rotate, scale; all true by default), written as new local channels under each object's parent. Unchosen channels keep their stored bits. Children are not compensated and move with their parent. Objects are matched shallowest first, so a selected descendant of a selected object also ends on the target. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_transform_edit for fewer than two objects, no channel (all three false, unlike the native none-chosen-means-all path), a target below a selected object, a joint, a keyed object, an instanced object, non-default pivots or transform extras on the target or a moved object, a zero-scaled parent, or a result the stored translate, rotate and scale channels cannot hold exactly (shear, mirroring, or a rotation under a non-uniformly scaled parent that would also need a different scale: refused, never approximated); a Maya ASCII scene or a sourced scene is refused (read_only_format, unsupported_edit), and so is a scene with non-default units (unsupported_edit). All or nothing, with the scene and history untouched on any refusal. Match Pivots and bounding-box matching are unsupported (PROVISIONAL, not compared with Maya matchTransform: the docs do not state world versus local space or child handling)",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_selection_generation": {
+          "default": null,
+          "description": "The `selection_generation` that `inspect_scene` reported. With several objects selected\nthe value is required, and a value that no longer matches the selection is refused.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "rotate": {
+          "default": true,
+          "description": "Include Rotate (default true).",
+          "type": "boolean"
+        },
+        "scale": {
+          "default": true,
+          "description": "Include Scale (default true).",
+          "type": "boolean"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "translate": {
+          "default": true,
+          "description": "Include Translate (default true).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "TransformationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "align_objects",
+    "description": "Modify > Snap Align Objects > Align Objects on the object selection, in one undo entry named Align Objects: the selected objects move along the WORLD axes so their world bounding boxes line up. The box of an object is the axis-aligned world box of every mesh point at or below it. Per axis x, y and z choose none (default, the axis is untouched), min (the lowest box coordinate on that axis), mid (the box centers), max (the highest box coordinate) or dist (the outermost objects by box center stay and the gaps between the boxes become equal). align_to (default selection_average) is the reference for min, mid and max: the average of the selected boxes' value, or last_selected, the box of the last object in selection order, which does not move; dist ignores it. Only each moved object's translate channels are written (through its parent's inverse, so rotated or scaled parents are fine); rotate and scale keep their bits and children follow their parent. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_transform_edit for fewer than two objects, all three axes none, a joint, a keyed object, an instanced object, non-default pivots or transform extras, an object with no mesh below it (no bounding box), a curve below an object, a selected object below another selected object, a zero-scaled parent, or a result the stored translate cannot hold exactly; a Maya ASCII scene or a sourced scene is refused (read_only_format, unsupported_edit), and so is a scene with non-default units (unsupported_edit). All or nothing, with the scene and history untouched on any refusal. Stack, the selection min and max and world origin references and the Align Tool are unsupported. PROVISIONAL (#5, not compared with Maya): Maya words min and max as the side closest to or farthest from 0, which differs from the lowest and highest coordinate used here for all-negative boxes; dist with two objects changes nothing; the fetched Maya 2027 Align Objects pages do not state how rotated or scaled objects' boxes are computed, any defaults or how dist distributes, so the world box of the mesh points, the defaults and the dist rule are this editor's choice",
+    "inputSchema": {
+      "$defs": {
+        "AlignModeInput": {
+          "enum": [
+            "none",
+            "min",
+            "mid",
+            "max",
+            "dist"
+          ],
+          "type": "string"
+        },
+        "AlignToInput": {
+          "enum": [
+            "selection_average",
+            "last_selected"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "align_to": {
+          "$ref": "#/$defs/AlignToInput",
+          "description": "The reference for min, mid and max: selection_average (default) or last_selected."
+        },
+        "expected_selection_generation": {
+          "default": null,
+          "description": "The `selection_generation` that `inspect_scene` reported. With several objects selected\nthe value is required, and a value that no longer matches the selection is refused.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "x": {
+          "$ref": "#/$defs/AlignModeInput",
+          "description": "What the world X axis does: none (default), min, mid, max or dist."
+        },
+        "y": {
+          "$ref": "#/$defs/AlignModeInput",
+          "description": "What the world Y axis does: none (default), min, mid, max or dist."
+        },
+        "z": {
+          "$ref": "#/$defs/AlignModeInput",
+          "description": "What the world Z axis does: none (default), min, mid, max or dist."
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "AlignObjectsArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "prefix_hierarchy_names",
+    "description": "Modify > Prefix Hierarchy Names on the object selection, in one undo entry named Prefix Hierarchy Names: prefix is prepended verbatim (no separator) to the name of every selected object and of every transform below it, each node once (an instanced node is renamed once; its name is shared by all its paths). Derived shape names follow. Pass expected_selection_generation from inspect_scene; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection. Refused with invalid_name_edit for an empty prefix, invalid_name when a resulting name would not be a valid identifier (letters, digits and underscore, not starting with a digit), name_collision when a resulting name is already taken or two resulting names would be equal (clashes are refused, never made unique); a Maya ASCII scene or a sourced scene is refused (read_only_format, unsupported_edit). A restricted node (one the scene cannot edit) among the targets, or anywhere in an ancestor or descendant chain of a target (every scope, so also all), refuses the whole edit as unsupported_edit. Derived shape names take part in the uniqueness check, independent of order; a resulting name or derived shape name over 4096 bytes is invalid_name. All or nothing, with the scene and history untouched on any refusal. Not idempotent: calling it twice prefixes twice. PROVISIONAL, not compared with Maya: its pages do not state the separator or clash handling",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_selection_generation": {
+          "default": null,
+          "description": "The `selection_generation` that `inspect_scene` reported. With several objects selected\nthe value is required, and a value that no longer matches the selection is refused.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "prefix": {
+          "description": "Text prepended verbatim (no separator) to the name of every selected object and every\ntransform below it. Must be non-empty and keep each name a valid identifier (letters,\ndigits and underscore, not starting with a digit).",
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "prefix"
+      ],
+      "title": "PrefixArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "search_replace_names",
+    "description": "Modify > Search and Replace Names, in one undo entry named Search and Replace Names: every non-overlapping occurrence of search (plain text, not a pattern; case-sensitive unless match_case is false, which compares ASCII letters only) in the names of the scope's objects becomes replace. scope is selected (default), hierarchy (the selection and every transform below it) or all (every object; needs no selection). Names that do not contain search are kept. Pass expected_selection_generation from inspect_scene for the selected and hierarchy scopes; it is required with several objects selected and a mismatch is stale_selection. Object and Hierarchy selection only: component modes return invalid_input and an empty selection returns no_selection (not for scope all). Refused with invalid_name_edit for an empty search or when no name changes (nothing contains search, or replace leaves every name as it was), invalid_name when a resulting name would be empty or not a valid identifier, name_collision when a resulting name is already taken or two resulting names would be equal; a Maya ASCII scene or a sourced scene is refused (read_only_format, unsupported_edit). A restricted node (one the scene cannot edit) among the targets, or anywhere in an ancestor or descendant chain of a target (every scope, so also all), refuses the whole edit as unsupported_edit. Derived shape names take part in the uniqueness check, independent of order; a resulting name or derived shape name over 4096 bytes is invalid_name. All or nothing, with the scene and history untouched on any refusal. Regular expressions are unsupported. PROVISIONAL, not compared with Maya: its pages do not state case sensitivity, pattern support, defaults or clash handling",
+    "inputSchema": {
+      "$defs": {
+        "Scope": {
+          "description": "Which names a search and replace edits.",
+          "oneOf": [
+            {
+              "const": "selected",
+              "description": "The selected objects only (default).",
+              "type": "string"
+            },
+            {
+              "const": "hierarchy",
+              "description": "The selected objects and every transform below them.",
+              "type": "string"
+            },
+            {
+              "const": "all",
+              "description": "Every object in the scene; needs no selection.",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_selection_generation": {
+          "default": null,
+          "description": "The `selection_generation` that `inspect_scene` reported. Used by the `selected` and\n`hierarchy` scopes: with several objects selected the value is required, and a value that\nno longer matches the selection is refused.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "match_case": {
+          "default": true,
+          "description": "Match upper and lower case exactly (default true).",
+          "type": "boolean"
+        },
+        "replace": {
+          "description": "Text that replaces every occurrence; may be empty, but each resulting name must stay valid.",
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope",
+          "description": "Which names to edit (default `selected`)."
+        },
+        "search": {
+          "description": "Plain text to look for (not a pattern); must be non-empty.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "search",
+        "replace"
+      ],
+      "title": "SearchReplaceArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
       "openWorldHint": false
     }
   },
@@ -3649,7 +3877,7 @@
   },
   {
     "name": "assign_session_material",
-    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Saved to an authored .ma with the shape's membership; refused as .mb with save_unwritable reason session_materials until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Assign a session material to whole authored shapes; every instance of each shape changes. Give shape_id (one shape) or shape_ids (several, assigned all-or-nothing as one undo step; an empty, duplicated, over-1024 or unknown-shape list is refused with invalid_shape_list or unknown_shape and changes nothing). Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Saved to an authored .ma with the shape's membership; refused as .mb with save_unwritable reason session_materials until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -3678,12 +3906,25 @@
           "type": "string"
         },
         "shape_id": {
-          "type": "string"
+          "description": "One shape. Give this or `shape_ids`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shape_ids": {
+          "description": "Several shapes assigned in one undo step: non-empty, no duplicates, at most 1024. All or\nnothing. Give this or `shape_id`.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
         }
       },
       "required": [
-        "scene_token",
-        "shape_id"
+        "scene_token"
       ],
       "title": "AssignSessionMaterialArgs",
       "type": "object"
@@ -3723,6 +3964,59 @@
         "color"
       ],
       "title": "SetSessionMaterialColorArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "set_session_material_attribute",
+    "description": "Set the linear RGB Transparency (transparency), Ambient Color (ambientColor) or Incandescence (incandescence) of a session material created in this session, default black, each channel 0 through 1 (stored in single precision: rounded to the nearest f32); the initial material 0 is locked. Stored, undoable and saved to an authored .ma when not black, but they do not yet change the viewport (PROVISIONAL). Use set_session_material_color for the colour. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "inputSchema": {
+      "$defs": {
+        "SessionMaterialAttribute": {
+          "description": "The lambert colour attributes besides `color`, by Maya's long names.",
+          "enum": [
+            "transparency",
+            "ambientColor",
+            "incandescence"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "$ref": "#/$defs/SessionMaterialAttribute"
+        },
+        "material_id": {
+          "type": "string"
+        },
+        "rgb": {
+          "description": "Linear RGB, each channel 0 through 1.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "material_id",
+        "attribute",
+        "rgb"
+      ],
+      "title": "SetSessionMaterialAttributeArgs",
       "type": "object"
     },
     "annotations": {
@@ -4614,7 +4908,7 @@
   },
   {
     "name": "set_image_plane",
-    "description": "Create or edit the live camera's image plane (Maya imagePlane, a plate behind the scene for matchmove). The first call needs image_name, a .png, .jpg or .jpeg file (1 to 4096 UTF-8 bytes, no NUL; EXR, DPX and movies are not supported); its header is read at once, so a missing, unreadable, oversize (over 128 MiB, over 8192 pixels a side or over 33554432 pixels in all, so 8192 x 8192 is refused) or non-image file is image_plane_error and nothing changes. Optional: use_frame_extension (substitute current time plus frame_offset into the last digit run of the file name; a frame outside the sequence has no file), frame_offset (whole frames, -1000000 to 1000000), frame_cache (frames kept, 1 to 1000), fit (fill, best, horizontal, vertical, to_size; the order is PROVISIONAL), depth (centimetres, greater than zero), alpha_gain (0 to 1000), display_mode (none, outline, rgb, rgba, luminance, alpha). Coverage: coverage_x and coverage_y (width and height in source pixels) and coverage_origin_x and coverage_origin_y name part of the image; the numbers you give replace those of the stored coverage (or of the full image when none is stored) and the result must lie inside the image (PROVISIONAL merge rule: the Maya pages do not state it); numbers that add up to the whole image still store an explicit coverage, and reset_coverage true is the way back to none (inspect_scene shows null) and excludes the four numbers. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error) leaves the plane untouched. A new image_name smaller than a stored coverage is refused with a message to reset the coverage in the same call. Setting the same image_name again is unchanged and does not reload the file; call remove_image_plane or change the name to reload. Integers must be whole numbers inside their range. Reports changed or unchanged, judged numerically. Session only, not saved with the scene, not undoable, cleared by New and Open; no reply or error carries the path. inspect_scene camera.image_plane reports the settings, image size, resolved file name and frame. PROVISIONAL: the Maya pages do not state the fit numbering, the occlusion at depth, what Outline shows, or the file-name numbering. The viewport does not draw the plate yet; once it does, the first pass of playback over a sequence is not real time and orthographic views show no plate (PROVISIONAL)",
+    "description": "Create or edit the live camera's image plane (Maya imagePlane, a plate behind the scene for matchmove). The first call needs image_name, a .png, .jpg or .jpeg file (1 to 4096 UTF-8 bytes, no NUL; EXR, DPX and movies are not supported); its header is read at once, so a missing, unreadable, oversize (over 128 MiB, over 8192 pixels a side or over 33554432 pixels in all, so 8192 x 8192 is refused) or non-image file is image_plane_error and nothing changes. Optional: use_frame_extension (substitute current time plus frame_offset into the last digit run of the file name; a frame outside the sequence has no file), frame_offset (whole frames, -1000000 to 1000000), frame_cache (frames kept, 1 to 1000), fit (fill, best, horizontal, vertical, to_size; the order is PROVISIONAL), depth (centimetres, greater than zero; a positive value below about 7e-46 is refused as too small), alpha_gain (0 to 1000; a value below the f32 range, about 7e-46, is stored as 0), display_mode (none, outline, rgb, rgba, luminance, alpha). Coverage: coverage_x and coverage_y (width and height in source pixels) and coverage_origin_x and coverage_origin_y name part of the image; the numbers you give replace those of the stored coverage (or of the full image when none is stored) and the result must lie inside the image (PROVISIONAL merge rule: the Maya pages do not state it); numbers that add up to the whole image still store an explicit coverage, and reset_coverage true is the way back to none (inspect_scene shows null) and excludes the four numbers. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error) leaves the plane untouched. A new image_name smaller than a stored coverage is refused with a message to reset the coverage in the same call. Setting the same image_name again is unchanged and does not reload the file; call remove_image_plane or change the name to reload. Integers must be whole numbers inside their range. Reports changed or unchanged, judged numerically. Session only, not saved with the scene, not undoable, cleared by New and Open; no reply or error carries the path. inspect_scene camera.image_plane reports the settings, image size, resolved file name and frame. PROVISIONAL: the Maya pages do not state the fit numbering, the occlusion at depth, what Outline shows, or the file-name numbering. The plate is drawn first in perspective views and orthographic views show no plate; the first pass of playback over a sequence is not real time while frames load, and the last ready frame is held meanwhile (PROVISIONAL)",
     "inputSchema": {
       "$defs": {
         "DisplayModeArg": {
@@ -4644,7 +4938,7 @@
       "description": "Maya `imagePlane` attributes in Maya's units; every field is optional (omit or null leaves it\nunchanged) and at least one must be set. The first call needs `image_name`.",
       "properties": {
         "alpha_gain": {
-          "description": "Alpha multiplier (`alphaGain`), 0 to 1000.",
+          "description": "Alpha multiplier (`alphaGain`), 0 to 1000; a value below the f32 range (about 7e-46)\nis stored as 0.",
           "format": "double",
           "type": [
             "number",
@@ -4929,7 +5223,7 @@
   },
   {
     "name": "set_snap_mode",
-    "description": "Set Snap to grids explicitly (Status Line button, `snapMode -grid`); off by default. While on, a Move begun with begin_manipulation lands the lead object's pivot on the nearest line of the drawn grid (one line per centimetre) along its axis, absolute rather than relative; the rest of the selection moves by the same distance. The Move axis must lie along a world X, Y or Z axis (World orientation, or Object or Parent aligned to the world): otherwise begin_manipulation returns invalid_input and nothing starts. A pivot within a few ulps of a line stays put. Only grid snapping exists: curve, point, surface and relative step snapping are not implemented. Session-only and idempotent; does not edit the scene. Refused with busy_manipulation during any manipulation and busy_editing during a modal or close; inspect_scene snap_to_grid reports the state",
+    "description": "Set Snap to grids explicitly (Status Line button, `snapMode -grid`); off by default. While on, a Move begun with begin_manipulation lands the lead object's pivot on the nearest line of the grid along its axis (a line every scene linear unit with the default grid options, so every 1 m in a metre scene and every 1 in in an inch scene; PROVISIONAL, #5: Maya's grid spacing is in linear units but 5 and 5 are not sourced), absolute rather than relative; the rest of the selection moves by the same distance. The Move axis must lie along a world X, Y or Z axis (World orientation, or Object or Parent aligned to the world): otherwise begin_manipulation returns invalid_input and nothing starts, and it is refused with invalid_input in a scene whose linear unit is unsupported (no grid spacing): turn Snap to grids off or change the scene linear unit. A pivot within a few ulps of a line stays put (PROVISIONAL, #5: the tolerance and snapping to subdivision lines have no Maya source). Only grid snapping exists: curve, point, surface and relative step snapping are not implemented. Session-only and idempotent; does not edit the scene. Refused with busy_manipulation during any manipulation and busy_editing during a modal or close; inspect_scene snap_to_grid reports the state and snap_spacing the spacing in centimetres and in the scene linear unit",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -5034,33 +5328,49 @@
   },
   {
     "name": "select_attribute_editor_tab",
-    "description": "Select the Attribute Editor tab for the selected node: transform, a direct shape, or the material of a direct shape; only the first 16 direct shapes have tabs. Session-only and idempotent; does not edit the scene. Refused unless attribute_editor is the active sidebar panel, and refused when the tab does not resolve for the current selection or names a shape beyond the 16th",
+    "description": "Select the Attribute Editor tab for the selected node: transform, a direct shape, or the material of a direct shape; only the first 16 direct shapes have tabs. The image_plane tab (kind image_plane, no id) belongs to the camera's image plane and needs no selection, only a plane (set_image_plane); it is refused without one. The camera tab (kind camera, no id) shows the live camera's film back (set_camera_film_back) and needs neither a selection nor anything else. Session-only and idempotent; does not edit the scene. Refused unless attribute_editor is the active sidebar panel, and refused when the tab does not resolve for the current selection or names a shape beyond the 16th",
     "inputSchema": {
       "$defs": {
         "TabInput": {
           "additionalProperties": false,
           "properties": {
             "id": {
-              "description": "Decimal id: the selected node for `transform`, a direct shape for `shape` and `material`.",
-              "type": "string"
+              "description": "Decimal id: the selected node for `transform`, a direct shape for `shape` and `material`.\nRequired for those three, and not allowed for `image_plane` or `camera`.",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "kind": {
               "$ref": "#/$defs/TabKind"
             }
           },
           "required": [
-            "kind",
-            "id"
+            "kind"
           ],
           "type": "object"
         },
         "TabKind": {
-          "enum": [
-            "transform",
-            "shape",
-            "material"
-          ],
-          "type": "string"
+          "oneOf": [
+            {
+              "enum": [
+                "transform",
+                "shape",
+                "material"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "image_plane",
+              "description": "The live camera's image plane (#459): takes no `id`; refused when there is no plane.",
+              "type": "string"
+            },
+            {
+              "const": "camera",
+              "description": "The live camera's film back (#458): takes no `id`; always available.",
+              "type": "string"
+            }
+          ]
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5419,6 +5729,134 @@
   {
     "name": "request_close",
     "description": "Request native window closure; dirty documents require explicit confirmation, and approved remote closure waits for its successful reply to be flushed",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "playblast",
+    "description": "Start a playblast: render the viewport camera over start_frame..end_frame (inclusive) offscreen into a numbered PNG sequence <name>.0001.png in the existing absolute output_directory, as a background job on a snapshot of the scene (the scene, selection, history and current time are never changed). width and height (the 100% size) are required; percent scales them (1 to 100, default 100); show_ornaments (default true) keeps the grid and selection feedback. The camera image plane, when one exists, is drawn under the geometry for each frame (the sequence frame plus its offset; it is scene content, not an ornament): a frame with no image file renders without it and is counted in frames_without_plate (so is every frame of a sequence template with no digits), an unreadable one fails the job with playblast_render. Replies with playblast_started and the frame count and output size; poll inspect_scene playblast (state, frames_done, frames_total, frames_without_plate, directory_name, last_error) for progress, and call cancel_playblast to stop. Never overwrites: any existing target file is refused with destination_exists before frame 1. Refused with playblast_busy while a job runs, busy_editing during a draft, modal or close, playblast_invalid, playblast_too_large (at most 100000 frames, 8192 per side, 16 megapixels a frame, 4 GiB in total), playblast_no_adapter without a GPU device, playblast_io or playblast_render on failure; frames written before a failure stay. A modal or draft pauses the job. Maya playblast -startTime and -endTime default to the playback range, -percent, -format image, -offScreen and -showOrnaments are the nearest flags. PROVISIONAL: Maya's page does not say whether -endTime is inclusive, its percent is 10 to 100 (clamped, default 50) and its default format is a movie; naming, caps, the ornaments mapping and the viewport camera are ours. No movie container and no wireframe on shaded over the image plane yet (#48, #49)",
+    "inputSchema": {
+      "$defs": {
+        "Format": {
+          "enum": [
+            "png"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "end_frame": {
+          "description": "Last frame, inclusive; defaults to the playback range end.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Format"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Image format; only png, a numbered image sequence."
+        },
+        "height": {
+          "description": "Height in pixels at 100 percent, 1 to 8192.",
+          "format": "uint32",
+          "maximum": 8192,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "name": {
+          "description": "Frame file stem, 1 to 64 of A-Z a-z 0-9 _ -; default \"playblast\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "output_directory": {
+          "description": "Absolute path of an existing directory that receives the frames.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "percent": {
+          "description": "Output size as a percent of width and height, 1 to 100; default 100.",
+          "format": "uint32",
+          "maximum": 100,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "show_ornaments": {
+          "description": "Draw the grid and selection feedback; default true.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "start_frame": {
+          "description": "First frame, a whole number from 0; defaults to the playback range start.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "width": {
+          "description": "Width in pixels at 100 percent, 1 to 8192. Required: no viewport size is stored.",
+          "format": "uint32",
+          "maximum": 8192,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scene_token",
+        "width",
+        "height",
+        "output_directory"
+      ],
+      "title": "PlayblastArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "cancel_playblast",
+    "description": "Stop the running playblast after the file in flight, keep the frames already written and join its writer; replies changed, or unchanged when no job runs. inspect_scene playblast then reports state cancelled with frames_done",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

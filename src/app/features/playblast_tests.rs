@@ -138,14 +138,14 @@ fn cancel_reports_whether_a_job_was_running() {
     assert!(editor.playblast.run.is_none());
 }
 
-fn ticks(editor: &mut Editor, count: usize) {
+pub(in crate::app) fn ticks(editor: &mut Editor, count: usize) {
     let ctx = egui::Context::default();
     for _ in 0..count {
         editor.tick_playblast(&ctx);
     }
 }
 
-fn run_to_end(editor: &mut Editor) -> JobProgress {
+pub(in crate::app) fn run_to_end(editor: &mut Editor) -> JobProgress {
     let ctx = egui::Context::default();
     for _ in 0..200 {
         editor.tick_playblast(&ctx);
@@ -156,7 +156,7 @@ fn run_to_end(editor: &mut Editor) -> JobProgress {
     editor.playblast.last.clone().expect("a job ran")
 }
 
-fn listing(dir: &Path) -> Vec<String> {
+pub(in crate::app) fn listing(dir: &Path) -> Vec<String> {
     let mut names: Vec<String> = std::fs::read_dir(dir)
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
@@ -165,7 +165,7 @@ fn listing(dir: &Path) -> Vec<String> {
     names
 }
 
-fn decode(path: &Path) -> (png::OutputInfo, Vec<u8>) {
+pub(in crate::app) fn decode(path: &Path) -> (png::OutputInfo, Vec<u8>) {
     let mut reader = png::Decoder::new(std::io::BufReader::new(std::fs::File::open(path).unwrap()))
         .read_info()
         .unwrap();

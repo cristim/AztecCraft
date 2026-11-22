@@ -604,3 +604,47 @@ async fn sdk_frame_all_and_frame_selected_keep_the_scene_inside_a_rolled_scaled_
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_open_scene_reports_a_camera_whose_film_back_the_file_states_partially() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    assert_eq!(
+        inspected_camera(&mut editor, &context, &client).await["blocked_cameras"],
+        json!([])
+    );
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("partial_camera.ma");
+    std::fs::write(
+        &path,
+        "//Maya ASCII 2026 scene\nrequires maya \"2026\";\ncurrentUnit -l centimeter -a degree -t film;\nfileInfo \"AztecCraft\" \"1\";\nselect -ne :perspShape;\n\tsetAttr \".hfa\" 1.2;\n",
+    )
+    .unwrap();
+    let token = editor.scene_token.to_string();
+    let opened = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "open_scene",
+        json!({"scene_token": token, "path": path}),
+    )
+    .await;
+    assert_eq!(
+        opened.structured_content.unwrap()["outcome"],
+        "document_applied"
+    );
+    let camera = inspected_camera(&mut editor, &context, &client).await;
+    assert_eq!(camera["blocked_cameras"], json!(["persp"]));
+    assert!(
+        editor
+            .status
+            .contains("camera persp film back is kept in the file but not applied"),
+        "{}",
+        editor.status
+    );
+    // The viewport keeps its default lens: the readback still shows the default film back.
+    assert_eq!(camera["film_back"]["focal_length"], 35.0);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

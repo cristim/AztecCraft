@@ -142,6 +142,8 @@ impl NativeScene {
         if self.source.is_some() {
             return Err(NativeError::SourcedCameraEdit);
         }
+        // A blocked camera comes only from reading a file, and a file-sourced scene already
+        // returned `SourcedCameraEdit` above, so this guards a source-free store blocked directly.
         if self.cameras.blocked[camera.index()] {
             return Err(NativeError::BlockedCamera);
         }
@@ -153,6 +155,16 @@ impl NativeScene {
     /// saving the file again does not drop it.
     pub(super) fn state_camera_film_back(&mut self, camera: SceneCamera, film: FilmBack) {
         self.cameras.films[camera.index()] = Some(film);
+    }
+
+    /// The names (`persp`, `top`, `front`, `side`) of the cameras a file stated in a way the editor
+    /// cannot carry: the viewport shows its default lens for them and they cannot be edited.
+    pub fn blocked_camera_names(&self) -> Vec<&'static str> {
+        SceneCamera::ALL
+            .into_iter()
+            .filter(|camera| self.cameras.blocked[camera.index()])
+            .map(|camera| camera.shape_name().trim_end_matches("Shape"))
+            .collect()
     }
 
     /// A camera a file stated with a value the editor cannot carry.

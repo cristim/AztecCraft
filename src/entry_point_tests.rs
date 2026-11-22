@@ -233,6 +233,9 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "extrude_selected_face",
             "assign_material_to_selection",
             "show_material_attributes",
+            "start_from_dialog",
+            "run_import_image",
+            "camera_section",
         ],
     );
     expect(
@@ -257,10 +260,12 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "history_step",
             "native_group",
             "native_ungroup",
+            "native_match_transformations",
             "native_reset_transformations",
             "native_freeze_transformations",
             "manipulation_options",
             "outliner",
+            "playblast_options_window",
             "render",
             "select",
             "shortcuts",
@@ -271,6 +276,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "save_as_dialog",
             "run_export",
             "run_import",
+            "image_plane_section",
             "step_manipulator_size",
         ],
     );

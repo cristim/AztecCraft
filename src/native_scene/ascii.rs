@@ -410,8 +410,10 @@ impl Builder<'_, '_> {
         Ok(())
     }
     /// Turns each camera's complete film back statement into the scene's store. A file that states
-    /// only `fl` (a Maya default camera) keeps its prior meaning; a partial or invalid statement
-    /// refuses the file; an unknown `filmRollOrder` id blocks the camera and the source keeps it.
+    /// only `fl` (a Maya default camera) keeps its prior meaning (PROVISIONAL: the value is
+    /// ignored); a partial statement or an unknown `filmRollOrder` id blocks the camera and the
+    /// source keeps it (real Maya writes only the attributes that differ from the defaults); an
+    /// invalid value or an out-of-range fit id in a complete block refuses the file.
     fn finish_cameras(&mut self) -> Result<(), AsciiError> {
         let stated: Vec<(SceneCamera, u32)> = self
             .owners
@@ -426,7 +428,8 @@ impl Builder<'_, '_> {
                 continue;
             }
             if bits != FILM_BITS {
-                return Err(error(ErrorKind::Unsupported, 0));
+                self.scene.block_camera(camera);
+                continue;
             }
             let p = self.camera_parse[camera.index()];
             let fit = fit_from_id(p.fit).ok_or_else(|| error(ErrorKind::Unsupported, 0))?;

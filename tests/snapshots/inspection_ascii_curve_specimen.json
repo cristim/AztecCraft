@@ -3,6 +3,7 @@
     "appearance_incomplete": true,
     "attribute_editor_tab": null,
     "camera": {
+      "blocked_cameras": [],
       "can_redo_view": false,
       "can_undo_view": false,
       "center_of_interest_cm": 10.858717918395996,
@@ -199,6 +200,7 @@
       "directory_name": null,
       "frames_done": 0,
       "frames_total": 0,
+      "frames_without_plate": 0,
       "height": 0,
       "last_error": null,
       "state": "idle",
@@ -228,6 +230,10 @@
     "sidebar_panels": {
       "attribute_editor": false,
       "channel_box": true
+    },
+    "snap_spacing": {
+      "cm": 1.0,
+      "scene_units": 1.0
     },
     "snap_to_grid": false,
     "source_appearance": {

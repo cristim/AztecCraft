@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(any(test, feature = "mcp"))]
+use crate::editor_operations::NameScope;
 use crate::editor_operations::{
     ComponentKind, ComponentMoveSpace, MAX_COMPONENT_INDICES, MAX_MOVED_VERTICES,
 };
@@ -200,6 +202,9 @@ impl Editor {
             | Operation::SetPlaybackRange { .. }
             | Operation::Play
             | Operation::Stop => None,
+            // Without a line of its own a success would leave an earlier refusal on screen.
+            Operation::SetImagePlane(_) => Some("Image plane set"),
+            Operation::RemoveImagePlane => Some("Image plane removed"),
             Operation::SetKeyframe { .. } => Some("Key set"),
             Operation::DeleteKeys { .. } => Some("Keys deleted"),
             Operation::EulerFilter { .. } => Some("Euler filter applied"),
@@ -214,8 +219,6 @@ impl Editor {
             | Operation::DefaultView
             | Operation::SetCameraPose { .. }
             | Operation::SetCameraFilmBack(_)
-            | Operation::SetImagePlane(_)
-            | Operation::RemoveImagePlane
             | Operation::CreateCameraBookmark { .. }
             | Operation::RenameCameraBookmark { .. }
             | Operation::DeleteCameraBookmark { .. }
@@ -256,10 +259,8 @@ impl Editor {
             | Operation::ExportObj { .. }
             | Operation::ResolveFileAction { .. } => None,
             #[cfg(any(test, feature = "mcp"))]
-            Operation::ExportGltf { .. }
-            | Operation::ExportUsd { .. }
-            | Operation::Playblast(_)
-            | Operation::CancelPlayblast => None,
+            Operation::ExportGltf { .. } | Operation::ExportUsd { .. } => None,
+            Operation::Playblast(_) | Operation::CancelPlayblast => None,
             _ => Some("Scene edited"),
         };
         StatusFeedback {
@@ -360,6 +361,16 @@ impl Editor {
             Err(error) => {
                 self.set_error_status(error);
                 self.error = true;
+            }
+        }
+        if matches!(result, Ok(OperationReply::DocumentApplied { .. })) {
+            let blocked = self.history.scene().blocked_camera_names();
+            if !blocked.is_empty() {
+                self.status = format!(
+                    "{} - camera {} film back is kept in the file but not applied (default lens shown)",
+                    self.status,
+                    blocked.join(", ")
+                );
             }
         }
         if let Some((step, error)) = self.refusal_after_change.take() {
@@ -605,11 +616,32 @@ impl Editor {
         if let Some(noun) = self.selection_mode.component_noun()
             && matches!(
                 operation,
-                Operation::ResetTransformations { .. } | Operation::FreezeTransformations { .. }
+                Operation::ResetTransformations { .. }
+                    | Operation::FreezeTransformations { .. }
+                    | Operation::MatchTransformations { .. }
             )
         {
             return Err(OperationError::InvalidInput(format!(
-                "Reset and Freeze Transformations on {noun} selection are unsupported; switch to Object or Hierarchy selection"
+                "Reset, Freeze and Match Transformations on {noun} selection are unsupported; switch to Object or Hierarchy selection"
+            )));
+        }
+        #[cfg(any(test, feature = "mcp"))]
+        if let Some(noun) = self.selection_mode.component_noun()
+            && matches!(
+                operation,
+                Operation::PrefixHierarchyNames { .. } | Operation::SearchReplaceNames { .. }
+            )
+        {
+            return Err(OperationError::InvalidInput(format!(
+                "Prefix Hierarchy Names and Search and Replace Names on {noun} selection are unsupported; switch to Object or Hierarchy selection"
+            )));
+        }
+        #[cfg(any(test, feature = "mcp"))]
+        if let Some(noun) = self.selection_mode.component_noun()
+            && matches!(operation, Operation::AlignObjects { .. })
+        {
+            return Err(OperationError::InvalidInput(format!(
+                "Align Objects on {noun} selection is unsupported; switch to Object or Hierarchy selection"
             )));
         }
         self.guard_move_dispatch(&operation, provenance)?;
@@ -629,6 +661,7 @@ impl Editor {
                 | Operation::SetMenuSet { .. }
                 | Operation::SetSidebarPanelVisible { .. }
                 | Operation::SelectAttributeEditorTab { .. }
+                | Operation::SetCameraFilmBack(_)
                 | Operation::CreateCameraBookmark { .. }
                 | Operation::RenameCameraBookmark { .. }
                 | Operation::DeleteCameraBookmark { .. }
@@ -645,6 +678,14 @@ impl Editor {
                 return Err(OperationError::BusyEditing);
             }
         }
+        // The name rules (length, NUL, extension) run before a pending draft is committed, like the
+        // OBJ import path check, so a refused name never touches the draft.
+        if let Operation::SetImagePlane(edit) = &operation
+            && let Some(name) = &edit.image_name
+        {
+            azteccraft::image_plane::ops::check_image_name(name)
+                .map_err(OperationError::ImagePlane)?;
+        }
         #[cfg(any(test, feature = "mcp"))]
         if let Operation::ExportUsd { path, .. } = &operation {
             super::features::usd_export::validate_export_path(path)?;
@@ -653,7 +694,6 @@ impl Editor {
         if let Operation::ExportGltf { path, .. } = &operation {
             super::features::gltf_export::validate_export_path(path)?;
         }
-        #[cfg(any(test, feature = "mcp"))]
         if matches!(operation, Operation::Playblast(_)) && self.files.is_modal() {
             return Err(OperationError::BusyEditing);
         }
@@ -758,6 +798,7 @@ impl Editor {
                     | Operation::ResetPivots { .. }
                     | Operation::ResetTransformations { .. }
                     | Operation::FreezeTransformations { .. }
+                    | Operation::MatchTransformations { .. }
                     | Operation::Group { .. }
                     | Operation::Ungroup { .. }
                     | Operation::AssignSessionMaterial { .. }
@@ -770,12 +811,16 @@ impl Editor {
             && matches!(
                 operation,
                 Operation::Rename { .. }
+                    | Operation::PrefixHierarchyNames { .. }
+                    | Operation::SearchReplaceNames { .. }
+                    | Operation::AlignObjects { .. }
                     | Operation::SetTransform { .. }
                     | Operation::EditNode { .. }
                     | Operation::Reparent { .. }
                     | Operation::SetMaterialDiffuse { .. }
                     | Operation::CreateSessionMaterial { .. }
                     | Operation::SetSessionMaterialColor { .. }
+                    | Operation::SetSessionMaterialAttribute { .. }
             )
         {
             return Err(OperationError::BusyEditing);
@@ -997,13 +1042,23 @@ impl Editor {
             }
             #[cfg(any(test, feature = "mcp"))]
             Operation::CreateSessionMaterial { color } => Command::CreateSessionMaterial { color },
-            Operation::AssignSessionMaterial { shape, material } => {
-                Command::AssignSessionMaterial { shape, material }
+            Operation::AssignSessionMaterial { shapes, material } => {
+                Command::AssignSessionMaterial { shapes, material }
             }
             #[cfg(any(test, feature = "mcp"))]
             Operation::SetSessionMaterialColor { material, color } => {
                 Command::SetSessionMaterialColor { material, color }
             }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::SetSessionMaterialAttribute {
+                material,
+                attribute,
+                rgb,
+            } => Command::SetSessionMaterialAttribute {
+                material,
+                attribute,
+                rgb,
+            },
             Operation::SetCurrentTime { time } => return self.set_current_time(time),
             Operation::SetPlaybackRange { start, end } => {
                 return self.set_playback_range(start, end);
@@ -1353,6 +1408,56 @@ impl Editor {
                 let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
                 Command::FreezeTransformations { ids, channels }
             }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::AlignObjects {
+                options,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::AlignObjects { ids, options }
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::PrefixHierarchyNames {
+                prefix,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::PrefixHierarchyNames { ids, prefix }
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::SearchReplaceNames {
+                scope,
+                search,
+                replace,
+                match_case,
+                expected_selection_generation,
+            } => {
+                let ids = if scope == NameScope::All {
+                    self.check_generation(expected_selection_generation)?;
+                    self.history
+                        .scene()
+                        .nodes()
+                        .iter()
+                        .map(|n| n.id())
+                        .collect()
+                } else {
+                    self.selected_object_ids(expected_selection_generation, provenance)?
+                };
+                Command::SearchReplaceNames {
+                    ids,
+                    hierarchy: scope == NameScope::Hierarchy,
+                    search,
+                    replace,
+                    match_case,
+                }
+            }
+            Operation::MatchTransformations {
+                channels,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::MatchTransformations { ids, channels }
+            }
             Operation::Group {
                 options,
                 expected_selection_generation,
@@ -1661,9 +1766,7 @@ impl Editor {
                 path,
                 selection_only,
             } => return self.export_usd(&path, selection_only, may_install),
-            #[cfg(any(test, feature = "mcp"))]
             Operation::Playblast(request) => return self.start_playblast(request),
-            #[cfg(any(test, feature = "mcp"))]
             Operation::CancelPlayblast => return Ok(self.cancel_playblast()),
 
             Operation::SetCameraPose {
@@ -1795,6 +1898,7 @@ impl Editor {
             Command::CreateSessionMaterial { .. }
                 | Command::AssignSessionMaterial { .. }
                 | Command::SetSessionMaterialColor { .. }
+                | Command::SetSessionMaterialAttribute { .. }
         );
         let reparent_command = matches!(
             command,
@@ -1802,7 +1906,14 @@ impl Editor {
         );
         let transform_command = matches!(
             command,
-            Command::ResetTransformations { .. } | Command::FreezeTransformations { .. }
+            Command::ResetTransformations { .. }
+                | Command::FreezeTransformations { .. }
+                | Command::MatchTransformations { .. }
+                | Command::AlignObjects { .. }
+        );
+        let naming_command = matches!(
+            command,
+            Command::PrefixHierarchyNames { .. } | Command::SearchReplaceNames { .. }
         );
         let key_command = matches!(
             command,
@@ -1828,6 +1939,9 @@ impl Editor {
             if transform_command && error != azteccraft::native_scene::NativeError::BusyManipulation
             {
                 return OperationError::Transform(error);
+            }
+            if naming_command && error != azteccraft::native_scene::NativeError::BusyManipulation {
+                return OperationError::Naming(error);
             }
             if reparent_command && error != azteccraft::native_scene::NativeError::BusyManipulation
             {

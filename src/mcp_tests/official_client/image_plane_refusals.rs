@@ -199,6 +199,7 @@ async fn sdk_set_image_plane_argument_errors_are_protocol_errors_with_no_mutatio
     // The error text names the field; a positive value too small for an f32 says so.
     for (arguments, expected) in [
         (json!({"depth": 1e-50}), "depth is too small"),
+        (json!({"depth": 0}), "depth must be a number greater than 0"),
         (json!({"depth": -1e300}), "depth must be"),
         (json!({"alpha_gain": -1e-50}), "alpha_gain must be"),
     ] {

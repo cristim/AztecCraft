@@ -127,6 +127,20 @@ fn undo_and_redo_of_a_snapped_move_are_exact() {
     assert_eq!(x_of(&editor, &target), 3.0);
 }
 
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn undo_and_redo_of_a_snapped_move_are_exact_in_a_metre_scene() {
+    let (mut editor, target) = editor_in(azteccraft::native_scene::LinearUnit::Meter);
+    move_by(&mut editor, &target, 0.3);
+    snap(&mut editor, true);
+    move_by(&mut editor, &target, 2.4);
+    assert_eq!(x_of(&editor, &target), 3.0);
+    editor.history_step(false);
+    assert_eq!(x_of(&editor, &target).to_bits(), 0.3f64.to_bits());
+    editor.history_step(true);
+    assert_eq!(x_of(&editor, &target), 3.0);
+}
+
 #[test]
 fn cancel_restores_the_baseline_exactly() {
     let (mut editor, target) = one_cube();
@@ -311,5 +325,80 @@ fn a_non_finite_distance_is_still_refused_with_snap_on() {
             Err(OperationError::InvalidInput(_))
         ));
     }
+    assert_eq!(x_of(&editor, &target), 0.0);
+}
+
+#[cfg(feature = "mcp-test-client")]
+fn editor_in(unit: azteccraft::native_scene::LinearUnit) -> (Editor, TransformTarget) {
+    let (mut editor, target) = one_cube();
+    let mut scene = editor.history.scene().clone();
+    scene.set_linear_unit_for_test(unit);
+    editor.history = azteccraft::history::History::new(scene);
+    editor.sync_fields();
+    (editor, target)
+}
+
+/// The lead's stored x (declared units) after one snapped Move of `distance` declared units.
+#[cfg(feature = "mcp-test-client")]
+fn snapped_x(unit: azteccraft::native_scene::LinearUnit, distance: f64) -> f64 {
+    let (mut editor, target) = editor_in(unit);
+    snap(&mut editor, true);
+    let id = begin(&mut editor, &target);
+    update(&mut editor, id, distance).unwrap();
+    let x = x_of(&editor, &target);
+    finish(&mut editor, id);
+    x
+}
+
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn the_snap_spacing_is_one_drawn_line_in_the_scene_linear_unit() {
+    use azteccraft::native_scene::LinearUnit::{Centimeter, Foot, Inch, Meter, Millimeter};
+    // The viewport draws a line every scene unit (5 lines per 5 units), so a Move of 2.4 units
+    // lands on 2 and one of 0.4 on 0 in a centimetre, millimetre, metre, inch or foot scene.
+    for unit in [Centimeter, Millimeter, Meter, Inch, Foot] {
+        let x = snapped_x(unit.clone(), 2.4);
+        assert!((x - 2.0).abs() < 1e-9, "{unit:?}: {x}");
+        let x = snapped_x(unit.clone(), 0.4);
+        assert!(x.abs() < 1e-9, "{unit:?}: {x}");
+    }
+}
+
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn the_inspected_snap_spacing_is_one_scene_unit_and_its_length_in_cm() {
+    use azteccraft::native_scene::LinearUnit::{Centimeter, Foot, Inch, Meter, Millimeter};
+    for (unit, cm_per_unit) in [
+        (Centimeter, 1.0),
+        (Millimeter, 0.1),
+        (Meter, 100.0),
+        (Inch, 2.54),
+        (Foot, 30.48),
+    ] {
+        let (editor, _) = editor_in(unit.clone());
+        let inspected = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+        let spacing = &inspected["snap_spacing"];
+        assert_eq!(spacing["cm"], cm_per_unit, "{unit:?}");
+        assert_eq!(spacing["scene_units"], 1.0, "{unit:?}");
+    }
+    let (editor, _) = editor_in(azteccraft::native_scene::LinearUnit::Unsupported(
+        "yard".into(),
+    ));
+    let inspected = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+    assert!(inspected["snap_spacing"].is_null());
+}
+
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn snap_to_grids_is_refused_in_an_unsupported_unit_scene() {
+    let (mut editor, target) = editor_in(azteccraft::native_scene::LinearUnit::Unsupported(
+        "yard".into(),
+    ));
+    snap(&mut editor, true);
+    let refused = remote(&mut editor, begin_op(&target));
+    assert!(
+        matches!(&refused, Err(OperationError::InvalidInput(m)) if m == UNSUPPORTED_UNIT_SNAP_REFUSAL),
+        "{refused:?}"
+    );
     assert_eq!(x_of(&editor, &target), 0.0);
 }

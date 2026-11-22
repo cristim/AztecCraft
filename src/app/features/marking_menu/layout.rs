@@ -90,7 +90,7 @@ pub(in crate::app) fn mesh_menu(
 /// The overflow list: the Select menu's rows that work (the same native callers as the Select
 /// menu), then rows that are visibly unsupported. In the component modes the rule rows are
 /// disabled with the Select menu's reason; Deselect All stays enabled, since it returns to
-/// Object mode. Original order, PROVISIONAL.
+/// Object mode, and five mesh-tool rows follow, unsupported. Original order, PROVISIONAL.
 fn select_list(mode: SelectionMode) -> Vec<Entry<MeshAction>> {
     let rule = |label: &str, rule: SelectRule| {
         if mode.is_component() {
@@ -101,7 +101,7 @@ fn select_list(mode: SelectionMode) -> Vec<Entry<MeshAction>> {
     };
     let unsupported =
         |label: &str| Entry::unsupported(label, format!("{label} is not implemented yet"));
-    vec![
+    let mut rows = vec![
         rule("Select All", SelectRule::All),
         rule("Select Hierarchy", SelectRule::Hierarchy),
         rule("Invert Selection", SelectRule::Inverse),
@@ -110,7 +110,23 @@ fn select_list(mode: SelectionMode) -> Vec<Entry<MeshAction>> {
         unsupported("Make Live"),
         unsupported("Metadata"),
         unsupported("Assign Material"),
-    ]
+    ];
+    if mode.is_component() {
+        // The mesh-editing tools wait for the polygon modeling toolset (#46).
+        for label in [
+            "Bevel",
+            "Multi-Cut",
+            "Insert Edge Loop",
+            "Connect",
+            "Detach",
+        ] {
+            rows.push(Entry::unsupported(
+                label,
+                format!("{label} is not implemented yet (#46)"),
+            ));
+        }
+    }
+    rows
 }
 
 /// The entry under `pos` for a sticky menu opened at `origin`: a zone with an entry, inside the
