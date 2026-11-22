@@ -1,5 +1,7 @@
 # AztecCraft
 
+> **This repository is archived and read-only.** Please head to [Aztek](https://github.com/srlegrand/Aztek) instead. The rest of this page describes the project as it was when it was archived.
+
 AztecCraft is a native desktop 3D editor written in Rust, aiming at the interface and workflows of Autodesk Maya. It's an early prototype: it can create and edit simple polygon scenes, open Maya binary scenes and save some edits back, and it can be driven by an AI client over MCP. Most of Maya is still missing, and nothing here has been compared against Maya closely enough to claim parity. AztecCraft is an independent project and isn't affiliated with or endorsed by Autodesk.
 
 [Download](#download) · [What works today](#what-works-today) · [Build from source](#build-and-test) · [MCP automation](#mcp-automation) · [Roadmap](#roadmap-and-publication) · [Project documentation](.project-docs/INDEX.md)
