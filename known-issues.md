@@ -1208,7 +1208,8 @@ Snap to grids rounds to the grid's line spacing, `snap::drawn_grid_spacing_cm(gr
 grid command gives its spacing "in linear units"), so the spacing is 1 m in a metre scene, 2.54 cm in
 an inch scene and so on; an unsupported unit has no spacing and a snapped Move is refused at begin.
 `inspect_scene` `snap_spacing` reports `{cm, scene_units}` (null for an unsupported unit). The options
-are not editable (Grid Options stays disabled).
+are not editable (Grid Options stays disabled). The viewport draws the same lines, 12 per side at
+`ViewScene::grid_spacing_cm` (no grid in an unsupported unit, though `grid_visible` stays true).
 
 Maya sourcing: the current grid command page (MayaCRE-Tech-Docs/Commands/grid.html) gives defaults
 spacing 10, divisions 10 and size 12 "in linear units". No page gives 5 and 5; that claim rests on a

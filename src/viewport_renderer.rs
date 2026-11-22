@@ -103,7 +103,8 @@ const EDGE_RGB: [u8; 3] = [120, 180, 235];
 const SELECTED_EDGE_RGB: [u8; 3] = [255, 178, 96];
 
 // Maya 2025.1's default grid (`grid -q`): size 12, major lines every 5 units and 5 divisions
-// between them, so a line every unit out to +/-12 on the y = 0 plane (#160). Reading size as
+// between them, so a line every unit out to +/-12 on the y = 0 plane (#160). The unit is the scene
+// linear unit (`ViewScene::grid_spacing_cm`, #454), as the grid command's "linear units". Reading size as
 // the half-length, and these greys, are PROVISIONAL; Maya also draws the axes bold, which
 // one-pixel lines cannot.
 const GRID_SIZE: i32 = 12;
@@ -505,7 +506,12 @@ impl Submission {
             .eye_relative_matrix(aspect)
             .map_err(RenderError::Camera)?;
         let eye_world = camera.eye().as_dvec3();
-        let mut vertices = if grid_visible { GRID_VERTICES } else { 0 };
+        let grid_spacing = grid_visible.then(|| scene.grid_spacing_cm()).flatten();
+        let mut vertices = if grid_spacing.is_some() {
+            GRID_VERTICES
+        } else {
+            0
+        };
         for instance in scene.instances() {
             let outline_corners = if selection.edges_shown(instance) {
                 0
@@ -627,10 +633,11 @@ impl Submission {
             }
         }
         let surface_end = submission.vertex_count();
-        if grid_visible {
-            let extent = GRID_SIZE as f32;
+        if let Some(spacing) = grid_spacing {
+            let spacing = spacing as f32;
+            let extent = GRID_SIZE as f32 * spacing;
             for index in -GRID_SIZE..=GRID_SIZE {
-                let coordinate = index as f32;
+                let coordinate = index as f32 * spacing;
                 let color = Color32::from_gray(grid_gray(index));
                 for point in [
                     Vec3::new(coordinate, 0.0, -extent),

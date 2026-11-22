@@ -1075,6 +1075,58 @@ fn grid_follows_mayas_default_size_major_lines_and_divisions() {
     assert!(grid_gray(0) > grid_gray(5) && grid_gray(5) > grid_gray(1));
 }
 
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn grid_lines_are_drawn_in_scene_linear_units() {
+    use azteccraft::native_scene::LinearUnit;
+    let camera = Camera::default();
+    let matrix = camera.projection_matrix(1.0).unwrap() * camera.view_matrix();
+    let first_vertex = |unit: LinearUnit| {
+        let mut scene = NativeScene::default();
+        scene.set_linear_unit_for_test(unit);
+        let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+        let submission = Submission::new(
+            &view,
+            &camera,
+            [SIZE; 2],
+            SelectionFeedback::Object(None),
+            true,
+            ShadingMode::SmoothShadeAll,
+            FORMAT,
+            1024 * 1024,
+        )
+        .unwrap();
+        let start = submission.surfaces.end as usize * VERTEX_BYTES;
+        let clip: Vec<f32> = submission.bytes[start..]
+            .iter()
+            .take(16)
+            .copied()
+            .collect::<Vec<u8>>()
+            .chunks(4)
+            .map(|b| f32::from_ne_bytes(b.try_into().unwrap()))
+            .collect();
+        (submission.vertex_count(), clip)
+    };
+    for (unit, cm_per_unit) in [
+        (LinearUnit::Centimeter, 1.0_f32),
+        (LinearUnit::Meter, 100.0),
+        (LinearUnit::Inch, 2.54),
+        (LinearUnit::Foot, 30.48),
+    ] {
+        let (_, clip) = first_vertex(unit.clone());
+        let extent = 12.0 * cm_per_unit;
+        let expected = matrix * Vec3::new(-extent, 0.0, -extent).extend(1.0);
+        for (axis, expected) in expected.to_array().into_iter().enumerate() {
+            assert!(
+                (clip[axis] - expected).abs() <= 1e-5 * expected.abs().max(1.0),
+                "{unit:?} axis {axis}"
+            );
+        }
+    }
+    let (count, _) = first_vertex(LinearUnit::Unsupported("yard".into()));
+    assert_eq!(count, 0, "no grid in an unsupported unit");
+}
+
 #[test]
 fn grid_visibility_omits_only_original_grid_bytes_and_its_allocation_charge() {
     let scene = cube();
