@@ -6,38 +6,37 @@
 #        AZTEC_CRAWL_SELFTEST=1 scripts/maya-catalog-crawl.sh   (offline extractor test)
 # Default OUTPUT_DIR: <repo root>/target/maya-catalog, independent of the cwd.
 #
-# Fetches 8 public index pages from help.autodesk.com (4 per release, 2027 and
-# 2026) one after another, and extracts only each row's NAME cell (never the
+# Fetches exactly 8 public year-level index pages from help.autodesk.com (4 each
+# for 2027 and 2026). These are mutable year pages, not immutable update catalogs.
+# Extracts only each row's NAME cell (never the
 # description column):
 #   commands    Maya-Tech-Docs/Commands/index_all.html  (linked command names)
 #   nodes       Maya-Tech-Docs/Nodes/index_all.html     (linked node names)
 #   cpp-classes MAYA-API-REF/cpp_ref/annotated.html     (Doxygen rows, names
 #               qualified with their ancestors, e.g. Ns::Class)
 #   py2-classes MAYA-API-REF/py_ref/annotated.html      (Doxygen rows, bare names)
-# Output files: commands.txt nodes.txt cpp-classes.txt py2-classes.txt and the
-# same four with a -2026 suffix. Each has a header ("# source:", "# retrieved:",
-# "# count:") then one name per line in first-seen page order, de-duplicated.
-# It then prints the 2026-to-2027 delta (names only in one release) per catalog
-# and the counts, so the committed delta table can be re-derived.
+# Each unique snapshot contains raw pages, extracted .names lists, and a manifest
+# recording retrieval time, URLs, SHA-256 hashes, counts, and validation status.
 #
 # Output is for LOCAL USE ONLY and must never be committed: the lists are a bulk
 # copy of Autodesk's catalog structure (owner decision on PR #457; the repo keeps
 # only the delta and counts). Guard: inside a git work tree the script refuses
-# unless git ignores all 8 output paths; outside any work tree only an explicit
-# OUTPUT_DIR is accepted. All 8 files are built in a temp dir and moved into
-# OUTPUT_DIR only after every page passes verification.
+# unless git ignores the output directory; outside any work tree only an explicit
+# OUTPUT_DIR is accepted. Each run is staged under OUTPUT_DIR and atomically
+# published as a unique snapshot only after all pages validate; prior snapshots
+# are never overwritten.
 #
-# Structure check: each count must be within 10 percent of the reference count
-# below (observed 2026-11-15, used for both releases) and every name must match
-# [A-Za-z0-9_:.]+, or the script fails: a page layout change would otherwise
-# silently produce a bad list. Raise the references after legitimate growth.
+# The ±10% count references below (observed 2026-11-15, used for both releases)
+# are structural sanity tripwires only, not completeness evidence. Names must
+# also match [A-Za-z0-9_:.]+. These year-level pages are mutable.
 # Fetch: https only, 3 attempts per page with a growing delay (5s, 10s), 2s
 # pause between pages.
 #
 # Known differences from the PowerShell original (PR #457): no NBSP trimming;
 # only the entities &lt; &gt; &quot; &#39; &amp; are decoded (any other entity
 # leaves a character outside the allowed set and fails loudly).
-# Needs only bash (3.2 ok), curl, awk, sed, grep, sort, comm, git (optional).
+# Needs bash (3.2 ok), curl, awk, sed, grep, sort, comm, and sha256sum or
+# shasum; git is optional.
 set -euo pipefail
 export LC_ALL=C
 
@@ -51,6 +50,71 @@ cpp-classes|MAYA-API-REF/cpp_ref/annotated.html|qualified|640
 py2-classes|MAYA-API-REF/py_ref/annotated.html|bare|313"
 
 decode() { sed -e 's/&lt;/</g' -e 's/&gt;/>/g' -e 's/&quot;/"/g' -e 's/&#39;/'"'"'/g' -e 's/&amp;/\&/g'; }
+
+sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    echo "error: need sha256sum or shasum" >&2
+    return 1
+  fi
+}
+
+validate_names() { # names-file reference-count
+  local file="$1" ref="$2" count lo hi
+  count="$(wc -l <"$file" | tr -d ' ')"
+  lo=$((ref * 90 / 100)); hi=$((ref * 110 / 100))
+  if [ "$count" -eq 0 ] || [ "$count" -lt "$lo" ] || [ "$count" -gt "$hi" ]; then
+    echo "error: $file yielded $count names, expected $lo..$hi (reference $ref); the page structure probably changed" >&2
+    return 1
+  fi
+  if grep -qE '[^A-Za-z0-9_:.]' "$file"; then
+    echo "error: $file contains a name with unexpected characters; the page structure probably changed" >&2
+    return 1
+  fi
+}
+
+publish_snapshot() { # staged-dir output-dir filesystem-safe-stamp
+  local staged="$1" output="$2" stamp="$3" destination
+  destination="$output/snapshot-$stamp-$$"
+  [ ! -e "$destination" ] || { echo "error: snapshot destination already exists: $destination" >&2; return 1; }
+  mv "$staged" "$destination"
+}
+
+cleanup_created() {
+  printf '%s\n' "$created" | while IFS= read -r c; do
+    [ -z "$c" ] || rmdir "$c" 2>/dev/null || true
+  done
+}
+
+guard_output() { # output-dir, relies on $created
+  local output="$1" root rel d absolute
+  if ! absolute="$(cd "$output" 2>/dev/null && pwd -P)"; then
+    echo "error: cannot resolve output directory path: $output" >&2
+    return 1
+  fi
+  if root="$(git -C "$output" rev-parse --show-toplevel 2>/dev/null)"; then
+    rel="$(git -C "$output" rev-parse --show-prefix 2>/dev/null)"
+    if ! git -C "$root" check-ignore -q "${rel:-.}"; then
+      echo "error: $output is not git-ignored; refusing to write local catalog snapshots" >&2
+      return 1
+    fi
+    return 0
+  fi
+  # A failed git probe is not evidence that this is outside a worktree.
+  d="$absolute"
+  while [ -n "$d" ]; do
+    if [ -e "$d/.git" ]; then
+      echo "error: git metadata exists at $d/.git but git cannot resolve it; refusing to write snapshots" >&2
+      return 1
+    fi
+    [ "$d" != "/" ] || break
+    d="$(dirname "$d")"
+  done
+  return 0
+}
 
 # Print names from a page on stdout, first-seen order, de-duplicated.
 extract() { # file mode
@@ -108,6 +172,55 @@ HTML
   local rc=0
   diff "$d/want" "$d/got" || rc=1
   diff "$d/want-bare" "$d/got-bare" || rc=1
+  # Duplicate names are intentionally de-duplicated; malformed/empty/
+  # truncated structures must fail structural validation.
+  printf '%s\n' Alpha Alpha >"$d/duplicate"
+  [ "$(awk '!s[$0]++' "$d/duplicate" | wc -l | tr -d ' ')" = 1 ] || rc=1
+  printf '<html></html>\n' >"$d/empty"
+  extract "$d/empty" links >"$d/empty.names"
+  [ ! -s "$d/empty.names" ] || rc=1
+  printf '<tr id="row_0_"><td class="wrong">broken</td></tr>\n' >"$d/malformed"
+  extract "$d/malformed" bare >"$d/malformed.names"
+  [ ! -s "$d/malformed.names" ] || rc=1
+  # Transaction/no-overwrite exercise: publish only after staged validation.
+  mkdir "$d/snapshots" "$d/stage"
+  printf valid >"$d/snapshots/snapshot-existing"
+  if [ -s "$d/empty.names" ]; then mv "$d/stage" "$d/snapshots/snapshot-failed"; fi
+  [ "$(cat "$d/snapshots/snapshot-existing")" = valid ] &&
+    [ ! -e "$d/snapshots/snapshot-failed" ] || rc=1
+  # Exercise the exact crawl validator: zero count, low/truncated count,
+  # invalid extracted names, then confirm failed validation cannot publish.
+  printf '' >"$d/zero.names"
+  printf 'one\n' >"$d/truncated.names"
+  printf 'bad name\n' >"$d/invalid.names"
+  validate_names "$d/zero.names" 10 >/dev/null 2>&1 && rc=1
+  validate_names "$d/truncated.names" 10 >/dev/null 2>&1 && rc=1
+  validate_names "$d/invalid.names" 1 >/dev/null 2>&1 && rc=1
+  if validate_names "$d/truncated.names" 10 >/dev/null 2>&1; then
+    publish_snapshot "$d/stage" "$d/snapshots" failed || rc=1
+  fi
+  [ "$(cat "$d/snapshots/snapshot-existing")" = valid ] || rc=1
+  # Deterministic collision: publish_snapshot must preserve both the existing
+  # snapshot and the staged directory when the exact destination already exists.
+  mkdir "$d/snapshots/snapshot-collision-$$" "$d/stage-collision"
+  printf original >"$d/snapshots/snapshot-collision-$$/marker"
+  printf staged >"$d/stage-collision/marker"
+  if publish_snapshot "$d/stage-collision" "$d/snapshots" collision >/dev/null 2>&1; then
+    rc=1
+  fi
+  [ "$(cat "$d/snapshots/snapshot-collision-$$/marker")" = original ] || rc=1
+  [ "$(cat "$d/stage-collision/marker")" = staged ] || rc=1
+  mkdir -p "$d/broken/repo/out"
+  : >"$d/broken/repo/.git"
+  created=""
+  if guard_output "$d/broken/repo/out"; then rc=1; fi
+  [ -e "$d/broken/repo/.git" ] || rc=1
+  (
+    cd "$d/broken/repo" || exit 1
+    mkdir -p relative/out
+    if guard_output relative/out; then exit 1; fi
+    [ -e .git ] || exit 1
+  ) || rc=1
   rm -rf "$d"
   [ "$rc" -eq 0 ] && echo "selftest ok"
   return "$rc"
@@ -127,29 +240,22 @@ if [ "$#" -eq 1 ] && [ -n "$1" ]; then
   OUT="$1"
 else
   root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null)" || {
-    echo "error: not inside a git work tree; pass an explicit OUTPUT_DIR" >&2; exit 2; }
+    echo "error: cannot resolve the repository root from the script path; pass an explicit OUTPUT_DIR" >&2; exit 2; }
   OUT="$root/target/maya-catalog"
 fi
 
-NAMES="commands commands-2026 nodes nodes-2026 cpp-classes cpp-classes-2026 py2-classes py2-classes-2026"
 created=""; d="$OUT"
 while [ ! -d "$d" ]; do created="$created
 $d"; d="$(dirname "$d")"; done
 mkdir -p "$OUT"
-if git -C "$OUT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  for n in $NAMES; do
-    if ! git -C "$OUT" check-ignore -q "$n.txt"; then
-      echo "error: $OUT/$n.txt is not git-ignored; refusing to write catalog lists inside a work tree (they must not be committed)" >&2
-      # remove only the directories this run created, deepest first, as collected (rmdir fails on non-empty)
-      printf '%s\n' "$created" | while IFS= read -r c; do [ -z "$c" ] || rmdir "$c" 2>/dev/null || true; done
-      exit 1
-    fi
-  done
+if ! guard_output "$OUT"; then
+  cleanup_created
+  exit 1
 fi
 
-TMP="$(mktemp -d "${TMPDIR:-/tmp}/maya-crawl.XXXXXX")"
+TMP="$(mktemp -d "$OUT/.staging.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
-mkdir "$TMP/out"
+mkdir "$TMP/pages" "$TMP/names"
 
 fetch() { # url dest
   local attempt=1
@@ -161,6 +267,8 @@ fetch() { # url dest
 }
 
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+MANIFEST="$TMP/manifest.tsv"
+printf 'retrieved_utc\t%s\nsource_kind\tmutable year-level catalog page\ncount_references\tstructural sanity tripwire only; not completeness evidence\n' "$NOW" >"$MANIFEST"
 firstfetch=1
 for rel in 2027 2026; do
   suffix=""; [ "$rel" = 2026 ] && suffix="-2026"
@@ -168,34 +276,21 @@ for rel in 2027 2026; do
     [ "$firstfetch" = 1 ] || sleep 2
     firstfetch=0
     url="$BASE/$rel/ENU/$path"
-    fetch "$url" "$TMP/$name$suffix.html"
-    extract "$TMP/$name$suffix.html" "$mode" >"$TMP/$name$suffix.names"
-    count="$(wc -l <"$TMP/$name$suffix.names" | tr -d ' ')"
-    lo=$((ref * 90 / 100)); hi=$((ref * 110 / 100))
-    if [ "$count" -eq 0 ] || [ "$count" -lt "$lo" ] || [ "$count" -gt "$hi" ]; then
-      echo "error: $url yielded $count names, expected $lo..$hi (reference $ref); the page structure probably changed" >&2
-      exit 1
-    fi
-    if grep -qE '[^A-Za-z0-9_:.]' "$TMP/$name$suffix.names"; then
-      echo "error: $url produced a name with unexpected characters; the page structure probably changed" >&2
-      exit 1
-    fi
-    { printf '# source: %s\n# retrieved: %s\n# count: %s\n' "$url" "$NOW" "$count"; cat "$TMP/$name$suffix.names"; } >"$TMP/out/$name$suffix.txt"
+    fetch "$url" "$TMP/pages/$rel-$name.html"
+    extract "$TMP/pages/$rel-$name.html" "$mode" >"$TMP/names/$rel-$name.names"
+    validate_names "$TMP/names/$rel-$name.names" "$ref"
+    count="$(wc -l <"$TMP/names/$rel-$name.names" | tr -d ' ')"
+    raw_sha="$(sha256 "$TMP/pages/$rel-$name.html")"
+    names_sha="$(sha256 "$TMP/names/$rel-$name.names")"
+    printf 'source\t%s\t%s\t%s\t%s\t%s\t%s\tpassed\n' "$rel" "$name" "$url" "$raw_sha" "$names_sha" "$count" >>"$MANIFEST"
     echo "$rel $name: $count names"
-  done <<<"$CATALOGS"
+ done <<<"$CATALOGS"
 done
 
-for n in $NAMES; do mv -f "$TMP/out/$n.txt" "$OUT/$n.txt"; done
-echo "wrote 8 lists to $OUT"
-
-echo
-echo "== 2026 -> 2027 delta =="
-while IFS="|" read -r name _ _ _; do
-  sort "$TMP/$name.names" >"$TMP/new.sorted"
-  sort "$TMP/$name-2026.names" >"$TMP/old.sorted"
-  added="$(comm -23 "$TMP/new.sorted" "$TMP/old.sorted")"
-  removed="$(comm -13 "$TMP/new.sorted" "$TMP/old.sorted")"
-  echo "-- $name: 2026 $(wc -l <"$TMP/$name-2026.names" | tr -d ' '), 2027 $(wc -l <"$TMP/$name.names" | tr -d ' ')"
-  echo "only in 2027:"; [ -z "$added" ] || printf "%s\n" "$added" | sed "s/^/  /"
-  echo "only in 2026:"; [ -z "$removed" ] || printf "%s\n" "$removed" | sed "s/^/  /"
-done <<<"$CATALOGS"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir "$TMP/publish"
+cp -R "$TMP/pages" "$TMP/names" "$TMP/publish/"
+cp "$MANIFEST" "$TMP/publish/manifest.tsv"
+publish_snapshot "$TMP/publish" "$OUT" "$STAMP"
+SNAP="$OUT/snapshot-$STAMP-$$"
+echo "published snapshot $SNAP"

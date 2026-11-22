@@ -6,13 +6,15 @@ This inventory replaces the provisional [workflow seed](../inventory-seed.md) as
 
 ## Documentation pin
 
-- Denominator source: the Maya 2027.2 online documentation ([Maya 2027 Help](https://help.autodesk.com/view/MAYAUL/2027/ENU/)), the pin recorded in [reference.md](../reference.md). No Maya installation is used. The maintainer decided on 2026-10-20 that the official online Maya documentation is the source of truth ([recorded on #5](https://github.com/cristim/AztecCraft/issues/5#issuecomment-6429151313)).
-- The wording "all Maya 2026 functionality" in #6 maps to this pin. Rows that exist only in the 2026 documentation are tagged `2026-only`; rows that the 2027 notes add are tagged `2027-new`. No claim is made that the 2027.2 set contains or equals the 2026 set.
+- Current documentation reference: Maya 2027.3 ([Maya 2027 Help](https://help.autodesk.com/view/MAYAUL/2027/ENU/)), as recorded in [reference.md](../reference.md). Existing family rows and the menu map retain their individually researched citations, including Maya 2027.2; they are not silently relabeled as 2027.3. No Maya installation is used as the workflow denominator. The maintainer decided on 2026-10-20 that official online Maya documentation is the source of truth ([recorded on #5](https://github.com/cristim/AztecCraft/issues/5#issuecomment-6429151313)).
+- The wording "all Maya 2026 functionality" in #6 remains the acceptance objective, not a claim that 2027 documentation defines an equivalent set. Rows documented only in 2026 are tagged `2026-only`; rows documented as additions in 2027 carry `2027-new`. No claim is made that the 2027.3 set contains or equals the 2026 set.
 - A row whose 2027 page could not be read cites a 2026 page and carries the tag `2026 FALLBACK`. Details the documentation does not state are tagged `PROVISIONAL`.
 - Component versions (Arnold, Bifrost, MayaUSD, LookdevX, MASH, XGen and so on) are taken from the 2027 documentation, never from an install.
 - API catalog enumeration and Maya runtime compatibility are separate evidence tracks. A name in a command, node, C++ or Python catalog (see [the API catalog sources](../maya-2027-api-inventory.md)) does not establish behaviour, defaults, plug-in availability, ABI compatibility or Maya 2026 parity; do not upgrade a family row from catalog presence alone.
 
 ## Status vocabulary
+
+API catalog traceability seeds are kept in the separate, [non-scoring API-to-workflow crosswalk](../maya-api-workflow-crosswalk.md); it does not add rows or alter the 14-family denominator.
 
 Status describes documented behaviour only, never equivalence to Maya. The order is Missing < Visible-unsupported < Implemented-untested < Partial < Doc-conformant, and only Doc-conformant scores.
 
@@ -59,7 +61,9 @@ UI element rows stay in ui-parity-inventory.md; family rows link to them by anch
 
 Each family file carries a header with the fields below, filled when it is expanded. This README records the shared rules.
 
-- Documentation pin: Maya 2027.2 help, with the fetch date per file.
+- Current documentation pin: Maya 2027.3; existing family files retain their
+  individually researched source versions and fetch dates. A 2027.2 citation
+  is not silently relabeled as 2027.3.
 - Repository SHA at which the Evidence column was checked.
 - Test platform or CI job for each cited test, in a `## Test platforms` table at the end of each expanded family file (README rules below).
 - A capability reachable only in a feature-gated build (for example `--features mcp`) is classed Partial at best, carries the tag `feature-gated: <feature>` (for example `feature-gated: mcp`), and its Evidence cell names the build that reaches it and says the default build has no user path.
