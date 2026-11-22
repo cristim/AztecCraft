@@ -109,6 +109,13 @@ impl Editor {
     pub(in crate::app) fn windows_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button("Windows", |ui| {
             unsupported(ui, NOT_IMPLEMENTED_YET);
+            ui.menu_button("Settings/Preferences", |ui| {
+                let reason = "Shelf customization is not implemented yet";
+                let item = ui
+                    .add_enabled(false, egui::Button::new("Shelf Editor"))
+                    .on_disabled_hover_text(reason);
+                describe_unavailable(ui.ctx(), item.id, reason);
+            });
             let blocked = (self.files.is_closing() || self.files.is_modal())
                 .then(|| self.playblast_refusal())
                 .flatten();

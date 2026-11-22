@@ -98,6 +98,7 @@ One fixed shelf row exists under the menu bar. Tab order and the Poly Modeling t
 | Undo and redo buttons: AztecCraft-native shelf buttons; not documented on the Maya Status Line (Maya has Edit > Undo and Redo) | [menus] | Supported | `src/app/menus.rs "UiIcon::Undo"`, `src/app/menus.rs "UiIcon::Redo"` | `undo`, `redo` | P1 | S7 Shelf (#65) |
 | Content Browser icon on Sculpting and Poly Modeling shelves | [content-browser-2024] FALLBACK 2024 | Missing | absent | none | P3 | S7 Shelf (#65) |
 | Other default tabs: Curves/Surfaces, Sculpting, Rigging, Animation, Rendering, FX and more | [shelf] UNCONFIRMED list | Missing | absent | none | P3 | S7 Shelf (#65) |
+| Windows > Settings/Preferences > Shelf Editor | [shelf-editor-entry] | Visible-unsupported | disabled button with a hover and AccessKit reason; shelf gear and item context routes remain unsupplied | none | P3 | S7 Shelf (#65) |
 | Shelf Editor (Shelves, Command, Double Click Command, Popup Menu Items) | [shelf-editor] | Missing | absent | none | P3 | S7 Shelf (#65) |
 
 ## 4. Tool Box and quick layouts
@@ -368,6 +369,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 [menuset-editor]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Customizing/files/GUID-C14313A4-D814-4C2A-987E-F54B46FC7707.htm
 [statusline]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-86E5CEDA-4100-40AE-8F95-346206CF8456.htm
 [shelf]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-4A21F741-C9AC-4AE5-897E-B6F8C68ADF90.htm
+[shelf-editor-entry]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-58C25080-5864-4709-BE3A-0543E9D1FCF2.htm
 [shelf-editor]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Customizing/files/GUID-06C06384-6FE5-4618-84A6-22289814D1EE.htm
 [content-browser-2024]: https://help.autodesk.com/cloudhelp/2024/ENU/Maya-Modeling/files/GUID-C4F6724D-1887-41C5-ADB1-A32FEF47FDD3.htm
 [toolbox]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-B345E162-0149-4E09-AC98-48DCFC227F33.htm

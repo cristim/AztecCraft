@@ -701,6 +701,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Settings | Modeling Toolkit, HumanIK, Tool Settings panels, Animation and FX menu sets, selection presets | unsupported | | | |
 | Rigging | Create a session-only joint or chain; delete it through `delete_node` or `delete_selected` | supported | `create_joint` | `nodes.joint` | |
 | Settings | Preferences and Working Units | unsupported | | | |
+| Settings | Shelf Editor (disabled menu entry), shelf tabs, customization and persistence (#65) | unsupported | | | |
 | Panels | Range Slider, Auto Key, tangents, Graph Editor, Dope Sheet, Layer Editor, Outliner filters | unsupported | | | |
 | Panels | Status line message text | supported | | `status_message` | |
 
