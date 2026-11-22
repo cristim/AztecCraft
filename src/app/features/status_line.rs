@@ -147,6 +147,7 @@ impl Editor {
     ) {
         let admitted = !self.files.is_modal() && !self.files.is_closing();
         let mode_admitted = admitted && !self.remote_manipulation_active();
+        let mut services_fit = false;
         ui.horizontal(|ui| {
             self.menu_set_selector(ui);
             ui.separator();
@@ -221,8 +222,17 @@ impl Editor {
                         None => strip_button(ui, button),
                     }
                 }
+                services_fit = online_services_width(ui) <= ui.available_width();
+                if services_fit {
+                    online_services(ui);
+                }
             });
         });
+        if !services_fit {
+            ui.horizontal(|ui| {
+                ui.with_layout(Layout::right_to_left(Align::Center), online_services)
+            });
+        }
     }
 
     fn menu_set_selector(&mut self, ui: &mut egui::Ui) {
@@ -264,6 +274,40 @@ impl Editor {
         if let Some(set) = choice {
             self.native_operation(Operation::SetMenuSet { set });
         }
+    }
+}
+
+// Right-to-left order keeps the two controls adjacent on either row.
+const ONLINE_SERVICES: [(&str, &str); 2] = [
+    ("Sign in", "Autodesk account sign-in is unavailable"),
+    ("Flow Studio", "Flow Studio integration is unavailable"),
+];
+
+fn online_services_width(ui: &egui::Ui) -> f32 {
+    let font = ui
+        .style()
+        .override_font_id
+        .clone()
+        .unwrap_or_else(|| egui::TextStyle::Body.resolve(ui.style()));
+    ONLINE_SERVICES
+        .iter()
+        .map(|(label, _)| {
+            ui.painter()
+                .layout_no_wrap((*label).into(), font.clone(), egui::Color32::WHITE)
+                .size()
+                .x
+                + 2.0 * ui.spacing().button_padding.x
+                + ui.spacing().item_spacing.x
+        })
+        .sum()
+}
+
+fn online_services(ui: &mut egui::Ui) {
+    for (label, reason) in ONLINE_SERVICES {
+        ui.add_enabled_ui(false, |ui| {
+            let response = ui.button(label).on_disabled_hover_text(reason);
+            super::primitive_options::describe_unavailable(ui.ctx(), response.id, reason);
+        });
     }
 }
 

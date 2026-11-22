@@ -30,6 +30,7 @@ const CHANNEL_BOX: &str = "Channel Box / Layer Editor";
 const ATTRIBUTE_EDITOR: &str = "Attribute Editor";
 /// Toggles that are live; every other toggle is a disabled placeholder.
 const LIVE: [&str; 2] = [CHANNEL_BOX, ATTRIBUTE_EDITOR];
+const SERVICES: [&str; 2] = ["Flow Studio", "Sign in"];
 const TOGGLES: [&str; 5] = [
     "Modeling Toolkit",
     "HumanIK",
@@ -81,6 +82,7 @@ fn strip(output: &egui::FullOutput) -> Vec<Control> {
                 || STRIP_FILES.contains(&c.label.as_str())
                 || MODES.contains(&c.label.as_str())
                 || COMPONENT_TYPES.contains(&c.label.as_str())
+                || SERVICES.contains(&c.label.as_str())
                 || TOGGLES.contains(&c.label.as_str())
         })
         .collect();
@@ -140,7 +142,18 @@ fn snapshot(editor: &Editor) -> (uuid::Uuid, String, bool, SelectionMode, Option
 
 #[test]
 fn strip_fits_the_minimum_window_at_every_scale_and_enlarged_text() {
-    for (ppp, font) in [(1.0, 14.0), (1.25, 14.0), (2.0, 14.0), (1.0, 18.0)] {
+    for (width, ppp, font) in [
+        (960.0, 1.0, 14.0),
+        (960.0, 1.25, 14.0),
+        (960.0, 2.0, 14.0),
+        (960.0, 1.0, 18.0),
+        (1024.0, 1.0, 18.0),
+        (1040.0, 1.0, 18.0),
+        (1056.0, 1.0, 18.0),
+        (1072.0, 1.0, 18.0),
+        (1088.0, 1.0, 18.0),
+    ] {
+        let size = egui::vec2(width, SIZE.y);
         let (mut editor, context) = setup();
         let mut style = egui::Style {
             override_font_id: Some(egui::FontId::proportional(font)),
@@ -149,36 +162,58 @@ fn strip_fits_the_minimum_window_at_every_scale_and_enlarged_text() {
         style.spacing.button_padding = egui::vec2(8.0, 4.0);
         context.set_style_of(egui::Theme::Dark, style);
         context.set_theme(egui::Theme::Dark);
-        frame_with(&mut editor, &context, SIZE, ppp, vec![]);
-        let output = frame_with(&mut editor, &context, SIZE, ppp, vec![]);
+        frame_with(&mut editor, &context, size, ppp, vec![]);
+        let output = frame_with(&mut editor, &context, size, ppp, vec![]);
         let found = strip(&output);
-        assert_eq!(found.len(), 16, "ppp {ppp} font {font}");
+        assert_eq!(found.len(), 18, "width {width} ppp {ppp} font {font}");
+        let flow = found
+            .iter()
+            .find(|c| c.label == SERVICES[0])
+            .expect(SERVICES[0]);
+        let sign_in = found
+            .iter()
+            .find(|c| c.label == SERVICES[1])
+            .expect(SERVICES[1]);
+        assert_eq!(flow.rect.center().y, sign_in.rect.center().y);
+        assert!(
+            (sign_in.rect.left()
+                - flow.rect.right()
+                - context.global_style().spacing.item_spacing.x)
+                .abs()
+                <= 0.5
+        );
         let margin = egui::Frame::side_top_panel(&context.global_style()).total_margin();
         for control in &found {
             assert!(
                 control.rect.left() >= margin.left - 0.5
-                    && control.rect.right() <= SIZE.x - margin.right + 0.5,
-                "ppp {ppp} font {font}: {} at {:?}",
+                    && control.rect.right() <= size.x - margin.right + 0.5,
+                "width {width} ppp {ppp} font {font}: {} at {:?}",
                 control.label,
                 control.rect
             );
         }
-        for pair in found.windows(2) {
-            assert!(
-                pair[0].rect.right() <= pair[1].rect.left() + 0.5,
-                "ppp {ppp} font {font}: {} overlaps {}",
-                pair[0].label,
-                pair[1].label
-            );
+        for (index, control) in found.iter().enumerate() {
+            for other in &found[index + 1..] {
+                assert!(
+                    !control
+                        .rect
+                        .shrink(0.25)
+                        .intersects(other.rect.shrink(0.25)),
+                    "width {width} ppp {ppp} font {font}: {} overlaps {}",
+                    control.label,
+                    other.label
+                );
+            }
         }
     }
 }
 
 #[test]
-fn strip_elements_are_in_documented_order() {
+fn wide_strip_keeps_the_service_pair_before_the_sidebar_cluster() {
     let (mut editor, context) = setup();
-    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
-    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let wide = egui::vec2(1440.0, 900.0);
+    frame_with(&mut editor, &context, wide, 1.0, vec![]);
+    let output = frame_with(&mut editor, &context, wide, 1.0, vec![]);
     let labels: Vec<String> = strip(&output).into_iter().map(|c| c.label).collect();
     let expected: Vec<&str> = [MENU_SET]
         .into_iter()
@@ -186,6 +221,7 @@ fn strip_elements_are_in_documented_order() {
         .chain([PRESETS])
         .chain(MODES)
         .chain(COMPONENT_TYPES)
+        .chain(SERVICES)
         .chain(TOGGLES)
         .collect();
     assert_eq!(labels, expected);
@@ -221,6 +257,27 @@ fn clicking_disabled_strip_buttons_changes_nothing() {
         assert!(control.disabled, "{}", control.label);
         click(&mut editor, &context, control.rect.center());
         assert_eq!(snapshot(&editor), before, "{}", control.label);
+    }
+}
+
+#[test]
+fn online_service_buttons_are_disabled_and_explain_why() {
+    for (label, reason) in [
+        ("Flow Studio", "Flow Studio integration is unavailable"),
+        ("Sign in", "Autodesk account sign-in is unavailable"),
+    ] {
+        let (mut editor, context) = file_editor(FileState::Clean);
+        let found = strip(&strip_output(&mut editor, &context));
+        let before = snapshot(&editor);
+        let control = found.iter().find(|c| c.label == label).expect(label);
+        assert_eq!(control.role, accesskit::Role::Button);
+        assert!(control.disabled, "{label}");
+        let at = control.rect.center();
+        let hover = hover_texts(&mut editor, &context, at);
+        assert!(hover.contains(reason), "{label} at {at:?}: {hover}");
+        click(&mut editor, &context, at);
+        assert!(!egui::Popup::is_any_open(&context));
+        assert_eq!(snapshot(&editor), before);
     }
 }
 

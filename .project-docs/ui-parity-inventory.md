@@ -52,7 +52,7 @@ Menu bar draws File, Edit, Create, Select, Modify, Display, Windows, then the ac
 
 ## 2. Status Line
 
-The AztecCraft window draws a partial Status Line strip, from `Editor::status_line` (`src/app/features/status_line.rs:98 "pub(in crate::app) fn status_line"`). Groups without AztecCraft behavior are not drawn. See known-issues.md, "Status Line is a partial subset".
+The AztecCraft window draws a partial Status Line strip, from `Editor::status_line` (`src/app/features/status_line.rs:98 "pub(in crate::app) fn status_line"`). Several unsupported groups are absent. See known-issues.md, "Status Line is a partial subset".
 
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -74,6 +74,7 @@ The AztecCraft window draws a partial Status Line strip, from `Editor::status_li
 | Hypershade button | [statusline] | Missing | absent | none | P3 | S6 Menu content (#66) |
 | Input box (Absolute, Relative, Rename, Select by name) | [statusline] | Missing | absent; the Channel Box has per-field edits instead | `edit_node`, `rename_node` | P2 | S1 Status Line strip (#59) |
 | Workspace selector | [overview] | Missing | absent from the window; no entry in the menu bar (`src/app/menus.rs "pub(super) const ALWAYS_ON_MENUS"`) or the shelf (`src/app/menus.rs "UiIcon::PolyCube"`) | none | P2 | S14 Docking and workspaces (#67) |
+| Flow Studio and Sign in (Maya 2027) | [flow-studio-2027], [overview-2027] | Visible-unsupported | `ONLINE_SERVICES` defines adjacent disabled text buttons with separate reasons; responsive placement next to or below the sidebar cluster is PROVISIONAL | none | P3 | S1 Status Line strip (#59) |
 | Sidebar toggle: Modeling Toolkit | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:55 "Modeling Toolkit: not implemented yet"` | none | P2 | S1 Status Line strip (#59) |
 | Sidebar toggle: HumanIK | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:61 "HumanIK: not implemented yet"` | none | P3 | S1 Status Line strip (#59) |
 | Sidebar toggle: Attribute Editor | [statusline] | Supported | `src/app/features/status_line.rs:67 "Show or hide the Attribute Editor"`; shows the Attribute Editor and hides the Channel Box; disabled during an active manipulation | `set_sidebar_panel_visibility` | P1 | S1 Status Line strip (#59) |
@@ -400,3 +401,6 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 [hud-panel]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-45A62F95-AD75-4C8E-8B46-6D4D8110814C.htm
 [viewcube-2026]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-C1861E55-85FA-47F9-B4D2-71366875E56D.htm
 [viewcube-overview]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-59D87B3C-5E1B-4CEE-A63B-6EE44EDCFE69.htm
+
+[flow-studio-2027]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-WhatsNew/files/GUID-12ED90E7-5130-4D38-A77B-465FE81F7956.htm
+[overview-2027]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-F4FCE554-1FA5-447A-8835-63EB43D2690B.htm

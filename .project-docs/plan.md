@@ -187,3 +187,9 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+## Issue #59: Status Line online services
+
+Maya 2027.2 documentation baseline, checked 2026-11-22. The [Interface overview](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-F4FCE554-1FA5-447A-8835-63EB43D2690B.htm) describes the User Account menu for Autodesk sign-in and account/licensing options. [Connect to Flow Studio](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-WhatsNew/files/GUID-12ED90E7-5130-4D38-A77B-465FE81F7956.htm) places a dedicated cloud-service button in the Status Line next to Sign in. [Create menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-AF592D59-02CB-4B97-9C57-37795C8B1D8A.htm) documents a separate Create > Open Flow Studio entry. The cited pages specify no hotkeys. Maya 2027.3 is available and its reference-pin update is tracked separately in [#476](https://github.com/cristim/AztecCraft/pull/476).
+
+Slice: adjacent, disabled Flow Studio and Sign in text buttons with individual tooltip reasons and accessible disabled states. They sit left of the sidebar cluster when space permits and share a second row otherwise. The layout is PROVISIONAL. The account dropdown, cloud integration, Create menu entry and Application Home remain unsupported. The disabled surfaces introduce no application state or MCP operation. Check order, minimum-width fitting, clicks and tooltips in the Editor, then exercise the native window. Installed Maya comparison remains open.
