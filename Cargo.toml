@@ -41,7 +41,7 @@ futures-util = { version = "=0.3.34", features = ["sink"], optional = true }
 wasmtime = { version = "=48.0.9", default-features = false, features = ["runtime", "cranelift", "std"], optional = true }
 
 [dev-dependencies]
-pollster = "=1.0.1"
+pollster = "=1.0.3"
 tempfile = "=3.27.0"
 wat = "=1.263.0"
 
