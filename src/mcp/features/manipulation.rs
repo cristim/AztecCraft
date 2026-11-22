@@ -162,6 +162,15 @@ enum BeginManipulationArgs {
         #[serde(default)]
         expected_selection_generation: Option<u64>,
     },
+    MovePlane {
+        scene_token: String,
+        node_id: String,
+        #[schemars(length(min = 1, max = 256))]
+        instance_path: Vec<String>,
+        plane: PlaneInput,
+        #[serde(default)]
+        expected_selection_generation: Option<u64>,
+    },
     Rotate {
         scene_token: String,
         node_id: String,
@@ -184,13 +193,22 @@ enum BeginManipulationArgs {
     },
 }
 
-/// Exactly one of `distance`, `angle` or `factor`, matching the kind of the manipulation.
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum PlaneInput {
+    Xy,
+    Xz,
+    Yz,
+}
+
+/// Exactly one of `distance`, `plane_delta`, `angle` or `factor`, matching the kind of the manipulation.
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct UpdateManipulationArgs {
     scene_token: String,
     manipulation_id: String,
     distance: Option<f64>,
+    plane_delta: Option<[f64; 2]>,
     angle: Option<f64>,
     factor: Option<f64>,
 }
@@ -378,6 +396,24 @@ fn parse_begin_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Erro
                 expected_selection_generation,
             },
         ),
+        BeginManipulationArgs::MovePlane {
+            scene_token,
+            node_id,
+            instance_path,
+            plane,
+            expected_selection_generation,
+        } => (
+            scene_token,
+            Operation::BeginMovePlane {
+                target: target(&node_id, instance_path)?,
+                plane: match plane {
+                    PlaneInput::Xy => azteccraft::native_scene::WorldPlane::XY,
+                    PlaneInput::Xz => azteccraft::native_scene::WorldPlane::XZ,
+                    PlaneInput::Yz => azteccraft::native_scene::WorldPlane::YZ,
+                },
+                expected_selection_generation,
+            },
+        ),
         BeginManipulationArgs::Rotate {
             scene_token,
             node_id,
@@ -425,16 +461,24 @@ fn parse_update_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Err
             ))
         }
     };
-    let operation = match (args.distance, args.angle, args.factor) {
-        (Some(distance), None, None) => Operation::UpdateMove {
+    let operation = match (args.distance, args.plane_delta, args.angle, args.factor) {
+        (Some(distance), None, None, None) => Operation::UpdateMove {
             id,
             distance: MoveDistance::Declared(finite("distance", distance)?),
         },
-        (None, Some(angle), None) => Operation::UpdateManipulation {
+        (None, Some(delta), None, None) => Operation::UpdateMovePlane {
+            id,
+            delta: [
+                finite("plane_delta", delta[0])?,
+                finite("plane_delta", delta[1])?,
+            ],
+            centimeters: false,
+        },
+        (None, None, Some(angle), None) => Operation::UpdateManipulation {
             id,
             value: ManipulationValue::Angle(finite("angle", angle)?),
         },
-        (None, None, Some(factor)) => {
+        (None, None, None, Some(factor)) => {
             if finite("factor", factor)? <= 0.0 {
                 return Err(ErrorData::invalid_params(
                     "factor must be greater than zero",
@@ -448,7 +492,7 @@ fn parse_update_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Err
         }
         _ => {
             return Err(ErrorData::invalid_params(
-                "give exactly one of distance, angle or factor",
+                "give exactly one of distance, plane_delta, angle or factor",
                 None,
             ));
         }
@@ -473,11 +517,15 @@ fn update_schema() -> JsonObject {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "UpdateManipulationArgs",
         "type": "object",
-        "description": "Exactly one of distance (Move), angle (Rotate) or factor (Scale), matching the kind of the manipulation; any other is a typed manipulation_kind_mismatch error",
+        "description": "Exactly one of distance (Move), plane_delta (Move plane), angle (Rotate) or factor (Scale), matching the kind of the manipulation; any other is a typed manipulation_kind_mismatch error",
         "oneOf": [
             common("distance", json!({
                 "type": "number",
                 "description": "Absolute Move distance from begin along the World axis, in the scene linear unit (inspection units.distance)",
+            })),
+            common("plane_delta", json!({
+                "type":"array", "items":{"type":"number"}, "minItems":2,"maxItems":2,
+                "description":"Absolute Move delta from begin in the scene linear unit, in plane axis order",
             })),
             common("angle", json!({
                 "type": "number",
@@ -561,7 +609,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "begin_manipulation",
-        description: "Begin one remote-owned Move (World axis), Rotate (Object or World space) or Scale (Object, World or Parent space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move or a Scale acts on the whole current selection with the named node as its lead (the last selected object), each object scaling about its own pivot by the same factor; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. Rotate still needs exactly one selected object. In Vertex, Edge or Face selection a move drags the unique vertices of the picked components of the selected object, a shared vertex once (World or Object orientation, no Snap to grids, at most 8192 vertices) and requires expected_selection_generation (a missing one is invalid_input); the generation moves with every object-selection, pick and selection-mode change and guards the selection, not geometry (an undo or redo that moves points does not change it); inspect_scene then reports the drag as kind move_components with component_kind and vertex_count and null channel fields",
+        description: "Begin one remote-owned Move (World axis), Rotate (Object or World space) or Scale (Object, World or Parent space) of the exact selected transform instance. For kind move_plane pass plane xy, xz or yz in World orientation with Snap to grids off, then update with plane_delta. Numeric manipulation may begin while any tool is active; this does not change tools. A Move or a Scale acts on the whole current selection with the named node as its lead (the last selected object), each object scaling about its own pivot by the same factor; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. Rotate still needs exactly one selected object. In Vertex, Edge or Face selection a move drags the unique vertices of the picked components of the selected object, a shared vertex once (World or Object orientation, no Snap to grids, at most 8192 vertices) and requires expected_selection_generation (a missing one is invalid_input); the generation moves with every object-selection, pick and selection-mode change and guards the selection, not geometry (an undo or redo that moves points does not change it); inspect_scene then reports the drag as kind move_components with component_kind and vertex_count and null channel fields",
         schema: schema::<BeginManipulationArgs>,
         parse: parse_begin_manipulation,
         idempotent: false,

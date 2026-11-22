@@ -39,6 +39,33 @@ impl WorldAxis {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WorldPlane {
+    XY,
+    XZ,
+    YZ,
+}
+
+impl WorldPlane {
+    pub const ALL: [Self; 3] = [Self::XY, Self::XZ, Self::YZ];
+
+    pub fn axes(self) -> [WorldAxis; 2] {
+        match self {
+            Self::XY => [WorldAxis::X, WorldAxis::Y],
+            Self::XZ => [WorldAxis::X, WorldAxis::Z],
+            Self::YZ => [WorldAxis::Y, WorldAxis::Z],
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::XY => "xy",
+            Self::XZ => "xz",
+            Self::YZ => "yz",
+        }
+    }
+}
+
 /// The Move tool's Axis Orientation: the axes a Move handle is aligned to.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -231,13 +258,38 @@ impl WorldMoveFrame {
         axis: WorldAxis,
         distance_cm: f64,
     ) -> Result<[f64; 3], NativeError> {
-        if !distance_cm.is_finite() {
+        if distance_cm == 0.0 {
+            return Ok(self.translation);
+        }
+        self.translation_displacement(
+            self.direction(space, axis)? * distance_cm,
+            distance_cm.abs(),
+        )
+    }
+
+    pub(crate) fn translation_on_plane(
+        &self,
+        plane: WorldPlane,
+        delta: [f64; 2],
+    ) -> Result<[f64; 3], NativeError> {
+        let [first, second] = plane.axes().map(WorldAxis::direction);
+        self.translation_displacement(
+            first * delta[0] + second * delta[1],
+            delta[0].abs().max(delta[1].abs()),
+        )
+    }
+
+    fn translation_displacement(
+        &self,
+        displacement: DVec3,
+        distance_cm: f64,
+    ) -> Result<[f64; 3], NativeError> {
+        if !displacement.is_finite() {
             return Err(NativeError::NonFinite);
         }
         if distance_cm == 0.0 {
             return Ok(self.translation);
         }
-        let displacement = self.direction(space, axis)? * distance_cm;
         let local_delta = self.inverse_parent * displacement;
         let bound = self.parent_norm * local_delta.abs().max_element();
         let tolerance = ROUNDTRIP_EPSILON * bound.max(distance_cm.abs()).max(1.0);

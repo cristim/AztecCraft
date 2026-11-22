@@ -237,6 +237,7 @@ impl Editor {
 pub(in crate::app) fn kind_name(kind: ManipulationKindState) -> &'static str {
     match kind {
         ManipulationKindState::Move { .. } | ManipulationKindState::MoveComponents { .. } => "move",
+        ManipulationKindState::MovePlane { .. } => "move_plane",
         ManipulationKindState::Rotate { .. } => "rotate",
         ManipulationKindState::Scale { .. } => "scale",
     }

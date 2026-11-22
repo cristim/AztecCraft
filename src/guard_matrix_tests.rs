@@ -804,6 +804,16 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             axis: WorldAxis::X,
             expected_selection_generation: None,
         },
+        Operation::BeginMovePlane {
+            target: t.transform_target(),
+            plane: azteccraft::native_scene::WorldPlane::XY,
+            expected_selection_generation: None,
+        },
+        Operation::UpdateMovePlane {
+            id: t.move_id,
+            delta: [1.0, 2.0],
+            centimeters: true,
+        },
         Operation::UpdateMove {
             id: t.move_id,
             distance: MoveDistance::Centimeters(1.0),
@@ -1342,6 +1352,14 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
+        Operation::BeginMovePlane { .. } | Operation::UpdateMovePlane { .. } => vec![sample(
+            if matches!(seed, Operation::BeginMovePlane { .. }) {
+                "begin_move_plane(xy)"
+            } else {
+                "update_move_plane"
+            },
+            seed,
+        )],
         Operation::UpdateMove { .. } => {
             let mut cells = vec![sample(
                 "update_move",

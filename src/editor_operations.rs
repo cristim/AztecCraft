@@ -8,7 +8,7 @@ use azteccraft::{
     native_scene::{
         EdgeTarget, FaceTarget, GroupOptions, MoveSpace, NativeError, NativeId, RotateAxis,
         RotateSpace, ScaleHandle, ScaleSpace, TransformChannels, TransformTarget, UngroupOptions,
-        VertexSetTarget, VertexTarget, WorldAxis,
+        VertexSetTarget, VertexTarget, WorldAxis, WorldPlane,
     },
     scene::{NodeId, Primitive},
     viewport::{FilmBackEdit, InvalidCameraInput, InvalidCameraPose, InvalidFilmBack, NdcRect},
@@ -484,6 +484,16 @@ pub enum Operation {
         target: TransformTarget,
         axis: WorldAxis,
         expected_selection_generation: Option<u64>,
+    },
+    BeginMovePlane {
+        target: TransformTarget,
+        plane: WorldPlane,
+        expected_selection_generation: Option<u64>,
+    },
+    UpdateMovePlane {
+        id: ManipulationId,
+        delta: [f64; 2],
+        centimeters: bool,
     },
     UpdateMove {
         id: ManipulationId,
@@ -1420,6 +1430,8 @@ pub struct ActiveManipulationInspection {
     pub provenance: &'static str,
     /// `distance`, `angle` or `factor`: the parameter `update_manipulation` takes for this kind.
     pub parameter: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plane_delta: Option<[f64; 2]>,
     pub value: f64,
     pub unit: String,
     /// `translate`, `rotate` or `scale`: the three channels this manipulation edits; null for a
@@ -1444,7 +1456,7 @@ pub struct ActiveManipulationInspection {
 pub struct MoveViewportInspection {
     pub provenance: &'static str,
     pub axes: Vec<MoveAxisInspection>,
-    /// The active tool's enabled handle under the last native pointer: Move and Rotate `x|y|z`,
+    /// The active tool's enabled handle under the last native pointer: Move `x|y|z|xy|xz|yz`, Rotate `x|y|z`,
     /// Scale `x|y|z|uniform`; null for Select, no hit, or while a manipulation is active.
     pub pointer_hit: Option<&'static str>,
     /// `free_rotate`, `view_ring` or `scale_plane` when a drawn-but-unsupported handle is under

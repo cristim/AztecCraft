@@ -13,14 +13,17 @@ use azteccraft::{
         EditOutcome, ManipulationError, ManipulationFinish, ManipulationId, ManipulationProvenance,
     },
     manipulator_handles::{RotateDrag, ScaleDrag},
-    move_handles::{AxisDrag, HandleError, ViewportCapture, WorldHandles},
-    native_scene::{MoveSpace, TransformTarget, WorldAxis},
+    move_handles::{
+        AxisDrag, HandleError, PlaneDrag, ViewportCapture, WorldHandles, plane_handles,
+    },
+    native_scene::{MoveSpace, TransformTarget, WorldAxis, WorldPlane},
 };
 #[cfg(any(test, feature = "mcp"))]
 use azteccraft::{
     manipulator_handles::{DisabledKind, Pick},
     native_scene::{RotateAxis, ScaleHandle},
 };
+use eframe::egui::{self, Color32};
 use glam::{DVec3, Vec2};
 use uuid::Uuid;
 
@@ -31,6 +34,7 @@ pub(in crate::app) const UNSUPPORTED_UNIT_SNAP_REFUSAL: &str = "Snap to grids ne
 
 pub(in crate::app) enum NativeDrag {
     Move(AxisDrag),
+    MovePlane(PlaneDrag),
     Rotate(RotateDrag),
     Scale(ScaleDrag),
 }
@@ -38,7 +42,7 @@ pub(in crate::app) enum NativeDrag {
 impl NativeDrag {
     fn tool(&self) -> ActiveTool {
         match self {
-            Self::Move(_) => ActiveTool::Move,
+            Self::Move(_) | Self::MovePlane(_) => ActiveTool::Move,
             Self::Rotate(_) => ActiveTool::Rotate,
             Self::Scale(_) => ActiveTool::Scale,
         }
@@ -47,6 +51,7 @@ impl NativeDrag {
     fn same_capture(&self, capture: &ViewportCapture) -> bool {
         match self {
             Self::Move(drag) => drag.same_capture(capture),
+            Self::MovePlane(drag) => drag.same_capture(capture),
             Self::Rotate(drag) => drag.same_capture(capture),
             Self::Scale(drag) => drag.same_capture(capture),
         }
@@ -62,6 +67,11 @@ impl NativeDrag {
             Self::Move(drag) => Operation::UpdateMove {
                 id,
                 distance: MoveDistance::Centimeters(drag.distance_cm(capture, pointer)?),
+            },
+            Self::MovePlane(drag) => Operation::UpdateMovePlane {
+                id,
+                delta: drag.delta_cm(capture, pointer)?,
+                centimeters: true,
             },
             Self::Rotate(drag) => Operation::UpdateManipulation {
                 id,
@@ -341,6 +351,7 @@ impl Editor {
         if matches!(
             operation,
             Operation::UpdateMove { .. }
+                | Operation::UpdateMovePlane { .. }
                 | Operation::UpdateManipulation { .. }
                 | Operation::FinishMove { .. }
         ) {
@@ -423,6 +434,87 @@ impl Editor {
         Ok(OperationReply::ManipulationStarted {
             manipulation_id: id.to_decimal(),
         })
+    }
+
+    pub(in crate::app) fn move_planes_available(&self) -> bool {
+        !self.moves_components()
+            && self.manipulation.move_space() == MoveSpace::World
+            && !self.snap_to_grid
+    }
+
+    pub(in crate::app) fn begin_editor_move_plane(
+        &mut self,
+        target: &TransformTarget,
+        plane: WorldPlane,
+        provenance: ManipulationProvenance,
+        expected_selection_generation: Option<u64>,
+    ) -> Result<OperationReply, OperationError> {
+        self.check_move_target(target, provenance, expected_selection_generation)?;
+        if !self.move_planes_available() {
+            return Err(OperationError::InvalidInput(
+                "Move planes require World orientation, object selection and Snap to grids off"
+                    .into(),
+            ));
+        }
+        let id = self
+            .history
+            .begin_move_plane(
+                self.selection.members(),
+                plane,
+                self.scene_token,
+                provenance,
+                256 * 1024 * 1024,
+            )
+            .map_err(begin_error)?;
+        self.manipulation.refusal = None;
+        self.manipulation.snap = None;
+        self.sync_fields();
+        Ok(OperationReply::ManipulationStarted {
+            manipulation_id: id.to_decimal(),
+        })
+    }
+
+    pub(in crate::app) fn update_editor_move_plane(
+        &mut self,
+        id: ManipulationId,
+        delta: [f64; 2],
+        centimeters: bool,
+        provenance: ManipulationProvenance,
+    ) -> Result<OperationReply, OperationError> {
+        if let Some(active) = self.history.active_manipulation()
+            && active.id == id
+            && active.plane_delta_cm.is_none()
+        {
+            return Err(OperationError::KindMismatch {
+                parameter: "plane_delta",
+                active: kind_name(active.kind),
+            });
+        }
+        let factor = self
+            .history
+            .scene()
+            .units()
+            .linear_factor()
+            .map_err(OperationError::Scene)?;
+        let delta = if centimeters {
+            delta
+        } else {
+            delta.map(|value| value * factor)
+        };
+        if delta
+            .iter()
+            .any(|value| !value.is_finite() || !(value / factor).is_finite())
+        {
+            return Err(OperationError::InvalidInput(
+                "Move plane delta cannot be represented in the declared linear unit".into(),
+            ));
+        }
+        let updated = self
+            .history
+            .update_move_plane(self.scene_token, id, provenance, delta);
+        let outcome = self.record_update(updated)?;
+        self.sync_fields();
+        Ok(edit_reply(outcome))
     }
 
     // Without the Declared arm the distance match is a single-arm destructure.
@@ -696,6 +788,10 @@ impl Editor {
                             linear_unit_name(&units.linear).to_owned(),
                         )
                     }
+                    ManipulationKindState::MovePlane { plane } => (
+                        "move_plane", "world", None, Some(plane.name()), "plane_delta", 0.0,
+                        linear_unit_name(&units.linear).to_owned(),
+                    ),
                     ManipulationKindState::Rotate { axis, space } => {
                         let value = match self.manipulation.declared {
                             Some((id, declared)) if id == active.id => declared,
@@ -784,10 +880,17 @@ impl Editor {
                         ManipulationProvenance::Remote => "remote",
                     },
                     parameter,
+                    plane_delta: match active.plane_delta_cm {
+                        Some(delta) => {
+                            let factor = units.linear_factor().map_err(OperationError::Scene)?;
+                            Some(delta.map(|value| value / factor))
+                        }
+                        None => None,
+                    },
                     value,
                     unit,
                     channels: match active.kind {
-                        ManipulationKindState::Move { .. } => Some("translate"),
+                        ManipulationKindState::Move { .. } | ManipulationKindState::MovePlane { .. } => Some("translate"),
                         ManipulationKindState::MoveComponents { .. } => None,
                         ManipulationKindState::Rotate { .. } => Some("rotate"),
                         ManipulationKindState::Scale { .. } => Some("scale"),
@@ -839,6 +942,7 @@ impl Editor {
                         .pointer
                         .filter(|_| self.history.active_manipulation().is_none()),
                     geometry.as_ref().ok(),
+                    origin.as_ref().ok().copied(),
                 );
                 let axes = match &geometry {
                     Ok(handles) => handles
@@ -902,6 +1006,7 @@ impl Editor {
         capture: &ViewportCapture,
         pointer: Option<Vec2>,
         move_handles: Option<&WorldHandles>,
+        origin: Option<DVec3>,
     ) -> PointerPick {
         let none = PointerPick::default();
         let Some((pointer, pixel)) =
@@ -912,9 +1017,17 @@ impl Editor {
         let tool = self.active_tool;
         match tool {
             ActiveTool::Move => PointerPick {
-                hit: move_handles
-                    .and_then(|handles| handles.hit_test(pixel))
-                    .map(axis_name),
+                hit: origin
+                    .filter(|_| self.move_planes_available())
+                    .and_then(|origin| {
+                        plane_handles(capture, origin).find(|handle| handle.hit(pixel))
+                    })
+                    .map(|handle| handle.plane.name())
+                    .or_else(|| {
+                        move_handles
+                            .and_then(|handles| handles.hit_test(pixel))
+                            .map(axis_name)
+                    }),
                 ..none
             },
             ActiveTool::Rotate | ActiveTool::Scale => {
@@ -1006,10 +1119,13 @@ impl Editor {
     }
 
     fn preview_status(&self, tool: ActiveTool) -> String {
-        let parameter = self
-            .history
-            .active_manipulation()
-            .map_or(0.0, |active| active.parameter);
+        let active = self.history.active_manipulation();
+        if let Some(azteccraft::history::ManipulationKindState::MovePlane { plane }) =
+            active.as_ref().map(|state| state.kind)
+        {
+            return format!("World {} Move preview", plane.name().to_uppercase());
+        }
+        let parameter = active.map_or(0.0, |state| state.parameter);
         match tool {
             ActiveTool::Rotate => format!("Rotate preview: {parameter:.2} deg"),
             ActiveTool::Scale => format!("Scale preview: factor {parameter:.3}"),
@@ -1242,6 +1358,25 @@ impl Editor {
         let pixel = capture
             .pointer_pixel(position)
             .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+        if self.move_planes_available()
+            && let Some(handle) = plane_handles(&capture, origin).find(|handle| handle.hit(pixel))
+        {
+            let plane = handle.plane;
+            let drag = PlaneDrag::begin(capture, origin, plane, position)
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+            if let Err(error) = self.apply_operation(Operation::BeginMovePlane {
+                target,
+                plane,
+                expected_selection_generation: None,
+            }) {
+                self.consume_pointer_sequence();
+                return Err(error);
+            }
+            self.start_native_drag(NativeDrag::MovePlane(drag), pointer.released)?;
+            self.status = format!("World {} Move", plane.name().to_uppercase());
+            self.error = false;
+            return Ok(true);
+        }
         let Some(axis) = handles.hit_test(pixel) else {
             return Ok(false);
         };
@@ -1299,11 +1434,11 @@ impl Editor {
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
             let handles = WorldHandles::new_in(&capture, origin, directions)
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
-            Ok::<_, OperationError>((capture, handles))
+            Ok::<_, OperationError>((capture, handles, origin))
         })();
         let painter = input.painter().with_clip_rect(input.rect());
         let scale = input.pixels_per_point();
-        let (capture, handles) = match geometry {
+        let (capture, handles, origin) = match geometry {
             Ok(geometry) => geometry,
             Err(error) => {
                 painter.text(
@@ -1316,6 +1451,40 @@ impl Editor {
                 return;
             }
         };
+        if self.move_planes_available() {
+            let active = self
+                .history
+                .active_manipulation()
+                .and_then(|state| match state.kind {
+                    azteccraft::history::ManipulationKindState::MovePlane { plane } => Some(plane),
+                    _ => None,
+                });
+            let pointer = input
+                .move_pointer()
+                .position
+                .and_then(|point| capture.pointer_pixel(point).ok());
+            for handle in plane_handles(&capture, origin) {
+                let color =
+                    if active == Some(handle.plane) || pointer.is_some_and(|p| handle.hit(p)) {
+                        Color32::from_rgb(255, 225, 80)
+                    } else {
+                        match handle.plane {
+                            WorldPlane::XY => Color32::from_rgb(85, 150, 245),
+                            WorldPlane::XZ => Color32::from_rgb(90, 220, 105),
+                            WorldPlane::YZ => Color32::from_rgb(235, 75, 75),
+                        }
+                    };
+                let corners = handle.corners.map(|pixel| {
+                    input.rect().min
+                        + eframe::egui::vec2(pixel.x as f32 / scale, pixel.y as f32 / scale)
+                });
+                painter.add(egui::Shape::convex_polygon(
+                    corners.to_vec(),
+                    color.gamma_multiply(0.33),
+                    egui::Stroke::new(1.0 / scale, color),
+                ));
+            }
+        }
         let active = self
             .history
             .active_manipulation()
@@ -1325,6 +1494,10 @@ impl Editor {
                 .move_pointer()
                 .position
                 .and_then(|pointer| capture.pointer_pixel(pointer).ok())
+                .filter(|pixel| {
+                    !self.move_planes_available()
+                        || !plane_handles(&capture, origin).any(|handle| handle.hit(*pixel))
+                })
                 .and_then(|pixel| handles.hit_test(pixel))
         } else {
             None

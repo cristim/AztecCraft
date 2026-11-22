@@ -2,7 +2,7 @@ use super::{Command, EditOutcome, History};
 use crate::native_scene::{
     ChannelBaseline, ChannelEdits, MoveBeginError, MoveSpace, NativeError, NativeId, NativeScene,
     RotateAxis, RotateFrame, RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported,
-    TransformTarget, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
+    TransformTarget, WorldAxis, WorldMoveFrame, WorldMoveUnsupported, WorldPlane,
 };
 use crate::scene::{NodeId, SceneError};
 use crate::view_scene::{ViewError, ViewScene};
@@ -92,6 +92,9 @@ pub enum ManipulationKindState {
     Move {
         axis: WorldAxis,
     },
+    MovePlane {
+        plane: WorldPlane,
+    },
     Rotate {
         axis: RotateAxis,
         space: RotateSpace,
@@ -114,6 +117,7 @@ pub struct ManipulationState<'a> {
     pub target: &'a TransformTarget,
     pub provenance: ManipulationProvenance,
     pub parameter: f64,
+    pub plane_delta_cm: Option<[f64; 2]>,
     pub kind: ManipulationKindState,
     /// The three channels this manipulation edits, as stored at begin; `None` for a kind that
     /// edits no channels.
@@ -142,7 +146,9 @@ impl ManipulationState<'_> {
         match self.kind {
             ManipulationKindState::Move { axis } => Some(axis),
             ManipulationKindState::MoveComponents { axis, .. } => axis,
-            ManipulationKindState::Rotate { .. } | ManipulationKindState::Scale { .. } => None,
+            ManipulationKindState::Rotate { .. }
+            | ManipulationKindState::Scale { .. }
+            | ManipulationKindState::MovePlane { .. } => None,
         }
     }
 
@@ -165,6 +171,7 @@ enum ManipulationKind {
     /// in which case `covered_lead` holds the lead's own baseline for inspection.
     Move {
         axis: WorldAxis,
+        plane: Option<WorldPlane>,
         space: MoveSpace,
         movers: Vec<(WorldMoveFrame, ChannelBaseline)>,
         covered_lead: Option<ChannelBaseline>,
@@ -210,6 +217,9 @@ impl ManipulationKind {
 
     fn state(&self) -> ManipulationKindState {
         match self {
+            Self::Move {
+                plane: Some(plane), ..
+            } => ManipulationKindState::MovePlane { plane: *plane },
             Self::Move { axis, .. } => ManipulationKindState::Move { axis: *axis },
             Self::Rotate { axis, frame, .. } => ManipulationKindState::Rotate {
                 axis: *axis,
@@ -253,6 +263,7 @@ impl ManipulationKind {
         parameter: f64,
         declared: Option<f64>,
         last_good: f64,
+        plane_delta: Option<[f64; 2]>,
     ) -> Result<(Undo, bool), NativeError> {
         let values = match self {
             Self::MoveComponents(component) => {
@@ -261,13 +272,18 @@ impl ManipulationKind {
             }
             Self::Move {
                 axis,
+                plane,
                 space,
                 movers,
                 ..
             } => {
                 let values = movers
                     .iter()
-                    .map(|(frame, _)| frame.translation_in(*space, *axis, parameter))
+                    .map(|(frame, _)| match (plane, plane_delta) {
+                        (Some(plane), Some(delta)) => frame.translation_on_plane(*plane, delta),
+                        (None, None) => frame.translation_in(*space, *axis, parameter),
+                        _ => Err(NativeError::UnsupportedEdit),
+                    })
                     .collect::<Result<Vec<_>, _>>()?;
                 return scene
                     .preview_channels_many(movers.iter().map(|(_, baseline)| baseline).zip(values))
@@ -397,6 +413,7 @@ impl ManipulationBegin {
         Self {
             kind: ManipulationKind::Move {
                 axis,
+                plane: None,
                 space,
                 movers,
                 covered_lead,
@@ -426,6 +443,7 @@ pub(super) struct MoveTransaction {
     kind: ManipulationKind,
     view_budget: usize,
     parameter: f64,
+    plane_delta_cm: Option<[f64; 2]>,
     member_count: usize,
     covered_count: usize,
 }
@@ -678,6 +696,7 @@ impl History {
             target: &active.target,
             provenance: active.provenance,
             parameter: active.parameter,
+            plane_delta_cm: active.plane_delta_cm,
             kind: active.kind.state(),
             baseline_channels: baseline.map(ChannelBaseline::values),
             current_channels: baseline.and_then(|baseline| {
@@ -747,6 +766,35 @@ impl History {
             .ok_or(ManipulationError::Native(NativeError::InvalidIdentity))?;
         self.begin_manipulation(lead, scene_token, provenance, byte_budget, |scene| {
             plan_move(scene, targets, space, Some(axis), lead)
+        })
+    }
+
+    pub fn begin_move_plane(
+        &mut self,
+        targets: &[TransformTarget],
+        plane: WorldPlane,
+        scene_token: Uuid,
+        provenance: ManipulationProvenance,
+        byte_budget: usize,
+    ) -> Result<ManipulationId, ManipulationError> {
+        let lead = targets.last().ok_or(NativeError::InvalidIdentity)?;
+        self.begin_manipulation(lead, scene_token, provenance, byte_budget, |scene| {
+            let [first, second] = plane.axes();
+            let mut plan = plan_move(scene, targets, MoveSpace::World, Some(first), lead)?;
+            if let ManipulationKind::Move {
+                movers,
+                plane: stored,
+                ..
+            } = &mut plan.kind
+            {
+                for (frame, baseline) in movers {
+                    frame
+                        .require_leaves_in(MoveSpace::World, second)
+                        .map_err(|error| member_error(scene, baseline.node(), error))?;
+                }
+                *stored = Some(plane);
+            }
+            Ok(plan)
         })
     }
 
@@ -908,6 +956,8 @@ impl History {
             },
             provenance,
             parameter: kind.initial_parameter(),
+            plane_delta_cm: matches!(kind.state(), ManipulationKindState::MovePlane { .. })
+                .then_some([0.0; 2]),
             kind,
             view_budget,
             member_count,
@@ -924,7 +974,7 @@ impl History {
         provenance: ManipulationProvenance,
         distance_cm: f64,
     ) -> Result<EditOutcome, ManipulationError> {
-        self.update_active(scene_token, id, provenance, distance_cm, None)
+        self.update_active(scene_token, id, provenance, distance_cm, None, None)
     }
 
     /// Like `update_move`, for a Rotate whose angle was requested in the scene's angular unit.
@@ -938,7 +988,17 @@ impl History {
         degrees: f64,
         declared: Option<f64>,
     ) -> Result<EditOutcome, ManipulationError> {
-        self.update_active(scene_token, id, provenance, degrees, declared)
+        self.update_active(scene_token, id, provenance, degrees, declared, None)
+    }
+
+    pub fn update_move_plane(
+        &mut self,
+        scene_token: Uuid,
+        id: ManipulationId,
+        provenance: ManipulationProvenance,
+        delta_cm: [f64; 2],
+    ) -> Result<EditOutcome, ManipulationError> {
+        self.update_active(scene_token, id, provenance, 0.0, None, Some(delta_cm))
     }
 
     fn update_active(
@@ -948,17 +1008,22 @@ impl History {
         provenance: ManipulationProvenance,
         distance_cm: f64,
         declared: Option<f64>,
+        plane_delta: Option<[f64; 2]>,
     ) -> Result<EditOutcome, ManipulationError> {
         let active = self
             .active_manipulation
             .as_mut()
             .ok_or(ManipulationError::StaleManipulation)?;
         active.matches(scene_token, id, provenance)?;
+        if active.plane_delta_cm.is_some() != plane_delta.is_some() {
+            return Err(NativeError::UnsupportedEdit.into());
+        }
         let (undo, changed) = active.kind.preview(
             Self::touch(&mut self.scene, &mut self.revision),
             distance_cm,
             declared,
             active.parameter,
+            plane_delta,
         )?;
         if let Err(error) = ViewScene::from_native(&self.scene, active.view_budget) {
             active
@@ -967,6 +1032,7 @@ impl History {
             return Err(error.into());
         }
         active.parameter = distance_cm;
+        active.plane_delta_cm = plane_delta;
         Ok(if changed {
             EditOutcome::Changed
         } else {
