@@ -43,6 +43,12 @@ impl Editor {
 
     /// Whether `tab` names the selected transform or one of its direct shapes or their materials.
     fn attribute_editor_tab_resolves(&self, tab: AttributeEditorTab) -> bool {
+        if tab == AttributeEditorTab::ImagePlane {
+            return self.image_plane.is_some();
+        }
+        if tab == AttributeEditorTab::Camera {
+            return true;
+        }
         let Some(node) = self
             .selection_presentation()
             .0
@@ -51,6 +57,7 @@ impl Editor {
             return false;
         };
         match tab {
+            AttributeEditorTab::ImagePlane | AttributeEditorTab::Camera => false,
             AttributeEditorTab::Transform(id) => id == node.id(),
             AttributeEditorTab::Shape(shape) => self
                 .direct_shape_rank(node.transform_id(), shape)
@@ -66,6 +73,13 @@ impl Editor {
     /// The active tab: the stored one while it still resolves, else the selected transform's.
     /// `None` without a selected node.
     pub(in crate::app) fn effective_attribute_editor_tab(&self) -> Option<AttributeEditorTab> {
+        // The image plane and camera tabs belong to the live camera, so they need no selected node.
+        if let Some(tab @ (AttributeEditorTab::ImagePlane | AttributeEditorTab::Camera)) =
+            self.attribute_editor_tab
+            && self.attribute_editor_tab_resolves(tab)
+        {
+            return Some(tab);
+        }
         let selected = self
             .selection_presentation()
             .0
@@ -123,6 +137,12 @@ impl Editor {
                 "Attribute Editor shows at most {MAX_SHAPE_TABS} shape tabs per transform"
             )));
         }
+        if tab == AttributeEditorTab::ImagePlane && self.image_plane.is_none() {
+            return Err(OperationError::InvalidInput(
+                "The Image Plane tab needs an image plane: create one with set_image_plane or View > Image Plane > Import Image"
+                    .into(),
+            ));
+        }
         if !self.attribute_editor_tab_resolves(tab) {
             return Err(OperationError::InvalidInput(
                 "Attribute Editor tab does not resolve for the selected node".into(),
@@ -158,12 +178,16 @@ impl Editor {
     pub(in crate::app) fn attribute_editor(&mut self, ui: &mut egui::Ui) {
         ui.label(RichText::new("Attribute Editor").strong());
         let Some(active) = self.effective_attribute_editor_tab() else {
+            self.plane_drafts_primed = false;
+            self.camera_drafts_primed = false;
             ui.separator();
+            // No selected node: only the live camera's tabs can be shown.
+            self.attribute_editor_tabs(ui, None);
             ui.weak("Select an object to edit its attributes.");
             return;
         };
         ui.separator();
-        self.attribute_editor_tabs(ui, active);
+        self.attribute_editor_tabs(ui, Some(active));
         ui.separator();
         egui::ScrollArea::vertical()
             .id_salt("attribute_editor_scroll")
@@ -172,6 +196,18 @@ impl Editor {
     }
 
     fn attribute_editor_body(&mut self, ui: &mut egui::Ui, active: AttributeEditorTab) {
+        if active == AttributeEditorTab::ImagePlane {
+            self.camera_drafts_primed = false;
+            self.image_plane_section(ui);
+            return;
+        }
+        if active == AttributeEditorTab::Camera {
+            self.plane_drafts_primed = false;
+            self.camera_section(ui);
+            return;
+        }
+        self.plane_drafts_primed = false;
+        self.camera_drafts_primed = false;
         let read_only_reason = self.authoring_refusal();
         let authoring = read_only_reason.is_none();
         if let Some(reason) = read_only_reason {
@@ -195,6 +231,7 @@ impl Editor {
                 ui.label("Common Material Attributes");
                 self.material_section(ui, shape);
             }
+            AttributeEditorTab::ImagePlane | AttributeEditorTab::Camera => {}
         }
     }
 
@@ -304,26 +341,32 @@ impl Editor {
         apply
     }
 
-    fn attribute_editor_tabs(&mut self, ui: &mut egui::Ui, active: AttributeEditorTab) {
+    fn attribute_editor_tabs(&mut self, ui: &mut egui::Ui, active: Option<AttributeEditorTab>) {
         let scene = self.history.scene();
-        let Some(node) = self
+        let node = self
             .selection_presentation()
             .0
-            .and_then(|id| scene.node(id).ok())
-        else {
-            return;
-        };
-        let shapes: Vec<_> = scene
-            .dag_edges()
+            .and_then(|id| scene.node(id).ok());
+        let shapes: Vec<_> = node
             .iter()
-            .filter(|edge| edge.parent() == Some(node.transform_id()))
-            .filter_map(|edge| scene.shape(edge.child()).ok())
+            .flat_map(|node| {
+                scene
+                    .dag_edges()
+                    .iter()
+                    .filter(|edge| edge.parent() == Some(node.transform_id()))
+                    .filter_map(|edge| scene.shape(edge.child()).ok())
+            })
             .collect();
         // Same order and cap as `direct_shape_rank`, which gates which tabs can be selected.
-        let mut tabs = vec![(
-            AttributeEditorTab::Transform(node.id()),
-            node.name().to_owned(),
-        )];
+        let mut tabs: Vec<(AttributeEditorTab, String)> = node
+            .map(|node| {
+                (
+                    AttributeEditorTab::Transform(node.id()),
+                    node.name().to_owned(),
+                )
+            })
+            .into_iter()
+            .collect();
         for shape in shapes.iter().take(MAX_SHAPE_TABS) {
             tabs.push((
                 AttributeEditorTab::Shape(shape.id()),
@@ -336,15 +379,26 @@ impl Editor {
                 ));
             }
         }
+        tabs.push((AttributeEditorTab::Camera, "Camera".to_owned()));
+        if self.image_plane.is_some() {
+            tabs.push((AttributeEditorTab::ImagePlane, "Image Plane".to_owned()));
+        }
         let omitted = shapes.len().saturating_sub(MAX_SHAPE_TABS);
         ui.horizontal_wrapped(|ui| {
             for (tab, title) in tabs {
-                if ui.selectable_label(tab == active, title).clicked() && tab != active {
+                if ui.selectable_label(Some(tab) == active, title).clicked() && Some(tab) != active
+                {
                     self.attribute_editor_tab_request = Some(tab);
                 }
             }
-            ui.add_enabled(false, egui::Button::new("Pin Tab"))
+            let pin = ui
+                .add_enabled(false, egui::Button::new("Pin Tab"))
                 .on_disabled_hover_text("Pin Tab: not implemented yet");
+            crate::app::features::primitive_options::describe_unavailable(
+                ui.ctx(),
+                pin.id,
+                "Pin Tab: not implemented yet",
+            );
         });
         if omitted > 0 {
             ui.weak(format!("{omitted} more shapes are not shown as tabs."));

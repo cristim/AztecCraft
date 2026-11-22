@@ -1,9 +1,9 @@
 use crate::{
     native_scene::{
-        ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest, MaterialChoice,
-        MayaImportPlan, NativeError, NativeId, NativeScene, NativeTransform, ObjImportPlan,
-        PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId, TransformChannels,
-        TransformTarget, UngroupOptions, UvProjectAxis,
+        AlignOptions, ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest,
+        LambertAttribute, MaterialChoice, MayaImportPlan, NativeError, NativeId, NativeScene,
+        NativeTransform, ObjImportPlan, PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId,
+        TransformChannels, TransformTarget, UngroupOptions, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -93,6 +93,33 @@ pub enum Command {
         ids: Vec<NodeId>,
         channels: TransformChannels,
     },
+    /// Matches every object of `ids` but the last (the target) to the target's world transform
+    /// for the chosen channels as one undo step; any refusal leaves the scene and history untouched.
+    MatchTransformations {
+        ids: Vec<NodeId>,
+        channels: TransformChannels,
+    },
+    /// Aligns the world bounding boxes of `ids` as one undo step; any refusal leaves the scene
+    /// and history untouched.
+    AlignObjects {
+        ids: Vec<NodeId>,
+        options: AlignOptions,
+    },
+    /// Prefixes the names of `ids` and everything below them as one undo step; any refusal leaves
+    /// the scene and history untouched.
+    PrefixHierarchyNames {
+        ids: Vec<NodeId>,
+        prefix: String,
+    },
+    /// Replaces `search` in the names of `ids` (and everything below them with `hierarchy`) as one
+    /// undo step; any refusal leaves the scene and history untouched.
+    SearchReplaceNames {
+        ids: Vec<NodeId>,
+        hierarchy: bool,
+        search: String,
+        replace: String,
+        match_case: bool,
+    },
     SetMaterialDiffuse {
         shape: NativeId,
         value: f64,
@@ -101,12 +128,17 @@ pub enum Command {
         color: [f64; 3],
     },
     AssignSessionMaterial {
-        shape: NativeId,
+        shapes: Vec<NativeId>,
         material: MaterialChoice,
     },
     SetSessionMaterialColor {
         material: SessionMaterialId,
         color: [f64; 3],
+    },
+    SetSessionMaterialAttribute {
+        material: SessionMaterialId,
+        attribute: LambertAttribute,
+        rgb: [f64; 3],
     },
     ExtrudeFace {
         shape: NativeId,
@@ -202,10 +234,16 @@ impl Command {
             // PROVISIONAL: Maya's docs name no undo entries.
             Self::ResetTransformations { .. } => "Reset Transformations".to_string(),
             Self::FreezeTransformations { .. } => "Freeze Transformations".to_string(),
+            Self::MatchTransformations { .. } => "Match Transformations".to_string(),
+            Self::AlignObjects { .. } => "Align Objects".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::PrefixHierarchyNames { .. } => "Prefix Hierarchy Names".to_string(),
+            Self::SearchReplaceNames { .. } => "Search and Replace Names".to_string(),
             Self::SetMaterialDiffuse { .. }
             | Self::CreateSessionMaterial { .. }
             | Self::AssignSessionMaterial { .. }
-            | Self::SetSessionMaterialColor { .. } => "Material".to_string(),
+            | Self::SetSessionMaterialColor { .. }
+            | Self::SetSessionMaterialAttribute { .. } => "Material".to_string(),
 
             Self::ExtrudeFace { .. } => "Extrude".to_string(),
             Self::MoveVertices { .. } => "Move".to_string(),
@@ -608,6 +646,8 @@ impl History {
                 | Command::ResetPivots { .. }
                 | Command::ResetTransformations { .. }
                 | Command::FreezeTransformations { .. }
+                | Command::MatchTransformations { .. }
+                | Command::AlignObjects { .. }
                 | Command::ExtrudeFace { .. }
                 | Command::MoveVertices { .. }
         );
@@ -699,6 +739,28 @@ impl History {
                 candidate.freeze_transformations(&ids, channels)?;
                 EditOutcome::Changed
             }
+            Command::MatchTransformations { ids, channels } => {
+                candidate.match_transformations(&ids, channels)?;
+                EditOutcome::Changed
+            }
+            Command::AlignObjects { ids, options } => {
+                candidate.align_objects(&ids, options)?;
+                EditOutcome::Changed
+            }
+            Command::PrefixHierarchyNames { ids, prefix } => {
+                candidate.prefix_hierarchy_names(&ids, &prefix)?;
+                EditOutcome::Changed
+            }
+            Command::SearchReplaceNames {
+                ids,
+                hierarchy,
+                search,
+                replace,
+                match_case,
+            } => {
+                candidate.search_replace_names(&ids, hierarchy, &search, &replace, match_case)?;
+                EditOutcome::Changed
+            }
             Command::SetMaterialDiffuse { shape, value } => {
                 candidate.set_material_diffuse(shape, value)?;
                 EditOutcome::Changed
@@ -710,11 +772,19 @@ impl History {
             Command::CreateSessionMaterial { color } => {
                 EditOutcome::SessionMaterial(candidate.create_session_material(color)?)
             }
-            Command::AssignSessionMaterial { shape, material } => {
-                EditOutcome::SessionMaterial(candidate.assign_session_material(shape, material)?)
-            }
+            Command::AssignSessionMaterial { shapes, material } => EditOutcome::SessionMaterial(
+                candidate.assign_session_material_to_shapes(&shapes, material)?,
+            ),
             Command::SetSessionMaterialColor { material, color } => {
                 candidate.set_session_material_color(material, color)?;
+                EditOutcome::Changed
+            }
+            Command::SetSessionMaterialAttribute {
+                material,
+                attribute,
+                rgb,
+            } => {
+                candidate.set_session_material_attribute(material, attribute, rgb)?;
                 EditOutcome::Changed
             }
             Command::ExtrudeFace {

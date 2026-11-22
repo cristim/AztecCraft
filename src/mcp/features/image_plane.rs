@@ -88,7 +88,8 @@ struct SetImagePlaneArgs {
     /// Distance from the camera in centimetres (`depth`), greater than zero (a positive value
     /// too small for an f32 is refused).
     depth: Option<f64>,
-    /// Alpha multiplier (`alphaGain`), 0 to 1000.
+    /// Alpha multiplier (`alphaGain`), 0 to 1000; a value below the f32 range (about 7e-46)
+    /// is stored as 0.
     alpha_gain: Option<f64>,
     /// `none`, `outline`, `rgb`, `rgba`, `luminance` or `alpha` (`displayMode`).
     display_mode: Option<DisplayModeArg>,
@@ -194,7 +195,7 @@ fn parse_remove_image_plane(arguments: JsonObject) -> Result<RemoteRequest, Erro
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "set_image_plane",
-        description: "Create or edit the live camera's image plane (Maya imagePlane, a plate behind the scene for matchmove). The first call needs image_name, a .png, .jpg or .jpeg file (1 to 4096 UTF-8 bytes, no NUL; EXR, DPX and movies are not supported); its header is read at once, so a missing, unreadable, oversize (over 128 MiB, over 8192 pixels a side or over 33554432 pixels in all, so 8192 x 8192 is refused) or non-image file is image_plane_error and nothing changes. Optional: use_frame_extension (substitute current time plus frame_offset into the last digit run of the file name; a frame outside the sequence has no file), frame_offset (whole frames, -1000000 to 1000000), frame_cache (frames kept, 1 to 1000), fit (fill, best, horizontal, vertical, to_size; the order is PROVISIONAL), depth (centimetres, greater than zero), alpha_gain (0 to 1000), display_mode (none, outline, rgb, rgba, luminance, alpha). Coverage: coverage_x and coverage_y (width and height in source pixels) and coverage_origin_x and coverage_origin_y name part of the image; the numbers you give replace those of the stored coverage (or of the full image when none is stored) and the result must lie inside the image (PROVISIONAL merge rule: the Maya pages do not state it); numbers that add up to the whole image still store an explicit coverage, and reset_coverage true is the way back to none (inspect_scene shows null) and excludes the four numbers. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error) leaves the plane untouched. A new image_name smaller than a stored coverage is refused with a message to reset the coverage in the same call. Setting the same image_name again is unchanged and does not reload the file; call remove_image_plane or change the name to reload. Integers must be whole numbers inside their range. Reports changed or unchanged, judged numerically. Session only, not saved with the scene, not undoable, cleared by New and Open; no reply or error carries the path. inspect_scene camera.image_plane reports the settings, image size, resolved file name and frame. PROVISIONAL: the Maya pages do not state the fit numbering, the occlusion at depth, what Outline shows, or the file-name numbering. The viewport does not draw the plate yet; once it does, the first pass of playback over a sequence is not real time and orthographic views show no plate (PROVISIONAL)",
+        description: "Create or edit the live camera's image plane (Maya imagePlane, a plate behind the scene for matchmove). The first call needs image_name, a .png, .jpg or .jpeg file (1 to 4096 UTF-8 bytes, no NUL; EXR, DPX and movies are not supported); its header is read at once, so a missing, unreadable, oversize (over 128 MiB, over 8192 pixels a side or over 33554432 pixels in all, so 8192 x 8192 is refused) or non-image file is image_plane_error and nothing changes. Optional: use_frame_extension (substitute current time plus frame_offset into the last digit run of the file name; a frame outside the sequence has no file), frame_offset (whole frames, -1000000 to 1000000), frame_cache (frames kept, 1 to 1000), fit (fill, best, horizontal, vertical, to_size; the order is PROVISIONAL), depth (centimetres, greater than zero; a positive value below about 7e-46 is refused as too small), alpha_gain (0 to 1000; a value below the f32 range, about 7e-46, is stored as 0), display_mode (none, outline, rgb, rgba, luminance, alpha). Coverage: coverage_x and coverage_y (width and height in source pixels) and coverage_origin_x and coverage_origin_y name part of the image; the numbers you give replace those of the stored coverage (or of the full image when none is stored) and the result must lie inside the image (PROVISIONAL merge rule: the Maya pages do not state it); numbers that add up to the whole image still store an explicit coverage, and reset_coverage true is the way back to none (inspect_scene shows null) and excludes the four numbers. Every field is optional and at least one is required; only the named fields change, all or nothing: any invalid value (named in the error) leaves the plane untouched. A new image_name smaller than a stored coverage is refused with a message to reset the coverage in the same call. Setting the same image_name again is unchanged and does not reload the file; call remove_image_plane or change the name to reload. Integers must be whole numbers inside their range. Reports changed or unchanged, judged numerically. Session only, not saved with the scene, not undoable, cleared by New and Open; no reply or error carries the path. inspect_scene camera.image_plane reports the settings, image size, resolved file name and frame. PROVISIONAL: the Maya pages do not state the fit numbering, the occlusion at depth, what Outline shows, or the file-name numbering. The plate is drawn first in perspective views and orthographic views show no plate; the first pass of playback over a sequence is not real time while frames load, and the last ready frame is held meanwhile (PROVISIONAL)",
         schema: schema::<SetImagePlaneArgs>,
         parse: parse_set_image_plane,
         idempotent: true,
@@ -227,6 +228,22 @@ mod tests {
         ] {
             assert!(text.contains(&limit), "description lacks `{limit}`");
         }
+    }
+
+    #[test]
+    fn depth_zero_says_greater_than_0_and_only_an_underflow_says_too_small() {
+        let zero = depth_arg(0.0).unwrap_err().message;
+        assert!(zero.contains("greater than 0"), "{zero}");
+        assert!(!zero.contains("too small"), "{zero}");
+        let tiny = depth_arg(1e-50).unwrap_err().message;
+        assert!(tiny.contains("too small"), "{tiny}");
+    }
+
+    #[test]
+    fn the_description_states_the_underflow_rules() {
+        let text = TOOLS[0].description;
+        assert!(text.contains("refused as too small"));
+        assert!(text.contains("is stored as 0"));
     }
 
     #[test]

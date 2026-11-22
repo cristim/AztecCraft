@@ -2296,7 +2296,7 @@ fn every_instance_of_an_assigned_shape_takes_its_colour_and_undo_restores_grey()
     let mut history = History::new(native);
     history
         .execute(Command::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: MaterialChoice::New {
                 color: [1.0, 0.0, 0.2],
             },

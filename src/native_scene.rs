@@ -1,4 +1,5 @@
 pub(crate) mod admission;
+mod align;
 mod appearance;
 pub mod ascii;
 mod authored;
@@ -12,6 +13,7 @@ mod manipulator_frame;
 mod maya_import;
 mod mesh;
 mod move_translation;
+mod naming;
 mod pivot_edit;
 mod references;
 mod reparent;
@@ -26,6 +28,7 @@ mod source_removal;
 mod transform_extras;
 mod transform_ops;
 mod ungroup;
+pub use align::{AlignMode, AlignOptions, AlignTo};
 pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
     MaterialShader,
@@ -45,6 +48,7 @@ pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError}
 pub use move_translation::{
     ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
 };
+pub use naming::NamingRefusal;
 pub use pivot_edit::{PivotLeaf, PivotReset};
 pub use references::{
     MAX_REFERENCE_PATH_BYTES, MAX_REFERENCE_TEXT_BYTES, MAX_REFERENCES, ReferenceDeclaration,
@@ -64,8 +68,8 @@ pub use session_keys::{
 };
 use session_material::SessionMaterials;
 pub use session_material::{
-    DEFAULT_LAMBERT_COLOR, Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId,
-    ShadingGroup,
+    DEFAULT_LAMBERT_COLOR, DEFAULT_LAMBERT_EXTRA, Lambert, LambertAttribute, MAX_ASSIGN_SHAPES,
+    MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId, ShadingGroup,
 };
 use session_uv::SessionUvs;
 pub use session_uv::{DEFAULT_UV_SET, UvProjectAxis, UvSet};
@@ -1276,6 +1280,13 @@ impl NativeScene {
         *self = snapshot;
     }
 
+    /// Test seam: declares the scene's linear unit without rescaling stored values.
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_linear_unit_for_test(&mut self, linear: LinearUnit) {
+        self.units.linear = linear;
+    }
+
     /// Test seam: gives `node` rotate and scale pivots, which no operation can yet (slice B of #39).
     #[cfg(feature = "mcp-test-client")]
     #[doc(hidden)]
@@ -2359,6 +2370,8 @@ pub enum NativeError {
     InvalidReparent(ReparentRefusal),
     /// A reset or freeze of transformations the scene refuses; see `TransformRefusal`.
     InvalidTransformEdit(TransformRefusal),
+    /// A prefix or search and replace of node names the scene refuses; see `NamingRefusal`.
+    InvalidNameEdit(NamingRefusal),
     UnsupportedDelete(DeleteUnsupported),
     /// One node of a delete of several refused; `reason` is that node's own refusal.
     DeleteMemberRefused {
@@ -2370,6 +2383,8 @@ pub enum NativeError {
     ReadOnlyFormat,
     UnknownSessionMaterial(SessionMaterialId),
     SessionColorOutOfRange,
+    /// A multi-shape assignment list the scene refuses (empty, too long or repeating a shape).
+    InvalidShapeList(&'static str),
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
     InvalidSessionJoints,
@@ -2379,8 +2394,8 @@ pub enum NativeError {
     InvalidSessionKeys,
     /// A film back value the camera store refuses; names the first offending field.
     InvalidFilmBack(&'static str),
-    /// The camera was stated in a file with a value the editor cannot carry (an unknown
-    /// `filmRollOrder` id), so it cannot be edited.
+    /// The camera was stated in a file in a way the editor cannot carry (a partial film back
+    /// statement or an unknown `filmRollOrder` id), so it cannot be edited.
     BlockedCamera,
     /// The scene was opened from a file whose camera attributes the editor cannot yet write back.
     SourcedCameraEdit,
@@ -2467,6 +2482,7 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidReparent(reason) => reason.fmt(f),
             Self::InvalidTransformEdit(reason) => reason.fmt(f),
+            Self::InvalidNameEdit(reason) => reason.fmt(f),
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
             Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
             Self::InsertionAfterDelete => f.write_str(
@@ -2479,6 +2495,7 @@ impl fmt::Display for NativeError {
             Self::InitialSessionMaterialLocked => {
                 f.write_str("the initial session material keeps the viewport base fill")
             }
+            Self::InvalidShapeList(reason) => write!(f, "invalid shape list: {reason}"),
             Self::SessionColorOutOfRange => {
                 f.write_str("session material colour channels must be within 0 through 1")
             }
@@ -2494,8 +2511,8 @@ impl fmt::Display for NativeError {
             Self::InvalidSessionKeys => f.write_str("invalid session key table"),
             Self::InvalidFilmBack(field) => write!(f, "invalid camera film back field {field}"),
             Self::BlockedCamera => f.write_str(
-                "the camera film back cannot be edited: the file states a value this editor \
-                 does not know",
+                "the camera film back cannot be edited: the file states it in a way this editor \
+                 cannot carry (a partial statement or an unknown roll order id)",
             ),
             Self::SourcedCameraEdit => f.write_str(
                 "camera film back edits are not written back to an opened Maya file yet; \

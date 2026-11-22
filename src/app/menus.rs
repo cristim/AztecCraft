@@ -567,6 +567,8 @@ impl Editor {
             for label in &ALWAYS_ON_MENUS[CONTENT_MENUS..] {
                 if *label == "Modify" {
                     self.modify_menu(ui, read_only_reason);
+                } else if *label == "Windows" {
+                    self.windows_menu(ui);
                 } else {
                     placeholder_menu(ui, label);
                 }

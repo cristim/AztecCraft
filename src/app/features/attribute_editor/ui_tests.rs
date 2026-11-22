@@ -893,6 +893,8 @@ fn empty_attribute_editor_shows_no_diagnostics_header() {
         texts,
         [
             "Attribute Editor",
+            "Camera",
+            "Pin Tab",
             "Select an object to edit its attributes."
         ]
     );

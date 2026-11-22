@@ -53,6 +53,8 @@ mod manipulator_handles;
 
 #[path = "tests/multi_selection.rs"]
 mod multi_selection;
+#[path = "tests/plate.rs"]
+mod plate;
 #[path = "tests/vertex_edge.rs"]
 mod vertex_edge;
 
@@ -566,7 +568,6 @@ pub(crate) fn renderer_handle() -> ViewportRenderer {
         },
         format: FORMAT,
         max_buffer_size: 1024 * 1024,
-        #[cfg(feature = "mcp")]
         gpu: None,
         submission: Arc::default(),
     }
@@ -845,6 +846,7 @@ fn headless_gpu_face_centers_match_picker_for_planar_nonplanar_and_degenerate_fa
                             },
                             true,
                             ShadingMode::SmoothShadeAll,
+                            None,
                         )
                         .unwrap()
                         .0,
@@ -1073,6 +1075,73 @@ fn grid_follows_mayas_default_size_major_lines_and_divisions() {
     assert!(grid_gray(0) > grid_gray(5) && grid_gray(5) > grid_gray(1));
 }
 
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn grid_lines_are_drawn_in_scene_linear_units() {
+    use azteccraft::native_scene::LinearUnit;
+    let camera = Camera::default();
+    let matrix = camera.projection_matrix(1.0).unwrap() * camera.view_matrix();
+    let grid_of = |unit: LinearUnit| {
+        let mut scene = NativeScene::default();
+        scene.set_linear_unit_for_test(unit);
+        let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+        let submission = Submission::new(
+            &view,
+            &camera,
+            [SIZE; 2],
+            SelectionFeedback::Object(None),
+            true,
+            ShadingMode::SmoothShadeAll,
+            FORMAT,
+            1024 * 1024,
+        )
+        .unwrap();
+        let start = submission.surfaces.end as usize * VERTEX_BYTES;
+        let end = start
+            + submission.bytes[start..]
+                .len()
+                .min(GRID_VERTICES * VERTEX_BYTES);
+        (
+            submission.vertex_count(),
+            submission.bytes[start..end].to_vec(),
+        )
+    };
+    for (unit, cm_per_unit) in [
+        (LinearUnit::Centimeter, 1.0_f32),
+        (LinearUnit::Meter, 100.0),
+        (LinearUnit::Inch, 2.54),
+        (LinearUnit::Foot, 30.48),
+    ] {
+        let (_, grid) = grid_of(unit.clone());
+        assert_eq!(grid.len(), GRID_VERTICES * VERTEX_BYTES);
+        let extent = 12.0 * cm_per_unit;
+        let mut vertices = grid.chunks(VERTEX_BYTES);
+        // Every line, interior ones included, sits at index x spacing along its axis.
+        for index in -12..=12 {
+            let c = index as f32 * cm_per_unit;
+            for point in [
+                Vec3::new(c, 0.0, -extent),
+                Vec3::new(c, 0.0, extent),
+                Vec3::new(-extent, 0.0, c),
+                Vec3::new(extent, 0.0, c),
+            ] {
+                let expected = matrix * point.extend(1.0);
+                let vertex = vertices.next().unwrap();
+                for (axis, expected) in expected.to_array().into_iter().enumerate() {
+                    let got =
+                        f32::from_ne_bytes(vertex[axis * 4..axis * 4 + 4].try_into().unwrap());
+                    assert!(
+                        (got - expected).abs() <= 1e-5 * expected.abs().max(1.0),
+                        "{unit:?} line {index} axis {axis}: {got} vs {expected}"
+                    );
+                }
+            }
+        }
+    }
+    let (count, _) = grid_of(LinearUnit::Unsupported("yard".into()));
+    assert_eq!(count, 0, "no grid in an unsupported unit");
+}
+
 #[test]
 fn grid_visibility_omits_only_original_grid_bytes_and_its_allocation_charge() {
     let scene = cube();
@@ -1238,6 +1307,7 @@ fn headless_gpu_grid_callback_clears_cold_and_warm_empty_frames_and_restores_pix
                         ),
                         visible,
                         crate::editor_operations::ShadingMode::SmoothShadeAll,
+                        None,
                     )
                     .unwrap();
             });
@@ -1299,7 +1369,8 @@ fn startup_without_wgpu_and_latched_errors_never_emit_a_callback() {
             [SIZE; 2],
             SelectionFeedback::Object(None),
             true,
-            ShadingMode::SmoothShadeAll
+            ShadingMode::SmoothShadeAll,
+            None
         ),
         Err(RenderError::Camera(_))
     ));
@@ -1317,7 +1388,8 @@ fn startup_without_wgpu_and_latched_errors_never_emit_a_callback() {
             [SIZE; 2],
             SelectionFeedback::Object(None),
             true,
-            ShadingMode::SmoothShadeAll
+            ShadingMode::SmoothShadeAll,
+            None
         ),
         Err(RenderError::Backend(_))
     ));
@@ -1382,7 +1454,18 @@ impl Offscreen {
         camera: &Camera,
         selected: Option<&[NativeId]>,
     ) -> Vec<u8> {
-        let submission = Submission::new(
+        self.image_with_plate(view, camera, selected, None)
+    }
+
+    /// Like `image`, with the plate the viewport would draw under the geometry.
+    pub(crate) fn image_with_plate(
+        &mut self,
+        view: &ViewScene,
+        camera: &Camera,
+        selected: Option<&[NativeId]>,
+        plate: Option<PlateDraw>,
+    ) -> Vec<u8> {
+        let mut submission = Submission::new(
             view,
             camera,
             [SIZE; 2],
@@ -1393,6 +1476,7 @@ impl Offscreen {
             self.device.limits().max_buffer_size,
         )
         .unwrap();
+        submission.plate = plate;
         self.render(TestFrame::Geometry(submission))
     }
 
@@ -1605,6 +1689,7 @@ fn headless_gpu_actual_viewport_caller_preserves_crossing_side() {
                 SelectionFeedback::Object(Some(&path[..path.len() - 1])),
                 true,
                 crate::editor_operations::ShadingMode::SmoothShadeAll,
+                None,
             )
             .unwrap();
     });
@@ -1641,6 +1726,7 @@ fn headless_gpu_actual_callback_scissor_and_following_egui_restore_at_one_and_tw
                         SelectionFeedback::Object(Some(&path[..path.len() - 1])),
                         true,
                         ShadingMode::SmoothShadeAll,
+                        None,
                     )
                     .unwrap()
                     .0,
@@ -1690,7 +1776,8 @@ fn headless_gpu_actual_validation_callback_latches_and_blocks_submission() {
             [SIZE; 2],
             SelectionFeedback::Object(None),
             true,
-            ShadingMode::SmoothShadeAll
+            ShadingMode::SmoothShadeAll,
+            None
         ),
         Err(RenderError::Backend(_))
     ));
@@ -2080,7 +2167,7 @@ fn headless_gpu_red_assigned_face_renders_red_dominant_and_undo_restores_grey() 
     assert_eq!(center(&mut gpu, history.scene()), [83, 83, 83, 255]);
     history
         .execute(Command::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: MaterialChoice::New {
                 color: [1.0, 0.0, 0.0],
             },
@@ -2514,6 +2601,7 @@ fn wireframe_degrades_face_centres_instead_of_failing_the_frame_over_budget() {
                 },
                 true,
                 shading,
+                None,
             )
             .unwrap()
             .1

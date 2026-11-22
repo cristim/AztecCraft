@@ -326,7 +326,7 @@ mod operations {
         };
         assert_eq!(red, id(1));
         let assign = Command::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: MaterialChoice::Existing(red),
         };
         assert_eq!(
@@ -362,13 +362,13 @@ mod operations {
         let shape = scene.shapes[0].id;
         let mut history = History::new(scene);
         let initial = Command::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: MaterialChoice::Existing(id(0)),
         };
         assert_eq!(history.execute(initial.clone()), Ok(EditOutcome::Unchanged));
         let Ok(EditOutcome::SessionMaterial(red)) =
             history.execute(Command::AssignSessionMaterial {
-                shape,
+                shapes: vec![shape],
                 material: MaterialChoice::New { color: RED },
             })
         else {
@@ -407,7 +407,7 @@ mod operations {
         let mut history = History::new(scene);
         history
             .execute(Command::AssignSessionMaterial {
-                shape,
+                shapes: vec![shape],
                 material: MaterialChoice::New { color: RED },
             })
             .unwrap();
@@ -415,6 +415,157 @@ mod operations {
         assert!(history.undo());
         assert!(!history.can_undo());
         assert_eq!(history.scene().session_materials().len(), 1);
+    }
+
+    fn twins() -> (NativeScene, [NativeId; 2]) {
+        let (scene, _) = crate::native_scene::test_fixtures::twin_shapes();
+        let ids = [scene.shapes[0].id, scene.shapes[1].id];
+        (scene, ids)
+    }
+
+    #[test]
+    fn multi_shape_assign_is_one_new_material_one_undo_and_redo() {
+        let (scene, [a, b]) = twins();
+        let mut history = History::new(scene);
+        let assign = Command::AssignSessionMaterial {
+            shapes: vec![a, b],
+            material: MaterialChoice::New { color: RED },
+        };
+        assert_eq!(
+            history.execute(assign),
+            Ok(EditOutcome::SessionMaterial(id(1)))
+        );
+        assert_eq!(history.scene().session_materials().len(), 2);
+        for shape in [a, b] {
+            assert_eq!(material_of(history.scene(), shape).unwrap().color(), RED);
+        }
+        assert!(history.undo());
+        assert!(!history.can_undo());
+        assert_eq!(history.scene().session_materials().len(), 1);
+        for shape in [a, b] {
+            assert!(
+                !history
+                    .scene()
+                    .session_materials
+                    .assignments
+                    .contains_key(&shape)
+            );
+        }
+        assert!(history.redo());
+        assert_eq!(material_of(history.scene(), b).unwrap().color(), RED);
+    }
+
+    #[test]
+    fn multi_shape_assign_of_an_existing_material_moves_every_listed_shape() {
+        let (mut scene, [a, b]) = twins();
+        let red = scene.create_session_material(RED).unwrap();
+        scene
+            .assign_session_material_to_shapes(&[a, b], MaterialChoice::Existing(red))
+            .unwrap();
+        assert_eq!(scene.session_material_shape_count(red), 2);
+        scene
+            .assign_session_material_to_shapes(&[b, a], MaterialChoice::Existing(id(0)))
+            .unwrap();
+        assert!(scene.session_materials.assignments.is_empty());
+    }
+
+    #[test]
+    fn multi_shape_lists_are_validated_before_any_change() {
+        let (mut scene, [a, b]) = twins();
+        let before = scene.clone();
+        let new = MaterialChoice::New { color: RED };
+        let too_many = vec![a; MAX_ASSIGN_SHAPES + 1];
+        let cases: [(Vec<NativeId>, NativeError); 5] = [
+            (vec![], NativeError::InvalidShapeList("no shapes given")),
+            (vec![a, a], NativeError::InvalidShapeList("duplicate shape")),
+            (
+                vec![a, b, a],
+                NativeError::InvalidShapeList("duplicate shape"),
+            ),
+            (too_many, NativeError::InvalidShapeList("too many shapes")),
+            (
+                vec![a, NativeId(9999)],
+                NativeError::MissingShape(NativeId(9999)),
+            ),
+        ];
+        for (shapes, expected) in cases {
+            assert_eq!(
+                scene.assign_session_material_to_shapes(&shapes, new),
+                Err(expected)
+            );
+            assert_eq!(scene, before);
+        }
+        let mut history = History::new(before);
+        let command = Command::AssignSessionMaterial {
+            shapes: vec![b, NativeId(9999)],
+            material: new,
+        };
+        assert!(history.execute(command).is_err());
+        assert!(!history.can_undo());
+    }
+
+    #[test]
+    fn exactly_the_cap_of_distinct_shapes_is_accepted() {
+        let (mut scene, _) = cube();
+        let template = scene.shapes[0].clone();
+        let parent = scene
+            .dag
+            .iter()
+            .find(|e| e.child == template.id)
+            .unwrap()
+            .parent;
+        while scene.shapes.len() < MAX_ASSIGN_SHAPES {
+            let mut shape = template.clone();
+            shape.id = NativeId(scene.next_native_id);
+            shape.uuid = None;
+            scene.next_native_id += 1;
+            scene.dag.push(crate::native_scene::DagEdge {
+                parent,
+                child: shape.id,
+            });
+            scene.shapes.push(shape);
+        }
+        let ids: Vec<NativeId> = scene.shapes.iter().map(|s| s.id).collect();
+        assert_eq!(ids.len(), MAX_ASSIGN_SHAPES);
+        scene
+            .assign_session_material_to_shapes(&ids, MaterialChoice::New { color: RED })
+            .unwrap();
+        assert_eq!(scene.session_materials.assignments.len(), MAX_ASSIGN_SHAPES);
+        let mut over = ids;
+        over.push(NativeId(scene.next_native_id));
+        let before = scene.clone();
+        assert_eq!(
+            scene.assign_session_material_to_shapes(&over, MaterialChoice::New { color: RED }),
+            Err(NativeError::InvalidShapeList("too many shapes"))
+        );
+        assert_eq!(scene, before);
+    }
+
+    #[test]
+    fn mixed_valid_and_a_bad_material_leaves_every_shape_unassigned() {
+        let (mut scene, [a, b]) = twins();
+        let before = scene.clone();
+        assert_eq!(
+            scene.assign_session_material_to_shapes(&[a, b], MaterialChoice::Existing(id(7))),
+            Err(NativeError::UnknownSessionMaterial(id(7)))
+        );
+        assert_eq!(scene, before);
+    }
+
+    #[test]
+    fn multi_shape_assign_keeps_the_sourced_scene_refusal() {
+        let (mut scene, [a, b]) = twins();
+        crate::native_scene::tests::retain(
+            &mut scene,
+            b"original",
+            std::iter::once(0..8).collect(),
+        );
+        let before = scene.clone();
+        assert_eq!(
+            scene.assign_session_material_to_shapes(&[a, b], MaterialChoice::New { color: RED }),
+            Err(NativeError::ReadOnlyFormat)
+        );
+        assert_eq!(scene, before);
     }
 }
 
@@ -537,4 +688,98 @@ fn shape_count_follows_assign_reassign_and_a_sourced_scene() {
         .unwrap();
     crate::native_scene::tests::retain(&mut scene, b"original", std::iter::once(0..8).collect());
     assert_eq!(scene.session_material_shape_count(initial), 0);
+}
+
+mod attributes {
+    use super::*;
+    use crate::history::{Command, EditOutcome, History};
+
+    const EXTRAS: [LambertAttribute; 3] = [
+        LambertAttribute::Transparency,
+        LambertAttribute::AmbientColor,
+        LambertAttribute::Incandescence,
+    ];
+
+    #[test]
+    fn new_materials_default_to_black_and_each_attribute_edits_alone() {
+        let (mut scene, _) = cube();
+        let id = scene.create_session_material([0.5; 3]).unwrap();
+        for attribute in EXTRAS {
+            assert_eq!(scene.session_materials()[1].attribute(attribute), [0.0; 3]);
+        }
+        for (n, attribute) in EXTRAS.into_iter().enumerate() {
+            let rgb = [0.1 * (n + 1) as f64, 0.25, 1.0];
+            scene
+                .set_session_material_attribute(id, attribute, rgb)
+                .unwrap();
+            let stored = scene.session_materials()[1].attribute(attribute);
+            assert_eq!(stored, rgb.map(|c| f64::from(c as f32)));
+        }
+        assert_eq!(scene.session_materials()[1].color(), [0.5; 3]);
+        assert_eq!(
+            scene.session_materials()[1].attribute(LambertAttribute::Color),
+            [0.5; 3]
+        );
+        scene.validate().unwrap();
+    }
+
+    #[test]
+    fn refusals_are_typed_and_change_nothing() {
+        let (mut scene, _) = cube();
+        let id = scene.create_session_material([0.5; 3]).unwrap();
+        let before = scene.clone();
+        for attribute in EXTRAS {
+            assert_eq!(
+                scene.set_session_material_attribute(id, attribute, [f64::NAN, 0.0, 0.0]),
+                Err(NativeError::NonFinite)
+            );
+            assert_eq!(
+                scene.set_session_material_attribute(id, attribute, [0.0, 1.5, 0.0]),
+                Err(NativeError::SessionColorOutOfRange)
+            );
+            assert_eq!(
+                scene.set_session_material_attribute(SessionMaterialId(0), attribute, [0.0; 3]),
+                Err(NativeError::InitialSessionMaterialLocked)
+            );
+            assert_eq!(
+                scene.set_session_material_attribute(SessionMaterialId(9), attribute, [0.0; 3]),
+                Err(NativeError::UnknownSessionMaterial(SessionMaterialId(9)))
+            );
+        }
+        assert_eq!(scene, before);
+    }
+
+    #[test]
+    fn validate_refuses_an_out_of_range_or_non_single_attribute() {
+        let (mut scene, _) = cube();
+        scene.create_session_material([0.5; 3]).unwrap();
+        scene.session_materials.materials[1].incandescence[0] = 2.0;
+        assert_eq!(scene.validate(), Err(NativeError::SessionColorOutOfRange));
+        scene.session_materials.materials[1].incandescence[0] = 0.1;
+        assert_eq!(scene.validate(), Err(NativeError::InvalidSessionMaterials));
+    }
+
+    #[test]
+    fn history_is_one_undo_step_and_an_unchanged_value_is_a_no_op() {
+        let (scene, _) = cube();
+        let mut history = History::new(scene);
+        history
+            .execute(Command::CreateSessionMaterial { color: [0.5; 3] })
+            .unwrap();
+        let set = Command::SetSessionMaterialAttribute {
+            material: SessionMaterialId(1),
+            attribute: LambertAttribute::Transparency,
+            rgb: [0.25, 0.5, 0.75],
+        };
+        assert_eq!(history.execute(set.clone()), Ok(EditOutcome::Changed));
+        assert_eq!(history.execute(set), Ok(EditOutcome::Unchanged));
+        let read = |h: &History| {
+            h.scene().session_materials()[1].attribute(LambertAttribute::Transparency)
+        };
+        assert_eq!(read(&history), [0.25, 0.5, 0.75]);
+        assert!(history.undo());
+        assert_eq!(read(&history), [0.0; 3]);
+        assert!(history.redo());
+        assert_eq!(read(&history), [0.25, 0.5, 0.75]);
+    }
 }

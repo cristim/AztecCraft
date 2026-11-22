@@ -38,7 +38,7 @@ caller. In order:
    `UpdateMove`/`FinishMove`.
 2. Closing is `BusyEditing` (the first `is_closing()` check in `src/app/dispatch.rs "fn dispatch_operation_guarded"`), so a native `NewScene` while closing cancels the
    Move and then fails.
-3. `BoxDolly`, `UndoView`, `RedoView`, `DefaultView`, `SetGridVisible`, `SetShadingMode`, `SetView`, `SetMenuSet`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `dispatch_operation_guarded`). `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize` and `SetRotateStep` are refused while modal by the per-variant modal list in `dispatch_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
+3. `BoxDolly`, `UndoView`, `RedoView`, `DefaultView`, `SetGridVisible`, `SetShadingMode`, `SetView`, `SetMenuSet`, `SetSidebarPanelVisible`, `SelectAttributeEditorTab` and `SetCameraFilmBack` (#458) while modal are `BusyEditing` (the `is_modal()` check right after it in `dispatch_operation_guarded`). `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize` and `SetRotateStep` are refused while modal by the per-variant modal list in `dispatch_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
 4. File operations are decided in one match (`src/app/dispatch.rs "Operation::OpenScene { path } | Operation::SaveSceneAs { path }"`), before any draft commit. For
    `OpenScene` and `SaveSceneAs`, path validity (`src/app/dispatch.rs "Scene path must contain 1 to 4096 bytes and no NUL"`) runs first. `OpenScene` then
    reaches `open_candidate` with no modal check (`src/app/dispatch.rs "return self.open_candidate(path)"`); `SaveSceneAs` is refused while
@@ -169,16 +169,17 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   (`src/app/features/session_material.rs`, `assign_material_to_selection`, which calls `native_operation_result`).
   Native and remote take the same guards: modal and closing are `BusyEditing` (`apply_operation_guarded`), a
   manipulation is `BusyManipulation`, and the core refuses a retained source (`UnsupportedEdit`, `ReadOnlyFormat`).
-  The native entry point first resolves one object with one direct shape and refuses otherwise before dispatch
-  (status line only, no operation). Matrix cells are the existing `assign_session_material(...)` ones.
+  The native entry point first resolves the one direct shape of every selected object (several objects are one
+  `AssignSessionMaterial` with a shape list, one undo step) and refuses the whole selection otherwise before dispatch
+  (status line only, no operation); the guards are the same single operation, so no new matrix cell exists. Matrix cells are the existing `assign_session_material(...)` ones.
 - Native session-material colour edits are a draft (`SessionColorDraft`: three R/G/B fields in the material tab). Typing commits nothing;
-  Enter, focus leaving the three fields or `commit_pending` runs one `Command::SetSessionMaterialColor` directly through history (the Diffuse arm's route, so
+  Enter, the end of a slider drag, focus leaving the fields or `commit_pending` runs one `Command::SetSessionMaterialColor` directly through history (the Diffuse arm's route, so
   it cannot re-enter `commit_pending`), refusing when the document, the material id or the colour changed since the draft began.
   `has_draft` includes it, so remote `SetSessionMaterialColor` and the other draft-guarded operations return `BusyEditing` and keep it.
-  Tab between the fields keeps the draft; Enter or focus leaving all three commits them as one step. Material 0 gets no draft (fields
+  Tab between the fields keeps the draft; Enter, the end of a slider drag or focus leaving all six controls commits them as one step. Material 0 gets no draft (fields
   disabled, reason as hover text); a sourced scene shows the Phong section, so no colour fields exist, and the draft constructor refuses it
   with the core reason. Matrix cells are the existing
-  `set_session_material_color(...)` ones, unchanged.
+  `set_session_material_color(...)` ones, unchanged. The draft has one row per lambert colour attribute (Color, Transparency, Ambient Color, Incandescence); a commit runs one `SetSessionMaterialColor` or `SetSessionMaterialAttribute` per changed row, after every changed row parsed and every original matched, and remote `SetSessionMaterialAttribute` is draft-guarded exactly like the colour (matrix cells `set_session_material_attribute(...)`). Esc reverts the row it was pressed in.
 - Lighting/Shading > Material Attributes (`show_material_attributes` in the same file) dispatches `SetSidebarPanelVisible` then
   `SelectAttributeEditorTab` through `native_operation_result`, so both keep their own guards; it first resolves one object with one
   direct shape that has a material tab and refuses otherwise (status line only). View state only: never dirty, no scene-token change.
@@ -201,7 +202,18 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   `select_attribute_editor_tab(shape)` (Attribute Editor active) and
   `select_attribute_editor_tab(shape,panel_hidden)`. MCP reaches them as
   `set_sidebar_panel_visibility` (`panel` `attribute_editor`) and `select_attribute_editor_tab`,
-  covered cell by cell in `src/mcp_tests/official_client/attribute_editor.rs`.
+  covered cell by cell in `src/mcp_tests/official_client/attribute_editor.rs`. The Camera tab
+  (#458, `AttributeEditorTab::Camera`, MCP kind `camera`) belongs to the live camera like the Image
+  Plane tab but always resolves, so it needs no selection and no plane; it has one more matrix
+  sample, `select_attribute_editor_tab(camera)`, and a client test in
+  `src/mcp_tests/official_client/camera_tab.rs`.
+- The Attribute Editor Camera tab (#458, `camera_section` in `src/app/features/camera_attributes.rs`)
+  is the one native caller of `Operation::SetCameraFilmBack`, through `native_operation_result`
+  (the entry-point allowlist names it), so a field blur, a combo choice and the Display Film Gate
+  checkbox share the modal, closing, pending-draft and held-drag guards of the MCP tool
+  `set_camera_film_back`. The rows are disabled with a reason while a file prompt is open; the
+  operation is session-only and records no history entry, so "one undo step per row" does not
+  apply.
 - The File menu and the Status Line file buttons share `file_actions` (`src/app/menus.rs`), the one
   native caller of `Operation::SaveScene`; New and Open go through `request_new` and `open_dialog`.
   Enable state, disabled reason and handler come from the same helper, so the guards are those of

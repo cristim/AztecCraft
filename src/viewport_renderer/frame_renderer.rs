@@ -2,7 +2,8 @@
 //! own `Submission` path, drawn offscreen on the window's device and read back as RGBA8.
 use super::offscreen::{check_size, read_back};
 use super::{
-    GpuResources, RenderError, SelectionFeedback, ShadingMode, Submission, ViewportRenderer, wgpu,
+    GpuResources, PlateAt, RenderError, SelectionFeedback, ShadingMode, Submission,
+    ViewportRenderer, wgpu,
 };
 use azteccraft::{
     playblast::{FrameRenderer, PlayblastError, SceneAt},
@@ -29,6 +30,11 @@ impl OffscreenRenderer {
             queue,
             resources,
         }
+    }
+
+    /// Whether the plate of the last render could not be uploaded.
+    fn plate_failed(&self) -> bool {
+        self.resources.plate.failed()
     }
 
     fn render(&mut self, submission: &Submission, size: [u32; 2]) -> Result<Vec<u8>, RenderError> {
@@ -110,6 +116,7 @@ pub(crate) struct WgpuFrameRenderer {
     viewport: ViewportRenderer,
     offscreen: OffscreenRenderer,
     scene_at: SceneAt,
+    plate_at: Option<PlateAt>,
     camera: Camera,
     grid_visible: bool,
     shading: ShadingMode,
@@ -120,6 +127,7 @@ impl ViewportRenderer {
     pub(crate) fn frame_renderer(
         &self,
         scene_at: SceneAt,
+        plate_at: Option<PlateAt>,
         camera: Camera,
         grid_visible: bool,
         shading: ShadingMode,
@@ -129,6 +137,7 @@ impl ViewportRenderer {
             viewport: self.clone(),
             offscreen: OffscreenRenderer::new(device, queue),
             scene_at,
+            plate_at,
             camera,
             grid_visible,
             shading,
@@ -160,7 +169,7 @@ impl FrameRenderer for WgpuFrameRenderer {
     fn render(&mut self, frame: i64, width: u32, height: u32) -> Result<Vec<u8>, PlayblastError> {
         backend_state(&self.viewport)?;
         let scene = (self.scene_at)(frame)?;
-        let submission = Submission::new(
+        let mut submission = Submission::new(
             &scene,
             &self.camera,
             [width, height],
@@ -171,10 +180,16 @@ impl FrameRenderer for WgpuFrameRenderer {
             self.viewport.max_buffer_size,
         )
         .map_err(playblast_error)?;
+        if let Some(plate_at) = &mut self.plate_at {
+            submission.plate = plate_at(frame, [width, height])?;
+        }
         let pixels = self
             .offscreen
             .render(&submission, [width, height])
             .map_err(playblast_error)?;
+        if self.offscreen.plate_failed() {
+            return Err(PlayblastError::Plate { frame });
+        }
         backend_state(&self.viewport)?;
         Ok(pixels)
     }

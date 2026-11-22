@@ -184,7 +184,7 @@ pub(super) fn check_transforms_only(scene: &NativeScene) -> Result<(), AuthoredI
     check_names(scene)
 }
 
-fn check_names(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
+pub(super) fn check_names(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
     use AuthoredIneligible as R;
     let mut node_names: HashMap<&str, usize> = HashMap::new();
     for node in &scene.nodes {
