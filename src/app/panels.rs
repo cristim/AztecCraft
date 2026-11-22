@@ -132,6 +132,27 @@ impl Editor {
                 ui.label(plate);
             }
             ui.separator();
+            ui.horizontal(|ui| {
+                let reason = "Scripting is unavailable";
+                ui.label("Command Line");
+                let input = ui.add_enabled(
+                    false,
+                    egui::TextEdit::singleline(&mut "")
+                        .id(egui::Id::unique("disabled_command_line"))
+                        .desired_width(180.0),
+                );
+                ui.painter().rect_stroke(
+                    input.rect,
+                    3,
+                    egui::Stroke::new(1.0, ui.visuals().weak_text_color().gamma_multiply(0.55)),
+                    egui::StrokeKind::Inside,
+                );
+                ui.ctx()
+                    .accesskit_node_builder(input.id, |node| node.set_label("Command Line"));
+                features::primitive_options::describe_unavailable(ui.ctx(), input.id, reason);
+                ui.label(reason);
+            });
+            ui.separator();
             self.help_line(ui);
         });
         egui::Panel::left("toolbox")

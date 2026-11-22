@@ -104,6 +104,27 @@ MCP `import_obj`, UV export and import, round-trip tests). The native file-panel
 pending: see the checklist in `known-issues.md`, "OBJ import is a first slice". INT-016 is
 Partial and the option box is INT-040 (Missing); its follow-up issue is opened at T7.
 
+## Command Line input (issue #63)
+
+The Maya 2027.2 documentation baseline places the Command Line in the main
+interface. It accepts single MEL or Python commands, switches languages with a
+button, recalls history with Up/Down, and displays results to the right of a
+resizable divider. A separate button opens the Script Editor.
+[Command Line](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-4981A0A5-9418-4274-918C-561E33B0102D.htm)
+
+The Help Line at the lower left describes tools and prompts for workflow steps.
+The Command Line normally yields focus to the view after Enter or Return unless
+Hold focus is enabled in Interface preferences.
+[Help Line](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-AD137576-F1CF-4A62-A7DA-E0ECF6524D11.htm)
+[Interface preferences](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-FE5518DA-2177-44C9-8BC9-F0676EFEEDF9.htm)
+
+This slice shows an inert, labelled Command Line input with a visible reason
+and an AccessKit description. Its dimensions and placement above the existing
+Help Line diagnostics are PROVISIONAL. Execution depends on #57. Language mode,
+history, result box, divider, Script Editor button, Hold focus and expanded
+Help Line hints stay open. The disabled input adds no Editor operation or state
+for MCP.
+
 ## Verification and review
 
 Keep the same non-author reviewer across the two plan passes and each two-pass diff gate. Use a cold independent verifier for the completed vertical slice. Run formatting, Clippy, headless workflow tests, and native build. Record exact tree/commit identifiers for reviewed work. Reference comparison is blocked until a Maya installation/reference manifest exists. No positive parity claim without it.

@@ -703,6 +703,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Settings | Preferences and Working Units | unsupported | | | |
 | Panels | Range Slider, Auto Key, tangents, Graph Editor, Dope Sheet, Layer Editor, Outliner filters | unsupported | | | |
 | Panels | Status line message text | supported | | `status_message` | |
+| Panels | Command Line input (always disabled with a visible and accessible reason) | unsupported | | | |
 
 Outcome: the registered catalogue covers every implemented file, creation, selection, camera, tool, history, material, viewport and panel operation; no inventory row is marked `missing` now that #188 is closed. On Unix, new-scene Save As has a limited Maya ASCII `.ma` writer (#156); Maya acceptance is unverified and a reopened mesh `.ma` is editable and saveable in this editor. The catch-up stays open until the audited end-to-end inventory proves coverage. Issue #161 asks for camera pose: `inspect_scene` `camera` now also reports orientation (yaw/pitch), the vertical field of view and the clip planes. Restoring a saved view is now covered: `set_camera_pose` sets an absolute pose, and the native View > Default View row and Alt+Home dispatch `DefaultView`, also exposed as `default_camera_view`. Camera bookmarks (Maya's View > Bookmarks) remain a follow-up.
 
