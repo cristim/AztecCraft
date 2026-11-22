@@ -127,6 +127,20 @@ fn undo_and_redo_of_a_snapped_move_are_exact() {
     assert_eq!(x_of(&editor, &target), 3.0);
 }
 
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn undo_and_redo_of_a_snapped_move_are_exact_in_a_metre_scene() {
+    let (mut editor, target) = editor_in(azteccraft::native_scene::LinearUnit::Meter);
+    move_by(&mut editor, &target, 0.3);
+    snap(&mut editor, true);
+    move_by(&mut editor, &target, 2.4);
+    assert_eq!(x_of(&editor, &target), 3.0);
+    editor.history_step(false);
+    assert_eq!(x_of(&editor, &target).to_bits(), 0.3f64.to_bits());
+    editor.history_step(true);
+    assert_eq!(x_of(&editor, &target), 3.0);
+}
+
 #[test]
 fn cancel_restores_the_baseline_exactly() {
     let (mut editor, target) = one_cube();
@@ -381,9 +395,10 @@ fn snap_to_grids_is_refused_in_an_unsupported_unit_scene() {
         "yard".into(),
     ));
     snap(&mut editor, true);
-    assert!(matches!(
-        remote(&mut editor, begin_op(&target)),
-        Err(OperationError::Scene(_))
-    ));
+    let refused = remote(&mut editor, begin_op(&target));
+    assert!(
+        matches!(&refused, Err(OperationError::InvalidInput(m)) if m == UNSUPPORTED_UNIT_SNAP_REFUSAL),
+        "{refused:?}"
+    );
     assert_eq!(x_of(&editor, &target), 0.0);
 }

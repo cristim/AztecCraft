@@ -26,6 +26,9 @@ use uuid::Uuid;
 
 /// The pointer drag behind a native manipulation; each kind turns a pointer position into the
 /// operation that previews it.
+/// Why a snapped Move cannot begin in a scene whose linear unit has no known length.
+pub(in crate::app) const UNSUPPORTED_UNIT_SNAP_REFUSAL: &str = "Snap to grids needs a supported scene linear unit; turn Snap to grids off or change the scene linear unit";
+
 pub(in crate::app) enum NativeDrag {
     Move(AxisDrag),
     Rotate(RotateDrag),
@@ -372,7 +375,7 @@ impl Editor {
     /// rounds to; refused for an unsupported unit, where no grid is drawn.
     pub(in crate::app) fn grid_snap_spacing_cm(&self) -> Result<f64, OperationError> {
         drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS, self.history.scene().units())
-            .map_err(OperationError::Scene)
+            .map_err(|_| OperationError::InvalidInput(UNSUPPORTED_UNIT_SNAP_REFUSAL.into()))
     }
 
     pub(in crate::app) fn begin_editor_move(
@@ -394,8 +397,8 @@ impl Editor {
         self.check_move_target(target, provenance, expected_selection_generation)?;
         let space = self.manipulation.move_space();
         let snap = if self.snap_to_grid {
-            let (origin, direction) = self.grid_snap_frame(axis)?;
             let spacing = self.grid_snap_spacing_cm()?;
+            let (origin, direction) = self.grid_snap_frame(axis)?;
             // Refuse an axis off the world grid now rather than at every update.
             snap_distance_to_grid(origin, direction, 0.0, spacing)
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;

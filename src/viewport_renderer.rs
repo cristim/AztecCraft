@@ -103,9 +103,9 @@ const EDGE_RGB: [u8; 3] = [120, 180, 235];
 const SELECTED_EDGE_RGB: [u8; 3] = [255, 178, 96];
 
 // Maya 2025.1's default grid (`grid -q`): size 12, major lines every 5 units and 5 divisions
-// between them, so a line every unit out to +/-12 on the y = 0 plane (#160). The unit is the scene
-// linear unit (`ViewScene::grid_spacing_cm`, #454), as the grid command's "linear units". Reading size as
-// the half-length, and these greys, are PROVISIONAL; Maya also draws the axes bold, which
+// between them, so a line every unit out to +/-12 on the y = 0 plane (#160). The unit is the
+// scene linear unit (`ViewScene::grid_spacing_cm`, #454), as the grid command's "linear units".
+// Reading size as the half-length, and these greys, are PROVISIONAL; Maya also draws the axes bold, which
 // one-pixel lines cannot.
 const GRID_SIZE: i32 = 12;
 const GRID_MAJOR_EVERY: i32 = azteccraft::snap::DEFAULT_GRID_OPTIONS.lines_every as i32;

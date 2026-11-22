@@ -1081,7 +1081,7 @@ fn grid_lines_are_drawn_in_scene_linear_units() {
     use azteccraft::native_scene::LinearUnit;
     let camera = Camera::default();
     let matrix = camera.projection_matrix(1.0).unwrap() * camera.view_matrix();
-    let first_vertex = |unit: LinearUnit| {
+    let grid_of = |unit: LinearUnit| {
         let mut scene = NativeScene::default();
         scene.set_linear_unit_for_test(unit);
         let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
@@ -1097,15 +1097,14 @@ fn grid_lines_are_drawn_in_scene_linear_units() {
         )
         .unwrap();
         let start = submission.surfaces.end as usize * VERTEX_BYTES;
-        let clip: Vec<f32> = submission.bytes[start..]
-            .iter()
-            .take(16)
-            .copied()
-            .collect::<Vec<u8>>()
-            .chunks(4)
-            .map(|b| f32::from_ne_bytes(b.try_into().unwrap()))
-            .collect();
-        (submission.vertex_count(), clip)
+        let end = start
+            + submission.bytes[start..]
+                .len()
+                .min(GRID_VERTICES * VERTEX_BYTES);
+        (
+            submission.vertex_count(),
+            submission.bytes[start..end].to_vec(),
+        )
     };
     for (unit, cm_per_unit) in [
         (LinearUnit::Centimeter, 1.0_f32),
@@ -1113,17 +1112,33 @@ fn grid_lines_are_drawn_in_scene_linear_units() {
         (LinearUnit::Inch, 2.54),
         (LinearUnit::Foot, 30.48),
     ] {
-        let (_, clip) = first_vertex(unit.clone());
+        let (_, grid) = grid_of(unit.clone());
+        assert_eq!(grid.len(), GRID_VERTICES * VERTEX_BYTES);
         let extent = 12.0 * cm_per_unit;
-        let expected = matrix * Vec3::new(-extent, 0.0, -extent).extend(1.0);
-        for (axis, expected) in expected.to_array().into_iter().enumerate() {
-            assert!(
-                (clip[axis] - expected).abs() <= 1e-5 * expected.abs().max(1.0),
-                "{unit:?} axis {axis}"
-            );
+        let mut vertices = grid.chunks(VERTEX_BYTES);
+        // Every line, interior ones included, sits at index x spacing along its axis.
+        for index in -12..=12 {
+            let c = index as f32 * cm_per_unit;
+            for point in [
+                Vec3::new(c, 0.0, -extent),
+                Vec3::new(c, 0.0, extent),
+                Vec3::new(-extent, 0.0, c),
+                Vec3::new(extent, 0.0, c),
+            ] {
+                let expected = matrix * point.extend(1.0);
+                let vertex = vertices.next().unwrap();
+                for (axis, expected) in expected.to_array().into_iter().enumerate() {
+                    let got =
+                        f32::from_ne_bytes(vertex[axis * 4..axis * 4 + 4].try_into().unwrap());
+                    assert!(
+                        (got - expected).abs() <= 1e-5 * expected.abs().max(1.0),
+                        "{unit:?} line {index} axis {axis}: {got} vs {expected}"
+                    );
+                }
+            }
         }
     }
-    let (count, _) = first_vertex(LinearUnit::Unsupported("yard".into()));
+    let (count, _) = grid_of(LinearUnit::Unsupported("yard".into()));
     assert_eq!(count, 0, "no grid in an unsupported unit");
 }
 
