@@ -1201,14 +1201,15 @@ earlier AztecCraft ordering is kept), and Maya draws the axes bold, which one-pi
 Maya 2026 is unverified. Grid Options (size, spacing, divisions, colours) is a disabled row in
 the Display menu, where Maya keeps the Grid option box.
 
-## Snap to grids follows the drawn 1 cm grid in every scene unit (#454)
+## Snap to grids follows the scene linear unit (#454)
 
-Snap to grids rounds to the drawn grid's line spacing, `snap::drawn_grid_spacing_cm`: the shared
-`snap::DEFAULT_GRID_OPTIONS` give `lines_every / subdivisions` = 5 / 5 = 1 render unit, and the
-viewport draws one render unit per centimetre whatever the scene linear unit, so the spacing is
-1 cm in every scene unit (a metre, inch, foot or millimetre scene snaps at 1 cm too). `inspect_scene` `snap_spacing` reports it as `{cm, scene_units}`: the centimetres and the same length in the scene unit (`snap::spacing_in_scene_units`; null for an unsupported unit). Making the
-viewport draw its grid in scene units and then following the scene unit in snapping is the remaining
-#454 item; the options are not editable (Grid Options stays disabled).
+Snap to grids rounds to the grid's line spacing, `snap::drawn_grid_spacing_cm(grid, units)`: the shared
+`snap::DEFAULT_GRID_OPTIONS` give `lines_every / subdivisions` = 5 / 5 = 1 scene linear unit (Maya's
+grid command gives its spacing "in linear units"), so the spacing is 1 m in a metre scene, 2.54 cm in
+an inch scene and so on; an unsupported unit has no spacing and a snapped Move is refused at begin.
+`inspect_scene` `snap_spacing` reports `{cm, scene_units}` (null for an unsupported unit). The options
+are not editable (Grid Options stays disabled). The viewport draws the same lines, 12 per side at
+`ViewScene::grid_spacing_cm` (no grid in an unsupported unit, though `grid_visible` stays true).
 
 Maya sourcing: the current grid command page (MayaCRE-Tech-Docs/Commands/grid.html) gives defaults
 spacing 10, divisions 10 and size 12 "in linear units". No page gives 5 and 5; that claim rests on a
@@ -2147,3 +2148,22 @@ PROVISIONAL and pinned by a test (rows 68 to 72 of the policy constants table in
   exposed meanwhile as real text in the status line ("Plate frame N: loading", "missing", "failed: <code>"), in the
   Image Plane tab's Resolved Frame row and in `inspect_scene`; the line "image plane: <file>, frame N, <state>" is
   added when T7 lands.
+
+## Align Objects is PROVISIONAL (#313)
+
+**Severity:** low
+**Area:** native scene, MCP
+**Issue:** #313
+
+- The fetched Maya 2027 pages (Snap Align Objects Options and Align objects) name Min, Mid, Max, Dist and Stack, the
+  Align To choices (Selection Average, Last Selected Object) and world axes, but not how rotated or scaled objects'
+  boxes are computed, any defaults, how Dist distributes or the undo label. The box here is the world axis-aligned box
+  of every mesh point at or below the object, Dist keeps the outermost objects (by box center) and equalizes the gaps
+  between boxes, and the undo label is "Align Objects". None of this is compared with Maya (#5).
+- Min and Max take the lowest and highest box coordinate on the axis. The Maya wording (side closest to or farthest
+  from 0) is PROVISIONAL (#5) and would pick different sides for boxes that lie below 0 (all-negative); not compared
+  with Maya. Pinned behavior: Dist with two objects changes nothing, and overlapping outer boxes give a negative gap
+  that is shared equally. Last Selected is the last object in selection order (the selection's lead), not outliner order.
+- Unbuilt: Stack, the options dialog (the Modify row is disabled), the Align Tool and Snap Align (SCN-054, SCN-056),
+  and the Selection Min, Selection Max and World Origin references. A selection holding an object below another
+  selected object is refused rather than ordered. Aligning twice can move an object by rounding (about 1e-15).

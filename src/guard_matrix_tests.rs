@@ -775,6 +775,14 @@ fn build(state: State) -> Rig {
 }
 
 /// One entry per operation kind. `Operation` is not `Clone`, so each cell rebuilds its samples.
+fn align_options() -> azteccraft::native_scene::AlignOptions {
+    use azteccraft::native_scene::{AlignMode, AlignOptions, AlignTo};
+    AlignOptions {
+        modes: [AlignMode::Min, AlignMode::None, AlignMode::None],
+        to: AlignTo::SelectionAverage,
+    }
+}
+
 fn seeds(t: &Targets) -> Vec<Operation> {
     vec![
         Operation::SetActiveTool(ActiveTool::Move),
@@ -1084,6 +1092,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::MatchTransformations {
             channels: TransformChannels::ALL,
+            expected_selection_generation: None,
+        },
+        Operation::AlignObjects {
+            options: align_options(),
             expected_selection_generation: None,
         },
         Operation::PrefixHierarchyNames {
@@ -2686,6 +2698,36 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     "match_transformations(face_mode)",
                     Operation::MatchTransformations {
                         channels: TransformChannels::ALL,
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
+        Operation::AlignObjects { .. } => vec![
+            sample(
+                "align_objects(single)",
+                Operation::AlignObjects {
+                    options: align_options(),
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "align_objects(multi)",
+                    Operation::AlignObjects {
+                        options: align_options(),
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "align_objects(face_mode)",
+                    Operation::AlignObjects {
+                        options: align_options(),
                         expected_selection_generation: None,
                     },
                 )

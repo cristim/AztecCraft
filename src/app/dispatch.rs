@@ -637,6 +637,14 @@ impl Editor {
                 "Prefix Hierarchy Names and Search and Replace Names on {noun} selection are unsupported; switch to Object or Hierarchy selection"
             )));
         }
+        #[cfg(any(test, feature = "mcp"))]
+        if let Some(noun) = self.selection_mode.component_noun()
+            && matches!(operation, Operation::AlignObjects { .. })
+        {
+            return Err(OperationError::InvalidInput(format!(
+                "Align Objects on {noun} selection is unsupported; switch to Object or Hierarchy selection"
+            )));
+        }
         self.guard_move_dispatch(&operation, provenance)?;
         if self.files.is_closing() {
             return Err(OperationError::BusyEditing);
@@ -805,6 +813,7 @@ impl Editor {
                 Operation::Rename { .. }
                     | Operation::PrefixHierarchyNames { .. }
                     | Operation::SearchReplaceNames { .. }
+                    | Operation::AlignObjects { .. }
                     | Operation::SetTransform { .. }
                     | Operation::EditNode { .. }
                     | Operation::Reparent { .. }
@@ -1383,6 +1392,14 @@ impl Editor {
                 Command::FreezeTransformations { ids, channels }
             }
             #[cfg(any(test, feature = "mcp"))]
+            Operation::AlignObjects {
+                options,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::AlignObjects { ids, options }
+            }
+            #[cfg(any(test, feature = "mcp"))]
             Operation::PrefixHierarchyNames {
                 prefix,
                 expected_selection_generation,
@@ -1875,6 +1892,7 @@ impl Editor {
             Command::ResetTransformations { .. }
                 | Command::FreezeTransformations { .. }
                 | Command::MatchTransformations { .. }
+                | Command::AlignObjects { .. }
         );
         let naming_command = matches!(
             command,

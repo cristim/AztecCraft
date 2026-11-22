@@ -73,6 +73,12 @@ pub enum TransformRefusal {
     /// The wanted world transform needs shear, a mirror or a channel change the stored TRS
     /// channels cannot hold exactly (for example rotation below a non-uniformly scaled parent).
     NotRepresentable,
+    /// Align Objects needs at least two objects.
+    AlignTooFew,
+    /// Align Objects: a selected object has no mesh below it, so it has no bounding box.
+    NoGeometry,
+    /// Align Objects: one selected object lies below another, so moving it twice is ambiguous.
+    Nested,
 }
 
 impl fmt::Display for TransformRefusal {
@@ -94,6 +100,9 @@ impl fmt::Display for TransformRefusal {
             Self::TargetInsideMoved => {
                 "the target (last selected) is below a selected object that would move"
             }
+            Self::AlignTooFew => "select at least two objects to align",
+            Self::NoGeometry => "an aligned object needs a mesh below it to have a bounding box",
+            Self::Nested => "an aligned object lies below another selected object",
             Self::NotRepresentable => {
                 "the target transform cannot be matched exactly with the chosen channels (shear, mirroring or a non-uniformly scaled parent)"
             }
@@ -114,7 +123,7 @@ const MIN_AXIS_LENGTH: f64 = 1e-9;
 const MIN_VOLUME_RATIO: f64 = 1e-9;
 
 /// Whether `matrix` is finite and keeps a mesh three-dimensional, judged against its own scale.
-fn keeps_volume(matrix: DMat4) -> bool {
+pub(super) fn keeps_volume(matrix: DMat4) -> bool {
     let lengths =
         [matrix.x_axis, matrix.y_axis, matrix.z_axis].map(|axis| axis.truncate().length());
     let determinant = matrix.determinant();
@@ -215,7 +224,7 @@ impl NativeScene {
 
     /// Refuses what a reset or freeze of node `index` cannot handle. `bake` also demands default
     /// pivots and extras, which only a freeze has to carry into the mesh.
-    fn refuse_plain_target(&self, index: usize, bake: bool) -> Result<(), NativeError> {
+    pub(super) fn refuse_plain_target(&self, index: usize, bake: bool) -> Result<(), NativeError> {
         let node = &self.nodes[index];
         if self.joint(node.transform_id).is_some() {
             return Err(TransformRefusal::Joint.into());

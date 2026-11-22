@@ -253,6 +253,9 @@
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
   match_transformations(multi) => Ok(changed) | scene changed
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: select at least two objects to align) | no state change
+  align_objects(multi) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1.75,0,0,0,0,0,1,1,1
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
   prefix_hierarchy_names(multi) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; selection_rest: pPlane1@1 -> pre_pPlane1@1; name_field: "pCube1" -> "pre_pCube1"
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
@@ -516,6 +519,9 @@
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
   match_transformations(multi) => Ok(changed) | scene changed
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: select at least two objects to align) | no state change
+  align_objects(multi) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1.75,0,0,0,0,0,1,1,1
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
   prefix_hierarchy_names(multi) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; selection_rest: pPlane1@1 -> pre_pPlane1@1; name_field: "pCube1" -> "pre_pCube1"
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
@@ -762,6 +768,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1007,6 +1015,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1252,6 +1262,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1497,6 +1509,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1742,6 +1756,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  align_objects(single) => Err(Transform: select at least two objects to align) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1987,6 +2003,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  align_objects(single) => Err(Transform: select at least two objects to align) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -2232,6 +2250,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2477,6 +2497,8 @@
   freeze_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  align_objects(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  align_objects(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   prefix_hierarchy_names(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   search_replace_names(selected) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2722,6 +2744,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2967,6 +2991,8 @@
   freeze_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   match_transformations(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  align_objects(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  align_objects(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   prefix_hierarchy_names(single) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   search_replace_names(selected) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -3212,6 +3238,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -3457,6 +3485,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3703,6 +3733,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3949,6 +3981,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4194,6 +4228,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: select at least two objects to align) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
@@ -4439,6 +4475,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4684,6 +4722,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: select at least two objects to align) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
@@ -4929,6 +4969,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5174,6 +5216,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: select at least two objects to align) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
@@ -5419,6 +5463,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5664,6 +5710,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: select at least two objects; the last selected is the target) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: select at least two objects to align) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Ok(changed) | scene changed; selected: pCube1 -> pre_pCube1; name_field: "pCube1" -> "pre_pCube1"; can_redo: true -> false
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Ok(changed) | scene changed; selected: pCube1 -> pBox1; name_field: "pCube1" -> "pBox1"; can_redo: true -> false
@@ -5909,6 +5957,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6154,6 +6204,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6406,6 +6458,9 @@
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6652,6 +6707,8 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6897,6 +6954,8 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7142,6 +7201,8 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7387,6 +7448,8 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7632,6 +7695,8 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -7877,6 +7942,8 @@
   freeze_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   match_transformations(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  align_objects(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(single) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   prefix_hierarchy_names(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   search_replace_names(selected) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -8122,6 +8189,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
@@ -8367,6 +8436,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: Maya ASCII scenes are read-only in this version) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(Naming: Maya ASCII scenes are read-only in this version) | no state change
@@ -8613,6 +8684,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
@@ -8859,6 +8932,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
@@ -9105,6 +9180,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
@@ -9351,6 +9428,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
@@ -9703,6 +9782,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
@@ -9949,6 +10030,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(Transform: native ownership or edit effects are unsupported) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(Naming: native ownership or edit effects are unsupported) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(Naming: native ownership or edit effects are unsupported) | no state change
@@ -10195,6 +10278,8 @@
   freeze_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(InvalidInput: Reset, Freeze and Match Transformations on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(InvalidInput: Align Objects on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(InvalidInput: Prefix Hierarchy Names and Search and Replace Names on Face selection are unsupported; switch to Object or Hierarchy selection) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -10441,6 +10526,8 @@
   freeze_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   match_transformations(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  align_objects(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(single) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   prefix_hierarchy_names(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   search_replace_names(selected) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -10453,4 +10540,4 @@
   set_image_plane(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   remove_image_plane => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 9840
+cells: 9927

@@ -201,12 +201,13 @@ fn the_match_row_is_disabled_on_a_read_only_scene() {
 }
 
 #[test]
-fn the_naming_rows_are_visibly_disabled_and_point_at_the_issue_and_the_tools() {
+fn the_naming_and_align_rows_are_visibly_disabled_and_point_at_the_issue_and_the_tools() {
     let mut editor = two_cube_editor();
     let output = open_modify_menu(&mut editor, &editing_ctx());
     for (label, tool) in [
         ("Prefix Hierarchy Names", "prefix_hierarchy_names"),
         ("Search and Replace Names", "search_replace_names"),
+        ("Align Objects", "align_objects"),
     ] {
         assert!(button_disabled(&output, label), "{label}");
         let reason = description(&output, label).unwrap_or_default();

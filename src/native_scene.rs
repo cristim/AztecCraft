@@ -1,4 +1,5 @@
 pub(crate) mod admission;
+mod align;
 mod appearance;
 pub mod ascii;
 mod authored;
@@ -29,6 +30,7 @@ mod source_removal;
 mod transform_extras;
 mod transform_ops;
 mod ungroup;
+pub use align::{AlignMode, AlignOptions, AlignTo};
 pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
     MaterialShader,

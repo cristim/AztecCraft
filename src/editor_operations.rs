@@ -1,5 +1,5 @@
 #[cfg(any(test, feature = "mcp"))]
-use azteccraft::native_scene::{NativeTransform, ReparentKeep, TransformAttributes};
+use azteccraft::native_scene::{AlignOptions, NativeTransform, ReparentKeep, TransformAttributes};
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
@@ -831,6 +831,15 @@ pub enum Operation {
         channels: TransformChannels,
         expected_selection_generation: Option<u64>,
     },
+    /// Modify > Snap Align Objects > Align Objects on the object selection: the world bounding
+    /// boxes of the selected objects line up per world axis (translate only), as one "Align
+    /// Objects" undo step. The last selected is the reference of `AlignTo::LastSelected`. Object
+    /// and Hierarchy modes only.
+    #[cfg(any(test, feature = "mcp"))]
+    AlignObjects {
+        options: AlignOptions,
+        expected_selection_generation: Option<u64>,
+    },
     /// Modify > Prefix Hierarchy Names on the object selection: `prefix` is prepended to the name
     /// of every selected object and of every transform below it (each once), as one "Prefix
     /// Hierarchy Names" undo step. Object and Hierarchy modes only.
@@ -1179,8 +1188,8 @@ pub struct SceneInspection {
     /// Snap to grids (`snapMode -grid`), off by default (PROVISIONAL: the docs state no default).
     pub snap_to_grid: bool,
     /// What Snap to grids rounds to: the drawn grid line spacing in centimetres and the same
-    /// length in the scene linear unit (1 cm in every unit for now: the drawn grid is in
-    /// centimetres); null for an unsupported linear unit, where a Move cannot be declared either.
+    /// length in the scene linear unit (one unit for the default 5 and 5 options: the grid is drawn
+    /// in scene units); null for an unsupported linear unit, where a Move cannot be declared either.
     /// PROVISIONAL (#5): Maya's pages do not say whether snapping uses subdivision or main lines.
     pub snap_spacing: Option<SnapSpacingInspection>,
     pub shading: ShadingMode,
