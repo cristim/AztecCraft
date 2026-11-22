@@ -1,7 +1,10 @@
 //! Align Objects: world boxes of the aligned objects, read without the production box code.
 use super::*;
 use crate::native_scene::group::tests::{bits, cube, set};
-use crate::native_scene::{ALL_CHANNELS, ReparentKeep, test_fixtures};
+use crate::native_scene::{
+    ALL_CHANNELS, DEFAULT_JOINT_RADIUS, JointRequest, LinearUnit, ReparentKeep, ReparentRefusal,
+    test_fixtures,
+};
 use glam::DVec3;
 
 const EPS: f64 = 1e-9;
@@ -289,29 +292,206 @@ fn typed_refusals() {
     assert!(dup.align_objects(&[a, a], min).is_err());
 }
 
-#[test]
-fn a_zero_scaled_parent_is_refused() {
-    let (mut scene, a, b, _) = trio();
-    let holder = {
-        let t = scene.node(b).unwrap().transform_id();
-        let p = scene
-            .dag
-            .iter()
-            .find(|e| e.child == t)
-            .unwrap()
-            .parent
-            .unwrap();
-        scene.nodes.iter().find(|n| n.transform_id == p).unwrap().id
-    };
-    set(&mut scene, holder, [0.0; 3], [0.0; 3], [0.0, 1.0, 1.0]);
+fn holder_of(scene: &NativeScene, id: NodeId) -> NodeId {
+    let t = scene.node(id).unwrap().transform_id();
+    let p = scene
+        .dag
+        .iter()
+        .find(|e| e.child == t)
+        .unwrap()
+        .parent
+        .unwrap();
+    scene.nodes.iter().find(|n| n.transform_id == p).unwrap().id
+}
+
+fn refused(scene: &mut NativeScene, ids: &[NodeId], expected: NativeError) {
     let before = scene.clone();
-    assert!(
-        scene
-            .align_objects(
-                &[a, b],
-                modes(AlignMode::Min, AlignMode::None, AlignMode::None)
-            )
-            .is_err()
+    let min = modes(AlignMode::Min, AlignMode::None, AlignMode::None);
+    assert_eq!(scene.align_objects(ids, min), Err(expected));
+    assert_eq!(*scene, before);
+}
+
+#[test]
+fn a_collapsing_parent_is_refused_as_degenerate() {
+    // without the keeps_volume guard the singular inverse surfaces as NonFinite (zero) or the
+    // huge local translate is attempted (tiny scale)
+    for scale in [0.0, 1e-12] {
+        let (mut scene, a, b, _) = trio();
+        let holder = holder_of(&scene, b);
+        set(&mut scene, holder, [0.0; 3], [0.0; 3], [scale, 1.0, 1.0]);
+        refused(
+            &mut scene,
+            &[a, b],
+            NativeError::InvalidTransformEdit(TransformRefusal::Degenerate),
+        );
+    }
+}
+
+#[test]
+fn a_translate_the_channels_cannot_hold_exactly_is_refused_as_not_representable() {
+    // the parent maps local 1 to world 0 through a 1e10 scale, so the rounding of the local
+    // translate (1e-16) becomes 1e-6 in the world: beyond the 1e-9 re-measure tolerance
+    let (mut scene, a, b, _) = trio();
+    let holder = holder_of(&scene, b);
+    set(&mut scene, holder, [-1e10; 3], [0.0; 3], [1e10; 3]);
+    set(&mut scene, b, [1.0; 3], [0.0; 3], [1e-10; 3]);
+    set(&mut scene, a, [3.1, 0.0, 0.0], [0.0; 3], [1.0; 3]);
+    refused(
+        &mut scene,
+        &[a, b],
+        NativeError::InvalidTransformEdit(TransformRefusal::NotRepresentable),
     );
+}
+
+#[test]
+fn a_units_mismatch_is_refused() {
+    for linear in [
+        LinearUnit::Meter,
+        LinearUnit::Inch,
+        LinearUnit::Unsupported("furlong".into()),
+    ] {
+        let (mut scene, a, b, _) = trio();
+        scene.units.linear = linear;
+        refused(&mut scene, &[a, b], NativeError::UnsupportedEdit);
+    }
+}
+
+#[test]
+fn joints_and_instanced_objects_are_refused() {
+    let (mut scene, a, _, _) = trio();
+    let joint = scene
+        .create_joint(&JointRequest {
+            parent: None,
+            position: [1.0, 0.0, 0.0],
+            relative: false,
+            radius: DEFAULT_JOINT_RADIUS,
+            name: None,
+        })
+        .unwrap()
+        .node;
+    refused(
+        &mut scene,
+        &[a, joint],
+        NativeError::InvalidTransformEdit(TransformRefusal::Joint),
+    );
+    let (mut instanced, x1, _, a, _) = test_fixtures::instanced_chain();
+    refused(
+        &mut instanced,
+        &[x1, a],
+        NativeError::InvalidReparent(ReparentRefusal::Instanced),
+    );
+}
+
+#[test]
+fn a_curve_below_the_object_is_refused_not_skipped() {
+    // a curve exists only in a sourced scene, which the public entry refuses first; the box
+    // reader is reached directly, where skipping the curve would report NoGeometry instead
+    let (scene, node) = crate::native_scene::curve::tests::candidate();
+    let targets = scene.transform_paths().unwrap();
+    let path = scene.sole_target(node).unwrap().path;
+    assert_eq!(
+        scene.world_box(&path, &targets),
+        Err(NativeError::InvalidTransformEdit(TransformRefusal::Curve))
+    );
+}
+
+mod ascii_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_ascii.rs"
+    ));
+}
+mod binary_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
+#[test]
+fn a_sourced_scene_is_refused() {
+    let scenes = [
+        (
+            crate::native_scene::ascii::decode(std::sync::Arc::from(ascii_fixture::specimen()))
+                .unwrap(),
+            NativeError::ReadOnlyFormat,
+        ),
+        (
+            crate::native_scene::binary::decode(std::sync::Arc::from(binary_fixture::specimen()))
+                .unwrap(),
+            NativeError::UnsupportedEdit,
+        ),
+    ];
+    for (mut scene, expected) in scenes {
+        let id = scene.nodes[0].id;
+        refused(&mut scene, &[id, id], expected);
+    }
+}
+
+#[test]
+fn dist_of_two_objects_is_a_no_op() {
+    let (mut scene, a, b, _) = trio();
+    let before = scene.clone();
+    scene
+        .align_objects(
+            &[a, b],
+            modes(AlignMode::Dist, AlignMode::Dist, AlignMode::Dist),
+        )
+        .unwrap();
     assert_eq!(scene, before);
+}
+
+/// Three cubes scaled along X to `sizes`, centered at `centers`, selected in the given order.
+fn x_row(centers: [f64; 3], sizes: [f64; 3]) -> (NativeScene, Vec<NodeId>) {
+    let mut scene = NativeScene::default();
+    let ids: Vec<NodeId> = (0..3).map(|i| cube(&mut scene, &format!("r{i}"))).collect();
+    for ((id, c), s) in ids.iter().zip(centers).zip(sizes) {
+        set(&mut scene, *id, [c, 0.0, 0.0], [0.0; 3], [s, 1.0, 1.0]);
+    }
+    (scene, ids)
+}
+
+#[test]
+fn dist_with_overlapping_boxes_spreads_over_a_negative_gap() {
+    // outer boxes overlap: the gap is negative, the inner box is placed overlapping both
+    let (mut scene, ids) = x_row([0.0, 0.5, 1.0], [4.0, 1.0, 4.0]);
+    let (first, last) = (world_box(&scene, ids[0]), world_box(&scene, ids[2]));
+    let width = {
+        let b = world_box(&scene, ids[1]);
+        b.1.x - b.0.x
+    };
+    scene
+        .align_objects(
+            &ids,
+            modes(AlignMode::Dist, AlignMode::None, AlignMode::None),
+        )
+        .unwrap();
+    assert_eq!(world_box(&scene, ids[0]), first);
+    assert_eq!(world_box(&scene, ids[2]), last);
+    let mid = world_box(&scene, ids[1]);
+    let (g1, g2) = (mid.0.x - first.1.x, last.0.x - mid.1.x);
+    let expected = (last.0.x - first.1.x - width) / 2.0;
+    assert!(expected < 0.0, "the fixture must overlap");
+    assert!(
+        (g1 - expected).abs() < EPS && (g2 - expected).abs() < EPS,
+        "{g1} {g2}"
+    );
+}
+
+#[test]
+fn dist_with_equal_centers_orders_by_selection_and_keeps_the_outer_two() {
+    let (mut scene, ids) = x_row([3.0; 3], [1.0, 3.0, 2.0]);
+    let (first, last) = (world_box(&scene, ids[0]), world_box(&scene, ids[2]));
+    scene
+        .align_objects(
+            &ids,
+            modes(AlignMode::Dist, AlignMode::None, AlignMode::None),
+        )
+        .unwrap();
+    // equal centers tie-break by selection order: the first and last selected stay put
+    assert_eq!(world_box(&scene, ids[0]), first);
+    assert_eq!(world_box(&scene, ids[2]), last);
+    let mid = world_box(&scene, ids[1]);
+    let (g1, g2) = (mid.0.x - first.1.x, last.0.x - mid.1.x);
+    assert!((g1 - g2).abs() < EPS, "{g1} {g2}");
 }

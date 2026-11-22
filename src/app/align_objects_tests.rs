@@ -285,9 +285,35 @@ fn a_read_only_ascii_scene_refuses_the_operation_and_stays_untouched() {
     let before = editor.history.scene().clone();
     assert!(matches!(
         editor.apply_operation(make()),
-        Err(OperationError::Transform(_))
+        Err(OperationError::Transform(NativeError::ReadOnlyFormat))
     ));
     assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn last_selected_follows_the_selection_order_not_the_outliner_order() {
+    let (mut editor, ids) = cubes(3);
+    let to = AlignOptions {
+        modes: [AlignMode::Min, AlignMode::None, AlignMode::None],
+        to: AlignTo::LastSelected,
+    };
+    // selected against the outliner order: ids[0] is the lead although it is outliner-first
+    let order = vec![ids[2].clone(), ids[1].clone(), ids[0].clone()];
+    editor.set_selection_members_for_test(order);
+    editor.sync_fields();
+    let kept = channels_of(&editor, &ids[0]);
+    let moved = channels_of(&editor, &ids[2]);
+    editor.apply_operation(aligning(to, None)).unwrap();
+    assert_eq!(
+        channels_of(&editor, &ids[0]),
+        kept,
+        "the lead does not move"
+    );
+    assert_ne!(
+        channels_of(&editor, &ids[2]),
+        moved,
+        "the outliner-last one moves"
+    );
 }
 
 #[test]
