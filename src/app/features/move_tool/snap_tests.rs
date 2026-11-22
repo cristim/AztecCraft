@@ -338,27 +338,21 @@ fn snapped_x(unit: azteccraft::native_scene::LinearUnit, distance: f64) -> f64 {
 
 #[cfg(feature = "mcp-test-client")]
 #[test]
-fn the_snap_spacing_is_the_drawn_one_centimetre_in_every_scene_linear_unit() {
+fn the_snap_spacing_is_one_drawn_line_in_the_scene_linear_unit() {
     use azteccraft::native_scene::LinearUnit::{Centimeter, Foot, Inch, Meter, Millimeter};
-    // The viewport draws one line per centimetre whatever the scene unit, so a Move of 2.4 cm
-    // lands on 2 cm and one of 0.4 cm on 0 in a metre, inch, foot or millimetre scene too.
-    for (unit, cm_per_unit) in [
-        (Centimeter, 1.0),
-        (Millimeter, 0.1),
-        (Meter, 100.0),
-        (Inch, 2.54),
-        (Foot, 30.48),
-    ] {
-        let x = snapped_x(unit.clone(), 2.4 / cm_per_unit);
-        assert!((x * cm_per_unit - 2.0).abs() < 1e-9, "{unit:?}: {x}");
-        let x = snapped_x(unit.clone(), 0.4 / cm_per_unit);
+    // The viewport draws a line every scene unit (5 lines per 5 units), so a Move of 2.4 units
+    // lands on 2 and one of 0.4 on 0 in a centimetre, millimetre, metre, inch or foot scene.
+    for unit in [Centimeter, Millimeter, Meter, Inch, Foot] {
+        let x = snapped_x(unit.clone(), 2.4);
+        assert!((x - 2.0).abs() < 1e-9, "{unit:?}: {x}");
+        let x = snapped_x(unit.clone(), 0.4);
         assert!(x.abs() < 1e-9, "{unit:?}: {x}");
     }
 }
 
 #[cfg(feature = "mcp-test-client")]
 #[test]
-fn the_inspected_snap_spacing_is_the_drawn_cm_and_its_scene_unit_length() {
+fn the_inspected_snap_spacing_is_one_scene_unit_and_its_length_in_cm() {
     use azteccraft::native_scene::LinearUnit::{Centimeter, Foot, Inch, Meter, Millimeter};
     for (unit, cm_per_unit) in [
         (Centimeter, 1.0),
@@ -370,13 +364,26 @@ fn the_inspected_snap_spacing_is_the_drawn_cm_and_its_scene_unit_length() {
         let (editor, _) = editor_in(unit.clone());
         let inspected = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
         let spacing = &inspected["snap_spacing"];
-        assert_eq!(spacing["cm"], 1.0, "{unit:?}");
-        let scene_units = spacing["scene_units"].as_f64().unwrap();
-        assert!((scene_units * cm_per_unit - 1.0).abs() < 1e-12, "{unit:?}");
+        assert_eq!(spacing["cm"], cm_per_unit, "{unit:?}");
+        assert_eq!(spacing["scene_units"], 1.0, "{unit:?}");
     }
     let (editor, _) = editor_in(azteccraft::native_scene::LinearUnit::Unsupported(
         "yard".into(),
     ));
     let inspected = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
     assert!(inspected["snap_spacing"].is_null());
+}
+
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn snap_to_grids_is_refused_in_an_unsupported_unit_scene() {
+    let (mut editor, target) = editor_in(azteccraft::native_scene::LinearUnit::Unsupported(
+        "yard".into(),
+    ));
+    snap(&mut editor, true);
+    assert!(matches!(
+        remote(&mut editor, begin_op(&target)),
+        Err(OperationError::Scene(_))
+    ));
+    assert_eq!(x_of(&editor, &target), 0.0);
 }

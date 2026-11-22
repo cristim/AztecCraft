@@ -1180,8 +1180,8 @@ pub struct SceneInspection {
     /// Snap to grids (`snapMode -grid`), off by default (PROVISIONAL: the docs state no default).
     pub snap_to_grid: bool,
     /// What Snap to grids rounds to: the drawn grid line spacing in centimetres and the same
-    /// length in the scene linear unit (1 cm in every unit for now: the drawn grid is in
-    /// centimetres); null for an unsupported linear unit, where a Move cannot be declared either.
+    /// length in the scene linear unit (one unit for the default 5 and 5 options: the grid is drawn
+    /// in scene units); null for an unsupported linear unit, where a Move cannot be declared either.
     /// PROVISIONAL (#5): Maya's pages do not say whether snapping uses subdivision or main lines.
     pub snap_spacing: Option<SnapSpacingInspection>,
     pub shading: ShadingMode,

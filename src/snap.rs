@@ -5,10 +5,9 @@ use crate::native_scene::{NativeError, Units};
 use glam::DVec3;
 use std::fmt;
 
-/// The grid options of Maya's Display > Grid option box: a main line every `lines_every` render
-/// units, each square split into `subdivisions`. The viewport's drawn grid and Snap to grids
-/// both read the same value, so the drawn lines and the snap lines have one source. One render
-/// unit is one centimetre whatever the scene linear unit (`viewport_renderer`).
+/// The grid options of Maya's Display > Grid option box: a main line every `lines_every` scene
+/// linear units, each square split into `subdivisions`. The viewport's drawn grid and Snap to grids
+/// both read the same value, so the drawn lines and the snap lines have one source.
 /// The current Maya grid command page (Commands/grid.html) gives defaults 10 and 10 "in linear
 /// units"; no page gives 5 and 5, which rests on a runtime `grid -q` result in Maya 2025.1.
 /// The 5 and 5 defaults are PROVISIONAL (#5); the options are not editable yet (#160).
@@ -24,24 +23,20 @@ pub const DEFAULT_GRID_OPTIONS: GridOptions = GridOptions {
 };
 
 impl GridOptions {
-    /// The distance between drawn lines, main and subdivision, in render units.
+    /// The distance between drawn lines, main and subdivision, in scene linear units.
     pub fn line_spacing_units(&self) -> f64 {
         self.lines_every / f64::from(self.subdivisions.max(1))
     }
 }
 
-/// The distance between the drawn grid's lines in centimetres, which is what Snap to grids
-/// rounds to in every scene linear unit: the viewport draws one render unit per centimetre
-/// whatever the scene unit. Following the scene unit waits until the viewport draws its grid in
-/// scene units (#454). PROVISIONAL (#5): snapping to the subdivision (drawn) lines.
-pub fn drawn_grid_spacing_cm(grid: GridOptions) -> f64 {
-    grid.line_spacing_units()
-}
-
-/// `cm` centimetres expressed in the scene's linear unit (the unit factors are exact: 1, 0.1, 100,
-/// 2.54 and 30.48 cm per unit); an error for an unsupported linear unit.
-pub fn spacing_in_scene_units(cm: f64, units: &Units) -> Result<f64, NativeError> {
-    Ok(cm / units.linear_factor()?)
+/// The distance between the drawn grid's lines in centimetres: the line spacing is a length in the
+/// scene linear unit (Maya's `grid` command gives its spacing "in linear units"), so a metre scene
+/// draws and snaps every 100 cm x the line spacing and an inch scene every 2.54 cm x it. Snap to
+/// grids rounds to this spacing and the viewport draws its lines at it. The unit factors are exact
+/// (1, 0.1, 100, 2.54 and 30.48 cm per unit); an error for an unsupported linear unit, where
+/// there is no grid and no snap. PROVISIONAL (#5): snapping to the subdivision (drawn) lines.
+pub fn drawn_grid_spacing_cm(grid: GridOptions, units: &Units) -> Result<f64, NativeError> {
+    Ok(grid.line_spacing_units() * units.linear_factor()?)
 }
 
 /// A handle axis within this of a world axis counts as aligned; an Object or Parent axis
@@ -326,41 +321,41 @@ mod tests {
         }
     }
 
+    fn units_of(linear: crate::native_scene::LinearUnit) -> Units {
+        Units {
+            linear,
+            ..Units::default()
+        }
+    }
+
     #[test]
-    fn the_default_grid_snaps_to_its_drawn_line_spacing() {
-        assert_eq!(drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS), 1.0);
+    fn the_drawn_spacing_is_the_line_spacing_in_the_scene_linear_unit() {
+        use crate::native_scene::LinearUnit;
+        let cases = [
+            (LinearUnit::Centimeter, 1.0),
+            (LinearUnit::Millimeter, 0.1),
+            (LinearUnit::Meter, 100.0),
+            (LinearUnit::Inch, 2.54),
+            (LinearUnit::Foot, 30.48),
+        ];
+        for (linear, cm_per_unit) in cases {
+            let got = drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS, &units_of(linear.clone()));
+            assert_eq!(got.unwrap(), cm_per_unit, "{linear:?}");
+        }
+        let unsupported = units_of(LinearUnit::Unsupported("yard".into()));
+        assert!(drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS, &unsupported).is_err());
+    }
+
+    #[test]
+    fn the_grid_options_scale_the_drawn_spacing() {
+        use crate::native_scene::LinearUnit;
         let custom = GridOptions {
             lines_every: 10.0,
             subdivisions: 4,
         };
         assert_eq!(custom.line_spacing_units(), 2.5);
-        assert_eq!(drawn_grid_spacing_cm(custom), 2.5);
-    }
-
-    #[test]
-    fn the_drawn_spacing_converts_to_the_scene_linear_unit() {
-        use crate::native_scene::LinearUnit;
-        let cm = drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS);
-        let cases = [
-            (LinearUnit::Centimeter, 1.0),
-            (LinearUnit::Millimeter, 10.0),
-            (LinearUnit::Meter, 0.01),
-            (LinearUnit::Inch, 1.0 / 2.54),
-            (LinearUnit::Foot, 1.0 / 30.48),
-        ];
-        for (linear, expected) in cases {
-            let units = Units {
-                linear: linear.clone(),
-                ..Units::default()
-            };
-            let got = spacing_in_scene_units(cm, &units).unwrap();
-            assert!((got - expected).abs() < 1e-12, "{linear:?}: {got}");
-        }
-        let unsupported = Units {
-            linear: LinearUnit::Unsupported("yard".into()),
-            ..Units::default()
-        };
-        assert!(spacing_in_scene_units(cm, &unsupported).is_err());
+        let inch = units_of(LinearUnit::Inch);
+        assert_eq!(drawn_grid_spacing_cm(custom, &inch).unwrap(), 2.5 * 2.54);
     }
 
     #[test]

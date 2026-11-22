@@ -1201,14 +1201,14 @@ earlier AztecCraft ordering is kept), and Maya draws the axes bold, which one-pi
 Maya 2026 is unverified. Grid Options (size, spacing, divisions, colours) is a disabled row in
 the Display menu, where Maya keeps the Grid option box.
 
-## Snap to grids follows the drawn 1 cm grid in every scene unit (#454)
+## Snap to grids follows the scene linear unit (#454)
 
-Snap to grids rounds to the drawn grid's line spacing, `snap::drawn_grid_spacing_cm`: the shared
-`snap::DEFAULT_GRID_OPTIONS` give `lines_every / subdivisions` = 5 / 5 = 1 render unit, and the
-viewport draws one render unit per centimetre whatever the scene linear unit, so the spacing is
-1 cm in every scene unit (a metre, inch, foot or millimetre scene snaps at 1 cm too). `inspect_scene` `snap_spacing` reports it as `{cm, scene_units}`: the centimetres and the same length in the scene unit (`snap::spacing_in_scene_units`; null for an unsupported unit). Making the
-viewport draw its grid in scene units and then following the scene unit in snapping is the remaining
-#454 item; the options are not editable (Grid Options stays disabled).
+Snap to grids rounds to the grid's line spacing, `snap::drawn_grid_spacing_cm(grid, units)`: the shared
+`snap::DEFAULT_GRID_OPTIONS` give `lines_every / subdivisions` = 5 / 5 = 1 scene linear unit (Maya's
+grid command gives its spacing "in linear units"), so the spacing is 1 m in a metre scene, 2.54 cm in
+an inch scene and so on; an unsupported unit has no spacing and a snapped Move is refused at begin.
+`inspect_scene` `snap_spacing` reports `{cm, scene_units}` (null for an unsupported unit). The options
+are not editable (Grid Options stays disabled).
 
 Maya sourcing: the current grid command page (MayaCRE-Tech-Docs/Commands/grid.html) gives defaults
 spacing 10, divisions 10 and size 12 "in linear units". No page gives 5 and 5; that claim rests on a

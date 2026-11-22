@@ -368,6 +368,13 @@ impl Editor {
         Ok((origin, self.move_handle_directions(&lead)?[axis.index()]))
     }
 
+    /// The drawn grid's line spacing in centimetres in the scene linear unit, which Snap to grids
+    /// rounds to; refused for an unsupported unit, where no grid is drawn.
+    pub(in crate::app) fn grid_snap_spacing_cm(&self) -> Result<f64, OperationError> {
+        drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS, self.history.scene().units())
+            .map_err(OperationError::Scene)
+    }
+
     pub(in crate::app) fn begin_editor_move(
         &mut self,
         target: &TransformTarget,
@@ -388,7 +395,7 @@ impl Editor {
         let space = self.manipulation.move_space();
         let snap = if self.snap_to_grid {
             let (origin, direction) = self.grid_snap_frame(axis)?;
-            let spacing = drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS);
+            let spacing = self.grid_snap_spacing_cm()?;
             // Refuse an axis off the world grid now rather than at every update.
             snap_distance_to_grid(origin, direction, 0.0, spacing)
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
@@ -469,7 +476,7 @@ impl Editor {
                     origin,
                     direction,
                     distance_cm,
-                    drawn_grid_spacing_cm(DEFAULT_GRID_OPTIONS),
+                    self.grid_snap_spacing_cm()?,
                 )
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
                 // The inspection reads the snapped distance, not the one asked for.
