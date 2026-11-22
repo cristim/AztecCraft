@@ -250,3 +250,10 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 
 Snapshots are public: they hold no scene
 tokens, UUIDs, absolute paths or home directories (`src/snapshots.rs` rejects those).
+
+- `display_layer_editor` sends create, assign, visibility or delete through
+  `native_operation` after the controls draw from `NativeScene`. The same
+  `EditDisplayLayer` operation is scene-token scoped over MCP and passes
+  modal, close, human draft and manipulation gates before History applies it.
+  Opening the panel in Windows > General Editors defers the normal Channel Box
+  request through the frame's scene token, like the Status Line toggle.

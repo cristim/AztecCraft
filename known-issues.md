@@ -920,7 +920,7 @@ snaps, symmetry, construction history, render buttons, Hypershade and the input 
 cluster therefore follows the last drawn group.
 
 - F2 and F3 switch Modeling and Rigging; F4 to F6 stay unbound because their sets do not exist.
-- No Layer Editor exists, so the toggle shows or hides only the Channel Box; its hover and a Layers stub in the panel say so.
+- The Channel Box includes basic Display Layers. Animation Layers and the undocked Layer Editor remain unsupported.
 - The toggle is disabled during an active manipulation, including a remote one with no native gesture, like other edits.
 - Save As has no strip button and stays in the File menu.
 - Open's native dialog calls `rfd` directly and cannot be click-tested, so equivalence between the strip
@@ -2098,6 +2098,18 @@ The face count is capped (20000 faces, at most 128 divisions per ring) so a larg
   Plane Attributes, Remove Image Plane) acts only when `self.scene_token == frame_token`. Only Remove Image Plane
   has a test that a stale frame token is refused (`the_remove_row_is_ignored_when_the_frames_scene_token_is_stale`);
   the other rows share the pattern but their guard is unpinned.
+
+
+## Display layers remain session-only (#61)
+
+The Display Layers section below Channel Box supports empty and selected-object
+creation, explicit transform membership, visibility and deletion. Membership
+follows the transform across instances and affects descendants through inherited
+visibility. Named layers are limited to authored scenes. Both native writers
+and recovery refuse while named layers exist, with removal or undo as the
+remedy. View-based export observes display-layer visibility.
+Playback, template/reference, color, layer attributes, naming, undocking,
+animation layers and Render Setup remain unsupported.
 
 ## Camera image plane: implemented, not compared against Maya (#459)
 

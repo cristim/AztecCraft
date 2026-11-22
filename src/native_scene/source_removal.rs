@@ -146,6 +146,9 @@ impl NativeScene {
         self.session_joints.prune(&gone.iter().copied().collect());
         self.session_keys.prune(&self.nodes);
         self.session_uvs.prune(&self.shapes);
+        for layer in self.display_layers.values_mut() {
+            layer.remove_members(gone);
+        }
         if let Some(source) = &mut self.source {
             source.has_removals = true;
             if let Some(appearance) = &mut source.appearance {

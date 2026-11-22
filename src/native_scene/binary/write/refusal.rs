@@ -13,6 +13,7 @@ pub enum AuthoredRefusalCode {
     SourcedScene,
     Curves,
     Joints,
+    DisplayLayers,
     Keys,
     CameraOverride,
     InvalidScene,
@@ -49,6 +50,7 @@ impl From<&AuthoredBinaryRefusal> for AuthoredRefusalCode {
                 I::SourcedScene => Self::SourcedScene,
                 I::Curves => Self::Curves,
                 I::Joints => Self::Joints,
+                I::DisplayLayers => Self::DisplayLayers,
                 I::Keys => Self::Keys,
                 I::CameraOverride => Self::CameraOverride,
                 I::InvalidScene(_) => Self::InvalidScene,
@@ -87,6 +89,7 @@ impl AuthoredRefusalCode {
             Self::SourcedScene => "sourced_scene",
             Self::Curves => "curves",
             Self::Joints => "joints",
+            Self::DisplayLayers => "display_layers",
             Self::Keys => "keys",
             Self::CameraOverride => "camera_override",
             Self::InvalidScene => "invalid_scene",
@@ -123,6 +126,9 @@ impl fmt::Display for AuthoredRefusalCode {
             Self::SourcedScene => "the scene retains a parsed source and is not newly authored",
             Self::Curves => "curves cannot be written to a new .mb",
             Self::Joints => "joints cannot be written to a new .mb",
+            Self::DisplayLayers => {
+                "display layers are session-only; delete or undo the layers before saving"
+            }
             Self::Keys => "session keys are not saved",
             Self::CameraOverride => "a camera film back is not saved yet; reset it to save",
             Self::InvalidScene => "the scene is not valid",

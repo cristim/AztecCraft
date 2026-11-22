@@ -187,3 +187,32 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+## Display Layer Editor first slice (#61)
+
+Maya 2027.2 [Layer Editor](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-509DE7DD-E706-49AE-90D7-E9CD5F6582A7.htm)
+places Display Layers below the Channel Box by default. The [Display Layer Editor](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-8415A1A6-7798-43F5-9D64-783BD0642071.htm)
+documents the Status Line and Windows > General Editors entry points, empty
+and selected-object creation, V visibility, membership assignment and deleting
+layers without deleting objects. It also documents separate playback and
+selectability flags, normal/template/reference display, layer color, and
+undocked preferences. No Display Layer Editor hotkey is given.
+[createDisplayLayer](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/createDisplayLayer.html)
+and [editDisplayLayerMembers](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/editDisplayLayerMembers.html)
+describe undoable operations, one layer per object, descendant inclusion by
+default, an explicit no-recurse subset and return to the default layer.
+
+Start with authored-scene layers, transform membership, V visibility and layer
+deletion. Layer visibility combines with local and ancestor visibility in the
+same draw/pick/framing path. Only explicitly supplied transforms join a layer.
+Id allocation, picked hidden members staying selected, and per-transform
+membership across instances are PROVISIONAL. This implementation refuses
+native Save, Save As and recovery writes while it cannot preserve created
+layers. Deleting the layers or undoing their creation restores writer
+eligibility. Sourced scenes, playback, display type, color, preferences and
+Animation Layers remain unsupported. Render Setup is tracked in #55.
+
+Linux native verification in an isolated Xwayland display used a synthetic
+cube. Create Layer from Selected showed one member. Turning visibility off
+removed the cube from view without removing its Outliner entry. Undo restored
+its drawing and layer visibility. Local captures were reviewed.

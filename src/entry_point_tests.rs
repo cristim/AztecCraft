@@ -254,6 +254,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "frame_all",
             "frame_selected",
             "deselect_all",
+            "display_layer_editor",
             "native_select_by_rule",
             "run_timeline_action",
             "timeline_controls",

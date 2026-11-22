@@ -78,7 +78,7 @@ The AztecCraft window draws a partial Status Line strip, from `Editor::status_li
 | Sidebar toggle: HumanIK | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:61 "HumanIK: not implemented yet"` | none | P3 | S1 Status Line strip (#59) |
 | Sidebar toggle: Attribute Editor | [statusline] | Supported | `src/app/features/status_line.rs:67 "Show or hide the Attribute Editor"`; shows the Attribute Editor and hides the Channel Box; disabled during an active manipulation | `set_sidebar_panel_visibility` | P1 | S1 Status Line strip (#59) |
 | Sidebar toggle: Tool Settings | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:73 "Tool Settings: not implemented yet"` | none | P2 | S1 Status Line strip (#59) |
-| Sidebar toggle: Channel Box / Layer Editor | [statusline] | Partial | `src/app/features/status_line.rs "Show or hide the Channel Box (Layer Editor: not implemented yet)"`; no Layer Editor exists, so it shows or hides the Channel Box only and the hover says so; disabled during an active manipulation | `set_sidebar_panel_visibility` | P1 | S1 Status Line strip (#59) |
+| Sidebar toggle: Channel Box / Layer Editor | [statusline] | Partial | Toggles Channel Box and its attached Display Layers section. Undocking and Animation Layers are unsupported | `set_sidebar_panel_visibility` | P1 | S1 Status Line strip (#59) |
 
 ## 3. Shelf
 
@@ -165,9 +165,9 @@ The Channel Box panel docks right at `src/app/panels.rs "Some(SidebarPanel::Chan
 | OUTPUTS section | [channelbox] | Visible-unsupported | `src/app/features/node_edit.rs "unsupported_section"` (disabled stub) | none | P3 | S4 Attribute Editor and Channel Box (#60) |
 | Channel Box feedback for selected vertices or edges (component attributes, coordinates) | [channelbox] UNCONFIRMED for Maya 2026 | Missing | in Vertex, Edge and Face modes the Channel Box (`Editor::channels`, src/app/features/node_edit.rs) shows the parent object's name, Translate/Rotate/Scale rows, material controls and Delete, with no component-specific rows; nothing about the picked component is shown | none | P2 | S3 Component modes (#29) |
 | Channel Box blank with no selection; reason, curves note and appearance summary on the Help Line row | [channelbox] | Supported | `src/app/features/node_edit.rs "fn help_line"` (the appearance summary is now collapsed by default under "Scene diagnostics"), `src/app/panels.rs "timeline_status"`; read-only fields also explain themselves on hover | `inspect_scene` (`read_only`, `source_appearance`) | P1 | S4 Attribute Editor and Channel Box (#60) |
-| Layer Editor panel (stub heading in the Channel Box) | [layers] | Visible-unsupported | `src/app/features/node_edit.rs "unsupported_section"`; no tabs or layers; the Layer Editor sitting in the Channel Box by default is PROVISIONAL (inferred from the "Show Layer Editor within Channel Box" option); each stub has a distinct accessible name, for example "Layers: not implemented yet" | none | P2 | S9 Layer Editor (#61) |
-| Layer Editor: Display Layers tab | [layers] | Missing | absent | none | P2 | S9 Layer Editor (#61) |
-| Layer Editor: Animation Layers tab | [layers] | Missing | absent | none | P3 | S9 Layer Editor (#61) |
+| Layer Editor attached to Channel Box | [layers] | Partial | Both native entry points show the attached layer editor | `set_sidebar_panel_visibility` | P2 | S9 Layer Editor (#61) |
+| Layer Editor: Display Layers tab | [layers] | Partial | Authored scenes support layer creation, membership, visibility and deletion. Native Save refuses while layers exist | `inspect_display_layers`, `edit_display_layer` | P2 | S9 Layer Editor (#61) |
+| Layer Editor: Animation Layers tab | [layers] | Visible-unsupported | Disabled Animation Layers row | none | P3 | S9 Layer Editor (#61) |
 
 ## 7. Attribute Editor
 

@@ -1,9 +1,9 @@
 use crate::{
     native_scene::{
-        AlignOptions, ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest,
-        LambertAttribute, MaterialChoice, MayaImportPlan, NativeError, NativeId, NativeScene,
-        NativeTransform, ObjImportPlan, PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId,
-        TransformChannels, TransformTarget, UngroupOptions, UvProjectAxis,
+        AlignOptions, ChannelMask, DEFAULT_FRAME, DisplayLayerEdit, GroupOptions, Infinity,
+        JointRequest, LambertAttribute, MaterialChoice, MayaImportPlan, NativeError, NativeId,
+        NativeScene, NativeTransform, ObjImportPlan, PivotReset, ReduceTarget, ReparentKeep,
+        SessionMaterialId, TransformChannels, TransformTarget, UngroupOptions, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -124,6 +124,7 @@ pub enum Command {
         shape: NativeId,
         value: f64,
     },
+    EditDisplayLayer(DisplayLayerEdit),
     CreateSessionMaterial {
         color: [f64; 3],
     },
@@ -245,6 +246,7 @@ impl Command {
             | Self::SetSessionMaterialColor { .. }
             | Self::SetSessionMaterialAttribute { .. } => "Material".to_string(),
 
+            Self::EditDisplayLayer(_) => "Display Layer".to_string(),
             Self::ExtrudeFace { .. } => "Extrude".to_string(),
             Self::MoveVertices { .. } => "Move".to_string(),
             // PROVISIONAL: Maya's docs name no undo entries.
@@ -767,6 +769,22 @@ impl History {
             }
             Command::SetCameraFilmBack { camera, film } => {
                 candidate.set_camera_film_back(camera, film)?;
+                EditOutcome::Changed
+            }
+            Command::EditDisplayLayer(edit) => {
+                candidate.edit_display_layer(edit)?;
+                if candidate != self.scene {
+                    ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(
+                        |error| match error {
+                            ViewError::Native(cause) => cause,
+                            ViewError::ResourceLimit => NativeError::ResourceLimit,
+                            ViewError::NonFiniteWorld => NativeError::WorldOutOfRange,
+                            _ => NativeError::InvalidDisplayLayer(
+                                "The resulting scene view is unsupported",
+                            ),
+                        },
+                    )?;
+                }
                 EditOutcome::Changed
             }
             Command::CreateSessionMaterial { color } => {

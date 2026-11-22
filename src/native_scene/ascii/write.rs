@@ -102,6 +102,7 @@ pub enum AsciiWriteRefusal {
     SourcedScene,
     Curves,
     Joints,
+    DisplayLayers,
     SessionMaterials,
     Keys,
     CameraOverride,
@@ -138,6 +139,7 @@ impl fmt::Display for AsciiWriteRefusal {
             Self::SourcedScene => "retained Maya sources cannot use the authored prefix",
             Self::Curves => "curve declarations are unsupported",
             Self::Joints => "joints are session-only and cannot be saved yet",
+            Self::DisplayLayers => "display layers are session-only; delete or undo the layers before saving",
             Self::SessionMaterials => {
                 "the session material table is not one the authored layout can carry"
             }
@@ -342,6 +344,7 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
         // Emitted per shape (`UvPolicy::Admit`); keys and joints are refused by `check_content_kind`.
         session_joints: _,
         session_uvs: _,
+        display_layers: _,
         session_keys: _,
         // Emitted by `camera_blocks`; a blocked camera is refused above.
         cameras: _,
@@ -377,6 +380,7 @@ impl From<AuthoredIneligible> for AsciiWriteRefusal {
             I::SourcedScene => Self::SourcedScene,
             I::Curves => Self::Curves,
             I::Joints => Self::Joints,
+            I::DisplayLayers => Self::DisplayLayers,
             I::Keys => Self::Keys,
             I::CameraOverride => Self::CameraOverride,
             I::InvalidScene(error) => Self::InvalidScene(error),

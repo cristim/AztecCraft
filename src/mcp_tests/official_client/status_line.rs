@@ -269,3 +269,202 @@ async fn sdk_inspection_withholds_file_error_status_and_bounds_length() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_display_layers_share_editor_history_and_guards() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap();
+    let token = editor.scene_token.to_string();
+    frame(&mut editor, &context, vec![]);
+    let create = json!({"action": "create", "members": [id.to_decimal()]});
+    for invalid in [
+        json!({"action": "assign", "layer": 0, "members": []}),
+        json!({"action": "create", "members": [id.to_decimal(), id.to_decimal()]}),
+        json!({"action": "visibility", "layer": 0, "visible": false}),
+    ] {
+        let reply = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "edit_display_layer",
+            json!({"scene_token": token, "edit": invalid}),
+        )
+        .await;
+        assert_eq!(
+            reply.structured_content.unwrap()["error"]["code"],
+            "invalid_display_layer"
+        );
+    }
+    let stale = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "edit_display_layer",
+        json!({"scene_token": Uuid::new_v4().to_string(), "edit": create}),
+    )
+    .await;
+    assert_eq!(
+        stale.structured_content.unwrap()["error"]["code"],
+        "stale_scene"
+    );
+    editor.name = "draft".into();
+    let busy = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "edit_display_layer",
+        json!({"scene_token": token, "edit": create}),
+    )
+    .await;
+    assert_eq!(
+        busy.structured_content.unwrap()["error"]["code"],
+        "busy_editing"
+    );
+    assert_eq!(editor.name, "draft");
+    editor.sync_fields();
+
+    for edit in [
+        create,
+        json!({"action": "visibility", "layer": 1, "visible": false}),
+    ] {
+        let reply = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "edit_display_layer",
+            json!({"scene_token": token, "edit": edit}),
+        )
+        .await;
+        assert_eq!(reply.structured_content.unwrap()["outcome"], "changed");
+    }
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_display_layers",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(
+        inspected["layers"],
+        json!([{
+            "id": 1, "name": "layer1", "visible": false, "members": [id.to_decimal()]
+        }])
+    );
+    let scene = editor.history.scene();
+    let path = vec![
+        scene.node(id).unwrap().transform_id(),
+        scene.shapes()[0].id(),
+    ];
+    assert!(!scene.geometry_view_admission(&path).unwrap().visible());
+    let undone = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "undo",
+        json!({"scene_token": token}),
+    )
+    .await;
+    assert_eq!(undone.structured_content.unwrap()["outcome"], "changed");
+    assert!(
+        editor
+            .history
+            .scene()
+            .geometry_view_admission(&path)
+            .unwrap()
+            .visible()
+    );
+
+    #[cfg(unix)]
+    {
+        let directory = tempfile::tempdir().unwrap();
+        for extension in ["ma", "mb"] {
+            let path = directory.path().join(format!("layers.{extension}"));
+            let result = editor.apply_operation(Operation::SaveSceneAs { path: path.clone() });
+            let Err(OperationError::NativeSave(error)) = result else {
+                panic!("expected a typed {extension} save refusal");
+            };
+            use azteccraft::document::NativeSaveError;
+            use azteccraft::native_scene::binary::AuthoredRefusalCode;
+            match extension {
+                "ma" => assert!(matches!(error, NativeSaveError::AsciiWrite(_))),
+                "mb" => assert!(matches!(
+                    error,
+                    NativeSaveError::Unwritable(AuthoredRefusalCode::DisplayLayers)
+                )),
+                _ => unreachable!(),
+            }
+            assert!(
+                error
+                    .to_string()
+                    .contains("display layers are session-only")
+            );
+            assert!(!path.exists());
+        }
+        let error = azteccraft::document::encode_recovery(editor.history.scene()).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("display layers are session-only")
+        );
+    }
+    for (edit, visible) in [
+        (
+            json!({"action": "visibility", "layer": 1, "visible": false}),
+            false,
+        ),
+        (
+            json!({"action": "assign", "layer": 0, "members": [id.to_decimal()]}),
+            true,
+        ),
+        (
+            json!({"action": "assign", "layer": 1, "members": [id.to_decimal()]}),
+            false,
+        ),
+    ] {
+        let reply = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "edit_display_layer",
+            json!({"scene_token": token, "edit": edit}),
+        )
+        .await;
+        assert_eq!(reply.structured_content.unwrap()["outcome"], "changed");
+        assert_eq!(
+            editor
+                .history
+                .scene()
+                .geometry_view_admission(&path)
+                .unwrap()
+                .visible(),
+            visible
+        );
+    }
+    let removed = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "edit_display_layer",
+        json!({"scene_token": token, "edit": {"action": "delete", "layer": 1}}),
+    )
+    .await;
+    assert_eq!(removed.structured_content.unwrap()["outcome"], "changed");
+    assert!(editor.history.scene().display_layers().next().is_none());
+    assert!(
+        editor
+            .history
+            .scene()
+            .geometry_view_admission(&path)
+            .unwrap()
+            .visible()
+    );
+    assert_eq!(editor.selected(), Some(id));
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

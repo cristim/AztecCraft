@@ -6,9 +6,9 @@ use azteccraft::{
     image_plane::{model::ImagePlaneEdit, ops::ImagePlaneOpError},
     move_handles::ManipulatorSize,
     native_scene::{
-        EdgeTarget, FaceTarget, GroupOptions, MoveSpace, NativeError, NativeId, RotateAxis,
-        RotateSpace, ScaleHandle, ScaleSpace, TransformChannels, TransformTarget, UngroupOptions,
-        VertexSetTarget, VertexTarget, WorldAxis,
+        DisplayLayerEdit, EdgeTarget, FaceTarget, GroupOptions, MoveSpace, NativeError, NativeId,
+        RotateAxis, RotateSpace, ScaleHandle, ScaleSpace, TransformChannels, TransformTarget,
+        UngroupOptions, VertexSetTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
     viewport::{FilmBackEdit, InvalidCameraInput, InvalidCameraPose, InvalidFilmBack, NdcRect},
@@ -625,6 +625,9 @@ pub enum Operation {
     /// A read of the static scene resource limits: it passes no guard and touches no state.
     #[cfg(any(test, feature = "mcp"))]
     InspectLimits,
+    #[cfg(any(test, feature = "mcp"))]
+    InspectDisplayLayers,
+    EditDisplayLayer(DisplayLayerEdit),
     /// Session-only camera bookmarks (Maya View > Bookmarks), never undoable or dirtying. The four
     /// mutating variants are unconstructed without MCP until the View menu lands.
     #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
@@ -1011,6 +1014,11 @@ pub enum Operation {
 #[derive(Debug, Serialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum OperationReply {
+    #[cfg(any(test, feature = "mcp"))]
+    DisplayLayers {
+        scene_token: String,
+        layers: Vec<DisplayLayerInspection>,
+    },
     #[cfg(any(test, feature = "mcp"))]
     Scene {
         inspection: Box<SceneInspection>,
@@ -1518,6 +1526,15 @@ impl From<NativeTransform> for AuthoringTransformInspection {
         }
     }
 }
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct DisplayLayerInspection {
+    pub id: u32,
+    pub name: String,
+    pub visible: bool,
+    pub members: Vec<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct SidebarPanelsInspection {

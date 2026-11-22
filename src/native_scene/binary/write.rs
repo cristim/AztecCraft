@@ -142,6 +142,7 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         // Session UVs make `check_content_kind` refuse the scene (`SessionUvs`),
         // so none reach this writer.
         session_uvs: _,
+        display_layers: _,
         // Session joints and keys make `check_content_kind` refuse the scene (`Joints`, `Keys`), so
         // none reach this writer.
         session_joints: _,

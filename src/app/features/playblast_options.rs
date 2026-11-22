@@ -108,6 +108,18 @@ fn name_control(response: &egui::Response, role: egui::Role, label: &str) {
 impl Editor {
     pub(in crate::app) fn windows_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button("Windows", |ui| {
+            ui.menu_button("General Editors", |ui| {
+                let refused = self.display_switch_refusal();
+                if ui
+                    .add_enabled(refused.is_none(), egui::Button::new("Display Layer Editor"))
+                    .on_disabled_hover_text(refused.unwrap_or_default())
+                    .clicked()
+                {
+                    self.sidebar_panel_request =
+                        Some((crate::editor_operations::SidebarPanel::ChannelBox, true));
+                    ui.close();
+                }
+            });
             unsupported(ui, NOT_IMPLEMENTED_YET);
             let blocked = (self.files.is_closing() || self.files.is_modal())
                 .then(|| self.playblast_refusal())

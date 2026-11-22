@@ -308,7 +308,7 @@ impl Editor {
 
     fn channel_sections(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
         if self.lead_target().is_err() {
-            unsupported_section(ui, "Layers");
+            self.display_layer_editor(ui);
             return;
         }
         let authoring_refusal = self.authoring_refusal();
@@ -333,7 +333,7 @@ impl Editor {
             *delete_intent = true;
         }
         ui.separator();
-        unsupported_section(ui, "Layers");
+        self.display_layer_editor(ui);
     }
 }
 

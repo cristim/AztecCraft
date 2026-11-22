@@ -66,6 +66,8 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("assign_session_material", "`sets -renderable true -noSurfaceShader true -empty`, `sets -forceElement`", "saved to an authored .ma, refused as .mb with save_unwritable reason session_materials; whole shapes, one or a list (all or nothing)"),
     ("set_session_material_color", "`setAttr <shader>.color`", "saved to an authored .ma, refused as .mb with save_unwritable reason session_materials"),
     ("set_session_material_attribute", "`setAttr <shader>.transparency`, `.ambientColor`, `.incandescence`", "saved to an authored .ma when not black, refused as .mb with save_unwritable reason session_materials; stored only, no viewport effect yet (PROVISIONAL)"),
+    ("inspect_display_layers", "`editDisplayLayerMembers -q` and layer attributes", "named session layers with their transform members"),
+    ("edit_display_layer", "`createDisplayLayer`, `editDisplayLayerMembers` and layer attributes", "transform-only membership, session data"),
     ("delete_node", "`delete`", "refuses hierarchies and shared descendants (#187)"),
     ("delete_selected", "`delete` with no flags", "all or nothing"),
     ("repeat_last", "`repeatLast` (Edit > Repeat)", "PROVISIONAL: only delete_selected repeats; Maya's repeat rules are unverified (SCN-004 Partial)"),

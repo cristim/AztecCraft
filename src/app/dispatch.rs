@@ -226,7 +226,8 @@ impl Editor {
             #[cfg(any(test, feature = "mcp"))]
             Operation::ListCameraBookmarks
             | Operation::RecoveryStatus
-            | Operation::InspectLimits => None,
+            | Operation::InspectLimits
+            | Operation::InspectDisplayLayers => None,
             #[cfg(any(test, feature = "mcp"))]
             Operation::AutosaveNow => None,
             // Native drags report their own live preview, which a remote preview does not drive.
@@ -416,6 +417,9 @@ impl Editor {
         }
         if matches!(request.operation, Operation::ListCameraBookmarks) {
             return Ok(self.list_camera_bookmarks());
+        }
+        if matches!(request.operation, Operation::InspectDisplayLayers) {
+            return Ok(self.inspect_display_layers());
         }
         if matches!(request.operation, Operation::RecoveryStatus) {
             return self.recovery_status();
@@ -657,6 +661,7 @@ impl Editor {
                 | Operation::SetView(_)
                 | Operation::SetMenuSet { .. }
                 | Operation::SetSidebarPanelVisible { .. }
+                | Operation::EditDisplayLayer(_)
                 | Operation::SelectAttributeEditorTab { .. }
                 | Operation::SetCameraFilmBack(_)
                 | Operation::CreateCameraBookmark { .. }
@@ -1034,6 +1039,9 @@ impl Editor {
                 attribute,
                 rgb,
             },
+            Operation::EditDisplayLayer(edit) => Command::EditDisplayLayer(edit),
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectDisplayLayers => return Ok(self.inspect_display_layers()),
             Operation::SetCurrentTime { time } => return self.set_current_time(time),
             Operation::SetPlaybackRange { start, end } => {
                 return self.set_playback_range(start, end);

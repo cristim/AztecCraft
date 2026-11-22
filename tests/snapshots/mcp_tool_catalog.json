@@ -3949,6 +3949,142 @@
     }
   },
   {
+    "name": "inspect_display_layers",
+    "description": "List named session display layers with their visibility, transform ID membership and scene token. Unlisted transforms belong to default layer 0",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "title": "InspectArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "edit_display_layer",
+    "description": "Edit authored-scene display layers as one undo step. Create accepts an empty list or explicit transform IDs. Assign transfers transforms from their current layer, with layer 0 the default. Visibility sets a named layer's visible flag. Delete moves its transforms to the default without deleting them. Save and recovery refuse while named layers exist",
+    "inputSchema": {
+      "$defs": {
+        "Edit": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "const": "create",
+                  "type": "string"
+                },
+                "members": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "action",
+                "members"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "const": "assign",
+                  "type": "string"
+                },
+                "layer": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "members": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "action",
+                "layer",
+                "members"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "const": "visibility",
+                  "type": "string"
+                },
+                "layer": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "visible": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "action",
+                "layer",
+                "visible"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "const": "delete",
+                  "type": "string"
+                },
+                "layer": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "action",
+                "layer"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "edit": {
+          "$ref": "#/$defs/Edit"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "edit"
+      ],
+      "title": "EditArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "delete_node",
     "description": "Delete an object and all its descendants through editor undo history; the form of Maya's delete command with no flags, applied to one node (PROVISIONAL: the documentation does not state the default of -hierarchy, so the subtree semantics are pinned by tests). A descendant transform that also hangs under a node outside the subtree is refused; a shape shared with such a node stays. Refused in Face, Vertex or Edge selection mode",
     "inputSchema": {

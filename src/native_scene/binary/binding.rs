@@ -460,6 +460,7 @@ pub(super) fn construct(
         session_joints: Default::default(),
         session_keys: Default::default(),
         session_uvs: Default::default(),
+        display_layers: Default::default(),
         cameras: Default::default(),
         removed: Vec::new(),
         references: Vec::new(),
