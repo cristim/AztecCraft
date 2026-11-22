@@ -334,6 +334,8 @@
     "status_message": "Scene edited",
     "text_focused": false,
     "timeline": {
+      "animation_end": 48,
+      "animation_start": 1,
       "current_time": 1,
       "frames_per_second": 24.0,
       "key_count": 0,

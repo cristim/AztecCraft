@@ -92,6 +92,17 @@ struct SetPlaybackRangeArgs {
     end: f64,
 }
 
+fn parse_set_animation_range(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: SetPlaybackRangeArgs = decode(arguments)?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetAnimationRange {
+            start: args.start,
+            end: args.end,
+        },
+    ))
+}
+
 fn parse_set_playback_range(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let args: SetPlaybackRangeArgs = decode(arguments)?;
     Ok(scoped(
@@ -297,8 +308,16 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         read_only: false,
     },
     ToolSpec {
+        name: "set_animation_range",
+        description: "Set the session animation range in whole frames. Clamps playback endpoints into that interval. New and Open reset to frames 1 through 48. Does not alter current time or keys",
+        schema: schema::<SetPlaybackRangeArgs>,
+        parse: parse_set_animation_range,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
         name: "set_playback_range",
-        description: "Set the playback range in whole frames. Session-only, not an undo step. The start must not be after the end (invalid_playback_range). Stops playback",
+        description: "Set the playback range in whole frames. Session-only, not an undo step. The start must not be after the end (invalid_playback_range). Both endpoints must lie inside the animation range (invalid_input). Stops playback",
         schema: schema::<SetPlaybackRangeArgs>,
         parse: parse_set_playback_range,
         idempotent: true,

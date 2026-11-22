@@ -187,3 +187,7 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+### Animation range (#62)
+
+[Maya 2027.2 New Scene Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-8F961875-1D41-4C52-9CD5-B90DE75C546C.htm) defaults animation start and end to 1 and 48 and keeps playback inside those bounds. The [interface overview](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-F4FCE554-1FA5-447A-8835-63EB43D2690B.htm) places both in the Range Slider. [playbackOptions](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/playbackOptions.html) specifies separate command flags and undo support in Maya. AztecCraft uses session-only, whole-frame fields below the Time Slider, clamps playback endpoints on animation-range edits and holds current time and keys (PROVISIONAL). Animation range edits are outside scene undo.
