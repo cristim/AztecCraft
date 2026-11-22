@@ -913,11 +913,13 @@ The strip shows:
   Like F8 to F11 and the other mode buttons they cancel an active native Move, Rotate or Scale
   manipulation rather than being disabled, but are disabled while a remote manipulation is active;
 - a selection mode menu (presets), shown disabled with no state (visibly unsupported; real presets need masks);
+- disabled Flow Studio and Sign in buttons, each with its own unavailable reason;
 - five sidebar toggles, of which only Channel Box / Layer Editor works. The others are disabled.
 
 Groups without AztecCraft behavior are not drawn rather than shown as inert controls: per-type selection masks,
 snaps, symmetry, construction history, render buttons, Hypershade and the input box. The right-end
-cluster therefore follows the last drawn group.
+cluster therefore follows the last drawn group. Autodesk account sign-in, Flow Studio integration,
+Create > Open Flow Studio and Application Home remain unsupported.
 
 - F2 and F3 switch Modeling and Rigging; F4 to F6 stay unbound because their sets do not exist.
 - No Layer Editor exists, so the toggle shows or hides only the Channel Box; its hover and a Layers stub in the panel say so.
