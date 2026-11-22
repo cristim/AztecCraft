@@ -31,6 +31,25 @@ every subcase.
 
 Tasks 2–8 have real callers: desktop authoring actions and scene file handling. Scene data remains separate from viewport caches so persistence and editing are testable without a window. Projected drawing is a fidelity spike, not a replacement for a depth-tested renderer.
 
+## Shelf Editor entry (issue #65)
+
+The Maya 2027 documentation served at the repository's 2027.2 pin documents
+Windows > Settings/Preferences > Shelf Editor, the shelf gear menu and the
+Edit/Edit Popup item context menus as entry points. The editor manages shelves
+and their contents. The gear menu also navigates shelves and toggles tab
+visibility. Default shelves group common commands in tool-set tabs, and
+Shift+Ctrl while choosing a menu item adds it to a shelf. The cited pages give
+no shortcut to open the editor or exact default tab list or order. [Shelf Editor](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-58C25080-5864-4709-BE3A-0543E9D1FCF2.htm)
+| [Windows menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-67B0B363-94D9-4BF9-BDB6-75B966F5B144.htm)
+| [Shelves](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-4A21F741-C9AC-4AE5-897E-B6F8C68ADF90.htm)
+
+Slice: show a disabled Shelf Editor button with a hover and AccessKit reason
+under Windows > Settings/Preferences. Exact order among AztecCraft's Windows
+menu items is PROVISIONAL. A click leaves the scene and token intact. There is
+no shelf customization operation or state to expose through MCP. Tabs, gear
+and item context routes, shelf and item management, persistence, and Maya
+runtime comparison remain open.
+
 ## File > Export All / Export Selection as OBJ (issue #22)
 
 Maya 2026 research (cited and summarised, not copied):

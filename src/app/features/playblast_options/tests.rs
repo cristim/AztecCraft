@@ -105,6 +105,32 @@ fn the_windows_menu_item_opens_the_option_box_with_the_timeline_range_and_defaul
 }
 
 #[test]
+fn the_windows_shelf_editor_row_is_accessibly_disabled() {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut editor = editor();
+    run(&mut editor, &ctx);
+    press(&mut editor, &ctx, "Windows");
+    press(&mut editor, &ctx, "Settings/Preferences");
+    run(&mut editor, &ctx);
+    let output = run(&mut editor, &ctx);
+    let (at, enabled, reason) =
+        control(&output, accesskit::Role::Button, "Shelf Editor").expect("Shelf Editor");
+    assert!(!enabled);
+    assert_eq!(
+        reason.as_deref(),
+        Some("Unavailable: Shelf customization is not implemented yet")
+    );
+    let scene = editor.history.scene().clone();
+    let token = editor.scene_token;
+    let status = editor.status.clone();
+    crate::app::tests::click_at(&mut editor, &ctx, SIZE, at);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.status, status);
+}
+
+#[test]
 fn start_dispatches_the_typed_playblast_operation_and_cancel_stops_it() {
     let dir = tempfile::tempdir().unwrap();
     let ctx = egui::Context::default();
