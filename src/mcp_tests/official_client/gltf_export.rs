@@ -175,7 +175,7 @@ async fn sdk_export_gltf_writes_new_files_and_never_changes_the_scene() {
     let shape = editor.history.scene().shapes()[0].id();
     editor
         .apply_operation(Operation::AssignSessionMaterial {
-            shape,
+            shapes: vec![shape],
             material: azteccraft::native_scene::MaterialChoice::New {
                 color: [1.0, 0.0, 0.0],
             },

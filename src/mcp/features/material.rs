@@ -5,7 +5,7 @@ use crate::{
         registry::ToolSpec,
     },
 };
-use azteccraft::native_scene::{MaterialChoice, SessionMaterialId};
+use azteccraft::native_scene::{LambertAttribute, MaterialChoice, SessionMaterialId};
 use rmcp::{
     model::{ErrorData, JsonObject},
     schemars::{self, JsonSchema},
@@ -49,7 +49,11 @@ struct CreateSessionMaterialArgs {
 #[serde(deny_unknown_fields)]
 struct AssignSessionMaterialArgs {
     scene_token: String,
-    shape_id: String,
+    /// One shape. Give this or `shape_ids`.
+    shape_id: Option<String>,
+    /// Several shapes assigned in one undo step: non-empty, no duplicates, at most 1024. All or
+    /// nothing. Give this or `shape_id`.
+    shape_ids: Option<Vec<String>>,
     /// An existing material id from inspection or a create reply. Give this or `color`.
     material_id: Option<String>,
     /// Creates a new lambert with this colour in the same undo step. Give this or `material_id`.
@@ -62,6 +66,28 @@ struct SetSessionMaterialColorArgs {
     scene_token: String,
     material_id: String,
     color: [f64; 3],
+}
+
+/// The lambert colour attributes besides `color`, by Maya's long names.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+enum SessionMaterialAttribute {
+    #[serde(rename = "transparency")]
+    Transparency,
+    #[serde(rename = "ambientColor")]
+    AmbientColor,
+    #[serde(rename = "incandescence")]
+    Incandescence,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SetSessionMaterialAttributeArgs {
+    scene_token: String,
+    material_id: String,
+    attribute: SessionMaterialAttribute,
+    /// Linear RGB, each channel 0 through 1.
+    rgb: [f64; 3],
 }
 
 fn material_id(value: &str) -> Result<SessionMaterialId, ErrorData> {
@@ -98,12 +124,22 @@ fn parse_assign_session_material(arguments: JsonObject) -> Result<RemoteRequest,
             ));
         }
     };
+    let shapes = match (&args.shape_id, &args.shape_ids) {
+        (Some(id), None) => vec![native_id(id)?],
+        (None, Some(ids)) => ids
+            .iter()
+            .map(|id| native_id(id))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => {
+            return Err(ErrorData::invalid_params(
+                "Give exactly one of shape_id or shape_ids",
+                None,
+            ));
+        }
+    };
     Ok(scoped(
         token(&args.scene_token)?,
-        Operation::AssignSessionMaterial {
-            shape: native_id(&args.shape_id)?,
-            material,
-        },
+        Operation::AssignSessionMaterial { shapes, material },
     ))
 }
 
@@ -114,6 +150,23 @@ fn parse_set_session_material_color(arguments: JsonObject) -> Result<RemoteReque
         Operation::SetSessionMaterialColor {
             material: material_id(&args.material_id)?,
             color: args.color,
+        },
+    ))
+}
+
+fn parse_set_session_material_attribute(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: SetSessionMaterialAttributeArgs = decode(arguments)?;
+    let attribute = match args.attribute {
+        SessionMaterialAttribute::Transparency => LambertAttribute::Transparency,
+        SessionMaterialAttribute::AmbientColor => LambertAttribute::AmbientColor,
+        SessionMaterialAttribute::Incandescence => LambertAttribute::Incandescence,
+    };
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetSessionMaterialAttribute {
+            material: material_id(&args.material_id)?,
+            attribute,
+            rgb: args.rgb,
         },
     ))
 }
@@ -137,7 +190,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "assign_session_material",
-        description: "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Saved to an authored .ma with the shape's membership; refused as .mb with save_unwritable reason session_materials until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        description: "Assign a session material to whole authored shapes; every instance of each shape changes. Give shape_id (one shape) or shape_ids (several, assigned all-or-nothing as one undo step; an empty, duplicated, over-1024 or unknown-shape list is refused with invalid_shape_list or unknown_shape and changes nothing). Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Saved to an authored .ma with the shape's membership; refused as .mb with save_unwritable reason session_materials until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<AssignSessionMaterialArgs>,
         parse: parse_assign_session_material,
         idempotent: false,
@@ -148,6 +201,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Set the linear RGB colour of a session material created in this session (stored in single precision: each channel is rounded to the nearest f32); the initial material 0 is locked. Saved to an authored .ma like the other session material state; unrelated to the saved Phong set_material_diffuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<SetSessionMaterialColorArgs>,
         parse: parse_set_session_material_color,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "set_session_material_attribute",
+        description: "Set the linear RGB Transparency (transparency), Ambient Color (ambientColor) or Incandescence (incandescence) of a session material created in this session, default black, each channel 0 through 1 (stored in single precision: rounded to the nearest f32); the initial material 0 is locked. Stored, undoable and saved to an authored .ma when not black, but they do not yet change the viewport (PROVISIONAL). Use set_session_material_color for the colour. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        schema: schema::<SetSessionMaterialAttributeArgs>,
+        parse: parse_set_session_material_attribute,
         idempotent: true,
         read_only: false,
     },

@@ -10,6 +10,7 @@ use azteccraft::marking_menu::{Resolved, Target, Zone};
 use azteccraft::scene::Primitive;
 use eframe::egui::{Event, accesskit};
 
+/// The rows every mode shows; the component modes add `COMPONENT_ROWS` after them.
 const ROWS: [&str; 8] = [
     "Select All",
     "Select Hierarchy",
@@ -19,6 +20,14 @@ const ROWS: [&str; 8] = [
     "Make Live",
     "Metadata",
     "Assign Material",
+];
+
+const COMPONENT_ROWS: [&str; 5] = [
+    "Bevel",
+    "Multi-Cut",
+    "Insert Edge Loop",
+    "Connect",
+    "Detach",
 ];
 
 #[test]
@@ -32,7 +41,12 @@ fn the_list_has_the_same_rows_in_every_mode_with_mode_dependent_availability() {
     ] {
         let menu = mesh_menu(mode, None);
         let labels: Vec<_> = menu.list.iter().map(|e| e.label.as_str()).collect();
-        assert_eq!(labels, ROWS, "{mode:?}");
+        let expected: Vec<&str> = if mode.is_component() {
+            ROWS.iter().chain(&COMPONENT_ROWS).copied().collect()
+        } else {
+            ROWS.to_vec()
+        };
+        assert_eq!(labels, expected, "{mode:?}");
         let rules_enabled = !mode.is_component();
         for row in 0..3 {
             assert_eq!(
@@ -51,7 +65,7 @@ fn the_list_has_the_same_rows_in_every_mode_with_mode_dependent_availability() {
             menu.is_enabled(Target::List(3)),
             "Deselect All is always enabled"
         );
-        for (row, label) in ROWS.iter().enumerate().skip(4) {
+        for (row, label) in expected.iter().enumerate().skip(4) {
             assert!(
                 matches!(menu.resolve(Target::List(row)), Resolved::Disabled(_)),
                 "{label} is visibly unsupported"
@@ -245,7 +259,10 @@ fn pick_finds_list_rows_only_for_a_sticky_menu_and_dial_zones_elsewhere() {
         editor.native_operation(Operation::SetSelectionMode(mode));
         let origin = nowhere(&view);
         let menu = editor.marking_menu_for_mode();
-        assert_eq!(menu.list.len(), 8, "{mode:?}");
+        assert_eq!(
+            menu.list.len(),
+            ROWS.len() + if mode.is_component() { 5 } else { 0 }
+        );
         at(&mut editor, &ctx, 1.0, rmb(origin, true));
         let row0 = list_center(&editor, origin, &view, 0);
         let held = pick(&menu, &editor.marking_menu, view.rect, [row0.x, row0.y]);

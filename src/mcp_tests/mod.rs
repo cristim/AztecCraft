@@ -124,6 +124,7 @@ mod official_client {
         ));
     }
 
+    mod align_objects;
     mod animation;
     mod ascii;
     mod attribute_editor;
@@ -132,6 +133,7 @@ mod official_client {
     mod camera;
     mod camera_bookmarks;
     mod camera_film_back;
+    mod camera_tab;
     mod component_set;
     mod cylinder_cone;
     mod delete_selected;
@@ -146,6 +148,7 @@ mod official_client {
     mod helix_soccer_ball;
     mod image_plane;
     mod image_plane_refusals;
+    mod image_plane_tab;
     mod inspect_budget;
     mod inspect_paging;
     mod limits;
@@ -153,6 +156,7 @@ mod official_client {
     mod manipulator_size;
     mod marking_menu;
     mod marquee;
+    mod match_transformations;
     mod material;
     mod maya_import;
     mod move_vertices;
@@ -168,6 +172,7 @@ mod official_client {
     mod pivot_edit_guards;
     mod pivots;
     mod platonic;
+    mod playblast;
     mod pyramid_prism;
     mod reduce;
     mod rotate_step;
@@ -179,6 +184,7 @@ mod official_client {
 
     mod component_move;
     mod create_uvs;
+    mod naming;
     mod pointer_hit;
     mod primitive_options;
     mod recovery;

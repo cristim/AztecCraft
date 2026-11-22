@@ -7,12 +7,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -30,12 +31,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -53,12 +55,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true pending_action=- dirty=true
+    can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -76,12 +79,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true pending_action=- dirty=true
+    can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -99,12 +103,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false pending_action=New
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -122,12 +127,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false pending_action=New
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -145,12 +151,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=true keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false pending_action=- dirty=true
+    can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -168,12 +175,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=true keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false pending_action=- dirty=true
+    can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -191,12 +199,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=native native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=native
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -214,12 +223,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=native native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=native
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -237,12 +247,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=remote native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=remote
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -260,12 +271,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=remote native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=remote
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -283,12 +295,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
-    name_intent=false material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true
+    has_channel_draft=true name_intent=false material_draft=- name_field="draft name"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -306,12 +319,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
-    name_intent=false material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true
+    has_channel_draft=true name_intent=false material_draft=- name_field="draft name"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -329,7 +343,8 @@
   baseline:
     nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None
     status="Ready | Create a cube, plane, sphere, cylinder or cone to start" status_is_error=false
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
@@ -353,7 +368,8 @@
   baseline:
     nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None
     status="Ready | Create a cube, plane, sphere, cylinder or cone to start" status_is_error=false
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
@@ -377,12 +393,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true
+    has_channel_draft=true name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -400,12 +417,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true
+    has_channel_draft=true name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -423,12 +441,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -446,12 +465,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -469,12 +489,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -492,12 +513,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -515,12 +537,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -538,12 +561,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -561,12 +585,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=native native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=native
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -584,12 +609,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=remote native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=remote
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -607,12 +633,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true pending_action=- dirty=true
+    can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -630,12 +657,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false pending_action=New
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -653,12 +681,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
-    name_intent=false material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true
+    has_channel_draft=true name_intent=false material_draft=- name_field="draft name"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -676,12 +705,13 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene edited" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="pCube1"
+    channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -699,12 +729,13 @@
   baseline:
     nodes=1 selected=curve selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="curve"
+    channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -722,12 +753,13 @@
   baseline:
     nodes=1 selected=curve selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="curve"
+    channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 rotate_step=None scale_step=None bookmarks= image_plane=none recovery_files=0
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -745,10 +777,10 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="object"
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="object"
     channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
@@ -769,10 +801,10 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="object"
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="object"
     channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
@@ -793,10 +825,10 @@
   baseline:
     nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="object"
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="object"
     channel_fields=1,0,0,0,0,14.32394487827058,1,1,1 channel_intents=000000000 session_materials=[]
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=true can_redo=false
@@ -817,10 +849,10 @@
   baseline:
     nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="object"
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="object"
     channel_fields=1,0,0,0,0,14.32394487827058,1,1,1 channel_intents=000000000 session_materials=[]
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=true can_redo=false
@@ -841,10 +873,10 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="object"
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="object"
     channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
@@ -865,10 +897,10 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="object"
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="object"
     channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
@@ -889,10 +921,10 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="object"
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="object"
     channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=false
@@ -913,10 +945,10 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
-    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
-    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
-    name_intent=false material_draft=- name_field="object"
+    menu_set=Modeling outliner_visible=true sidebar_panels=channel_box=true
+    attribute_editor=panel=false tab=None status="Scene ready" status_is_error=false active_move=none
+    native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false
+    has_channel_draft=false name_intent=false material_draft=- name_field="object"
     channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=false

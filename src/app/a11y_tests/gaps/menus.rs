@@ -1,5 +1,7 @@
 //! Recorded violations: menus. The Lighting/Shading rows are disabled unsupported rows (#467);
 //! they gain the `Unavailable: ` description when `describe_disabled` lands.
+//! The View > Image Plane scenarios (#459) see the same disabled View rows (Back, Bottom, Left
+//! Side, Undo, Redo) under their own scenario names: those keys are the existing View gaps.
 
 /// Recorded on Windows only, see `gaps::WINDOWS`.
 pub(super) const WINDOWS_GAPS: &[&str] =
@@ -75,6 +77,16 @@ pub(super) const GAPS: &[&str] = &[
     "menu-uv|R3|Button|root/<Window>#0/UV/Spherical",
     "menu-uv|R3|Button|root/<Window>#0/UV/Split UVs",
     "menu-uv|R3|Button|root/<Window>#0/UV/UV Set Editor",
+    "menu-view-image-plane-set|R3|Button|root/<Window>#0/View/Back",
+    "menu-view-image-plane-set|R3|Button|root/<Window>#0/View/Bottom",
+    "menu-view-image-plane-set|R3|Button|root/<Window>#0/View/Left Side",
+    "menu-view-image-plane-set|R3|Button|root/<Window>#0/View/Redo",
+    "menu-view-image-plane-set|R3|Button|root/<Window>#0/View/Undo",
+    "menu-view-image-plane|R3|Button|root/<Window>#0/View/Back",
+    "menu-view-image-plane|R3|Button|root/<Window>#0/View/Bottom",
+    "menu-view-image-plane|R3|Button|root/<Window>#0/View/Left Side",
+    "menu-view-image-plane|R3|Button|root/<Window>#0/View/Redo",
+    "menu-view-image-plane|R3|Button|root/<Window>#0/View/Undo",
     "menu-view|R3|Button|root/<Window>#0/View/Back",
     "menu-view|R3|Button|root/<Window>#0/View/Bottom",
     "menu-view|R3|Button|root/<Window>#0/View/Left Side",

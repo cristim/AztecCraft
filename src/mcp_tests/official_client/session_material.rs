@@ -449,7 +449,7 @@ async fn session_material_sdk_native_colour_draft_blocks_remote_recolour_and_com
             color: [0.5; 3],
         })
         .unwrap();
-    editor.session_color_draft.as_mut().unwrap().text[0] = "1".into();
+    editor.session_color_draft.as_mut().unwrap().rows[0].text[0] = "1".into();
     let refused = tool(
         &mut editor,
         &context,
@@ -467,6 +467,185 @@ async fn session_material_sdk_native_colour_draft_blocks_remote_recolour_and_com
         json!([1.0, 0.5, 0.5])
     );
     assert_eq!(base_rgb(&editor), [[255, 128, 128]]);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn session_material_sdk_multi_shape_assign_is_one_undo_step_and_refusals_change_nothing() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let ids: Vec<String> = editor
+        .history
+        .scene()
+        .shapes()
+        .iter()
+        .map(|shape| shape.id().to_decimal())
+        .collect();
+    assert_eq!(ids.len(), 2);
+    let grey = [[83, 83, 83], [83, 83, 83]];
+    assert_eq!(base_rgb(&editor), grey);
+
+    let scene = editor.history.scene().clone();
+    let can_undo = editor.history.can_undo();
+    for (arguments, code) in [
+        (json!({"shape_ids": [], "color": RED}), "invalid_shape_list"),
+        (
+            json!({"shape_ids": [ids[0], ids[0]], "color": RED}),
+            "invalid_shape_list",
+        ),
+        (
+            json!({"shape_ids": [ids[0], "9999"], "color": RED}),
+            "unknown_shape",
+        ),
+        (
+            json!({"shape_ids": vec![ids[0].clone(); 1025], "color": RED}),
+            "invalid_shape_list",
+        ),
+    ] {
+        let result = tool(
+            &mut editor,
+            &context,
+            &client,
+            "assign_session_material",
+            arguments,
+        )
+        .await;
+        assert_eq!(result["error"]["code"], code);
+        assert_eq!(editor.history.scene(), &scene);
+        assert_eq!(editor.history.can_undo(), can_undo);
+    }
+    for arguments in [
+        json!({"shape_id": ids[0], "shape_ids": [ids[1]], "color": RED}),
+        json!({"color": RED}),
+    ] {
+        let mut arguments = arguments;
+        arguments["scene_token"] = json!(editor.scene_token.to_string());
+        let rejected = call_response(
+            &mut editor,
+            &context,
+            client.peer(),
+            "assign_session_material",
+            arguments,
+        )
+        .await;
+        assert!(rejected.is_err());
+        assert_eq!(editor.history.scene(), &scene);
+    }
+
+    let assigned = tool(
+        &mut editor,
+        &context,
+        &client,
+        "assign_session_material",
+        json!({"shape_ids": ids, "color": RED}),
+    )
+    .await;
+    assert_eq!(assigned["outcome"], "session_material");
+    assert_eq!(base_rgb(&editor), [[255, 0, 0], [255, 0, 0]]);
+    assert_eq!(editor.history.scene().session_materials().len(), 2);
+    let inspection = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(inspection["session_materials"][1]["shape_count"], 2);
+
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    assert_eq!(base_rgb(&editor), grey, "one undo reverts both shapes");
+    assert_eq!(editor.history.scene().session_materials().len(), 1);
+    tool(&mut editor, &context, &client, "redo", json!({})).await;
+    assert_eq!(base_rgb(&editor), [[255, 0, 0], [255, 0, 0]]);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn session_material_attribute_sets_reads_back_undoes_and_refuses() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "create_session_material",
+        json!({"color": RED}),
+    )
+    .await;
+    let fresh = inspect_json(&mut editor, &context, &client).await;
+    for key in ["transparency", "ambient_color", "incandescence"] {
+        assert_eq!(
+            fresh["session_materials"][1][key],
+            json!([0.0, 0.0, 0.0]),
+            "{key}"
+        );
+    }
+    for (attribute, key) in [
+        ("transparency", "transparency"),
+        ("ambientColor", "ambient_color"),
+        ("incandescence", "incandescence"),
+    ] {
+        let args = json!({"material_id": "1", "attribute": attribute, "rgb": [0.25, 0.5, 1.0]});
+        let set = tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_session_material_attribute",
+            args.clone(),
+        )
+        .await;
+        assert_eq!(set["outcome"], "changed", "{attribute}");
+        let again = tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_session_material_attribute",
+            args,
+        )
+        .await;
+        assert_eq!(again["outcome"], "unchanged", "{attribute}");
+        let read = inspect_json(&mut editor, &context, &client).await;
+        assert_eq!(
+            read["session_materials"][1][key],
+            json!([0.25, 0.5, 1.0]),
+            "{attribute}"
+        );
+        assert_eq!(read["session_materials"][1]["color"], json!(RED));
+        tool(&mut editor, &context, &client, "undo", json!({})).await;
+        let undone = inspect_json(&mut editor, &context, &client).await;
+        assert_eq!(
+            undone["session_materials"][1][key],
+            json!([0.0, 0.0, 0.0]),
+            "{attribute}"
+        );
+    }
+    let scene = editor.history.scene().clone();
+    for (arguments, code) in [
+        (
+            json!({"material_id": "7", "attribute": "transparency", "rgb": RED}),
+            "unknown_session_material",
+        ),
+        (
+            json!({"material_id": "0", "attribute": "incandescence", "rgb": RED}),
+            "initial_session_material_locked",
+        ),
+        (
+            json!({"material_id": "1", "attribute": "ambientColor", "rgb": [0.0, 2.0, 0.0]}),
+            "invalid_session_color",
+        ),
+    ] {
+        let result = tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_session_material_attribute",
+            arguments,
+        )
+        .await;
+        assert_eq!(result["error"]["code"], code);
+        assert_eq!(editor.history.scene(), &scene);
+    }
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

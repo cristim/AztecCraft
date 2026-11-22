@@ -634,6 +634,7 @@ fn painted_submission(
                 SelectionFeedback::Object(prefix),
                 true,
                 crate::editor_operations::ShadingMode::SmoothShadeAll,
+                None,
             )
             .unwrap();
     });
@@ -893,7 +894,8 @@ fn missing_startup_state_fails_and_uninitialized_ui_never_paints_fake_geometry()
                 &view,
                 SelectionFeedback::Object(None),
                 true,
-                crate::editor_operations::ShadingMode::SmoothShadeAll
+                crate::editor_operations::ShadingMode::SmoothShadeAll,
+                None
             ),
             Err(RenderError::Uninitialized)
         ));
@@ -1020,6 +1022,7 @@ fn fractional_offset_viewport_uses_one_physical_projection_for_clicks_and_paint(
                         SelectionFeedback::Object(None),
                         true,
                         crate::editor_operations::ShadingMode::SmoothShadeAll,
+                        None,
                     )
                     .unwrap();
                 let recorded = recorded_submission(&producer);
@@ -1089,6 +1092,7 @@ fn fractional_capture_click_handle_and_submission_share_the_same_physical_aspect
                         SelectionFeedback::Object(None),
                         true,
                         crate::editor_operations::ShadingMode::SmoothShadeAll,
+                        None,
                     )
                     .unwrap();
                 last = Some(captured);
@@ -1161,6 +1165,7 @@ fn degraded_face_centres_reach_the_overlay_text() {
                     },
                     true,
                     crate::editor_operations::ShadingMode::Wireframe,
+                    None,
                 )
                 .unwrap(),
         );

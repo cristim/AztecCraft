@@ -236,3 +236,48 @@ fn a_held_dial_near_an_edge_is_drawn_where_its_zones_are_flicked() {
     }
     assert_eq!(checked, 7, "Object mode shows seven entries");
 }
+
+#[test]
+fn a_change_that_bypasses_the_menu_closes_it_before_a_choice_can_apply() {
+    for change in ["selection", "scene", "token"] {
+        let (mut editor, ctx, view) = setup();
+        let origin = nowhere(&view);
+        open_sticky(&mut editor, &ctx, origin);
+        match change {
+            "selection" => editor.select(None),
+            "scene" => editor.create(azteccraft::scene::Primitive::Cube),
+            // Only the token moves: the document was replaced under the menu.
+            _ => editor.scene_token = uuid::Uuid::new_v4(),
+        }
+        // The very next frame carries a click on Vertex: the menu must already be closed.
+        let vertex = origin + offset(Zone::NW, 60.0);
+        at(&mut editor, &ctx, 2.0, lmb(vertex, true));
+        at(&mut editor, &ctx, 2.1, lmb(vertex, false));
+        assert_eq!(editor.selection_mode, SelectionMode::Object, "{change}");
+        assert!(!editor.marking_menu.holds_overlay(), "{change}");
+    }
+    // Control: with no outside change the same click chooses Vertex.
+    let (mut editor, ctx, view) = setup();
+    let origin = nowhere(&view);
+    open_sticky(&mut editor, &ctx, origin);
+    let vertex = origin + offset(Zone::NW, 60.0);
+    at(&mut editor, &ctx, 2.0, lmb(vertex, true));
+    at(&mut editor, &ctx, 2.1, lmb(vertex, false));
+    assert_eq!(editor.selection_mode, SelectionMode::Vertex);
+}
+
+#[test]
+fn a_menu_reopened_in_the_frame_that_closed_it_keeps_its_own_baseline() {
+    let (mut editor, ctx, view) = setup();
+    let origin = nowhere(&view);
+    open_sticky(&mut editor, &ctx, origin);
+    editor.select(None);
+    // One frame: the outside change closes the old menu, then the press opens a new one.
+    at(&mut editor, &ctx, 2.0, rmb(origin, true));
+    assert!(editor.marking_menu.holds_overlay(), "the new menu opens");
+    at(&mut editor, &ctx, 2.1, vec![]);
+    assert!(
+        editor.marking_menu.is_active(),
+        "and is not closed by the old baseline on the next frame"
+    );
+}

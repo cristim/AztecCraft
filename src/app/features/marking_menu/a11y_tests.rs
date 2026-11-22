@@ -50,8 +50,8 @@ fn the_drawn_dial_exposes_named_stateful_entries_with_reasons() {
     );
     assert_eq!(
         items.len(),
-        16,
-        "eight zones and eight list rows: {items:?}"
+        8 + 13,
+        "eight zones and thirteen list rows (component mode): {items:?}"
     );
 }
 
@@ -145,8 +145,9 @@ fn the_dial_is_a_menu_node_that_parents_its_entries() {
         stack.extend(node.children().iter().copied());
     }
     assert_eq!(
-        items, 16,
-        "eight zones and eight rows are descendants of the menu node"
+        items,
+        8 + 13,
+        "eight zones and thirteen rows are descendants of the menu node"
     );
 }
 

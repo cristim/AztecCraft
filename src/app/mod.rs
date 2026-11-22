@@ -7,7 +7,8 @@ use crate::editor_operations::{
 use crate::editor_operations::{
     AttributeEditorTabInspection, CameraInspection, EdgeSelectionTarget, FaceSelectionPolicy,
     FaceSelectionTarget, NodeInspection, RemoteRequest, SceneInspection, ShapeInspection,
-    SidebarPanelsInspection, TransformInput, UnitsInspection, VertexSelectionTarget,
+    SidebarPanelsInspection, SnapSpacingInspection, TransformInput, UnitsInspection,
+    VertexSelectionTarget,
 };
 use azteccraft::native_scene::LinearUnit;
 #[cfg(any(test, feature = "mcp"))]
@@ -52,15 +53,21 @@ impl MaterialDraft {
     }
 }
 
-/// A pending R/G/B edit of one session material. It keeps the original id and colour so a commit
-/// refuses when either changed meanwhile (ids are reused after undo).
+/// One attribute's pending R/G/B text.
+struct DraftRow {
+    original: [f64; 3],
+    text: [String; 3],
+    intent: bool,
+}
+
+/// A pending R/G/B edit of one session material, one row per `LambertAttribute::ALL`. It keeps
+/// the original id and values so a commit refuses when either changed meanwhile (ids are reused
+/// after undo).
 struct SessionColorDraft {
     scene_token: Uuid,
     shape: NativeId,
     material: azteccraft::native_scene::SessionMaterialId,
-    original: [f64; 3],
-    text: [String; 3],
-    intent: bool,
+    rows: [DraftRow; 4],
 }
 
 #[derive(Clone, Copy)]
@@ -93,6 +100,18 @@ pub struct Editor {
     view_history: features::camera::ViewHistory,
     /// Session-only (#459); cleared when a document replaces the scene (New, Open).
     image_plane: Option<azteccraft::image_plane::ops::ImagePlaneState>,
+    plate: features::image_plane::PlateRuntime,
+    /// The Image Plane tab's text fields (see `image_plane_attributes`).
+    plane_drafts: [String; features::image_plane_attributes::FIELDS],
+    /// Whether `plane_drafts` hold the stored values since the tab was last shown.
+    plane_drafts_primed: bool,
+    /// The Camera tab's text fields (see `camera_attributes`) and whether they hold the stored
+    /// values since the tab was last shown.
+    camera_drafts: [String; features::camera_attributes::FIELDS],
+    camera_drafts_primed: bool,
+    /// Each field's text when it gained focus (the stored text while unfocused): a blur commits
+    /// only text that differs from it.
+    camera_baseline: [String; features::camera_attributes::FIELDS],
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     /// Off unless the host enables it; recovery files never replace the scene file.
@@ -135,8 +154,8 @@ pub struct Editor {
     joint_options: features::rigging::JointOptionsUi,
     extrude_options: features::extrude_options::ExtrudeOptionsUi,
     timeline: features::timeline::Timeline,
-    #[cfg(any(test, feature = "mcp"))]
     playblast: features::playblast::Playblast,
+    playblast_ui: features::playblast_options::PlayblastUi,
     uv: features::uv::UvUi,
     native_input_pending: bool,
     /// The marking menu's interaction. Closed until the native wiring lands; the overlay gate
@@ -146,6 +165,8 @@ pub struct Editor {
     marking_menu_keys: Vec<egui::Event>,
     /// A transient hover reason in the Help Line and the status it replaced.
     marking_menu_help: Option<(String, String)>,
+    /// The scene token and selection generation an open menu was opened on.
+    marking_menu_baseline: Option<(Uuid, u64)>,
     status: String,
     /// Exact `status` text produced from an error whose text can carry a local path. The native
     /// status line shows it; the inspection withholds it. Matching on the text keeps it from going
@@ -177,6 +198,12 @@ impl Default for Editor {
             native_camera_drag: false,
             view_history: Default::default(),
             image_plane: None,
+            plate: Default::default(),
+            plane_drafts: Default::default(),
+            plane_drafts_primed: false,
+            camera_drafts: Default::default(),
+            camera_drafts_primed: false,
+            camera_baseline: Default::default(),
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
             recovery: None,
@@ -213,13 +240,14 @@ impl Default for Editor {
             joint_options: Default::default(),
             extrude_options: Default::default(),
             timeline: Default::default(),
-            #[cfg(any(test, feature = "mcp"))]
             playblast: Default::default(),
+            playblast_ui: Default::default(),
             uv: Default::default(),
             native_input_pending: false,
             marking_menu: Default::default(),
             marking_menu_keys: Vec::new(),
             marking_menu_help: None,
+            marking_menu_baseline: None,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,
             refusal_after_change: None,
@@ -373,10 +401,8 @@ impl eframe::App for Editor {
             // No tick runs while hidden, so `playing` must not claim otherwise.
             self.stop_playback();
             // After process_mcp so a start request is ticked in the same pass.
-            #[cfg(any(test, feature = "mcp"))]
             self.tick_playblast(ctx);
         } else {
-            #[cfg(any(test, feature = "mcp"))]
             self.tick_playblast(ctx);
         }
     }
@@ -417,13 +443,16 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
         features::rotate_step::scale_step_field_id(),
     ]
     .into_iter()
-    .chain((0..3).map(features::colour_edit_id))
+    .chain(features::session_attribute_field_ids())
     .chain((0..9).map(channel_edit_id))
     .chain((0..6).map(pivot_edit_id))
     .chain(features::primitive_options::option_field_ids())
     .chain(features::rigging::joint_field_ids())
     .chain([features::extrude_options::thickness_field_id()])
+    .chain(features::playblast_options::field_ids())
     .chain(features::timeline::field_ids())
+    .chain(features::image_plane_attributes::field_ids())
+    .chain(features::camera_attributes::field_ids())
 }
 
 /// egui 0.37 surrenders a focused field on a press elsewhere when the field reads its style,
@@ -509,6 +538,12 @@ mod image_plane_tests;
 mod image_plane_inspect_tests;
 
 #[cfg(test)]
+mod image_plane_wiring_tests;
+
+#[cfg(test)]
+mod image_plane_menu_tests;
+
+#[cfg(test)]
 pub(in crate::app) mod overlay_gate_tests;
 
 #[cfg(test)]
@@ -540,11 +575,17 @@ mod gpu_viewport_tests;
 mod undrawable_scene_tests;
 
 #[cfg(test)]
+mod align_objects_tests;
+#[cfg(test)]
 mod group_menu_tests;
 #[cfg(test)]
 mod group_ops_tests;
 #[cfg(test)]
 mod group_persistence_tests;
+#[cfg(test)]
+mod match_transformations_tests;
+#[cfg(test)]
+mod naming_tests;
 #[cfg(test)]
 mod pivot_ops_tests;
 #[cfg(test)]

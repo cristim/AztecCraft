@@ -12,7 +12,7 @@
 use super::*;
 use crate::editor_operations::{
     ComponentKind, ComponentMoveSpace, FileDecision, ManipulationSpace, ManipulationValue,
-    MarqueeMode, MoveDistance, PlayblastRequest, RemoteRequest, SelectRule, ToolHandle,
+    MarqueeMode, MoveDistance, NameScope, PlayblastRequest, RemoteRequest, SelectRule, ToolHandle,
     TransformInput,
 };
 use azteccraft::history::{Command, UndoQueue};
@@ -20,10 +20,10 @@ use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::image_plane::model::ImagePlaneEdit;
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, MaterialChoice,
-    MoveSpace, NativeScene, PivotReset, ReduceTarget, ReparentKeep, RotateAxis, ScaleHandle,
-    SessionMaterialId, TransformChannels, TransformTarget, UngroupOptions, UvProjectAxis,
-    VertexSetTarget, VertexTarget, WorldAxis,
+    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, LambertAttribute,
+    MaterialChoice, MoveSpace, NativeScene, PivotReset, ReduceTarget, ReparentKeep, RotateAxis,
+    ScaleHandle, SessionMaterialId, TransformChannels, TransformTarget, UngroupOptions,
+    UvProjectAxis, VertexSetTarget, VertexTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PlatonicSolidKind, PrimitiveOptions};
 use azteccraft::viewport::FilmBackEdit;
@@ -775,6 +775,14 @@ fn build(state: State) -> Rig {
 }
 
 /// One entry per operation kind. `Operation` is not `Clone`, so each cell rebuilds its samples.
+fn align_options() -> azteccraft::native_scene::AlignOptions {
+    use azteccraft::native_scene::{AlignMode, AlignOptions, AlignTo};
+    AlignOptions {
+        modes: [AlignMode::Min, AlignMode::None, AlignMode::None],
+        to: AlignTo::SelectionAverage,
+    }
+}
+
 fn seeds(t: &Targets) -> Vec<Operation> {
     vec![
         Operation::SetActiveTool(ActiveTool::Move),
@@ -827,7 +835,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             color: [1.0, 0.0, 0.0],
         },
         Operation::AssignSessionMaterial {
-            shape: t.shape,
+            shapes: vec![t.shape],
             material: MaterialChoice::New {
                 color: [1.0, 0.0, 0.0],
             },
@@ -835,6 +843,11 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::SetSessionMaterialColor {
             material: SessionMaterialId::from_index(1),
             color: [0.0, 1.0, 0.0],
+        },
+        Operation::SetSessionMaterialAttribute {
+            material: SessionMaterialId::from_index(1),
+            attribute: LambertAttribute::Transparency,
+            rgb: [0.25, 0.5, 0.75],
         },
         Operation::SetCurrentTime { time: 5.0 },
         Operation::SetPlaybackRange {
@@ -1071,6 +1084,25 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::FreezeTransformations {
             channels: TransformChannels::ALL,
+            expected_selection_generation: None,
+        },
+        Operation::MatchTransformations {
+            channels: TransformChannels::ALL,
+            expected_selection_generation: None,
+        },
+        Operation::AlignObjects {
+            options: align_options(),
+            expected_selection_generation: None,
+        },
+        Operation::PrefixHierarchyNames {
+            prefix: "pre_".into(),
+            expected_selection_generation: None,
+        },
+        Operation::SearchReplaceNames {
+            scope: NameScope::Selected,
+            search: "Cube".into(),
+            replace: "Box".into(),
+            match_case: true,
             expected_selection_generation: None,
         },
         // Differs from the rig's default camera so a Changed outcome is observable.
@@ -1469,7 +1501,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "assign_session_material(new)",
                 Operation::AssignSessionMaterial {
-                    shape: t.shape,
+                    shapes: vec![t.shape],
                     material: MaterialChoice::New {
                         color: [1.0, 0.0, 0.0],
                     },
@@ -1478,7 +1510,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "assign_session_material(initial)",
                 Operation::AssignSessionMaterial {
-                    shape: t.shape,
+                    shapes: vec![t.shape],
                     material: MaterialChoice::Existing(SessionMaterialId::from_index(0)),
                 },
             ),
@@ -1498,6 +1530,27 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     Operation::SetSessionMaterialColor {
                         material: SessionMaterialId::from_index(1),
                         color: [0.0, 1.0, 0.0],
+                    },
+                )
+            },
+        ],
+        Operation::SetSessionMaterialAttribute { .. } => vec![
+            sample(
+                "set_session_material_attribute(unknown)",
+                Operation::SetSessionMaterialAttribute {
+                    material: SessionMaterialId::from_index(1),
+                    attribute: LambertAttribute::Transparency,
+                    rgb: [0.25, 0.5, 0.75],
+                },
+            ),
+            Sample {
+                pre: Pre::SessionMaterial,
+                ..sample(
+                    "set_session_material_attribute(created)",
+                    Operation::SetSessionMaterialAttribute {
+                        material: SessionMaterialId::from_index(1),
+                        attribute: LambertAttribute::Transparency,
+                        rgb: [0.25, 0.5, 0.75],
                     },
                 )
             },
@@ -2615,6 +2668,132 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
+        Operation::MatchTransformations { .. } => vec![
+            // One object selected: every state shows its guard, the idle cell the refusal.
+            sample(
+                "match_transformations(single)",
+                Operation::MatchTransformations {
+                    channels: TransformChannels::ALL,
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "match_transformations(multi)",
+                    Operation::MatchTransformations {
+                        channels: TransformChannels::ALL,
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "match_transformations(face_mode)",
+                    Operation::MatchTransformations {
+                        channels: TransformChannels::ALL,
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
+        Operation::AlignObjects { .. } => vec![
+            sample(
+                "align_objects(single)",
+                Operation::AlignObjects {
+                    options: align_options(),
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "align_objects(multi)",
+                    Operation::AlignObjects {
+                        options: align_options(),
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "align_objects(face_mode)",
+                    Operation::AlignObjects {
+                        options: align_options(),
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
+        Operation::PrefixHierarchyNames { .. } => vec![
+            sample(
+                "prefix_hierarchy_names(single)",
+                Operation::PrefixHierarchyNames {
+                    prefix: "pre_".into(),
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "prefix_hierarchy_names(multi)",
+                    Operation::PrefixHierarchyNames {
+                        prefix: "pre_".into(),
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "prefix_hierarchy_names(face_mode)",
+                    Operation::PrefixHierarchyNames {
+                        prefix: "pre_".into(),
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
+        Operation::SearchReplaceNames { .. } => vec![
+            sample(
+                "search_replace_names(selected)",
+                Operation::SearchReplaceNames {
+                    scope: NameScope::Selected,
+                    search: "Cube".into(),
+                    replace: "Box".into(),
+                    match_case: true,
+                    expected_selection_generation: None,
+                },
+            ),
+            sample(
+                "search_replace_names(all)",
+                Operation::SearchReplaceNames {
+                    scope: NameScope::All,
+                    search: "Cube".into(),
+                    replace: "Box".into(),
+                    match_case: true,
+                    expected_selection_generation: None,
+                },
+            ),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "search_replace_names(face_mode)",
+                    Operation::SearchReplaceNames {
+                        scope: NameScope::Hierarchy,
+                        search: "Cube".into(),
+                        replace: "Box".into(),
+                        match_case: true,
+                        expected_selection_generation: None,
+                    },
+                )
+            },
+        ],
         Operation::ExtrudeFace { .. } => vec![sample(
             "extrude_face",
             Operation::ExtrudeFace {
@@ -2881,6 +3060,26 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     tab: crate::editor_operations::AttributeEditorTab::Shape(t.shape),
                 },
             ),
+            // No image plane exists in the rig, so the tab is refused with a reason.
+            Sample {
+                pre: Pre::AttributeEditorDock,
+                ..sample(
+                    "select_attribute_editor_tab(image_plane,no_plane)",
+                    Operation::SelectAttributeEditorTab {
+                        tab: crate::editor_operations::AttributeEditorTab::ImagePlane,
+                    },
+                )
+            },
+            // The camera tab always resolves, so it is the one tab selectable in every rig.
+            Sample {
+                pre: Pre::AttributeEditorDock,
+                ..sample(
+                    "select_attribute_editor_tab(camera)",
+                    Operation::SelectAttributeEditorTab {
+                        tab: crate::editor_operations::AttributeEditorTab::Camera,
+                    },
+                )
+            },
         ],
         Operation::Orbit { .. } => vec![sample(
             "orbit",
@@ -3245,7 +3444,7 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
         Pre::AssignedMaterial => {
             if let Some(shape) = rig.editor.history.scene().shapes().first().map(|s| s.id()) {
                 let _ = rig.editor.history.execute(Command::AssignSessionMaterial {
-                    shape,
+                    shapes: vec![shape],
                     material: MaterialChoice::New {
                         color: [1.0, 0.0, 0.0],
                     },

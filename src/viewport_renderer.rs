@@ -103,11 +103,12 @@ const EDGE_RGB: [u8; 3] = [120, 180, 235];
 const SELECTED_EDGE_RGB: [u8; 3] = [255, 178, 96];
 
 // Maya 2025.1's default grid (`grid -q`): size 12, major lines every 5 units and 5 divisions
-// between them, so a line every unit out to +/-12 on the y = 0 plane (#160). Reading size as
-// the half-length, and these greys, are PROVISIONAL; Maya also draws the axes bold, which
+// between them, so a line every unit out to +/-12 on the y = 0 plane (#160). The unit is the
+// scene linear unit (`ViewScene::grid_spacing_cm`, #454), as the grid command's "linear units".
+// Reading size as the half-length, and these greys, are PROVISIONAL; Maya also draws the axes bold, which
 // one-pixel lines cannot.
 const GRID_SIZE: i32 = 12;
-const GRID_MAJOR_EVERY: i32 = 5;
+const GRID_MAJOR_EVERY: i32 = azteccraft::snap::DEFAULT_GRID_OPTIONS.lines_every as i32;
 const GRID_AXIS_GRAY: u8 = 85;
 const GRID_MAJOR_GRAY: u8 = 64;
 const GRID_DIVISION_GRAY: u8 = 48;
@@ -343,7 +344,6 @@ pub struct ViewportRenderer {
     format: wgpu::TextureFormat,
     max_buffer_size: u64,
     /// The window's device and queue (cheap clones), for the playblast; none without a window.
-    #[cfg(feature = "mcp")]
     gpu: Option<(wgpu::Device, wgpu::Queue)>,
     #[cfg(test)]
     submission: Arc<egui::epaint::mutex::Mutex<Option<Submission>>>,
@@ -398,7 +398,6 @@ impl ViewportRenderer {
             errors,
             format: state.target_format,
             max_buffer_size: state.device.limits().max_buffer_size,
-            #[cfg(feature = "mcp")]
             gpu: Some((state.device.clone(), state.queue.clone())),
             #[cfg(test)]
             submission: Arc::default(),
@@ -426,6 +425,7 @@ impl ViewportRenderer {
         selection: SelectionFeedback<'_>,
         grid_visible: bool,
         shading: ShadingMode,
+        plate: Option<PlateDraw>,
     ) -> Result<(egui::epaint::PaintCallback, bool), RenderError> {
         if let Some(error) = self.terminal_error() {
             return Err(RenderError::Backend(error));
@@ -437,7 +437,7 @@ impl ViewportRenderer {
         {
             return Err(RenderError::Camera(InvalidCameraInput));
         }
-        let submission = Submission::new(
+        let mut submission = Submission::new(
             scene,
             camera,
             physical_size,
@@ -447,6 +447,7 @@ impl ViewportRenderer {
             self.format,
             self.max_buffer_size,
         )?;
+        submission.plate = plate;
         #[cfg(test)]
         {
             *self.submission.lock() = Some(submission.clone());
@@ -467,6 +468,8 @@ impl ViewportRenderer {
 
 #[cfg_attr(test, derive(Clone))]
 struct Submission {
+    /// The camera image plane, drawn first and outside the empty-geometry early returns.
+    plate: Option<PlateDraw>,
     bytes: Vec<u8>,
     surfaces: Range<u32>,
     lines: Range<u32>,
@@ -503,7 +506,12 @@ impl Submission {
             .eye_relative_matrix(aspect)
             .map_err(RenderError::Camera)?;
         let eye_world = camera.eye().as_dvec3();
-        let mut vertices = if grid_visible { GRID_VERTICES } else { 0 };
+        let grid_spacing = grid_visible.then(|| scene.grid_spacing_cm()).flatten();
+        let mut vertices = if grid_spacing.is_some() {
+            GRID_VERTICES
+        } else {
+            0
+        };
         for instance in scene.instances() {
             let outline_corners = if selection.edges_shown(instance) {
                 0
@@ -575,6 +583,7 @@ impl Submission {
             max_buffer_size,
         )?;
         let mut submission = Self {
+            plate: None,
             bytes: Vec::new(),
             surfaces: 0..0,
             lines: 0..0,
@@ -624,10 +633,11 @@ impl Submission {
             }
         }
         let surface_end = submission.vertex_count();
-        if grid_visible {
-            let extent = GRID_SIZE as f32;
+        if let Some(spacing) = grid_spacing {
+            let spacing = spacing as f32;
+            let extent = GRID_SIZE as f32 * spacing;
             for index in -GRID_SIZE..=GRID_SIZE {
-                let coordinate = index as f32;
+                let coordinate = index as f32 * spacing;
                 let color = Color32::from_gray(grid_gray(index));
                 for point in [
                     Vec3::new(coordinate, 0.0, -extent),
@@ -948,6 +958,7 @@ impl Submission {
 }
 
 struct GpuResources {
+    plate: PlateGpu,
     surfaces: wgpu::RenderPipeline,
     lines: wgpu::RenderPipeline,
     markers: wgpu::RenderPipeline,
@@ -1002,6 +1013,7 @@ impl GpuResources {
             })
         };
         Self {
+            plate: PlateGpu::new(device, format),
             // Surfaces hide their own steepest depth slope behind themselves so a flat marker on
             // a steep face stays whole; the CPU occlusion test applies the same amount.
             surfaces: pipeline(
@@ -1029,6 +1041,13 @@ impl GpuResources {
         queue: &wgpu::Queue,
         submission: &Submission,
     ) -> Result<(), RenderError> {
+        // A plate failure is its own state (`PlateGpu::error`), never a viewport error.
+        match &submission.plate {
+            Some(plate) => {
+                let _ = self.plate.upload(device, queue, plate);
+            }
+            None => self.plate.clear(),
+        }
         if submission.bytes.is_empty() {
             return Ok(());
         }
@@ -1068,6 +1087,9 @@ impl GpuResources {
         pass: &mut wgpu::RenderPass<'_>,
         submission: &Submission,
     ) -> Result<(), RenderError> {
+        if let Some(plate) = &submission.plate {
+            self.plate.draw(pass, plate);
+        }
         if submission.bytes.is_empty() {
             return Ok(());
         }
@@ -1131,10 +1153,12 @@ impl CallbackTrait for ViewportCallback {
     }
 }
 
-#[cfg(any(test, feature = "mcp"))]
+mod plate;
+use plate::PlateGpu;
+pub(crate) use plate::{PlateAt, PlateDraw};
+
 mod offscreen;
 
-#[cfg(feature = "mcp")]
 mod frame_renderer;
 
 #[cfg(test)]

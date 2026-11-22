@@ -112,6 +112,7 @@ impl Editor {
         }
         let tool_intent = self.shortcuts(ui.ctx());
         self.tick_playback(ui.input(|i| i.time), text_edit_focused(ui.ctx()));
+        let _ = self.update_plate(ui.ctx());
         egui::Panel::top("menu_shelf").show(ui, |ui| {
             self.menus(ui, &mut selection_intent, &mut delete_intent)
         });
@@ -126,6 +127,10 @@ impl Editor {
                 },
                 &self.status,
             );
+            if let Some(plate) = self.plate_status_text() {
+                ui.separator();
+                ui.label(plate);
+            }
             ui.separator();
             self.help_line(ui);
         });
@@ -275,6 +280,10 @@ impl Editor {
         let mut view_requested = None;
         let mut frame_all_requested = false;
         let mut frame_selection_requested = None;
+        let mut import_image_requested = false;
+        let mut remove_image_requested = false;
+        let mut attributes_requested = false;
+        let mut camera_attributes_requested = false;
         ui.horizontal(|ui| {
             ui.label(self.view_name());
             ui.label(match self.selection_mode {
@@ -351,6 +360,50 @@ impl Editor {
                             frame_selection_requested = Some(with_children);
                             ui.close();
                         }
+                    }
+                    ui.separator();
+                    // View > Image Plane in the Maya panel menu (2022 and 2026 pages; PROVISIONAL
+                    // for 2027). The only camera is the live one, so there is no "no camera" state.
+                    ui.menu_button("Image Plane", |ui| {
+                        if ui.button("Import Image").clicked() {
+                            import_image_requested = true;
+                            ui.close();
+                        }
+                        let has_plane = self.image_plane.is_some();
+                        let tab = ui
+                            .add_enabled(has_plane, egui::Button::new(features::image_plane::ATTRIBUTES_ROW_LABEL))
+                            .on_disabled_hover_text(features::image_plane::NO_PLANE_FOR_TAB_REASON);
+                        if !has_plane {
+                            features::primitive_options::describe_unavailable(
+                                ui.ctx(),
+                                tab.id,
+                                features::image_plane::NO_PLANE_FOR_TAB_REASON,
+                            );
+                        }
+                        if tab.clicked() {
+                            attributes_requested = true;
+                            ui.close();
+                        }
+                        let remove = ui
+                            .add_enabled(has_plane, egui::Button::new("Remove Image Plane"))
+                            .on_disabled_hover_text(features::image_plane::NO_PLANE_REASON);
+                        if !has_plane {
+                            features::primitive_options::describe_unavailable(
+                                ui.ctx(),
+                                remove.id,
+                                features::image_plane::NO_PLANE_REASON,
+                            );
+                        }
+                        if remove.clicked() {
+                            remove_image_requested = true;
+                            ui.close();
+                        }
+                    });
+                    // View > Camera Attribute Editor (Maya panel View menu); the Camera tab needs no
+                    // selection, so the row is always enabled.
+                    if ui.button("Camera Attribute Editor").clicked() {
+                        camera_attributes_requested = true;
+                        ui.close();
                     }
                 });
                 ui.menu_button("Shading", |ui| {
@@ -431,6 +484,7 @@ impl Editor {
         self.primitive_options_window(ui.ctx());
         self.joint_options_window(ui.ctx());
         self.extrude_options_window(ui.ctx());
+        self.playblast_options_window(ui.ctx());
         self.uv_windows(ui.ctx());
         let sidebar_request = self.sidebar_panel_request.take();
         let tab_request = self.attribute_editor_tab_request.take();
@@ -463,6 +517,30 @@ impl Editor {
             && self.scene_token == frame_token
         {
             self.frame_selected(with_children);
+        }
+        if import_image_requested && self.scene_token == frame_token {
+            self.import_image_dialog();
+        }
+        if remove_image_requested && self.scene_token == frame_token {
+            self.native_operation(Operation::RemoveImagePlane);
+        }
+        if attributes_requested && self.scene_token == frame_token {
+            self.native_operation(Operation::SetSidebarPanelVisible {
+                panel: SidebarPanel::AttributeEditor,
+                visible: true,
+            });
+            self.native_operation(Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::ImagePlane,
+            });
+        }
+        if camera_attributes_requested && self.scene_token == frame_token {
+            self.native_operation(Operation::SetSidebarPanelVisible {
+                panel: SidebarPanel::AttributeEditor,
+                visible: true,
+            });
+            self.native_operation(Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::Camera,
+            });
         }
         if let Some(mode) = shading_requested
             && self.scene_token == frame_token
@@ -744,6 +822,7 @@ impl Editor {
                 },
                 self.grid_visible,
                 self.shading,
+                self.plate_draw(),
             );
             self.viewport_error = painted.as_ref().err().map(|error| error.category());
             let degraded = matches!(painted, Ok(true));

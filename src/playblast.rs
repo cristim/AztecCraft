@@ -59,6 +59,11 @@ pub enum PlayblastError {
     Evaluate {
         frame: i64,
     },
+    /// The camera image plane has an image for this frame that could not be read or drawn. A
+    /// frame without a file is not an error: it renders without a plate, as the viewport shows it.
+    Plate {
+        frame: i64,
+    },
 }
 
 impl fmt::Display for PlayblastError {
@@ -81,6 +86,7 @@ impl fmt::Display for PlayblastError {
             Self::WriterPanicked => f.write_str("the writer thread panicked"),
             Self::Busy => f.write_str("a playblast is already running"),
             Self::Evaluate { frame } => write!(f, "the scene cannot be evaluated at frame {frame}"),
+            Self::Plate { frame } => write!(f, "the image plane cannot be drawn at frame {frame}"),
         }
     }
 }

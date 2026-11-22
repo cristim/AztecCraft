@@ -27,6 +27,7 @@ impl Editor {
     fn inspect_session_materials(
         &self,
     ) -> Vec<crate::editor_operations::SessionMaterialInspection> {
+        use azteccraft::native_scene::LambertAttribute;
         let scene = self.history.scene();
         if scene.appearance_incomplete() {
             return Vec::new();
@@ -42,6 +43,9 @@ impl Editor {
                     name: material.name().into(),
                     shading_group: group.name().into(),
                     color: material.color(),
+                    transparency: material.attribute(LambertAttribute::Transparency),
+                    ambient_color: material.attribute(LambertAttribute::AmbientColor),
+                    incandescence: material.attribute(LambertAttribute::Incandescence),
                     editable: index != 0,
                     shape_count: scene.session_material_shape_count(
                         azteccraft::native_scene::SessionMaterialId::from_index(index),
@@ -538,6 +542,13 @@ impl Editor {
             viewport_error,
             grid_visible: self.grid_visible,
             snap_to_grid: self.snap_to_grid,
+            snap_spacing: self
+                .grid_snap_spacing_cm()
+                .ok()
+                .map(|cm| SnapSpacingInspection {
+                    scene_units: azteccraft::snap::DEFAULT_GRID_OPTIONS.line_spacing_units(),
+                    cm,
+                }),
             shading: self.shading,
             menu_set: self.menu_set,
             face_centres_hidden: self.face_centres_hidden,
@@ -554,15 +565,23 @@ impl Editor {
                 .map(|tab| match tab {
                     AttributeEditorTab::Transform(id) => AttributeEditorTabInspection {
                         kind: "transform",
-                        id: id.to_decimal(),
+                        id: Some(id.to_decimal()),
                     },
                     AttributeEditorTab::Shape(id) => AttributeEditorTabInspection {
                         kind: "shape",
-                        id: id.to_decimal(),
+                        id: Some(id.to_decimal()),
                     },
                     AttributeEditorTab::Material(id) => AttributeEditorTabInspection {
                         kind: "material",
-                        id: id.to_decimal(),
+                        id: Some(id.to_decimal()),
+                    },
+                    AttributeEditorTab::ImagePlane => AttributeEditorTabInspection {
+                        kind: "image_plane",
+                        id: None,
+                    },
+                    AttributeEditorTab::Camera => AttributeEditorTabInspection {
+                        kind: "camera",
+                        id: None,
                     },
                 }),
             depth_complete: gpu_healthy,
@@ -669,6 +688,7 @@ impl Editor {
                 can_redo_view: !self.view_history.redo.is_empty(),
                 native_gesture_active: self.native_camera_drag,
                 focal_length_mm: self.camera.lens().focal_length_mm(),
+                blocked_cameras: self.history.scene().blocked_camera_names(),
                 film_back: match self.camera.lens() {
                     azteccraft::viewport::Lens::Film(film) => {
                         Some(crate::editor_operations::FilmBackInspection {
@@ -734,28 +754,11 @@ impl Editor {
     /// Read-only view of the session image plane (#459): no file is opened, nothing is decoded and
     /// neither the plane nor any cache changes. Only the file name leaves, never the directory.
     fn inspect_image_plane(&self) -> Option<crate::editor_operations::ImagePlaneInspection> {
-        use azteccraft::image_plane::{
-            cache::PLATE_CACHE_BUDGET_BYTES,
-            model::{PlateDisplayMode, PlateFit},
-            sequence::frame_path,
-        };
+        use azteccraft::image_plane::model::{PlateDisplayMode, PlateFit};
         let state = self.image_plane.as_ref()?;
         let plane = &state.plane;
-        let file_name = |path: &std::path::Path| {
-            path.file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-        };
-        let (resolved_frame, resolved_file_name) = if plane.use_frame_extension {
-            let frame = i64::from(self.timeline.current) + i64::from(plane.frame_offset);
-            (
-                Some(frame),
-                frame_path(&plane.image_name, frame)
-                    .ok()
-                    .and_then(|path| file_name(&path)),
-            )
-        } else {
-            (None, file_name(&plane.image_name))
-        };
+        let report = self.plate_frame_report(plane);
+        let usage = self.plate.cache_usage();
         Some(crate::editor_operations::ImagePlaneInspection {
             settings: crate::editor_operations::ImagePlaneSettingsInspection {
                 use_frame_extension: plane.use_frame_extension,
@@ -791,17 +794,14 @@ impl Editor {
                 width: state.image_size.0,
                 height: state.image_size.1,
             },
-            frame_state: if resolved_file_name.is_some() {
-                "not_loaded"
-            } else {
-                "missing"
-            },
-            resolved_file_name,
-            resolved_frame,
+            frame_state: report.state,
+            frame_error: report.error,
+            resolved_file_name: report.file_name,
+            resolved_frame: report.resolved_frame,
             cache: crate::editor_operations::ImagePlaneCacheInspection {
-                frames: 0,
-                bytes: 0,
-                budget_bytes: PLATE_CACHE_BUDGET_BYTES,
+                frames: usage.0,
+                bytes: usage.1,
+                budget_bytes: usage.2,
             },
         })
     }
