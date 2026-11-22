@@ -146,6 +146,7 @@ pub struct Editor {
     pivot_drafts: [String; 6],
     pivot_intents: [bool; 6],
     name_intent: bool,
+    outliner_rename_open: bool,
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
     session_color_draft: Option<SessionColorDraft>,
@@ -231,6 +232,7 @@ impl Default for Editor {
             pivot_drafts: Default::default(),
             pivot_intents: [false; 6],
             name_intent: false,
+            outliner_rename_open: false,
             material_shape: None,
             material_draft: None,
             session_color_draft: None,
@@ -432,6 +434,7 @@ fn unsupported(ui: &mut egui::Ui, label: &str) -> egui::Response {
 fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     [
         name_edit_id(),
+        outliner_name_edit_id(),
         material_edit_id(),
         features::manipulation_tool::manipulation_value_id(),
         features::rotate_step::step_field_id(),
@@ -498,6 +501,10 @@ fn text_edit_focused(ctx: &egui::Context) -> bool {
             .focused()
             .is_some_and(|id| text_field_ids().any(|field| field == id))
     })
+}
+
+fn outliner_name_edit_id() -> egui::Id {
+    egui::Id::unique("outliner_name")
 }
 
 fn name_edit_id() -> egui::Id {

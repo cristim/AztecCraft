@@ -187,3 +187,7 @@ operations and existing focus/popup/modal/close guards. MCP tools are
 remain independent except the established native valid-draft commit policy.
 Actual SDK tests cover empty history, round trips, schema errors and the full
 Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+### Outliner inline rename (#68)
+
+The [Maya 2027.2 Outliner](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-4B9A9A3A-83C5-445A-95D5-64104BC47406.htm) and [object rename help](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-23889AB4-8BA2-4157-876A-A929E4313913.htm) place rename on a double-click of the node name or Enter on the selected Outliner row. Reuse the Channel Box name draft and native commit rules, including Escape cancellation and MCP draft protection. Failure feedback, blur commit and the supported rename scope follow the existing editor (PROVISIONAL).

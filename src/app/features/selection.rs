@@ -239,6 +239,11 @@ impl Editor {
             }
         };
         let mut choice = None;
+        let mut name_blur = false;
+        let rename_admitted = !self.files.is_modal()
+            && !self.files.is_closing()
+            && self.history.active_manipulation().is_none()
+            && !self.overlay_open(ui.ctx());
         egui::ScrollArea::vertical().show(ui, |ui| {
             for target in paths {
                 let Ok(node) = self.history.scene().node(target.node) else {
@@ -261,14 +266,48 @@ impl Editor {
                     } else {
                         RichText::new(label)
                     };
-                    let row = ui.selectable_label(self.selection.contains(&target), text);
-                    if row.clicked() {
-                        choice = Some((target, ui.input(|input| input.modifiers)));
+                    if self.outliner_rename_open && self.selection.lead() == Some(&target) {
+                        let response = ui.add_enabled(
+                            rename_admitted,
+                            egui::TextEdit::singleline(&mut self.name)
+                                .id(outliner_name_edit_id())
+                                .desired_width(ui.available_width()),
+                        );
+                        ui.ctx().accesskit_node_builder(response.id, |node| {
+                            node.set_label("Outliner object name");
+                        });
+                        self.name_intent |= response.changed();
+                        name_blur |= response.lost_focus();
+                        return;
+                    }
+                    let row = ui
+                        .push_id(&target.path, |ui| {
+                            ui.selectable_label(self.selection.contains(&target), text)
+                        })
+                        .inner;
+                    let rename = rename_admitted
+                        && !text_edit_focused(ui.ctx())
+                        && (row.double_clicked()
+                            || (row.has_focus()
+                                && ui.input(|input| input.key_pressed(Key::Enter))));
+                    if row.clicked() || rename {
+                        let modifiers = ui.input(|input| input.modifiers);
+                        if rename_admitted && modifiers.is_none() {
+                            row.request_focus();
+                        }
+                        choice = Some((target, modifiers, rename));
                     }
                 });
             }
         });
-        if let Some((target, modifiers)) = choice {
+        if name_blur
+            && rename_admitted
+            && self.blur_commit_skip_frames == 0
+            && self.commit_pending()
+        {
+            self.outliner_rename_open = false;
+        }
+        if let Some((target, modifiers, rename)) = choice {
             // The 2027 Outliner page: Shift adds to the selection and Ctrl toggles. Shift wins
             // when both are held (PROVISIONAL). Unlike the viewport, Ctrl on an unselected row
             // selects it.
@@ -280,7 +319,7 @@ impl Editor {
                 None
             };
             let (node, instance_path) = (target.node, Some(target.path));
-            self.native_operation(match change {
+            let selected = self.native_operation_result(match change {
                 Some(change) => Operation::ModifySelection {
                     change,
                     node,
@@ -291,6 +330,15 @@ impl Editor {
                     instance_path,
                 },
             });
+            if rename && modifiers.is_none() && selected.is_ok() {
+                if let Some(reason) = self.authoring_refusal() {
+                    self.status = reason;
+                    self.error = true;
+                } else {
+                    self.outliner_rename_open = true;
+                    ui.memory_mut(|memory| memory.request_focus(outliner_name_edit_id()));
+                }
+            }
         }
         if self.history.scene().nodes().is_empty() {
             ui.weak("No objects. Create a primitive above.");
